@@ -89,23 +89,24 @@ function ManagerPage() {
         </div>
       </Card>
 
-      <SectionHeader eyebrow="Crew" title="Completion" action={<button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><Plus className="h-3.5 w-3.5" /> Action Item</button>} />
+      <SectionHeader eyebrow="Crew" title="Completion Today" action={<button onClick={() => setOpen(true)} disabled={!hasShift} title={hasShift ? "" : "Open a shift to create action items"} className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] disabled:opacity-50"><Plus className="h-3.5 w-3.5" /> Action Item</button>} />
       <Card className="p-0 overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.4fr_140px_90px_90px_80px_140px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
-          <div>Employee</div><div>Role</div><div>Assigned</div><div>Done</div><div>%</div><div>Status</div>
+        <div className="hidden md:grid grid-cols-[1.4fr_140px_90px_140px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
+          <div>Employee</div><div>Role</div><div>Completed</div><div>Status</div>
         </div>
-        {CREW.map((c, i) => {
-          const pct = Math.round((c.done / c.assigned) * 100);
+        {crew.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No crew profiles yet.</div>}
+        {crew.map((c, i) => {
+          const roleLabel = ROLES[c.role as RoleId]?.name ?? c.role;
+          const tone = c.done >= 6 ? "success" : c.done >= 3 ? "gold" : "warning";
+          const status = !hasShift ? "OFF SHIFT" : c.done >= 6 ? "STRONG" : c.done >= 3 ? "ON TRACK" : "LOW ACTIVITY";
           return (
-            <div key={c.name} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_90px_90px_80px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
-              <div className="font-medium">{c.name}</div>
-              <div><RoleBadge role={c.role} /></div>
-              <div>{c.assigned}</div>
-              <div>{c.done}</div>
-              <div>{pct}%</div>
-              <div>
-                <StatusPill tone={c.status === "COMPLETE" ? "success" : c.status === "ON TRACK" ? "gold" : "warning"}>{c.status}</StatusPill>
+            <div key={c.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.4fr_140px_90px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
+              <div className="font-medium truncate">{c.name}</div>
+              <div className="md:order-none order-3 md:col-auto col-span-2 md:contents">
+                <div className="md:block"><RoleBadge role={roleLabel} /></div>
               </div>
+              <div className="hidden md:block">{c.done}</div>
+              <div className="md:block"><StatusPill tone={tone as any}>{!hasShift ? status : `${c.done} done`}</StatusPill></div>
             </div>
           );
         })}
