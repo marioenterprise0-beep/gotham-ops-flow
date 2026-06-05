@@ -1,203 +1,144 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { listInventory, receiveStock, logWaste, submitCount } from "@/lib/inventory.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({ meta: [{ title: "Inventory · Gotham OS" }] }),
   component: Inventory,
 });
 
-type Item = { name: string; unit: string; par: number; begin: number; end: number; waste: number };
-
-const SEED: Record<string, Item[]> = {
-  Proteins: [
-    { name: "Halal smash patties", unit: "lbs",   par: 100, begin: 100, end: 18,  waste: 1 },
-    { name: "Halal chicken",       unit: "lbs",   par: 60,  begin: 60,  end: 32,  waste: 0.5 },
-    { name: "Gyro / mixed meat",   unit: "lbs",   par: 40,  begin: 40,  end: 28,  waste: 0 },
-    { name: "Falafel",             unit: "balls", par: 200, begin: 200, end: 140, waste: 4 },
-  ],
-  "Buns & Bread": [
-    { name: "Brioche buns", unit: "ea", par: 240, begin: 240, end: 52, waste: 6 },
-    { name: "Pita bread",   unit: "ea", par: 120, begin: 120, end: 78, waste: 0 },
-  ],
-  Sauces: [
-    { name: "Gotham sauce",  unit: "qts", par: 10, begin: 10, end: 7,  waste: 0 },
-    { name: "White sauce",   unit: "qts", par: 8,  begin: 8,  end: 4,  waste: 0 },
-    { name: "Hot sauce",     unit: "qts", par: 6,  begin: 6,  end: 5,  waste: 0 },
-    { name: "Garlic sauce",  unit: "qts", par: 6,  begin: 6,  end: 2,  waste: 0 },
-    { name: "Ketchup",       unit: "qts", par: 12, begin: 12, end: 14, waste: 0 },
-    { name: "Mustard",       unit: "qts", par: 6,  begin: 6,  end: 5,  waste: 0 },
-  ],
-  Packaging: [
-    { name: "Burger wrappers",     unit: "ea", par: 500, begin: 500, end: 220, waste: 0 },
-    { name: "Boxes / trays (sm)",  unit: "ea", par: 200, begin: 200, end: 120, waste: 0 },
-    { name: "Boxes / trays (lg)",  unit: "ea", par: 150, begin: 150, end: 90,  waste: 0 },
-    { name: "Bags",                unit: "ea", par: 300, begin: 300, end: 170, waste: 0 },
-    { name: "Forks",               unit: "ea", par: 500, begin: 500, end: 380, waste: 0 },
-    { name: "Napkins",             unit: "pk", par: 12,  begin: 12,  end: 9,   waste: 0 },
-  ],
-  Beverages: [
-    { name: "Bottled water", unit: "ea", par: 96, begin: 96, end: 40, waste: 0 },
-    { name: "Canned sodas",  unit: "ea", par: 72, begin: 72, end: 28, waste: 0 },
-    { name: "Juice",         unit: "ea", par: 36, begin: 36, end: 22, waste: 0 },
-    { name: "Cups",          unit: "ea", par: 250, begin: 250, end: 130, waste: 0 },
-    { name: "Lids",          unit: "ea", par: 250, begin: 250, end: 130, waste: 0 },
-    { name: "Straws",        unit: "ea", par: 400, begin: 400, end: 220, waste: 0 },
-  ],
-  Cleaning: [
-    { name: "Gloves (boxes)",      unit: "bx", par: 12, begin: 12, end: 9, waste: 0 },
-    { name: "Paper towels",        unit: "rl", par: 12, begin: 12, end: 5, waste: 0 },
-    { name: "Sanitizer solution",  unit: "gal", par: 4, begin: 4, end: 2, waste: 0 },
-    { name: "Dish soap",           unit: "gal", par: 2, begin: 2, end: 1, waste: 0 },
-    { name: "Trash bags",          unit: "ea",  par: 100, begin: 100, end: 60, waste: 0 },
-  ],
+const CATEGORY_LABELS: Record<string, string> = {
+  protein: "Proteins", bun: "Buns & Bread", sauce: "Sauces",
+  produce: "Produce", packaging: "Packaging", supplies: "Supplies",
 };
 
-type Cat = keyof typeof SEED;
-const CATS = Object.keys(SEED) as Cat[];
+type Item = {
+  id: string; name: string; category: string; unit: string;
+  par_level: number; low_threshold: number; current_qty: number;
+};
 
 type Status = "CRITICAL" | "LOW" | "OK" | "OVERSTOCKED";
-function statusOf(item: Item): Status {
-  const ratio = item.par === 0 ? 1 : item.end / item.par;
-  if (ratio < 0.25) return "CRITICAL";
-  if (ratio < 0.5)  return "LOW";
-  if (ratio > 1.1)  return "OVERSTOCKED";
+function statusOf(it: Item): Status {
+  const ratio = it.par_level === 0 ? 1 : Number(it.current_qty) / Number(it.par_level);
+  if (Number(it.current_qty) <= Number(it.low_threshold)) return "CRITICAL";
+  if (ratio < 0.5) return "LOW";
+  if (ratio > 1.1) return "OVERSTOCKED";
   return "OK";
+}
+function statusTone(s: Status) {
+  return s === "CRITICAL" ? "danger" : s === "LOW" ? "warning" : s === "OVERSTOCKED" ? "info" : "success";
 }
 
 function Inventory() {
-  const [cat, setCat] = useState<Cat>("Proteins");
-  const [data, setData] = useState(SEED);
-  const [showReceive, setShowReceive] = useState(false);
-  const [showWaste, setShowWaste] = useState(false);
+  const qc = useQueryClient();
+  const list = useServerFn(listInventory);
+  const { data: items = [], isLoading } = useQuery<Item[]>({
+    queryKey: ["inventory"],
+    queryFn: () => list() as Promise<Item[]>,
+  });
 
-  const items = data[cat];
+  const cats = Array.from(new Set(items.map((i) => i.category)));
+  const [cat, setCat] = useState<string>("protein");
+  const visible = items.filter((i) => i.category === cat);
 
-  const counts = useMemo(() => {
-    const all = (Object.values(data) as Item[][]).flat();
-    let crit = 0, low = 0, ok = 0;
-    all.forEach((i) => {
-      const s = statusOf(i);
-      if (s === "CRITICAL") crit++; else if (s === "LOW") low++; else if (s === "OK" || s === "OVERSTOCKED") ok++;
-    });
-    return { crit, low, ok };
-  }, [data]);
+  const counts = items.reduce((acc, it) => {
+    const s = statusOf(it);
+    if (s === "CRITICAL") acc.crit++; else if (s === "LOW") acc.low++; else acc.ok++;
+    return acc;
+  }, { crit: 0, low: 0, ok: 0 });
 
-  const update = (idx: number, key: "begin" | "end" | "waste", v: number) => {
-    setData((d) => ({ ...d, [cat]: d[cat].map((it, i) => i === idx ? { ...it, [key]: v } : it) }));
-  };
+  const [receiveItem, setReceiveItem] = useState<Item | null>(null);
+  const [wasteItem, setWasteItem] = useState<Item | null>(null);
+
+  const submitCountFn = useServerFn(submitCount);
+  const countMut = useMutation({
+    mutationFn: (vars: { itemId: string; countQty: number }) => submitCountFn({ data: vars }),
+    onSuccess: () => { toast.success("Count saved"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   return (
     <AppShell>
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         <SummaryCard tone="danger"  label="Critical"      value={counts.crit} />
         <SummaryCard tone="warning" label="Low Stock"     value={counts.low} />
         <SummaryCard tone="success" label="Fully Stocked" value={counts.ok} />
       </div>
 
-      {/* Category tabs */}
       <div className="mt-4 -mx-4 px-4 overflow-x-auto">
         <div className="flex gap-2 min-w-max">
-          {CATS.map((c) => (
+          {cats.map((c) => (
             <button key={c} onClick={() => setCat(c)}
               className={cn(
                 "rounded-md px-3.5 py-2 text-xs font-semibold uppercase tracking-[1.2px] border transition",
                 c === cat ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
-              )}>{c}</button>
+              )}>{CATEGORY_LABELS[c] ?? c}</button>
           ))}
         </div>
       </div>
 
-      <SectionHeader eyebrow={cat} title="Live Counts" action={<StatusPill tone="gold">Beg → End → Variance</StatusPill>} />
+      <SectionHeader eyebrow={CATEGORY_LABELS[cat] ?? cat} title="Live Counts" action={<StatusPill tone="gold">On-hand vs Par</StatusPill>} />
 
-      {/* Desktop table */}
-      <Card className="p-0 overflow-hidden hidden md:block">
-        <div className="grid grid-cols-[1.4fr_60px_90px_90px_100px_80px_120px] items-center gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
-          <div>Item</div><div>Par</div><div>Begin</div><div>End</div><div>Variance</div><div>Waste</div><div>Status</div>
-        </div>
-        {items.map((it, i) => {
-          const variance = it.end - it.begin;
-          const s = statusOf(it);
-          return (
-            <div key={it.name} className={cn("grid grid-cols-[1.4fr_60px_90px_90px_100px_80px_120px] items-center gap-3 px-4 py-3", i && "border-t border-border")}>
-              <div className="font-medium text-sm">{it.name} <span className="text-muted-foreground text-xs">({it.unit})</span></div>
-              <div className="text-sm font-semibold">{it.par}</div>
-              <NumInput value={it.begin} onChange={(v) => update(i, "begin", v)} />
-              <NumInput value={it.end}   onChange={(v) => update(i, "end", v)} />
-              <div className={cn("text-sm font-semibold", variance < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]")}>{variance > 0 ? "+" : ""}{variance}</div>
-              <NumInput value={it.waste} onChange={(v) => update(i, "waste", v)} />
-              <div><StatusPill tone={statusTone(s)}>{s}</StatusPill></div>
-            </div>
-          );
-        })}
-      </Card>
+      {isLoading && <Card>Loading…</Card>}
 
-      {/* Mobile cards */}
-      <div className="md:hidden space-y-2">
-        {items.map((it, i) => {
-          const variance = it.end - it.begin;
+      <div className="space-y-2">
+        {visible.map((it) => {
           const s = statusOf(it);
+          const pct = Math.min(150, Math.round((Number(it.current_qty) / Math.max(1, Number(it.par_level))) * 100));
           return (
-            <Card key={it.name} className="p-3">
-              <div className="flex items-start justify-between gap-2">
+            <Card key={it.id} className="p-3">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm truncate">{it.name}</div>
-                  <div className="label-caps text-muted-foreground mt-0.5">Par {it.par} {it.unit}</div>
+                  <div className="font-semibold text-sm">{it.name}</div>
+                  <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                <Field label="Begin"><NumInput value={it.begin} onChange={(v) => update(i, "begin", v)} /></Field>
-                <Field label="End"><NumInput value={it.end} onChange={(v) => update(i, "end", v)} /></Field>
-                <Field label="Waste"><NumInput value={it.waste} onChange={(v) => update(i, "waste", v)} /></Field>
-                <Field label="Variance">
-                  <div className={cn("h-9 grid place-items-center rounded-md border border-border text-sm font-semibold", variance < 0 ? "text-[var(--color-danger)]" : "text-[var(--color-success)]")}>{variance > 0 ? "+" : ""}{variance}</div>
-                </Field>
+              <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2 items-center">
+                <div>
+                  <div className="text-2xl font-semibold">{Number(it.current_qty)} <span className="text-xs text-muted-foreground">{it.unit} · {pct}%</span></div>
+                  <div className="mt-1 h-1.5 rounded-full bg-[#EAEAE5] overflow-hidden">
+                    <div className={cn("h-full rounded-full", s === "CRITICAL" ? "bg-[var(--color-danger)]" : s === "LOW" ? "bg-[var(--color-warning)]" : "bg-[var(--color-success)]")} style={{ width: `${Math.min(100, pct)}%` }} />
+                  </div>
+                </div>
+                <button onClick={() => setReceiveItem(it)} className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold inline-flex items-center gap-1">
+                  <Truck className="h-3.5 w-3.5" /> Receive
+                </button>
+                <button onClick={() => setWasteItem(it)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold inline-flex items-center gap-1">
+                  <Trash2 className="h-3.5 w-3.5" /> Waste
+                </button>
               </div>
+              <CountStrip onSubmit={(n) => countMut.mutate({ itemId: it.id, countQty: n })} />
             </Card>
           );
         })}
+        {!isLoading && visible.length === 0 && <Card>No items in this category.</Card>}
       </div>
 
-      {/* Action buttons */}
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button onClick={() => setShowReceive(true)} className="flex items-center justify-center gap-2 rounded-lg px-4 py-3 bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm">
-          <Truck className="h-4 w-4" /> Receive Inventory
-        </button>
-        <button onClick={() => setShowWaste(true)} className="flex items-center justify-center gap-2 rounded-lg px-4 py-3 border border-border bg-card text-foreground font-semibold text-sm hover:border-[var(--color-gold)]">
-          <Trash2 className="h-4 w-4" /> Log Waste
-        </button>
-      </div>
-
-      {showReceive && <ReceiveModal onClose={() => setShowReceive(false)} />}
-      {showWaste && <WasteModal onClose={() => setShowWaste(false)} />}
+      {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+      {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
 
       <div className="h-6" />
     </AppShell>
   );
 }
 
-function statusTone(s: Status) {
-  return s === "CRITICAL" ? "danger" : s === "LOW" ? "warning" : s === "OVERSTOCKED" ? "info" : "success";
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function CountStrip({ onSubmit }: { onSubmit: (n: number) => void }) {
+  const [v, setV] = useState("");
   return (
-    <div>
-      <div className="label-caps text-muted-foreground mb-1">{label}</div>
-      {children}
+    <div className="mt-3 flex items-center gap-2">
+      <input type="number" placeholder="Recount" value={v} onChange={(e) => setV(e.target.value)}
+        className="h-9 w-32 rounded-md border border-border bg-card px-2 text-sm" />
+      <button disabled={!v} onClick={() => { onSubmit(Number(v)); setV(""); }}
+        className="h-9 px-3 rounded-md border border-border text-xs font-semibold disabled:opacity-40">Submit count</button>
     </div>
-  );
-}
-
-function NumInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  return (
-    <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value) || 0)}
-      className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm focus:border-[var(--color-gold)] outline-none text-center" />
   );
 }
 
@@ -207,9 +148,7 @@ function SummaryCard({ tone, label, value }: { tone: "danger" | "warning" | "suc
   const Icon = tone === "danger" ? AlertTriangle : tone === "warning" ? ClipboardList : FileText;
   return (
     <Card className="flex items-center gap-3">
-      <div className={cn("h-10 w-10 rounded-lg grid place-items-center", bg, fg)}>
-        <Icon className="h-5 w-5" />
-      </div>
+      <div className={cn("h-10 w-10 rounded-lg grid place-items-center", bg, fg)}><Icon className="h-5 w-5" /></div>
       <div>
         <div className="label-caps text-muted-foreground">{label}</div>
         <div className="text-2xl font-semibold">{value}</div>
@@ -218,41 +157,51 @@ function SummaryCard({ tone, label, value }: { tone: "danger" | "warning" | "suc
   );
 }
 
-function ReceiveModal({ onClose }: { onClose: () => void }) {
+function ReceiveModal({ item, onClose, onDone }: { item: Item; onClose: () => void; onDone: () => void }) {
+  const recv = useServerFn(receiveStock);
+  const [qty, setQty] = useState(""); const [supplier, setSupplier] = useState(""); const [notes, setNotes] = useState("");
+  const m = useMutation({
+    mutationFn: () => recv({ data: { itemId: item.id, qty: Number(qty), supplier: supplier || undefined, notes: notes || undefined } }),
+    onSuccess: () => { toast.success("Stock received"); onDone(); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   return (
-    <Modal title="Receive Inventory" onClose={onClose}>
+    <Modal title={`Receive: ${item.name}`} onClose={onClose}>
       <div className="space-y-3">
-        <Input label="Vendor name" placeholder="e.g. Halal Beef Co." />
-        <Input label="Item received" placeholder="e.g. Smash patties" />
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Quantity" type="number" />
-          <Input label="Temp at delivery (°F)" type="number" />
-        </div>
-        <Input label="Condition notes" placeholder="Sealed, no damage…" />
-        <button className="h-12 rounded-md border-2 border-dashed border-border w-full text-sm text-muted-foreground hover:border-[var(--color-gold)]">Tap to sign</button>
+        <Field label={`Quantity (${item.unit})`}><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <Field label="Supplier"><input value={supplier} onChange={(e) => setSupplier(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <Field label="Notes"><input value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
       </div>
-      <ModalActions onClose={onClose} primary="Log Receipt" />
+      <ModalActions onClose={onClose} primary="Log Receipt" disabled={!qty || m.isPending} onSubmit={() => m.mutate()} />
     </Modal>
   );
 }
 
-function WasteModal({ onClose }: { onClose: () => void }) {
+function WasteModal({ item, onClose, onDone }: { item: Item; onClose: () => void; onDone: () => void }) {
+  const waste = useServerFn(logWaste);
+  const [qty, setQty] = useState(""); const [reason, setReason] = useState("Burned");
+  const m = useMutation({
+    mutationFn: () => waste({ data: { itemId: item.id, qty: Number(qty), reason } }),
+    onSuccess: () => { toast.success("Waste logged"); onDone(); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   return (
-    <Modal title="Log Waste" onClose={onClose}>
+    <Modal title={`Waste: ${item.name}`} onClose={onClose}>
       <div className="space-y-3">
-        <Input label="Item" placeholder="e.g. Smash patties" />
-        <Input label="Quantity wasted" type="number" />
-        <div>
-          <div className="label-caps text-muted-foreground mb-1">Reason</div>
-          <select className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-            <option>Burned</option><option>Over-temp</option><option>Dropped</option><option>Quality reject</option><option>Expired</option>
+        <Field label={`Quantity (${item.unit})`}><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <Field label="Reason">
+          <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+            <option>Burned</option><option>Dropped</option><option>Quality reject</option><option>Expired</option><option>Over-temp</option>
           </select>
-        </div>
-        <Input label="Employee" placeholder="Name" />
+        </Field>
       </div>
-      <ModalActions onClose={onClose} primary="Log Waste" />
+      <ModalActions onClose={onClose} primary="Log Waste" disabled={!qty || m.isPending} onSubmit={() => m.mutate()} />
     </Modal>
   );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><div className="label-caps text-muted-foreground mb-1">{label}</div>{children}</label>;
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
@@ -269,20 +218,13 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   );
 }
 
-function ModalActions({ onClose, primary }: { onClose: () => void; primary: string }) {
+function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () => void; primary: string; disabled?: boolean; onSubmit: () => void }) {
   return (
     <div className="mt-5 flex items-center justify-end gap-2">
       <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
-      <button onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] inline-flex items-center gap-2"><Plus className="h-4 w-4" />{primary}</button>
+      <button disabled={disabled} onClick={onSubmit} className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] inline-flex items-center gap-2 disabled:opacity-50">
+        <Plus className="h-4 w-4" />{primary}
+      </button>
     </div>
-  );
-}
-
-function Input({ label, ...rest }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="block">
-      <div className="label-caps text-muted-foreground mb-1">{label}</div>
-      <input {...rest} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm focus:border-[var(--color-gold)] outline-none" />
-    </label>
   );
 }

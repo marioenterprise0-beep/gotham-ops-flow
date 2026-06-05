@@ -1,9 +1,8 @@
-import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
 import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
-import { Navigate } from "@tanstack/react-router";
 
 type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" };
 
@@ -19,10 +18,10 @@ const ALL_TABS: Tab[] = [
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roleId } = useRole();
+  const { roleId, session, loading } = useRole();
 
-  // Force role selection if none set
-  if (!roleId && pathname !== "/role") return <Navigate to="/role" />;
+  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   const tabs = ALL_TABS.filter((t) => !t.gate || canSee(roleId, t.gate));
 
@@ -30,7 +29,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
     <div className="min-h-screen flex flex-col bg-background">
       <TopBar />
       <div className="flex-1 flex">
-        {/* Sidebar desktop */}
         <aside className="hidden lg:flex w-60 shrink-0 border-r border-border bg-card flex-col">
           <nav className="p-3 flex flex-col gap-1">
             {tabs.map((t) => {
@@ -59,7 +57,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </main>
       </div>
 
-      {/* Bottom tabs mobile/tablet */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 surface-dark border-t border-[#1C1C1C]">
         <div className="mx-auto max-w-3xl grid grid-cols-5">
           {tabs.slice(0, 5).map((t) => {
@@ -86,14 +83,11 @@ function isActive(pathname: string, to: string) {
 }
 
 function TopBar() {
-  const { roleId, user, setRoleId } = useRole();
+  const { roleId, user, signOut } = useRole();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
   const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
@@ -106,9 +100,7 @@ function TopBar() {
 
         <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
-          <span className="text-xs font-medium text-white/90">Opening Shift</span>
-          <span className="text-xs text-white/50">·</span>
-          <span className="label-caps text-[var(--color-gold)]">Active</span>
+          <span className="text-xs font-medium text-white/90">Live</span>
           <span className="text-xs text-white/50">· {timeStr}</span>
         </div>
 
@@ -121,8 +113,8 @@ function TopBar() {
           )}
           <div className="h-9 w-9 rounded-full bg-[var(--color-gold)] text-[#0A0A0A] grid place-items-center font-semibold text-sm">{initials(user)}</div>
           <button
-            onClick={() => { setRoleId(null); nav({ to: "/role" }); }}
-            title="Switch role"
+            onClick={async () => { await signOut(); nav({ to: "/auth" }); }}
+            title="Sign out"
             className="hidden sm:grid h-9 w-9 place-items-center rounded-md border border-[#2A2A2A] text-white/70 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition">
             <LogOut className="h-4 w-4" />
           </button>
@@ -131,4 +123,3 @@ function TopBar() {
     </header>
   );
 }
-
