@@ -341,3 +341,37 @@ function InviteCodesPanel() {
     </Card>
   );
 }
+
+function CrewRosterPanel() {
+  const qc = useQueryClient();
+  const fetchRoster = useServerFn(listCrewRoster);
+  const updateRole = useServerFn(updateCrewRole);
+  const { data: roster = [] } = useQuery({ queryKey: ["crew-roster"], queryFn: () => fetchRoster() });
+
+  const roleMut = useMutation({
+    mutationFn: (vars: { userId: string; role: RoleId }) => updateRole({ data: vars }),
+    onSuccess: () => { toast.success("Role updated"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); qc.invalidateQueries({ queryKey: ["manager-overview"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      {roster.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No crew yet. Share an invite code to onboard.</div>}
+      {roster.map((m: any, i: number) => (
+        <div key={m.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_auto] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
+          <div className="font-medium truncate">{m.name}</div>
+          <div><RoleBadge role={ROLES[m.role as RoleId]?.name ?? m.role} /></div>
+          <select
+            value={m.role}
+            disabled={roleMut.isPending}
+            onChange={(e) => roleMut.mutate({ userId: m.id, role: e.target.value as RoleId })}
+            className="h-9 rounded-md border border-border bg-card px-2 text-xs"
+          >
+            {(Object.keys(ROLES) as RoleId[]).map((r) => <option key={r} value={r}>{ROLES[r].name}</option>)}
+          </select>
+          <div className="text-xs text-muted-foreground">Joined {new Date(m.joined).toLocaleDateString()}</div>
+        </div>
+      ))}
+    </Card>
+  );
+}
