@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check } from "lucide-react";
+import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { listSops, upsertSop, deleteSop } from "@/lib/sops.functions";
+import { useRole } from "@/lib/role";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/sops")({
   ssr: false,
@@ -12,6 +17,7 @@ export const Route = createFileRoute("/sops")({
   head: () => ({ meta: [{ title: "SOP Library · Gotham OS" }] }),
   component: SOPs,
 });
+
 
 type Cat = "All" | "Kitchen" | "Front" | "Management" | "Cleaning" | "Hospitality";
 
@@ -109,14 +115,46 @@ const CAT_COLOR: Record<Exclude<Cat, "All">, string> = {
 };
 
 function SOPs() {
+  const qc = useQueryClient();
+  const { roleId } = useRole();
+  const isManager = roleId === "owner" || roleId === "manager";
   const [cat, setCat] = useState<Cat>("All");
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
+
+  const listFn = useServerFn(listSops);
+  const { data: customSops = [] } = useQuery<any[]>({ queryKey: ["sops"], queryFn: () => listFn() as Promise<any[]> });
+
+  const upsertFn = useServerFn(upsertSop);
+  const deleteFn = useServerFn(deleteSop);
+  const addM = useMutation({
+    mutationFn: () => upsertFn({ data: {
+      title: form.title.trim(), category: form.category, role: (form.role || undefined) as any,
+      body: form.body.trim(), passStandard: form.passStandard.trim() || undefined,
+    } }),
+    onSuccess: () => {
+      toast.success("SOP saved");
+      setShowAdd(false); setForm({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
+      qc.invalidateQueries({ queryKey: ["sops"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const list = useMemo(() => SOPS.filter((s) => (cat === "All" || s.cat === cat) && s.title.toLowerCase().includes(q.toLowerCase())), [cat, q]);
+  const customList = useMemo(() => customSops.filter((s) =>
+    (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
+  ), [customSops, cat, q]);
   const active = openId ? SOPS.find((s) => s.id === openId) : null;
 
   if (active) return <SOPDetail sop={active} onBack={() => setOpenId(null)} />;
+
 
   return (
     <AppShell>
@@ -142,7 +180,77 @@ function SOPs() {
         </div>
       </div>
 
+      {isManager && (
+        <div className="mt-4">
+          {!showAdd ? (
+            <button onClick={() => setShowAdd(true)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 border border-dashed border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-[var(--color-gold)]">
+              <Plus className="h-4 w-4" /> New SOP
+            </button>
+          ) : (
+            <Card>
+              <div className="label-caps text-muted-foreground mb-2">New procedure</div>
+              <div className="space-y-2">
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Title"
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+                <div className="flex gap-2">
+                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    className="flex-1 bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+                    {["Kitchen","Front","Management","Cleaning","Hospitality"].map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                  <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                    className="flex-1 bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+                    <option value="">Any role</option>
+                    <option value="manager">Manager</option>
+                    <option value="shift_lead">Shift lead</option>
+                    <option value="grill">Grill</option>
+                    <option value="prep">Prep</option>
+                    <option value="cashier">Cashier</option>
+                  </select>
+                </div>
+                <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder="Procedure body / steps"
+                  rows={4}
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+                <input value={form.passStandard} onChange={(e) => setForm({ ...form, passStandard: e.target.value })} placeholder="Pass standard (optional)"
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setShowAdd(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
+                  <button onClick={() => addM.mutate()} disabled={!form.title.trim() || !form.body.trim() || addM.isPending}
+                    className="flex-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] py-2 text-sm font-semibold disabled:opacity-60">
+                    {addM.isPending ? "Saving…" : "Save SOP"}
+                  </button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {customList.length > 0 && (
+        <>
+          <SectionHeader eyebrow="Team-authored" title={`${customList.length} custom SOPs`} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {customList.map((s: any) => (
+              <Card key={s.id} className="h-full">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="label-caps text-[var(--color-gold)]">{s.category}</span>
+                  {isManager && (
+                    <button onClick={() => delM.mutate(s.id)} className="text-muted-foreground hover:text-[var(--color-danger)]">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="font-semibold text-[15px] leading-snug">{s.title}</div>
+                <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{s.body}</div>
+                {s.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {s.pass_standard}</div>}
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
       <SectionHeader eyebrow={cat} title={`${list.length} procedures`} />
+
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {list.map((s) => {
