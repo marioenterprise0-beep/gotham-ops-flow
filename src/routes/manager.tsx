@@ -10,7 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
-import { getManagerOverview, createActionTask } from "@/lib/manager.functions";
+import { getManagerOverview, createActionTask, acknowledgeAlert, reorderItem, listCrewRoster, updateCrewRole } from "@/lib/manager.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -37,6 +37,20 @@ function ManagerPage() {
   const crew = overview?.crew ?? [];
   const openTasks = overview?.openTasks ?? [];
   const hasShift = !!overview?.shift;
+  const scores = overview?.scores ?? { ops: 0, inventory: 0, hospitality: 0, team: 0, overall: 0 };
+
+  const ackFn = useServerFn(acknowledgeAlert);
+  const reorderFn = useServerFn(reorderItem);
+  const ackMut = useMutation({
+    mutationFn: (itemId: string) => ackFn({ data: { itemId } }),
+    onSuccess: () => toast.success("Acknowledged"),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const reorderMut = useMutation({
+    mutationFn: (itemId: string) => reorderFn({ data: { itemId } }),
+    onSuccess: (res: any) => { toast.success(`Reorder task created (${res.qty})`); qc.invalidateQueries({ queryKey: ["manager-overview"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: approvals = [] } = useQuery({ queryKey: ["pending-approvals"], queryFn: () => fetchApprovals() });
   const { data: inventory = [] } = useQuery({ queryKey: ["inventory"], queryFn: () => fetchInventory() });
