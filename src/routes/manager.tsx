@@ -111,20 +111,23 @@ function ManagerPage() {
         })}
       </Card>
 
-      <SectionHeader eyebrow="Review" title="Pending Approvals" />
+      <SectionHeader eyebrow="Review" title="Pending Approvals" action={<StatusPill tone={approvals.length ? "warning" : "success"}>{approvals.length} pending</StatusPill>} />
       <Card className="p-0 overflow-hidden">
-        {APPROVALS.map((a, i) => (
-          <div key={i} className={cn("p-4 flex items-start justify-between gap-3", i && "border-t border-border")}>
+        {approvals.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">Nothing waiting on you.</div>}
+        {approvals.map((a: any, i: number) => (
+          <div key={a.id} className={cn("p-4 flex items-start justify-between gap-3", i && "border-t border-border")}>
             <div className="min-w-0">
-              <div className="font-semibold text-sm">{a.task}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">Flagged by {a.who} · {a.at}</div>
-              <div className="mt-2 text-sm rounded-md bg-[var(--color-warning-bg)] border border-[var(--color-warning)]/30 px-3 py-1.5 text-[#7C3A00]">
-                Corrective: {a.action}
-              </div>
+              <div className="font-semibold text-sm">{a.title}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{a.description ?? "—"} · {a.completed_at ? new Date(a.completed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</div>
+              {a.text_value && (
+                <div className="mt-2 text-sm rounded-md bg-[var(--color-warning-bg)] border border-[var(--color-warning)]/30 px-3 py-1.5 text-[#7C3A00]">
+                  {a.text_value}
+                </div>
+              )}
             </div>
             <div className="flex gap-2 shrink-0">
-              <button className="rounded-md bg-[var(--color-success)] text-white px-3 py-2 text-xs font-semibold inline-flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Approve</button>
-              <button className="rounded-md border border-border px-3 py-2 text-xs font-semibold inline-flex items-center gap-1"><X className="h-3.5 w-3.5" /> Reject</button>
+              <button disabled={signOffMut.isPending} onClick={() => signOffMut.mutate({ taskId: a.id, approve: true })} className="rounded-md bg-[var(--color-success)] text-white px-3 py-2 text-xs font-semibold inline-flex items-center gap-1 disabled:opacity-50"><Check className="h-3.5 w-3.5" /> Approve</button>
+              <button disabled={signOffMut.isPending} onClick={() => signOffMut.mutate({ taskId: a.id, approve: false })} className="rounded-md border border-border px-3 py-2 text-xs font-semibold inline-flex items-center gap-1 disabled:opacity-50"><X className="h-3.5 w-3.5" /> Reject</button>
             </div>
           </div>
         ))}
@@ -132,7 +135,9 @@ function ManagerPage() {
 
       <SectionHeader eyebrow="Watch" title="Inventory Alerts" />
       <Card className="p-0 overflow-hidden">
-        {ALERTS.map((a, i) => {
+        {alerts.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No inventory alerts.</div>}
+        {alerts.map((a, i) => {
+
           const pct = Math.round((a.count / a.par) * 100);
           return (
             <div key={a.item} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_90px_90px_120px_180px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
