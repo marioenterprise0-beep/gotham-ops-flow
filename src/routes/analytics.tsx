@@ -5,8 +5,11 @@ import { Card, MetricStat, SectionHeader } from "@/components/gotham/primitives"
 import { canSee, useRole } from "@/lib/role";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/analytics")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Analytics · Gotham OS" }] }),
   component: AnalyticsPage,
 });

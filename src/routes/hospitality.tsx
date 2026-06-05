@@ -4,8 +4,11 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Plus, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/hospitality")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Hospitality · Gotham OS" }] }),
   component: Hospitality,
 });

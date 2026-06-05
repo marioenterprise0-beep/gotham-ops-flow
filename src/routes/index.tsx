@@ -8,9 +8,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/dashboard.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "@tanstack/react-router";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({
     meta: [
       { title: "Dashboard · Gotham OS" },
@@ -30,11 +32,6 @@ function Dashboard() {
   const { roleId, session, loading } = useRole();
   const role = roleId ? ROLES[roleId] : null;
   const now = useClock();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: "/auth", replace: true });
-  }, [loading, session, navigate]);
 
   const fetchStats = useServerFn(getDashboardStats);
   const { data: stats } = useQuery({
@@ -44,7 +41,7 @@ function Dashboard() {
       if (!data.session?.access_token) return null;
       return fetchStats();
     },
-    enabled: !!session,
+    enabled: !loading && !!session,
     refetchInterval: 30_000,
   });
 
