@@ -103,7 +103,7 @@ function UsersTab() {
 
   return (
     <>
-      <SectionHeader eyebrow="Crew" title="All Users" action={<StatusPill tone="default">{users.length} total</StatusPill>} />
+      <SectionHeader eyebrow="Crew" title="All Users" action={<StatusPill tone="neutral">{users.length} total</StatusPill>} />
       <Card className="p-0 overflow-hidden">
         {users.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No users yet.</div>}
         {users.map((u: any, i: number) => {
@@ -218,7 +218,7 @@ function InvitesTab() {
         </div>
       </Card>
 
-      <SectionHeader eyebrow="History" title="All Codes" action={<StatusPill tone="default">{invites.length}</StatusPill>} />
+      <SectionHeader eyebrow="History" title="All Codes" action={<StatusPill tone="neutral">{invites.length}</StatusPill>} />
       <Card className="p-0 overflow-hidden">
         {invites.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No codes yet.</div>}
         {invites.map((inv: any, i: number) => (
@@ -261,7 +261,7 @@ function LogsTab() {
 
   return (
     <>
-      <SectionHeader eyebrow="Audit" title="Access Activity" action={<StatusPill tone="default">{logs.length}</StatusPill>} />
+      <SectionHeader eyebrow="Audit" title="Access Activity" action={<StatusPill tone="neutral">{logs.length}</StatusPill>} />
       <Card className="p-0 overflow-hidden">
         {logs.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No activity yet.</div>}
         {logs.map((l: any, i: number) => (
