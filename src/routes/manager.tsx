@@ -9,7 +9,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
+import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
 import { toast } from "sonner";
+import { Copy } from "lucide-react";
 
 export const Route = createFileRoute("/manager")({
   head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
@@ -173,6 +175,9 @@ function ManagerPage() {
         ))}
       </div>
 
+      <SectionHeader eyebrow="Access" title="Invite Codes" />
+      <InviteCodesPanel />
+
       {open && <ActionModal onClose={() => setOpen(false)} />}
 
       <div className="h-6" />
@@ -204,5 +209,93 @@ function ActionModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const ROLE_OPTIONS: { id: "cashier"|"prep"|"grill"|"shift_lead"|"manager"|"owner"; label: string }[] = [
+  { id: "cashier", label: "Cashier" },
+  { id: "prep", label: "Prep" },
+  { id: "grill", label: "Grill Master" },
+  { id: "shift_lead", label: "Shift Lead" },
+  { id: "manager", label: "Manager" },
+  { id: "owner", label: "Owner" },
+];
+
+function InviteCodesPanel() {
+  const qc = useQueryClient();
+  const fetchInvites = useServerFn(listInvites);
+  const createFn = useServerFn(createInvite);
+  const revokeFn = useServerFn(revokeInvite);
+
+  const [role, setRole] = useState<typeof ROLE_OPTIONS[number]["id"]>("cashier");
+  const [note, setNote] = useState("");
+
+  const { data: invites = [] } = useQuery({ queryKey: ["invites"], queryFn: () => fetchInvites() });
+
+  const createMut = useMutation({
+    mutationFn: () => createFn({ data: { role, note: note || undefined } }),
+    onSuccess: (row: any) => {
+      toast.success(`Code ${row.code} created`);
+      setNote("");
+      navigator.clipboard?.writeText(row.code).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["invites"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+
+  const revokeMut = useMutation({
+    mutationFn: (id: string) => revokeFn({ data: { id } }),
+    onSuccess: () => { toast.success("Revoked"); qc.invalidateQueries({ queryKey: ["invites"] }); },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+
+  const copy = (code: string) => {
+    navigator.clipboard?.writeText(code);
+    toast.success(`Copied ${code}`);
+  };
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <div className="p-4 border-b border-border bg-[#FAFAF5] grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-2 items-end">
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Role</div>
+          <select value={role} onChange={(e) => setRole(e.target.value as any)} className="w-full h-10 rounded-md border border-border bg-card px-2 text-sm">
+            {ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Note (optional)</div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="For: Carlos" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+        </div>
+        <button onClick={() => createMut.mutate()} disabled={createMut.isPending} className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] disabled:opacity-60">
+          {createMut.isPending ? "Generating…" : "Generate code"}
+        </button>
+      </div>
+      {invites.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No invite codes yet. Generate one above to onboard crew.</div>}
+      {invites.map((inv: any, i: number) => {
+        const used = !!inv.used_by;
+        const expired = !used && new Date(inv.expires_at) < new Date();
+        return (
+          <div key={inv.id} className={cn("grid grid-cols-1 md:grid-cols-[180px_120px_1fr_140px_120px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
+            <div className="font-mono text-base tracking-widest">{inv.code}</div>
+            <div><RoleBadge role={inv.role} /></div>
+            <div className="text-xs text-muted-foreground truncate">{inv.note || "—"}</div>
+            <div className="text-xs text-muted-foreground">
+              {used ? `Used ${new Date(inv.used_at).toLocaleDateString()}` : expired ? "Expired" : `Expires ${new Date(inv.expires_at).toLocaleDateString()}`}
+            </div>
+            <div className="flex gap-2 justify-end">
+              {!used && !expired && (
+                <>
+                  <button onClick={() => copy(inv.code)} className="rounded-md border border-border px-2 py-1.5 text-xs inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copy</button>
+                  <button onClick={() => revokeMut.mutate(inv.id)} className="rounded-md border border-border px-2 py-1.5 text-xs">Revoke</button>
+                </>
+              )}
+              {used && <StatusPill tone="success">Used</StatusPill>}
+              {!used && expired && <StatusPill tone="warning">Expired</StatusPill>}
+            </div>
+          </div>
+        );
+      })}
+    </Card>
   );
 }

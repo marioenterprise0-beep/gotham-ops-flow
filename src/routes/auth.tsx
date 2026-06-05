@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/lib/role";
-import { lovable } from "@/integrations/lovable";
+
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -17,6 +17,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (loading) return <FullScreen>Loading…</FullScreen>;
@@ -27,12 +28,26 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        if (!inviteCode.trim()) throw new Error("Invite code required. Ask a manager for one.");
         const redirectTo = `${window.location.origin}/`;
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: redirectTo, data: { display_name: name || email.split("@")[0] } },
+          options: {
+            emailRedirectTo: redirectTo,
+            data: {
+              display_name: name || email.split("@")[0],
+              invite_code: inviteCode.trim().toUpperCase(),
+            },
+          },
         });
-        if (error) throw error;
+        if (error) {
+          const msg = /invite_code_required/i.test(error.message)
+            ? "Invite code required."
+            : /invalid_or_expired/i.test(error.message)
+            ? "That invite code is invalid or expired."
+            : error.message;
+          throw new Error(msg);
+        }
         toast.success("Account created. Check email to verify, then sign in.");
         setMode("signin");
       } else {
@@ -47,18 +62,6 @@ function AuthPage() {
     }
   };
 
-  const google = async () => {
-    setBusy(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-      if (result.error) throw result.error;
-      if (!result.redirected) nav({ to: "/" });
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
@@ -98,20 +101,19 @@ function AuthPage() {
               <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
                 className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm focus:border-[var(--color-gold)] outline-none" />
             </Field>
+            {mode === "signup" && (
+              <Field label="Invite code">
+                <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="ABCD2345" required
+                  className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm tracking-widest font-mono focus:border-[var(--color-gold)] outline-none" />
+                <div className="mt-1 text-xs text-muted-foreground">Get a code from your manager. Required to join.</div>
+              </Field>
+            )}
             <button disabled={busy} type="submit"
               className="w-full h-11 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm disabled:opacity-60">
               {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>
           </form>
 
-          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> OR <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <button onClick={google} disabled={busy}
-            className="w-full h-11 rounded-md border border-border bg-card text-sm font-semibold hover:border-[var(--color-gold)]">
-            Continue with Google
-          </button>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? "New crew member?" : "Already have an account?"}{" "}
