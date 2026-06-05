@@ -17,6 +17,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (loading) return <FullScreen>Loading…</FullScreen>;
@@ -27,12 +28,26 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        if (!inviteCode.trim()) throw new Error("Invite code required. Ask a manager for one.");
         const redirectTo = `${window.location.origin}/`;
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: redirectTo, data: { display_name: name || email.split("@")[0] } },
+          options: {
+            emailRedirectTo: redirectTo,
+            data: {
+              display_name: name || email.split("@")[0],
+              invite_code: inviteCode.trim().toUpperCase(),
+            },
+          },
         });
-        if (error) throw error;
+        if (error) {
+          const msg = /invite_code_required/i.test(error.message)
+            ? "Invite code required."
+            : /invalid_or_expired/i.test(error.message)
+            ? "That invite code is invalid or expired."
+            : error.message;
+          throw new Error(msg);
+        }
         toast.success("Account created. Check email to verify, then sign in.");
         setMode("signin");
       } else {
