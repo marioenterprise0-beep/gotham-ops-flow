@@ -239,7 +239,7 @@ export const listAuditLog = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false }).limit(100);
     if (error) throw error;
     // Resolve actor names
-    const ids = Array.from(new Set((data ?? []).map((r) => r.actor_id).filter(Boolean)));
+    const ids = Array.from(new Set((data ?? []).map((r) => r.actor_id).filter((x): x is string => !!x)));
     const { data: profiles } = ids.length
       ? await supabase.from("profiles").select("id, display_name").in("id", ids)
       : { data: [] };
