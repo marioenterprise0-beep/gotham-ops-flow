@@ -4,8 +4,11 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/sops")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "SOP Library · Gotham OS" }] }),
   component: SOPs,
 });

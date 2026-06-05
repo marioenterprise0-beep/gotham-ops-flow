@@ -8,8 +8,11 @@ import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck } from "luc
 import { cn } from "@/lib/utils";
 import { listInventory, receiveStock, logWaste, submitCount } from "@/lib/inventory.functions";
 import { toast } from "sonner";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/inventory")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Inventory · Gotham OS" }] }),
   component: Inventory,
 });

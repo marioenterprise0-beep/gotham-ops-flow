@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { AlertTriangle, BookOpen, Boxes, ChevronRight, FileWarning, Flag, MapPin, Play, Timer, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRole, ROLES, initials } from "@/lib/role";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";

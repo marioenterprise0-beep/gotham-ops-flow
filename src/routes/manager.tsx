@@ -12,8 +12,11 @@ import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/manager")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
   component: ManagerPage,
 });

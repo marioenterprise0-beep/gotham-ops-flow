@@ -10,8 +10,11 @@ import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/s
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/operations")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Operations · Gotham OS" }] }),
   component: Operations,
 });
