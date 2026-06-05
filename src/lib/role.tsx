@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 
 export type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
@@ -11,38 +13,84 @@ export const ROLES: Record<RoleId, { id: RoleId; name: string; short: string; bl
   cashier:    { id: "cashier",    name: "Cashier / Front",  short: "CA", blurb: "Greet, take orders, drinks, packaging.",                 color: "#7B3FA0" },
 };
 
+const ROLE_RANK: Record<RoleId, number> = { owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1 };
+
 type Ctx = {
+  loading: boolean;
+  session: Session | null;
   roleId: RoleId | null;
-  setRoleId: (r: RoleId | null) => void;
+  roles: RoleId[];
   user: string;
-  setUser: (n: string) => void;
+  userId: string | null;
+  setRoleId: (r: RoleId | null) => void;   // signOut helper kept for backward compat
+  signOut: () => Promise<void>;
+  refreshRoles: () => Promise<void>;
 };
 
 const RoleCtx = createContext<Ctx | null>(null);
 
+function pickPrimary(rs: RoleId[]): RoleId | null {
+  if (rs.length === 0) return null;
+  return [...rs].sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a])[0];
+}
+
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [roleId, setRole] = useState<RoleId | null>(null);
-  const [user, setUserState] = useState<string>("Marcus T.");
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<RoleId[]>([]);
+  const [user, setUser] = useState<string>("Crew");
+
+  const loadProfileAndRoles = async (uid: string) => {
+    const [{ data: roleRows }, { data: profile }] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", uid),
+      supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle(),
+    ]);
+    setRoles(((roleRows ?? []) as { role: RoleId }[]).map((r) => r.role));
+    if (profile?.display_name) setUser(profile.display_name);
+  };
 
   useEffect(() => {
-    try {
-      const r = localStorage.getItem("gotham:role") as RoleId | null;
-      const u = localStorage.getItem("gotham:user");
-      if (r) setRole(r);
-      if (u) setUserState(u);
-    } catch {}
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (s?.user) {
+        // Defer DB calls to avoid deadlocks in the auth callback
+        setTimeout(() => { loadProfileAndRoles(s.user.id); }, 0);
+      } else {
+        setRoles([]); setUser("Crew");
+      }
+    });
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session?.user) {
+        loadProfileAndRoles(data.session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  const setRoleId = (r: RoleId | null) => {
-    setRole(r);
-    try { r ? localStorage.setItem("gotham:role", r) : localStorage.removeItem("gotham:role"); } catch {}
-  };
-  const setUser = (n: string) => {
-    setUserState(n);
-    try { localStorage.setItem("gotham:user", n); } catch {}
+  const refreshRoles = async () => {
+    if (session?.user) await loadProfileAndRoles(session.user.id);
   };
 
-  return <RoleCtx.Provider value={{ roleId, setRoleId, user, setUser }}>{children}</RoleCtx.Provider>;
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  return (
+    <RoleCtx.Provider value={{
+      loading,
+      session,
+      roleId: pickPrimary(roles),
+      roles,
+      user,
+      userId: session?.user?.id ?? null,
+      setRoleId: () => { void signOut(); },
+      signOut,
+      refreshRoles,
+    }}>{children}</RoleCtx.Provider>
+  );
 }
 
 export function useRole() {
