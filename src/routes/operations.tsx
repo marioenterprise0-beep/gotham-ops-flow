@@ -79,6 +79,12 @@ function Operations() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
     onError: (e: Error) => toast.error(e.message),
   });
+  const signOffM = useMutation({
+    mutationFn: (vars: { taskId: string; approve: boolean }) => signOffFn({ data: vars }),
+    onSuccess: () => { toast.success("Signed off"); qc.invalidateQueries({ queryKey: ["tasks"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const addTaskFn = useServerFn(createActionTask);
   const addTaskM = useMutation({
     mutationFn: () => addTaskFn({ data: {
