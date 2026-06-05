@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check } from "lucide-react";
+import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { listSops, upsertSop, deleteSop } from "@/lib/sops.functions";
+import { useRole } from "@/lib/role";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/sops")({
   ssr: false,
@@ -12,6 +17,7 @@ export const Route = createFileRoute("/sops")({
   head: () => ({ meta: [{ title: "SOP Library · Gotham OS" }] }),
   component: SOPs,
 });
+
 
 type Cat = "All" | "Kitchen" | "Front" | "Management" | "Cleaning" | "Hospitality";
 
