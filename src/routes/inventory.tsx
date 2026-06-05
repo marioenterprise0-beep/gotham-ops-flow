@@ -160,6 +160,8 @@ function Inventory() {
 
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+
 
       <div className="h-6" />
     </AppShell>
