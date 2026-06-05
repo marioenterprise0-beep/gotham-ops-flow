@@ -105,7 +105,7 @@ function AuthPage() {
             </Field>
             {mode === "signup" && (
               <Field label="Invite code">
-                <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="ABCD2345" required
+                <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="GH-XXXX" required
                   className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm tracking-widest font-mono focus:border-[var(--color-gold)] outline-none" />
                 <div className="mt-1 text-xs text-muted-foreground">Get a code from your manager. Required to join.</div>
               </Field>
