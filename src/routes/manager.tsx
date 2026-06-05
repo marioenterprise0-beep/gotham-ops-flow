@@ -178,27 +178,58 @@ function ManagerPage() {
   );
 }
 
-function ActionModal({ onClose }: { onClose: () => void }) {
+function ActionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const createFn = useServerFn(createActionTask);
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [assigneeRole, setAssigneeRole] = useState<RoleId | "">("");
+  const [phase, setPhase] = useState<"opening" | "mid" | "closing" | "emergency">("mid");
+  const [requiresSignoff, setRequiresSignoff] = useState(false);
+
+  const createMut = useMutation({
+    mutationFn: () => createFn({ data: {
+      title: title.trim(),
+      description: notes.trim() || undefined,
+      assigneeRole: assigneeRole || undefined,
+      phase,
+      requiresSignoff,
+    } }),
+    onSuccess: () => { toast.success("Action item created"); onCreated(); onClose(); },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 card-shadow" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display text-xl mb-4">CREATE ACTION ITEM</h3>
         <div className="space-y-3">
-          <input placeholder="Title" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
-          <select className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-            <option>Assign to Marcus</option><option>DeShawn</option><option>Priya</option><option>Carlos</option>
-          </select>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Wipe down fryer area)" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
           <div className="grid grid-cols-2 gap-2">
-            <input type="time" className="h-10 rounded-md border border-border bg-card px-3 text-sm" />
-            <select className="h-10 rounded-md border border-border bg-card px-3 text-sm">
-              <option>High priority</option><option>Medium</option><option>Low</option>
+            <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value as RoleId | "")} className="h-10 rounded-md border border-border bg-card px-3 text-sm">
+              <option value="">Any role</option>
+              {(Object.keys(ROLES) as RoleId[]).map((r) => <option key={r} value={r}>{ROLES[r].name}</option>)}
+            </select>
+            <select value={phase} onChange={(e) => setPhase(e.target.value as any)} className="h-10 rounded-md border border-border bg-card px-3 text-sm">
+              <option value="opening">Opening</option>
+              <option value="mid">Mid-shift</option>
+              <option value="closing">Closing</option>
+              <option value="emergency">Emergency</option>
             </select>
           </div>
-          <textarea rows={2} placeholder="Notes" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={requiresSignoff} onChange={(e) => setRequiresSignoff(e.target.checked)} />
+            Require manager sign-off
+          </label>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
-          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A]">Create</button>
+          <button
+            disabled={!title.trim() || createMut.isPending}
+            onClick={() => createMut.mutate()}
+            className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] disabled:opacity-50">
+            {createMut.isPending ? "Creating…" : "Create"}
+          </button>
         </div>
       </div>
     </div>
