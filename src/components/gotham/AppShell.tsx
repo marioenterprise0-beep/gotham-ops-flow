@@ -61,7 +61,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
       {/* Bottom tabs mobile/tablet */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 surface-dark border-t border-[#1C1C1C]">
-        <div className={cn("mx-auto max-w-3xl grid", `grid-cols-${Math.min(tabs.length, 7)}`)}>
+        <div className="mx-auto max-w-3xl grid grid-cols-5">
           {tabs.slice(0, 5).map((t) => {
             const active = isActive(pathname, t.to);
             const Icon = t.icon;
