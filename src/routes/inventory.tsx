@@ -266,3 +266,43 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
     </div>
   );
 }
+
+function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item | null; defaultCategory: string; onClose: () => void; onDone: () => void }) {
+  const upsert = useServerFn(upsertInventoryItem);
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
+  const [unit, setUnit] = useState(item?.unit ?? "unit");
+  const [par, setPar] = useState(String(item?.par_level ?? ""));
+  const [low, setLow] = useState(String(item?.low_threshold ?? ""));
+  const [qty, setQty] = useState(item ? String(item.current_qty) : "");
+  const m = useMutation({
+    mutationFn: () => upsert({ data: {
+      id: item?.id, name: name.trim(), category: category as any, unit: unit.trim() || "unit",
+      parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
+      currentQty: qty === "" ? undefined : Number(qty),
+    } }),
+    onSuccess: () => { toast.success(item ? "Item updated" : "Item added"); onDone(); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Modal title={item ? `Edit: ${item.name}` : "New inventory item"} onClose={onClose}>
+      <div className="space-y-3">
+        <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Category">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Unit"><input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lb, ea, case" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Par level"><input type="number" value={par} onChange={(e) => setPar(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+          <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        </div>
+        <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+      </div>
+      <ModalActions onClose={onClose} primary={item ? "Save changes" : "Create item"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
+    </Modal>
+  );
+}
