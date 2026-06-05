@@ -50,11 +50,20 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s?.user) {
         // Defer DB calls to avoid deadlocks in the auth callback
         setTimeout(() => { loadProfileAndRoles(s.user.id); }, 0);
+        if (event === "SIGNED_IN") {
+          setTimeout(() => {
+            void supabase.from("access_log").insert({
+              user_id: s.user.id, event: "login",
+              user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : null,
+            });
+            void supabase.from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", s.user.id);
+          }, 0);
+        }
       } else {
         setRoles([]); setUser("Crew");
       }
