@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -13,8 +13,10 @@ const ALL_TABS: Tab[] = [
   { to: "/inventory",   label: "Inventory",   icon: Boxes },
   { to: "/sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", label: "Hospitality", icon: Star },
-  { to: "/manager",     label: "Manager",     icon: Shield,    gate: "manager" },
-  { to: "/analytics",   label: "Analytics",   icon: BarChart3, gate: "analytics" },
+  { to: "/manager",     label: "Manager",     icon: Shield,      gate: "manager" },
+  { to: "/audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
+  { to: "/analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
+  { to: "/settings",    label: "Settings",    icon: SettingsIcon },
 ];
 
 export function AppShell({ children }: { children?: ReactNode }) {
@@ -112,7 +114,7 @@ function TopBar() {
               <span className="text-sm font-medium text-white">{user}</span>
             </div>
           )}
-          <div className="h-9 w-9 rounded-full bg-[var(--color-gold)] text-[#0A0A0A] grid place-items-center font-semibold text-sm">{initials(user)}</div>
+          <Link to="/settings" title="Settings" className="h-9 w-9 rounded-full bg-[var(--color-gold)] text-[#0A0A0A] grid place-items-center font-semibold text-sm hover:ring-2 hover:ring-[var(--color-gold)]/40 transition">{initials(user)}</Link>
           <button
             onClick={async () => { await signOut(); nav({ to: "/auth" }); }}
             title="Sign out"
