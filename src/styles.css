@@ -11,8 +11,8 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
 
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Black Han Sans", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --color-background: var(--background);
@@ -33,11 +33,17 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-bg: var(--success-bg);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
   --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
   --color-gold-foreground: var(--gold-foreground);
   --color-graphite: var(--graphite);
+  --color-ink: var(--ink);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -52,95 +58,92 @@
 }
 
 :root {
-  --radius: 0.875rem;
+  --radius: 0.75rem;
 
-  /* Off-white surface, matte-black ink, gold accent */
-  --background: oklch(0.985 0.003 80);
-  --foreground: oklch(0.16 0.01 80);
+  /* Gotham OS exact palette */
+  --background: #F5F5F0;
+  --foreground: #0A0A0A;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.01 80);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.01 80);
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
 
-  /* Matte black primary */
-  --primary: oklch(0.18 0.005 80);
-  --primary-foreground: oklch(0.98 0.003 80);
+  --ink: #0A0A0A;
+  --primary: #0A0A0A;
+  --primary-foreground: #FFFFFF;
 
-  /* Graphite */
-  --secondary: oklch(0.94 0.003 80);
-  --secondary-foreground: oklch(0.22 0.005 80);
-  --graphite: oklch(0.32 0.006 80);
+  --secondary: #F5F5F0;
+  --secondary-foreground: #0A0A0A;
+  --graphite: #1C1C1C;
 
-  --muted: oklch(0.94 0.003 80);
-  --muted-foreground: oklch(0.46 0.008 80);
+  --muted: #F5F5F0;
+  --muted-foreground: #6B6B6B;
 
-  --accent: oklch(0.95 0.02 85);
-  --accent-foreground: oklch(0.18 0.005 80);
+  --accent: #F5E6C8;
+  --accent-foreground: #0A0A0A;
 
-  /* Metallic gold */
-  --gold: oklch(0.78 0.13 85);
-  --gold-foreground: oklch(0.16 0.01 80);
+  --gold: #C9973A;
+  --gold-light: #F5E6C8;
+  --gold-foreground: #0A0A0A;
 
-  --success: oklch(0.7 0.15 150);
-  --success-foreground: oklch(0.16 0.01 80);
-  --warning: oklch(0.78 0.16 70);
-  --warning-foreground: oklch(0.16 0.01 80);
-  --destructive: oklch(0.6 0.22 27);
-  --destructive-foreground: oklch(0.98 0.003 80);
+  --success: #1E7B4B;
+  --success-foreground: #FFFFFF;
+  --success-bg: #D5F5E3;
+  --warning: #D35400;
+  --warning-foreground: #FFFFFF;
+  --warning-bg: #FDEBD0;
+  --danger: #C0392B;
+  --danger-bg: #FADBD8;
+  --destructive: #C0392B;
+  --destructive-foreground: #FFFFFF;
 
-  --border: oklch(0.9 0.004 80);
-  --input: oklch(0.9 0.004 80);
-  --ring: oklch(0.78 0.13 85);
+  --border: #E0E0E0;
+  --input: #E0E0E0;
+  --ring: #C9973A;
 
-  --sidebar: oklch(0.18 0.005 80);
-  --sidebar-foreground: oklch(0.98 0.003 80);
-  --sidebar-primary: oklch(0.78 0.13 85);
-  --sidebar-primary-foreground: oklch(0.16 0.01 80);
-  --sidebar-accent: oklch(0.26 0.005 80);
-  --sidebar-accent-foreground: oklch(0.98 0.003 80);
-  --sidebar-border: oklch(0.26 0.005 80);
-  --sidebar-ring: oklch(0.78 0.13 85);
-}
-
-.dark {
-  --background: oklch(0.14 0.005 80);
-  --foreground: oklch(0.98 0.003 80);
-  --card: oklch(0.2 0.005 80);
-  --card-foreground: oklch(0.98 0.003 80);
-  --popover: oklch(0.2 0.005 80);
-  --popover-foreground: oklch(0.98 0.003 80);
-  --primary: oklch(0.98 0.003 80);
-  --primary-foreground: oklch(0.16 0.01 80);
-  --secondary: oklch(0.26 0.005 80);
-  --secondary-foreground: oklch(0.98 0.003 80);
-  --muted: oklch(0.26 0.005 80);
-  --muted-foreground: oklch(0.7 0.008 80);
-  --accent: oklch(0.3 0.02 85);
-  --accent-foreground: oklch(0.98 0.003 80);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.13 85);
+  --sidebar: #0A0A0A;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-primary: #C9973A;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #1C1C1C;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #1C1C1C;
+  --sidebar-ring: #C9973A;
 }
 
 @layer base {
   * { border-color: var(--color-border); }
-  html, body { background-color: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
-  h1, h2, h3, h4, .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+  html, body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-weight: 400;
+  }
+  .font-display, .font-han { font-family: "Black Han Sans", sans-serif; letter-spacing: 0.01em; }
+  h1, h2, h3, h4 { font-family: var(--font-sans); font-weight: 600; letter-spacing: -0.01em; }
 }
 
 @utility text-balance { text-wrap: balance; }
 
+@utility label-caps {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
 @utility surface-dark {
-  background: linear-gradient(180deg, oklch(0.19 0.005 80) 0%, oklch(0.14 0.005 80) 100%);
-  color: var(--color-primary-foreground);
+  background-color: #0A0A0A;
+  color: #FFFFFF;
 }
 
-@utility gold-rule {
-  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+@utility surface-graphite {
+  background-color: #1C1C1C;
+  color: #FFFFFF;
 }
 
-@utility shimmer-gold {
-  background: linear-gradient(135deg, oklch(0.85 0.12 88) 0%, oklch(0.7 0.14 80) 50%, oklch(0.85 0.12 88) 100%);
-  color: var(--color-gold-foreground);
+@utility card-shadow {
+  box-shadow: 0 1px 2px rgba(10,10,10,0.04), 0 4px 16px -8px rgba(10,10,10,0.08);
 }

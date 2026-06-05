@@ -10,8 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SopsRouteImport } from './routes/sops'
+import { Route as RoleRouteImport } from './routes/role'
 import { Route as OperationsRouteImport } from './routes/operations'
+import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -20,14 +23,29 @@ const SopsRoute = SopsRouteImport.update({
   path: '/sops',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RoleRoute = RoleRouteImport.update({
+  id: '/role',
+  path: '/role',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OperationsRoute = OperationsRouteImport.update({
   id: '/operations',
   path: '/operations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManagerRoute = ManagerRouteImport.update({
+  id: '/manager',
+  path: '/manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HospitalityRoute = HospitalityRouteImport.update({
+  id: '/hospitality',
+  path: '/hospitality',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -44,38 +62,75 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/hospitality'
+    | '/inventory'
+    | '/manager'
+    | '/operations'
+    | '/role'
+    | '/sops'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
-  id: '__root__' | '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
+  to:
+    | '/'
+    | '/analytics'
+    | '/hospitality'
+    | '/inventory'
+    | '/manager'
+    | '/operations'
+    | '/role'
+    | '/sops'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/hospitality'
+    | '/inventory'
+    | '/manager'
+    | '/operations'
+    | '/role'
+    | '/sops'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
+  ManagerRoute: typeof ManagerRoute
   OperationsRoute: typeof OperationsRoute
+  RoleRoute: typeof RoleRoute
   SopsRoute: typeof SopsRoute
 }
 
@@ -88,6 +143,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SopsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/role': {
+      id: '/role'
+      path: '/role'
+      fullPath: '/role'
+      preLoaderRoute: typeof RoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/operations': {
       id: '/operations'
       path: '/operations'
@@ -95,11 +157,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OperationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manager': {
+      id: '/manager'
+      path: '/manager'
+      fullPath: '/manager'
+      preLoaderRoute: typeof ManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory': {
       id: '/inventory'
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hospitality': {
+      id: '/hospitality'
+      path: '/hospitality'
+      fullPath: '/hospitality'
+      preLoaderRoute: typeof HospitalityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -122,8 +198,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
+  ManagerRoute: ManagerRoute,
   OperationsRoute: OperationsRoute,
+  RoleRoute: RoleRoute,
   SopsRoute: SopsRoute,
 }
 export const routeTree = rootRouteImport
