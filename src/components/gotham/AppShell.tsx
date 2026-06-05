@@ -3,6 +3,7 @@ import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut 
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
+import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" };
 
@@ -93,9 +94,9 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-30 surface-dark border-b border-[#1C1C1C]">
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <span className="text-xl">🥙</span>
-          <span className="font-display text-xl tracking-wider text-[var(--color-gold)]">GOTHAM OS</span>
+        <Link to="/" className="flex items-center gap-2.5 shrink-0">
+          <img src={logoAsset.url} alt="Gotham Halal" className="h-8 w-auto object-contain" />
+          <span className="hidden sm:inline font-display text-lg tracking-wider text-[var(--color-gold)]">GOTHAM OS</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
