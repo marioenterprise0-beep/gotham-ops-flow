@@ -32,6 +32,12 @@ function ManagerPage() {
   const fetchInventory = useServerFn(listInventory);
   const signOff = useServerFn(signOffTask);
 
+  const fetchOverview = useServerFn(getManagerOverview);
+  const { data: overview } = useQuery({ queryKey: ["manager-overview"], queryFn: () => fetchOverview(), refetchInterval: 30_000 });
+  const crew = overview?.crew ?? [];
+  const openTasks = overview?.openTasks ?? [];
+  const hasShift = !!overview?.shift;
+
   const { data: approvals = [] } = useQuery({ queryKey: ["pending-approvals"], queryFn: () => fetchApprovals() });
   const { data: inventory = [] } = useQuery({ queryKey: ["inventory"], queryFn: () => fetchInventory() });
 
