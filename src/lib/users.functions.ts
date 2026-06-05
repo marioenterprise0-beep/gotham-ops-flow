@@ -208,12 +208,13 @@ export const logAccessEvent = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const updates: Record<string, any> = {};
-    if (data.event === "login") updates.last_login_at = new Date().toISOString();
-    if (data.event === "sop_accepted") updates.sop_accepted_at = new Date().toISOString();
-    if (data.event === "training_completed") updates.training_completed_at = new Date().toISOString();
-    if (Object.keys(updates).length > 0) {
-      await supabase.from("profiles").update(updates).eq("id", userId);
+    const now = new Date().toISOString();
+    if (data.event === "login") {
+      await supabase.from("profiles").update({ last_login_at: now }).eq("id", userId);
+    } else if (data.event === "sop_accepted") {
+      await supabase.from("profiles").update({ sop_accepted_at: now }).eq("id", userId);
+    } else if (data.event === "training_completed") {
+      await supabase.from("profiles").update({ training_completed_at: now }).eq("id", userId);
     }
     await supabase.from("access_log").insert({
       user_id: userId, event: data.event, payload: data.payload ?? null,
