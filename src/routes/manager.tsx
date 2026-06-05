@@ -175,6 +175,9 @@ function ManagerPage() {
         ))}
       </div>
 
+      <SectionHeader eyebrow="Access" title="Invite Codes" />
+      <InviteCodesPanel />
+
       {open && <ActionModal onClose={() => setOpen(false)} />}
 
       <div className="h-6" />
