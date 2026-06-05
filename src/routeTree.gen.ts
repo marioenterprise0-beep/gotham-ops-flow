@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as SopsRouteImport } from './routes/sops'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RoleRouteImport } from './routes/role'
@@ -21,6 +22,11 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SopsRoute = SopsRouteImport.update({
   id: '/sops',
   path: '/sops',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/role': typeof RoleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/role': typeof RoleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/role': typeof RoleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/settings'
     | '/sops'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/settings'
     | '/sops'
+    | '/users'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/role'
     | '/settings'
     | '/sops'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,10 +183,18 @@ export interface RootRouteChildren {
   RoleRoute: typeof RoleRoute
   SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sops': {
       id: '/sops'
       path: '/sops'
@@ -267,7 +287,18 @@ const rootRouteChildren: RootRouteChildren = {
   RoleRoute: RoleRoute,
   SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
