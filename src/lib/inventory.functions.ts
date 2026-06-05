@@ -2,6 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+async function assertManager(supabase: any, userId: string) {
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const ok = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
+  if (!ok) throw new Error("Manager role required");
+}
+
+const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "packaging", "supplies"] as const;
+
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -10,6 +18,61 @@ export const listInventory = createServerFn({ method: "GET" })
     if (error) throw error;
     return data ?? [];
   });
+
+export const upsertInventoryItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid().optional(),
+    name: z.string().min(1).max(120),
+    category: z.enum(CATEGORY_VALUES),
+    unit: z.string().min(1).max(20),
+    parLevel: z.number().nonnegative(),
+    lowThreshold: z.number().nonnegative(),
+    costPerUnit: z.number().nonnegative().optional(),
+    currentQty: z.number().nonnegative().optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
+    if (!store) throw new Error("No store configured");
+    const payload: any = {
+      name: data.name, category: data.category, unit: data.unit,
+      par_level: data.parLevel, low_threshold: data.lowThreshold,
+      cost_per_unit: data.costPerUnit ?? 0, store_id: store.id,
+      updated_at: new Date().toISOString(),
+    };
+    if (data.currentQty !== undefined) payload.current_qty = data.currentQty;
+    if (data.id) {
+      const { error } = await supabase.from("inventory_items").update(payload).eq("id", data.id);
+      if (error) throw error;
+    } else {
+      payload.current_qty = data.currentQty ?? 0;
+      const { error } = await supabase.from("inventory_items").insert(payload);
+      if (error) throw error;
+    }
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: data.id ? "update_item" : "create_item", entity: "inventory_item",
+      entity_id: data.id ?? null, payload: { name: data.name, category: data.category },
+    });
+    return { ok: true };
+  });
+
+export const deleteInventoryItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { error } = await supabase.from("inventory_items").delete().eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "delete_item", entity: "inventory_item", entity_id: data.id, payload: {},
+    });
+    return { ok: true };
+  });
+
+
 
 export const receiveStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
