@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { canSee, useRole } from "@/lib/role";
+import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
+import { getManagerOverview, createActionTask } from "@/lib/manager.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -20,18 +21,6 @@ export const Route = createFileRoute("/manager")({
   head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
   component: ManagerPage,
 });
-
-const CREW = [
-  { name: "Marcus T.",  role: "Shift Lead",    assigned: 12, done: 9,  status: "ON TRACK" as const },
-  { name: "DeShawn",    role: "Grill Master",  assigned: 8,  done: 5,  status: "BEHIND"   as const },
-  { name: "Priya",      role: "Prep",          assigned: 6,  done: 6,  status: "COMPLETE" as const },
-  { name: "Carlos",     role: "Cashier",       assigned: 7,  done: 4,  status: "BEHIND"   as const },
-];
-
-const MISSED = [
-  { task: "Pre-shift huddle",   who: "Marcus",  due: "10:10", missed: "20m" },
-  { task: "Mid-shift trash",    who: "Carlos",  due: "13:00", missed: "12m" },
-];
 
 function ManagerPage() {
   const { roleId } = useRole();
