@@ -115,14 +115,46 @@ const CAT_COLOR: Record<Exclude<Cat, "All">, string> = {
 };
 
 function SOPs() {
+  const qc = useQueryClient();
+  const { roleId } = useRole();
+  const isManager = roleId === "owner" || roleId === "manager";
   const [cat, setCat] = useState<Cat>("All");
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
+
+  const listFn = useServerFn(listSops);
+  const { data: customSops = [] } = useQuery<any[]>({ queryKey: ["sops"], queryFn: () => listFn() as Promise<any[]> });
+
+  const upsertFn = useServerFn(upsertSop);
+  const deleteFn = useServerFn(deleteSop);
+  const addM = useMutation({
+    mutationFn: () => upsertFn({ data: {
+      title: form.title.trim(), category: form.category, role: (form.role || undefined) as any,
+      body: form.body.trim(), passStandard: form.passStandard.trim() || undefined,
+    } }),
+    onSuccess: () => {
+      toast.success("SOP saved");
+      setShowAdd(false); setForm({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
+      qc.invalidateQueries({ queryKey: ["sops"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delM = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const list = useMemo(() => SOPS.filter((s) => (cat === "All" || s.cat === cat) && s.title.toLowerCase().includes(q.toLowerCase())), [cat, q]);
+  const customList = useMemo(() => customSops.filter((s) =>
+    (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
+  ), [customSops, cat, q]);
   const active = openId ? SOPS.find((s) => s.id === openId) : null;
 
   if (active) return <SOPDetail sop={active} onBack={() => setOpenId(null)} />;
+
 
   return (
     <AppShell>
