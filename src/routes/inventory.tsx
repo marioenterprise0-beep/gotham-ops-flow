@@ -4,11 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { listInventory, receiveStock, logWaste, submitCount } from "@/lib/inventory.functions";
+import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { useRole } from "@/lib/role";
+
 
 export const Route = createFileRoute("/inventory")({
   ssr: false,
