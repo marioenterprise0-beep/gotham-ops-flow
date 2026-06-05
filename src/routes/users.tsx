@@ -267,7 +267,7 @@ function LogsTab() {
         {logs.map((l: any, i: number) => (
           <div key={l.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.2fr_160px_1fr_180px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
             <div className="font-medium truncate">{nameOf(l.user_id)}</div>
-            <div><StatusPill tone={l.event.includes("revoked") ? "danger" : l.event === "login" ? "success" : "default"}>{l.event.toUpperCase()}</StatusPill></div>
+            <div><StatusPill tone={l.event.includes("revoked") ? "danger" : l.event === "login" ? "success" : "neutral"}>{l.event.toUpperCase()}</StatusPill></div>
             <div className="text-xs text-muted-foreground truncate">{l.payload ? JSON.stringify(l.payload) : "—"}</div>
             <div className="text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString()}</div>
           </div>
