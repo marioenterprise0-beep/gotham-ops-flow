@@ -7,6 +7,8 @@ import { useRole, ROLES, initials } from "@/lib/role";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/dashboard.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,14 +27,23 @@ function useClock() {
 }
 
 function Dashboard() {
-  const { roleId, session } = useRole();
+  const { roleId, session, loading } = useRole();
   const role = roleId ? ROLES[roleId] : null;
   const now = useClock();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !session) navigate({ to: "/auth", replace: true });
+  }, [loading, session, navigate]);
 
   const fetchStats = useServerFn(getDashboardStats);
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: () => fetchStats(),
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return null;
+      return fetchStats();
+    },
     enabled: !!session,
     refetchInterval: 30_000,
   });
