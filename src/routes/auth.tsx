@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/lib/role";
 
 import { toast } from "sonner";
+import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in · Gotham OS" }] }),
