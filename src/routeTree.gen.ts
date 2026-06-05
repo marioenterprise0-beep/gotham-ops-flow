@@ -10,18 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SopsRouteImport } from './routes/sops'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SopsRoute = SopsRouteImport.update({
   id: '/sops',
   path: '/sops',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RoleRoute = RoleRouteImport.update({
@@ -54,6 +61,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -68,35 +80,41 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRouteTypes {
@@ -104,46 +122,54 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/audit'
     | '/auth'
     | '/hospitality'
     | '/inventory'
     | '/manager'
     | '/operations'
     | '/role'
+    | '/settings'
     | '/sops'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/analytics'
+    | '/audit'
     | '/auth'
     | '/hospitality'
     | '/inventory'
     | '/manager'
     | '/operations'
     | '/role'
+    | '/settings'
     | '/sops'
   id:
     | '__root__'
     | '/'
     | '/analytics'
+    | '/audit'
     | '/auth'
     | '/hospitality'
     | '/inventory'
     | '/manager'
     | '/operations'
     | '/role'
+    | '/settings'
     | '/sops'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  AuditRoute: typeof AuditRoute
   AuthRoute: typeof AuthRoute
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
   ManagerRoute: typeof ManagerRoute
   OperationsRoute: typeof OperationsRoute
   RoleRoute: typeof RoleRoute
+  SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
 }
 
@@ -154,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/sops'
       fullPath: '/sops'
       preLoaderRoute: typeof SopsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/role': {
@@ -198,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -218,12 +258,14 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  AuditRoute: AuditRoute,
   AuthRoute: AuthRoute,
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
   ManagerRoute: ManagerRoute,
   OperationsRoute: OperationsRoute,
   RoleRoute: RoleRoute,
+  SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
 }
 export const routeTree = rootRouteImport
