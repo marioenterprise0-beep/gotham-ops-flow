@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SopsRouteImport } from './routes/sops'
+import { Route as RoleRouteImport } from './routes/role'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SopsRoute = SopsRouteImport.update({
   id: '/sops',
   path: '/sops',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoleRoute = RoleRouteImport.update({
+  id: '/role',
+  path: '/role',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OperationsRoute = OperationsRouteImport.update({
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/inventory': typeof InventoryRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/inventory': typeof InventoryRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,28 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/inventory': typeof InventoryRoute
   '/operations': typeof OperationsRoute
+  '/role': typeof RoleRoute
   '/sops': typeof SopsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/inventory'
+    | '/operations'
+    | '/role'
+    | '/sops'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
-  id: '__root__' | '/' | '/analytics' | '/inventory' | '/operations' | '/sops'
+  to: '/' | '/analytics' | '/inventory' | '/operations' | '/role' | '/sops'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/inventory'
+    | '/operations'
+    | '/role'
+    | '/sops'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +98,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   InventoryRoute: typeof InventoryRoute
   OperationsRoute: typeof OperationsRoute
+  RoleRoute: typeof RoleRoute
   SopsRoute: typeof SopsRoute
 }
 
@@ -86,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/sops'
       fullPath: '/sops'
       preLoaderRoute: typeof SopsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/role': {
+      id: '/role'
+      path: '/role'
+      fullPath: '/role'
+      preLoaderRoute: typeof RoleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/operations': {
@@ -124,8 +154,19 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   InventoryRoute: InventoryRoute,
   OperationsRoute: OperationsRoute,
+  RoleRoute: RoleRoute,
   SopsRoute: SopsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
