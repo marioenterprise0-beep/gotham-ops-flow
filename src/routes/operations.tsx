@@ -36,6 +36,12 @@ function Operations() {
   const { roleId } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const [phase, setPhase] = useState<Phase>("opening");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDesc, setNewDesc] = useState("");
+  const [newRole, setNewRole] = useState<string>("");
+  const [newSignoff, setNewSignoff] = useState(false);
+
 
   const shiftFn = useServerFn(getActiveShift);
   const { data: shiftData } = useQuery({ queryKey: ["shift"], queryFn: () => shiftFn() });
