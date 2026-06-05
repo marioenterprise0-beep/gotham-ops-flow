@@ -155,29 +155,23 @@ function ManagerPage() {
         })}
       </Card>
 
-      <SectionHeader eyebrow="Accountability" title="Missed Tasks" />
+      <SectionHeader eyebrow="Accountability" title="Open Tasks" action={<StatusPill tone={openTasks.length ? "warning" : "success"}>{openTasks.length} open</StatusPill>} />
       <Card className="p-0 overflow-hidden">
-        {MISSED.map((m, i) => (
-          <div key={i} className={cn("grid grid-cols-1 md:grid-cols-4 gap-3 px-4 py-3 text-sm", i && "border-t border-border")}>
-            <div className="font-medium">{m.task}</div>
-            <div className="text-muted-foreground">{m.who}</div>
-            <div className="text-muted-foreground">Due {m.due}</div>
-            <div><StatusPill tone="warning">Missed by {m.missed}</StatusPill></div>
+        {!hasShift && <div className="p-6 text-center text-sm text-muted-foreground">No active shift.</div>}
+        {hasShift && openTasks.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">All tasks complete. Nice.</div>}
+        {openTasks.map((t: any, i: number) => (
+          <div key={t.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.6fr_120px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
+            <div className="font-medium truncate">{t.title}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t.phase}</div>
+            <div className="col-span-2 md:col-auto"><StatusPill tone="warning">Pending{t.requires_signoff ? " · sign-off" : ""}</StatusPill></div>
           </div>
         ))}
       </Card>
 
-      <SectionHeader eyebrow="Documentation" title="Photo Evidence" />
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="aspect-square rounded-md border border-border bg-[#EAEAE5] grid place-items-center text-xs text-muted-foreground">Photo {i + 1}</div>
-        ))}
-      </div>
-
       <SectionHeader eyebrow="Access" title="Invite Codes" />
       <InviteCodesPanel />
 
-      {open && <ActionModal onClose={() => setOpen(false)} />}
+      {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["manager-overview"] })} />}
 
       <div className="h-6" />
     </AppShell>
