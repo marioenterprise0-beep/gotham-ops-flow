@@ -9,7 +9,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
+import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
 import { toast } from "sonner";
+import { Copy } from "lucide-react";
 
 export const Route = createFileRoute("/manager")({
   head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
