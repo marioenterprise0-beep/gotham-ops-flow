@@ -113,20 +113,19 @@ function AuthPage() {
               <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
                 className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm focus:border-[var(--color-gold)] outline-none" />
             </Field>
+            {mode === "signup" && (
+              <Field label="Invite code">
+                <input value={inviteCode} onChange={(e) => setInviteCode(e.target.value.toUpperCase())} placeholder="ABCD2345" required
+                  className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm tracking-widest font-mono focus:border-[var(--color-gold)] outline-none" />
+                <div className="mt-1 text-xs text-muted-foreground">Get a code from your manager. Required to join.</div>
+              </Field>
+            )}
             <button disabled={busy} type="submit"
               className="w-full h-11 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm disabled:opacity-60">
               {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>
           </form>
 
-          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> OR <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <button onClick={google} disabled={busy}
-            className="w-full h-11 rounded-md border border-border bg-card text-sm font-semibold hover:border-[var(--color-gold)]">
-            Continue with Google
-          </button>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? "New crew member?" : "Already have an account?"}{" "}
