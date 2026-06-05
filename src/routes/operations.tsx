@@ -8,9 +8,12 @@ import { Check, Play, ShieldCheck, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
+import { createActionTask } from "@/lib/manager.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { Plus } from "lucide-react";
+
 
 export const Route = createFileRoute("/operations")({
   ssr: false,
