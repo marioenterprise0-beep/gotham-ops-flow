@@ -3,6 +3,7 @@ import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut 
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
+import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" };
 
