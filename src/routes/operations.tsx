@@ -153,6 +153,50 @@ function Operations() {
         ))}
       </div>
 
+      {isManager && (
+        <div className="mt-4">
+          {!showAdd ? (
+            <button onClick={() => setShowAdd(true)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 border border-dashed border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-[var(--color-gold)]">
+              <Plus className="h-4 w-4" /> Add task to {phase}
+            </button>
+          ) : (
+            <Card>
+              <div className="label-caps text-muted-foreground mb-2">New {phase} task</div>
+              <div className="space-y-2">
+                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Task title"
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+                <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="Section / description (optional)"
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+                <div className="flex gap-2">
+                  <select value={newRole} onChange={(e) => setNewRole(e.target.value)}
+                    className="flex-1 bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none">
+                    <option value="">Any role</option>
+                    <option value="manager">Manager</option>
+                    <option value="shift_lead">Shift lead</option>
+                    <option value="grill">Grill</option>
+                    <option value="prep">Prep</option>
+                    <option value="cashier">Cashier</option>
+                  </select>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground px-2 border border-border rounded-md">
+                    <input type="checkbox" checked={newSignoff} onChange={(e) => setNewSignoff(e.target.checked)} />
+                    Sign-off
+                  </label>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setShowAdd(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
+                  <button onClick={() => addTaskM.mutate()} disabled={!newTitle.trim() || addTaskM.isPending}
+                    className="flex-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] py-2 text-sm font-semibold disabled:opacity-60">
+                    {addTaskM.isPending ? "Adding…" : "Add task"}
+                  </button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+
       {sections.length === 0 && (
         <Card className="mt-5 text-center text-sm text-muted-foreground">
           No tasks for this phase yet. <button onClick={() => ensureM.mutate(phase)} className="text-[var(--color-gold)] font-semibold">Seed checklist</button>
