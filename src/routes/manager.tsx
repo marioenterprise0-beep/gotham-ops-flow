@@ -5,6 +5,11 @@ import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/compo
 import { canSee, useRole } from "@/lib/role";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
+import { listInventory } from "@/lib/inventory.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/manager")({
   head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
@@ -18,17 +23,6 @@ const CREW = [
   { name: "Carlos",     role: "Cashier",       assigned: 7,  done: 4,  status: "BEHIND"   as const },
 ];
 
-const APPROVALS = [
-  { task: "Cold storage temp",   who: "DeShawn", at: "10:18", action: "Re-checked, opened condenser door briefly" },
-  { task: "Counter cleanliness", who: "Carlos",  at: "12:42", action: "Re-wiped, restocked napkins" },
-];
-
-const ALERTS = [
-  { item: "Halal smash patties", count: 18, par: 100, status: "CRITICAL" as const },
-  { item: "Brioche buns",        count: 52, par: 240, status: "CRITICAL" as const },
-  { item: "Garlic sauce",        count: 2,  par: 6,   status: "LOW"      as const },
-];
-
 const MISSED = [
   { task: "Pre-shift huddle",   who: "Marcus",  due: "10:10", missed: "20m" },
   { task: "Mid-shift trash",    who: "Carlos",  due: "13:00", missed: "12m" },
@@ -38,6 +32,34 @@ function ManagerPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
+
+  const fetchApprovals = useServerFn(listPendingApprovals);
+  const fetchInventory = useServerFn(listInventory);
+  const signOff = useServerFn(signOffTask);
+
+  const { data: approvals = [] } = useQuery({ queryKey: ["pending-approvals"], queryFn: () => fetchApprovals() });
+  const { data: inventory = [] } = useQuery({ queryKey: ["inventory"], queryFn: () => fetchInventory() });
+
+  const alerts = inventory
+    .filter((i: any) => Number(i.current_qty) <= Number(i.low_threshold))
+    .slice(0, 8)
+    .map((i: any) => ({
+      item: i.name,
+      count: Number(i.current_qty),
+      par: Number(i.par_level),
+      status: (Number(i.current_qty) <= Number(i.low_threshold) * 0.5 ? "CRITICAL" : "LOW") as "CRITICAL" | "LOW",
+    }));
+
+  const signOffMut = useMutation({
+    mutationFn: (vars: { taskId: string; approve: boolean }) => signOff({ data: vars }),
+    onSuccess: (_d, vars) => {
+      toast.success(vars.approve ? "Approved" : "Sent back");
+      qc.invalidateQueries({ queryKey: ["pending-approvals"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+
 
   return (
     <AppShell>
