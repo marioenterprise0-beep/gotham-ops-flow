@@ -43,6 +43,8 @@ function statusTone(s: Status) {
 
 function Inventory() {
   const qc = useQueryClient();
+  const { roleId } = useRole();
+  const isManager = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
@@ -61,6 +63,7 @@ function Inventory() {
 
   const [receiveItem, setReceiveItem] = useState<Item | null>(null);
   const [wasteItem, setWasteItem] = useState<Item | null>(null);
+  const [editItem, setEditItem] = useState<Item | "new" | null>(null);
 
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
@@ -68,6 +71,14 @@ function Inventory() {
     onSuccess: () => { toast.success("Count saved"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const deleteFn = useServerFn(deleteInventoryItem);
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item removed"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   return (
     <AppShell>
