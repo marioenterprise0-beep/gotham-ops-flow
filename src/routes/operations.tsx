@@ -79,11 +79,23 @@ function Operations() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
     onError: (e: Error) => toast.error(e.message),
   });
-  const signOffM = useMutation({
-    mutationFn: (vars: { taskId: string; approve: boolean }) => signOffFn({ data: vars }),
-    onSuccess: () => { toast.success("Signed off"); qc.invalidateQueries({ queryKey: ["tasks"] }); },
+  const addTaskFn = useServerFn(createActionTask);
+  const addTaskM = useMutation({
+    mutationFn: () => addTaskFn({ data: {
+      title: newTitle.trim(),
+      description: newDesc.trim() || (phase.toUpperCase() + " · CUSTOM"),
+      assigneeRole: (newRole || undefined) as any,
+      phase,
+      requiresSignoff: newSignoff,
+    } }),
+    onSuccess: () => {
+      toast.success("Task added");
+      setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewSignoff(false);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const total = tasks.length;
   const completed = tasks.filter((t) => t.status === "done" || t.status === "signed_off").length;
