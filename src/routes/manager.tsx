@@ -183,6 +183,9 @@ function ManagerPage() {
         ))}
       </Card>
 
+      <SectionHeader eyebrow="People" title="Crew Roster" />
+      <CrewRosterPanel />
+
       <SectionHeader eyebrow="Access" title="Invite Codes" />
       <InviteCodesPanel />
 
