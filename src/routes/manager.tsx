@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { canSee, useRole } from "@/lib/role";
+import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
+import { getManagerOverview, createActionTask } from "@/lib/manager.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -21,18 +22,6 @@ export const Route = createFileRoute("/manager")({
   component: ManagerPage,
 });
 
-const CREW = [
-  { name: "Marcus T.",  role: "Shift Lead",    assigned: 12, done: 9,  status: "ON TRACK" as const },
-  { name: "DeShawn",    role: "Grill Master",  assigned: 8,  done: 5,  status: "BEHIND"   as const },
-  { name: "Priya",      role: "Prep",          assigned: 6,  done: 6,  status: "COMPLETE" as const },
-  { name: "Carlos",     role: "Cashier",       assigned: 7,  done: 4,  status: "BEHIND"   as const },
-];
-
-const MISSED = [
-  { task: "Pre-shift huddle",   who: "Marcus",  due: "10:10", missed: "20m" },
-  { task: "Mid-shift trash",    who: "Carlos",  due: "13:00", missed: "12m" },
-];
-
 function ManagerPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
@@ -42,6 +31,12 @@ function ManagerPage() {
   const fetchApprovals = useServerFn(listPendingApprovals);
   const fetchInventory = useServerFn(listInventory);
   const signOff = useServerFn(signOffTask);
+
+  const fetchOverview = useServerFn(getManagerOverview);
+  const { data: overview } = useQuery({ queryKey: ["manager-overview"], queryFn: () => fetchOverview(), refetchInterval: 30_000 });
+  const crew = overview?.crew ?? [];
+  const openTasks = overview?.openTasks ?? [];
+  const hasShift = !!overview?.shift;
 
   const { data: approvals = [] } = useQuery({ queryKey: ["pending-approvals"], queryFn: () => fetchApprovals() });
   const { data: inventory = [] } = useQuery({ queryKey: ["inventory"], queryFn: () => fetchInventory() });
@@ -94,23 +89,24 @@ function ManagerPage() {
         </div>
       </Card>
 
-      <SectionHeader eyebrow="Crew" title="Completion" action={<button onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><Plus className="h-3.5 w-3.5" /> Action Item</button>} />
+      <SectionHeader eyebrow="Crew" title="Completion Today" action={<button onClick={() => setOpen(true)} disabled={!hasShift} title={hasShift ? "" : "Open a shift to create action items"} className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] disabled:opacity-50"><Plus className="h-3.5 w-3.5" /> Action Item</button>} />
       <Card className="p-0 overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1.4fr_140px_90px_90px_80px_140px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
-          <div>Employee</div><div>Role</div><div>Assigned</div><div>Done</div><div>%</div><div>Status</div>
+        <div className="hidden md:grid grid-cols-[1.4fr_140px_90px_140px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
+          <div>Employee</div><div>Role</div><div>Completed</div><div>Status</div>
         </div>
-        {CREW.map((c, i) => {
-          const pct = Math.round((c.done / c.assigned) * 100);
+        {crew.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No crew profiles yet.</div>}
+        {crew.map((c, i) => {
+          const roleLabel = ROLES[c.role as RoleId]?.name ?? c.role;
+          const tone = c.done >= 6 ? "success" : c.done >= 3 ? "gold" : "warning";
+          const status = !hasShift ? "OFF SHIFT" : c.done >= 6 ? "STRONG" : c.done >= 3 ? "ON TRACK" : "LOW ACTIVITY";
           return (
-            <div key={c.name} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_90px_90px_80px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
-              <div className="font-medium">{c.name}</div>
-              <div><RoleBadge role={c.role} /></div>
-              <div>{c.assigned}</div>
-              <div>{c.done}</div>
-              <div>{pct}%</div>
-              <div>
-                <StatusPill tone={c.status === "COMPLETE" ? "success" : c.status === "ON TRACK" ? "gold" : "warning"}>{c.status}</StatusPill>
+            <div key={c.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.4fr_140px_90px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
+              <div className="font-medium truncate">{c.name}</div>
+              <div className="md:order-none order-3 md:col-auto col-span-2 md:contents">
+                <div className="md:block"><RoleBadge role={roleLabel} /></div>
               </div>
+              <div className="hidden md:block">{c.done}</div>
+              <div className="md:block"><StatusPill tone={tone as any}>{!hasShift ? status : `${c.done} done`}</StatusPill></div>
             </div>
           );
         })}
@@ -159,56 +155,81 @@ function ManagerPage() {
         })}
       </Card>
 
-      <SectionHeader eyebrow="Accountability" title="Missed Tasks" />
+      <SectionHeader eyebrow="Accountability" title="Open Tasks" action={<StatusPill tone={openTasks.length ? "warning" : "success"}>{openTasks.length} open</StatusPill>} />
       <Card className="p-0 overflow-hidden">
-        {MISSED.map((m, i) => (
-          <div key={i} className={cn("grid grid-cols-1 md:grid-cols-4 gap-3 px-4 py-3 text-sm", i && "border-t border-border")}>
-            <div className="font-medium">{m.task}</div>
-            <div className="text-muted-foreground">{m.who}</div>
-            <div className="text-muted-foreground">Due {m.due}</div>
-            <div><StatusPill tone="warning">Missed by {m.missed}</StatusPill></div>
+        {!hasShift && <div className="p-6 text-center text-sm text-muted-foreground">No active shift.</div>}
+        {hasShift && openTasks.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">All tasks complete. Nice.</div>}
+        {openTasks.map((t: any, i: number) => (
+          <div key={t.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.6fr_120px_140px] gap-3 px-4 py-3 text-sm items-center", i && "border-t border-border")}>
+            <div className="font-medium truncate">{t.title}</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">{t.phase}</div>
+            <div className="col-span-2 md:col-auto"><StatusPill tone="warning">Pending{t.requires_signoff ? " · sign-off" : ""}</StatusPill></div>
           </div>
         ))}
       </Card>
 
-      <SectionHeader eyebrow="Documentation" title="Photo Evidence" />
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="aspect-square rounded-md border border-border bg-[#EAEAE5] grid place-items-center text-xs text-muted-foreground">Photo {i + 1}</div>
-        ))}
-      </div>
-
       <SectionHeader eyebrow="Access" title="Invite Codes" />
       <InviteCodesPanel />
 
-      {open && <ActionModal onClose={() => setOpen(false)} />}
+      {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["manager-overview"] })} />}
 
       <div className="h-6" />
     </AppShell>
   );
 }
 
-function ActionModal({ onClose }: { onClose: () => void }) {
+function ActionModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const createFn = useServerFn(createActionTask);
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [assigneeRole, setAssigneeRole] = useState<RoleId | "">("");
+  const [phase, setPhase] = useState<"opening" | "mid" | "closing" | "emergency">("mid");
+  const [requiresSignoff, setRequiresSignoff] = useState(false);
+
+  const createMut = useMutation({
+    mutationFn: () => createFn({ data: {
+      title: title.trim(),
+      description: notes.trim() || undefined,
+      assigneeRole: assigneeRole || undefined,
+      phase,
+      requiresSignoff,
+    } }),
+    onSuccess: () => { toast.success("Action item created"); onCreated(); onClose(); },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
+  });
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 card-shadow" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display text-xl mb-4">CREATE ACTION ITEM</h3>
         <div className="space-y-3">
-          <input placeholder="Title" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
-          <select className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-            <option>Assign to Marcus</option><option>DeShawn</option><option>Priya</option><option>Carlos</option>
-          </select>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (e.g. Wipe down fryer area)" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
           <div className="grid grid-cols-2 gap-2">
-            <input type="time" className="h-10 rounded-md border border-border bg-card px-3 text-sm" />
-            <select className="h-10 rounded-md border border-border bg-card px-3 text-sm">
-              <option>High priority</option><option>Medium</option><option>Low</option>
+            <select value={assigneeRole} onChange={(e) => setAssigneeRole(e.target.value as RoleId | "")} className="h-10 rounded-md border border-border bg-card px-3 text-sm">
+              <option value="">Any role</option>
+              {(Object.keys(ROLES) as RoleId[]).map((r) => <option key={r} value={r}>{ROLES[r].name}</option>)}
+            </select>
+            <select value={phase} onChange={(e) => setPhase(e.target.value as any)} className="h-10 rounded-md border border-border bg-card px-3 text-sm">
+              <option value="opening">Opening</option>
+              <option value="mid">Mid-shift</option>
+              <option value="closing">Closing</option>
+              <option value="emergency">Emergency</option>
             </select>
           </div>
-          <textarea rows={2} placeholder="Notes" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={requiresSignoff} onChange={(e) => setRequiresSignoff(e.target.checked)} />
+            Require manager sign-off
+          </label>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
-          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A]">Create</button>
+          <button
+            disabled={!title.trim() || createMut.isPending}
+            onClick={() => createMut.mutate()}
+            className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] disabled:opacity-50">
+            {createMut.isPending ? "Creating…" : "Create"}
+          </button>
         </div>
       </div>
     </div>
