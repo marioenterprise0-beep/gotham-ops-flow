@@ -59,6 +59,7 @@ function ManagerPage() {
     .filter((i: any) => Number(i.current_qty) <= Number(i.low_threshold))
     .slice(0, 8)
     .map((i: any) => ({
+      id: i.id,
       item: i.name,
       count: Number(i.current_qty),
       par: Number(i.par_level),
@@ -84,10 +85,10 @@ function ManagerPage() {
             <h1 className="font-display text-3xl mt-1 text-white">STORE PERFORMANCE</h1>
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { l: "Operations", v: 88 },
-                { l: "Inventory",  v: 72 },
-                { l: "Hospitality", v: 87 },
-                { l: "Team",        v: 94 },
+                { l: "Operations",  v: scores.ops },
+                { l: "Inventory",   v: scores.inventory },
+                { l: "Hospitality", v: scores.hospitality },
+                { l: "Team",        v: scores.team },
               ].map((b) => (
                 <div key={b.l} className="rounded-md bg-[#1C1C1C] border border-[#2A2A2A] p-3">
                   <div className="label-caps text-white/55">{b.l}</div>
@@ -97,7 +98,7 @@ function ManagerPage() {
             </div>
           </div>
           <div className="text-center md:text-right">
-            <div className="font-display text-7xl text-[var(--color-gold)] leading-none">85</div>
+            <div className="font-display text-7xl text-[var(--color-gold)] leading-none">{scores.overall}</div>
             <div className="label-caps text-white/55 mt-1">overall · /100</div>
           </div>
         </div>
@@ -155,14 +156,14 @@ function ManagerPage() {
 
           const pct = Math.round((a.count / a.par) * 100);
           return (
-            <div key={a.item} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_90px_90px_120px_180px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
+            <div key={a.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_90px_90px_120px_180px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
               <div className="font-medium">{a.item}</div>
               <div className="text-muted-foreground">{a.count}/{a.par}</div>
               <div><StatusPill tone={a.status === "CRITICAL" ? "danger" : "warning"}>{a.status}</StatusPill></div>
               <div className="hidden md:block"><ProgressBar value={pct} tone={a.status === "CRITICAL" ? "danger" : "gold"} /></div>
               <div className="flex gap-2">
-                <button className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold">Reorder</button>
-                <button className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Acknowledge</button>
+                <button disabled={reorderMut.isPending} onClick={() => reorderMut.mutate(a.id)} className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Reorder</button>
+                <button disabled={ackMut.isPending} onClick={() => ackMut.mutate(a.id)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Acknowledge</button>
               </div>
             </div>
           );
