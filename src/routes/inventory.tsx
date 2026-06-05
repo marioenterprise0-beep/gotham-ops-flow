@@ -4,11 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { listInventory, receiveStock, logWaste, submitCount } from "@/lib/inventory.functions";
+import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { useRole } from "@/lib/role";
+
 
 export const Route = createFileRoute("/inventory")({
   ssr: false,
@@ -41,6 +43,8 @@ function statusTone(s: Status) {
 
 function Inventory() {
   const qc = useQueryClient();
+  const { roleId } = useRole();
+  const isManager = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory"],
@@ -59,6 +63,7 @@ function Inventory() {
 
   const [receiveItem, setReceiveItem] = useState<Item | null>(null);
   const [wasteItem, setWasteItem] = useState<Item | null>(null);
+  const [editItem, setEditItem] = useState<Item | "new" | null>(null);
 
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
@@ -66,6 +71,14 @@ function Inventory() {
     onSuccess: () => { toast.success("Count saved"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const deleteFn = useServerFn(deleteInventoryItem);
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item removed"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   return (
     <AppShell>
@@ -87,7 +100,16 @@ function Inventory() {
         </div>
       </div>
 
-      <SectionHeader eyebrow={CATEGORY_LABELS[cat] ?? cat} title="Live Counts" action={<StatusPill tone="gold">On-hand vs Par</StatusPill>} />
+      <SectionHeader
+        eyebrow={CATEGORY_LABELS[cat] ?? cat}
+        title="Live Counts"
+        action={isManager ? (
+          <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> New item
+          </button>
+        ) : <StatusPill tone="gold">On-hand vs Par</StatusPill>}
+      />
+
 
       {isLoading && <Card>Loading…</Card>}
 
@@ -103,7 +125,18 @@ function Inventory() {
                   <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
+                {isManager && (
+                  <div className="flex gap-1">
+                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title="Edit">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => { if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title="Delete">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
+
               <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2 items-center">
                 <div>
                   <div className="text-2xl font-semibold">{Number(it.current_qty)} <span className="text-xs text-muted-foreground">{it.unit} · {pct}%</span></div>
@@ -127,6 +160,8 @@ function Inventory() {
 
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+
 
       <div className="h-6" />
     </AppShell>
@@ -229,5 +264,45 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
         <Plus className="h-4 w-4" />{primary}
       </button>
     </div>
+  );
+}
+
+function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item | null; defaultCategory: string; onClose: () => void; onDone: () => void }) {
+  const upsert = useServerFn(upsertInventoryItem);
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
+  const [unit, setUnit] = useState(item?.unit ?? "unit");
+  const [par, setPar] = useState(String(item?.par_level ?? ""));
+  const [low, setLow] = useState(String(item?.low_threshold ?? ""));
+  const [qty, setQty] = useState(item ? String(item.current_qty) : "");
+  const m = useMutation({
+    mutationFn: () => upsert({ data: {
+      id: item?.id, name: name.trim(), category: category as any, unit: unit.trim() || "unit",
+      parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
+      currentQty: qty === "" ? undefined : Number(qty),
+    } }),
+    onSuccess: () => { toast.success(item ? "Item updated" : "Item added"); onDone(); onClose(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <Modal title={item ? `Edit: ${item.name}` : "New inventory item"} onClose={onClose}>
+      <div className="space-y-3">
+        <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Category">
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Unit"><input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lb, ea, case" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Par level"><input type="number" value={par} onChange={(e) => setPar(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+          <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        </div>
+        <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+      </div>
+      <ModalActions onClose={onClose} primary={item ? "Save changes" : "Create item"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
+    </Modal>
   );
 }
