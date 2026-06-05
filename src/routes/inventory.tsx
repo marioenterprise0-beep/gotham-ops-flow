@@ -100,7 +100,16 @@ function Inventory() {
         </div>
       </div>
 
-      <SectionHeader eyebrow={CATEGORY_LABELS[cat] ?? cat} title="Live Counts" action={<StatusPill tone="gold">On-hand vs Par</StatusPill>} />
+      <SectionHeader
+        eyebrow={CATEGORY_LABELS[cat] ?? cat}
+        title="Live Counts"
+        action={isManager ? (
+          <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> New item
+          </button>
+        ) : <StatusPill tone="gold">On-hand vs Par</StatusPill>}
+      />
+
 
       {isLoading && <Card>Loading…</Card>}
 
