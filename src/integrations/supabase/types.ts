@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_log: {
+        Row: {
+          created_at: string
+          event: string
+          id: string
+          ip: string | null
+          payload: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event: string
+          id?: string
+          ip?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event?: string
+          id?: string
+          ip?: string | null
+          payload?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -226,10 +256,13 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          disabled_at: string | null
           expires_at: string
+          expires_hours: number | null
           id: string
           note: string | null
           role: Database["public"]["Enums"]["app_role"]
+          trailer_id: string | null
           used_at: string | null
           used_by: string | null
         }
@@ -237,10 +270,13 @@ export type Database = {
           code: string
           created_at?: string
           created_by?: string | null
+          disabled_at?: string | null
           expires_at?: string
+          expires_hours?: number | null
           id?: string
           note?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          trailer_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
@@ -248,35 +284,61 @@ export type Database = {
           code?: string
           created_at?: string
           created_by?: string | null
+          disabled_at?: string | null
           expires_at?: string
+          expires_hours?: number | null
           id?: string
           note?: string | null
           role?: Database["public"]["Enums"]["app_role"]
+          trailer_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invite_codes_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
+          active: boolean
           created_at: string
           display_name: string
           id: string
+          last_login_at: string | null
+          sop_accepted_at: string | null
           store_id: string | null
+          trailer_id: string | null
+          training_completed_at: string | null
           updated_at: string
         }
         Insert: {
+          active?: boolean
           created_at?: string
           display_name?: string
           id: string
+          last_login_at?: string | null
+          sop_accepted_at?: string | null
           store_id?: string | null
+          trailer_id?: string | null
+          training_completed_at?: string | null
           updated_at?: string
         }
         Update: {
+          active?: boolean
           created_at?: string
           display_name?: string
           id?: string
+          last_login_at?: string | null
+          sop_accepted_at?: string | null
           store_id?: string | null
+          trailer_id?: string | null
+          training_completed_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -285,6 +347,13 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
         ]
@@ -457,6 +526,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trailers: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          location: string | null
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          location?: string | null
+          name: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          location?: string | null
+          name?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

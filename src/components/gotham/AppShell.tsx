@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ const ALL_TABS: Tab[] = [
   { to: "/sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", label: "Hospitality", icon: Star },
   { to: "/manager",     label: "Manager",     icon: Shield,      gate: "manager" },
+  { to: "/users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
   { to: "/audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
   { to: "/analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
   { to: "/settings",    label: "Settings",    icon: SettingsIcon },

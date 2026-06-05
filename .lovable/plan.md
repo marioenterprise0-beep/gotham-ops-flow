@@ -1,52 +1,111 @@
-## Goal
-Turn Gotham OS from in-memory prototype into a persistent multi-user operations platform.
+# Gotham OS V2 Rebuild Plan
 
-## Step 1 — Enable Lovable Cloud + Auth
-- Enable Cloud integration.
-- Auth: email/password + Google sign-in. Login screen at `/auth`.
-- `profiles` table (display name, role, store) auto-created on signup via trigger.
-- `user_roles` table with enum `app_role` (`owner`, `manager`, `shift_lead`, `grill`, `prep`, `cashier`) + `has_role()` security-definer fn.
-- Owner/Manager roles assigned manually (or via PIN-protected self-promote flow kept as fallback).
-- Replace `src/lib/role.tsx` localStorage role with role pulled from `user_roles`.
+Keep all visuals (palette, type, cards, nav, mobile-first). This is a **functional** rebuild on top of the existing shell.
 
-## Step 2 — Schema
-Tables (all RLS-enabled, GRANTed to authenticated + service_role):
-- `stores` (id, name, location)
-- `shifts` (id, store_id, date, phase, opened_by, opened_at, closed_by, closed_at, status)
-- `tasks` (id, shift_id, phase, title, assignee_role, owner_id, status, photo_url, value, signed_off_by, signed_off_at, created_at)
-- `inventory_items` (id, store_id, name, category, unit, par_level, low_threshold)
-- `inventory_counts` (id, item_id, shift_id, count, counted_by, counted_at, variance)
-- `inventory_receipts` (id, item_id, qty, received_by, received_at, supplier, notes)
-- `waste_log` (id, item_id, qty, reason, logged_by, logged_at, photo_url)
-- `sops` (id, title, category, role, body, pass_standard, version)
-- `hospitality_incidents` (id, shift_id, type, severity, notes, recovery_action, logged_by, logged_at)
-- `audit_log` (id, actor_id, action, entity, entity_id, payload, created_at)
+Given the size, I'll deliver in **5 sequenced phases**, each independently shippable. I'll execute Phase 1 immediately on approval, then continue through 5 in order unless you redirect.
 
-Every mutation server-fn writes an `audit_log` row.
+---
 
-## Step 3 — Server functions
-`src/lib/*.functions.ts` modules using `requireSupabaseAuth`:
-- `shifts.functions.ts`: openShift, closeShift, getActiveShift
-- `tasks.functions.ts`: listTasks, completeTask (photo upload), signOffTask (manager only)
-- `inventory.functions.ts`: listInventory, submitCount, receiveStock, logWaste
-- `hospitality.functions.ts`: logIncident, listIncidents
-- `manager.functions.ts`: listPendingApprovals, approveTask, getKpis
+## Phase 1 — User Access System (PRIORITY 1)
 
-Storage bucket `gotham-photos` (private) for task photos + waste evidence.
+**DB migration**
+- `invite_codes`: add `trailer_id uuid`, `expires_hours int`, `status` computed view (active/used/expired), `disabled_at timestamptz`
+- New `trailers` table (id, name, location, active) — seed "Main Trailer"
+- New `access_log` table (user_id, event: login/logout/invite_used/access_revoked, ip, ua, created_at)
+- `profiles`: add `trailer_id`, `last_login_at`, `sop_accepted_at`, `training_completed_at`, `active`
+- RLS: managers full CRUD; users read self
+- Trigger on auth sign-in → write access_log + bump `last_login_at`
 
-## Step 4 — UI wiring
-- Rewrite `/operations`, `/inventory`, `/hospitality`, `/manager`, `/analytics`, `/index` to use TanStack Query + server fns (mutations invalidate queries).
-- Operations: photo capture upload to bucket, sign-off requires manager role.
-- Inventory: receiving modal + waste modal persist to DB; variance computed live.
-- Manager Panel: approvals queue (pending sign-offs), crew performance (% on-time tasks), store rankings (real aggregations).
-- Analytics: recharts fed by aggregated queries (compliance trend, waste $, ticket speed).
+**Server fns** (`src/lib/users.functions.ts`)
+- `generateInvite({ role, trailerId, expiresHours, note })` → code format `GH-XXXX`
+- `listInvites()`, `disableInvite(id)`, `deleteInvite(id)`
+- `listUsers()` with last_login, active sessions, role, trailer
+- `setUserActive(userId, active)`, `reassignRole`, `reassignTrailer`
+- `listAccessLogs(limit)`
 
-## Step 5 — Audit
-Helper `writeAudit()` called from every mutation. Manager-only `/manager/audit` route shows latest 100 entries.
+**UI**
+- New `/users` route (manager-only) with tabs: **Users · Pending Invites · Access Logs**
+- Invite generation modal (role, trailer, expiry chips: 1h/24h/7d)
+- Copy-to-clipboard, disable, delete actions
+- Onboarding flow on `/auth` after code entry: Create Account → SOP Agreement screen → Training checklist → Activate
+- Replace current invite UI in `/manager` with link to `/users`
 
-## Out of scope (this round)
-- Real-time ticket timer integrations
-- SMS / push notifications
-- Multi-store switching UI (single default store seeded)
+---
 
-This is a substantial build (~15 new files, 10 edits, 1 migration). Approve and I'll execute end to end.
+## Phase 2 — Inventory Reset (PRIORITY 2 + 3)
+
+**DB**
+- New enum `inventory_category`: proteins, bread, produce, cheese, sauces, sides, drinks, packaging, operations
+- Migrate old categories → new; wipe seed items, reseed Gotham SKUs from your spec
+- `inventory_items`: add `forecast_daily_usage numeric`, `last_counted_by uuid`, `last_counted_at timestamptz`
+- New `inventory_transfers` table (item_id, qty, from_trailer, to_trailer, by, at)
+
+**Server fns** — extend `inventory.functions.ts`
+- `transferStock`, `adjustCount` (separate from full recount), `getUsageHistory(itemId, days)`
+- Forecast = trailing 7d avg usage from receipts − counts
+- Coverage days = current_qty / forecast_daily_usage
+
+**UI** — `/inventory`
+- New category tabs grouped per spec
+- Card shows: Current · PAR · Threshold · Forecast · Coverage · Last Count (name + time) · Variance · status pill
+- Action row: Receive · Waste · Transfer · Adjust · History (sheet with sparkline)
+
+---
+
+## Phase 3 — Operations Page Rebuild (PRIORITY 4)
+
+**DB**
+- Update task seed templates: replace generic opening/mid/close with **Trailer / Grill / Prep / Front / Team** sections
+- `tasks`: add `verified_by uuid`, `verified_at`, `photo_required boolean`
+- Storage: ensure `gotham-photos` bucket + signed URL helper
+
+**Server fns**
+- Update `ensureShiftPhase` to seed Gotham task templates
+- `uploadTaskPhoto(taskId, file)` via signed URL
+- `verifyTask(taskId)` — owner/manager verification with timestamp
+
+**UI** — `/operations`
+- Sections: Trailer · Grill · Prep · Front · Team (replaces opening/mid/closing tabs, keep emergency)
+- Each task: checkbox + camera button (if photo_required) + verification badge
+- Footer shows owner + timestamp on every completed task
+
+---
+
+## Phase 4 — New Modules (PRIORITY 5)
+
+5 new routes, each thin but real:
+
+- `/waste` — waste % vs sales, reason breakdown, cost (uses waste_log + cost_per_unit)
+- `/hospitality` — already exists; extend with greeting/energy/accuracy/recovery scoring per shift
+- `/shift-notes` — new table `shift_notes(shift_id, type: note|problem|win, body, by)`
+- `/receiving` — list of `inventory_receipts` grouped by vendor + signoff field
+- `/maintenance` — new table `maintenance_issues(trailer_id, equipment, severity, status, reported_by, resolved_at)`
+- `/labor` — roster from profiles + today's attendance from shift open/close + task assignments
+
+Add to nav under a "More" group on mobile, sidebar on desktop.
+
+---
+
+## Phase 5 — System Rules Enforcement
+
+- `audit_log` already exists — add helper `writeAudit()` called from **every** mutation server fn (sweep all `.functions.ts`)
+- Verification requirement: any task with `requires_signoff` blocks shift close until verified
+- Mobile 3-tap audit: review and shorten flows where needed
+- `/audit` viewer already exists; add filters by entity + actor
+
+---
+
+## Technical notes
+
+- All new tables: GRANT to authenticated + service_role, RLS enabled, manager-write policies via `is_manager()`
+- All server fns use `requireSupabaseAuth`; admin client only for cross-user reads
+- No visual changes — reuse `Card`, `StatusPill`, `RoleBadge`, `ProgressBar`, color tokens
+- Migrations split per phase so each can be reviewed independently
+
+---
+
+**Scope check before I start:**
+- ~6 migrations, ~12 new/edited server fn files, ~8 new routes, ~10 edited routes
+- Estimated 4–5 turns of work. I'll ship Phase 1 end-to-end first, pause for you to verify the invite flow works, then continue.
+
+Approve and I'll start with Phase 1 (Users + Invites).
