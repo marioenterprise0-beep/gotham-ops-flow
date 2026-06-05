@@ -230,7 +230,7 @@ function InvitesTab() {
             <div className="text-xs text-muted-foreground truncate">{inv.note || "—"}</div>
             <div className="text-xs text-muted-foreground">Expires {new Date(inv.expires_at).toLocaleString()}</div>
             <div>
-              <StatusPill tone={inv.status === "active" ? "success" : inv.status === "used" ? "default" : "danger"}>
+              <StatusPill tone={inv.status === "active" ? "success" : inv.status === "used" ? "neutral" : "danger"}>
                 {inv.status.toUpperCase()}
               </StatusPill>
             </div>
