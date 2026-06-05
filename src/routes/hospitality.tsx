@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
-import { Card, ProgressBar, SectionHeader, StatusPill } from "@/components/gotham/primitives";
+import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Plus, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -158,5 +158,3 @@ function RecModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// avoid unused warnings
-void ProgressBar;

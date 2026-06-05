@@ -132,8 +132,3 @@ function TopBar() {
   );
 }
 
-export function ShellSwitchRole({ to }: { to: RoleId }) {
-  const { setRoleId } = useRole();
-  setRoleId(to);
-  return null;
-}
