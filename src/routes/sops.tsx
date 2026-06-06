@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2 } from "lucide-react";
+import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2, Pencil, History, Paperclip, X, Upload, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listSops, upsertSop, deleteSop } from "@/lib/sops.functions";
+import { listSops, upsertSop, deleteSop, listSopVersions, listSopAttachments, addSopAttachment, deleteSopAttachment } from "@/lib/sops.functions";
 import { useRole } from "@/lib/role";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/sops")({
