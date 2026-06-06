@@ -186,12 +186,15 @@ export const transitionSchedule = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listEmployees = createServerFn({ method: "GET" })
+export const listEmployees = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
     const { supabase } = context;
+    let profilesQ = supabase.from("profiles").select("id, display_name, active, trailer_id").eq("active", true);
+    if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, active").eq("active", true),
+      profilesQ,
       supabase.from("user_roles").select("user_id, role"),
     ]);
     const roleMap = new Map<string, string[]>();
@@ -206,6 +209,7 @@ export const listEmployees = createServerFn({ method: "GET" })
       targetHours: 40,
     }));
   });
+
 
 // Find a schedule whose range overlaps the given week; create a draft if none.
 export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
