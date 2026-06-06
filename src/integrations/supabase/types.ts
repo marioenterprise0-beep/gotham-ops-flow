@@ -82,6 +82,7 @@ export type Database = {
       alerts: {
         Row: {
           assigned_role: Database["public"]["Enums"]["alert_assigned_role"]
+          assigned_user_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -101,6 +102,7 @@ export type Database = {
         }
         Insert: {
           assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
+          assigned_user_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -120,6 +122,7 @@ export type Database = {
         }
         Update: {
           assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
+          assigned_user_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -1744,7 +1747,7 @@ export type Database = {
         | "escalate"
         | "resolve"
         | "review"
-      alert_assigned_role: "manager" | "owner"
+      alert_assigned_role: "manager" | "owner" | "all"
       alert_priority: "critical" | "high" | "normal" | "low"
       alert_status: "open" | "pending" | "approved" | "declined" | "resolved"
       alert_type:
@@ -1760,6 +1763,7 @@ export type Database = {
         | "schedule_approval"
         | "maintenance"
         | "manager_recap"
+        | "announcement"
       app_role:
         | "owner"
         | "manager"
@@ -1952,7 +1956,7 @@ export const Constants = {
         "resolve",
         "review",
       ],
-      alert_assigned_role: ["manager", "owner"],
+      alert_assigned_role: ["manager", "owner", "all"],
       alert_priority: ["critical", "high", "normal", "low"],
       alert_status: ["open", "pending", "approved", "declined", "resolved"],
       alert_type: [
@@ -1968,6 +1972,7 @@ export const Constants = {
         "schedule_approval",
         "maintenance",
         "manager_recap",
+        "announcement",
       ],
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
       cash_owner_review: ["pending", "approved", "correction", "flagged"],
