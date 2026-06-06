@@ -55,6 +55,7 @@ function PermissionsPage() {
 
   const listFn = useServerFn(listAllTabPermissions);
   const setFn = useServerFn(setTabPermission);
+  const applyPresetsFn = useServerFn(applyDefaultPresets);
 
   const { data, isLoading } = useQuery({
     queryKey: ["all-tab-permissions"],
@@ -66,6 +67,16 @@ function PermissionsPage() {
     mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; accessLevel: TabAccess }) =>
       setFn({ data: v }),
     onSuccess: async () => {
+      qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
+      await refreshPermissions();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const presetM = useMutation({
+    mutationFn: (overwrite: boolean) => applyPresetsFn({ data: { overwrite } }),
+    onSuccess: async (res: any) => {
+      toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
       qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
       await refreshPermissions();
     },
