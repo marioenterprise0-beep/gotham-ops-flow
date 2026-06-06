@@ -16,6 +16,7 @@ export const ROLES: Record<RoleId, { id: RoleId; name: string; short: string; bl
 const ROLE_RANK: Record<RoleId, number> = { owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1 };
 
 export type Trailer = { id: string; name: string };
+export type TabAccess = "none" | "view" | "edit";
 
 type Ctx = {
   loading: boolean;
@@ -32,10 +33,13 @@ type Ctx = {
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
   disabledTabs: Set<string>;
+  tabAccess: Record<string, TabAccess>;
+  getTabAccess: (tabKey: string) => TabAccess;
   refreshPermissions: () => Promise<void>;
 };
 
 const RoleCtx = createContext<Ctx | null>(null);
+const RANK: Record<TabAccess, number> = { none: 0, view: 1, edit: 2 };
 
 function pickPrimary(rs: RoleId[]): RoleId | null {
   if (rs.length === 0) return null;
