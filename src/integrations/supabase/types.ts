@@ -358,6 +358,196 @@ export type Database = {
           },
         ]
       }
+      schedule_shifts: {
+        Row: {
+          break_minutes: number
+          created_at: string
+          created_by: string | null
+          employee_id: string | null
+          end_time: string
+          id: string
+          notes: string | null
+          repeat_weekly: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          schedule_id: string
+          segment: Database["public"]["Enums"]["shift_segment"]
+          shift_date: string
+          start_time: string
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          break_minutes?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          end_time: string
+          id?: string
+          notes?: string | null
+          repeat_weekly?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          schedule_id: string
+          segment?: Database["public"]["Enums"]["shift_segment"]
+          shift_date: string
+          start_time: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          break_minutes?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string | null
+          end_time?: string
+          id?: string
+          notes?: string | null
+          repeat_weekly?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          schedule_id?: string
+          segment?: Database["public"]["Enums"]["shift_segment"]
+          shift_date?: string
+          start_time?: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_shifts_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_shifts_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedules: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          lock_reason: string | null
+          locked_at: string | null
+          locked_by: string | null
+          name: string
+          notes: string | null
+          published_at: string | null
+          published_by: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["schedule_status"]
+          submitted_at: string | null
+          submitted_by: string | null
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          name: string
+          notes?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["schedule_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          lock_reason?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          name?: string
+          notes?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["schedule_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_templates: {
+        Row: {
+          break_minutes: number
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+          segment: Database["public"]["Enums"]["shift_segment"]
+          start_time: string
+          trailer_id: string | null
+        }
+        Insert: {
+          break_minutes?: number
+          created_at?: string
+          created_by?: string | null
+          end_time: string
+          id?: string
+          name: string
+          role?: Database["public"]["Enums"]["app_role"]
+          segment?: Database["public"]["Enums"]["shift_segment"]
+          start_time: string
+          trailer_id?: string | null
+        }
+        Update: {
+          break_minutes?: number
+          created_at?: string
+          created_by?: string | null
+          end_time?: string
+          id?: string
+          name?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          segment?: Database["public"]["Enums"]["shift_segment"]
+          start_time?: string
+          trailer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_templates_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shifts: {
         Row: {
           closed_at: string | null
@@ -644,7 +834,14 @@ export type Database = {
         | "sauce"
         | "packaging"
         | "supplies"
+      schedule_status:
+        | "draft"
+        | "submitted"
+        | "approved"
+        | "locked"
+        | "published"
       shift_phase: "opening" | "mid" | "closing" | "emergency"
+      shift_segment: "open" | "mid" | "close" | "custom"
       shift_status: "active" | "closed"
       task_status: "todo" | "in_progress" | "done" | "signed_off" | "blocked"
     }
@@ -784,7 +981,15 @@ export const Constants = {
         "packaging",
         "supplies",
       ],
+      schedule_status: [
+        "draft",
+        "submitted",
+        "approved",
+        "locked",
+        "published",
+      ],
       shift_phase: ["opening", "mid", "closing", "emergency"],
+      shift_segment: ["open", "mid", "close", "custom"],
       shift_status: ["active", "closed"],
       task_status: ["todo", "in_progress", "done", "signed_off", "blocked"],
     },
