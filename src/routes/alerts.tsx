@@ -42,6 +42,8 @@ type Alert = {
 
 const CATEGORIES = [
   { key: "", label: "All" },
+  { key: "announcements", label: "Announcements" },
+  { key: "tasks", label: "Tasks" },
   { key: "inventory", label: "Inventory" },
   { key: "labor", label: "Labor" },
   { key: "scheduling", label: "Scheduling" },
@@ -49,6 +51,25 @@ const CATEGORIES = [
   { key: "maintenance", label: "Maintenance" },
   { key: "hospitality", label: "Hospitality" },
 ];
+
+const CATEGORY_TYPES: Record<string, string[]> = {
+  inventory: ["inventory_order","low_stock","critical_stock"],
+  labor: ["missed_clock_in","missed_clock_out","time_adjustment","time_off"],
+  scheduling: ["schedule_approval"],
+  operations: ["checklist_failure","manager_note"],
+  maintenance: ["maintenance"],
+  hospitality: ["manager_note"],
+};
+
+function categoryOf(a: { type: string; source_module?: string | null }): string[] {
+  const cats: string[] = [];
+  if (a.source_module === "announcements" || a.type === "announcement") cats.push("announcements");
+  if (a.source_module === "tasks") cats.push("tasks");
+  for (const [key, types] of Object.entries(CATEGORY_TYPES)) {
+    if (types.includes(a.type)) cats.push(key);
+  }
+  return cats;
+}
 
 const STATUSES = ["open", "pending", "approved", "declined", "resolved"] as const;
 
