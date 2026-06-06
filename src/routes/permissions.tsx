@@ -49,18 +49,21 @@ const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[]
 ];
 
 function PermissionsPage() {
-  const { roleId, refreshPermissions } = useRole();
+  const { loading, session, roleId, refreshPermissions } = useRole();
   const qc = useQueryClient();
   const [mode, setMode] = useState<"role" | "user">("role");
+  const authReady = !loading;
+  const canLoadPermissions = authReady && !!session?.access_token && roleId === "owner";
 
   const listFn = useServerFn(listAllTabPermissions);
   const setFn = useServerFn(setTabPermission);
   const applyPresetsFn = useServerFn(applyDefaultPresets);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["all-tab-permissions"],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["all-tab-permissions", session?.user?.id ?? null],
     queryFn: () => listFn() as Promise<any>,
-    enabled: roleId === "owner",
+    enabled: canLoadPermissions,
+    retry: false,
   });
 
   const setM = useMutation({
@@ -83,7 +86,21 @@ function PermissionsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  if (!authReady) {
+    return (
+      <AppShell>
+        <div className="text-sm text-muted-foreground">Loading permissions…</div>
+      </AppShell>
+    );
+  }
+
+  if (!session?.access_token) return <Navigate to="/auth" />;
   if (roleId !== "owner") return <Navigate to="/" />;
+
+  const queryError = error instanceof Error ? error : null;
+  if (queryError?.message?.includes("Unauthorized")) {
+    return <Navigate to="/auth" />;
+  }
 
   const perms: any[] = data?.perms ?? [];
   const profiles: any[] = data?.profiles ?? [];
@@ -161,6 +178,9 @@ function PermissionsPage() {
       </Card>
 
       {isLoading && <div className="mt-6 text-sm text-muted-foreground">Loading permissions…</div>}
+      {queryError && !queryError.message.includes("Unauthorized") && (
+        <div className="mt-6 text-sm text-[var(--color-danger)]">{queryError.message}</div>
+      )}
 
 
 
