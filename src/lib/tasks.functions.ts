@@ -14,6 +14,60 @@ export const listTasks = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+// Personal task list — tasks across all active shifts where:
+//   - the task is directly assigned to me, OR
+//   - the task is assigned to my role at my trailer and not claimed
+export const listMyTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+
+    const [{ data: profile }, { data: roleRows }] = await Promise.all([
+      supabase.from("profiles").select("trailer_id, display_name").eq("id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+    ]);
+    const myRoles = (roleRows ?? []).map((r: any) => r.role as string);
+    const trailerId = profile?.trailer_id as string | null;
+
+    // Pull all in-flight tasks for active shifts at my trailer + tasks assigned directly to me
+    const activeShifts = await supabase
+      .from("shifts").select("id, trailer_id, phase")
+      .eq("status", "active");
+
+    const myShiftIds = (activeShifts.data ?? [])
+      .filter((s: any) => !trailerId || s.trailer_id === trailerId)
+      .map((s: any) => s.id);
+
+    if (myShiftIds.length === 0) {
+      // Only direct assignments
+      const { data } = await supabase.from("tasks")
+        .select("id, title, description, phase, status, assignee_role, assignee_user_id, requires_signoff, completed_at, signed_off_at, trailer_id, shift_id, created_at")
+        .eq("assignee_user_id", userId).neq("status", "signed_off").order("created_at");
+      return data ?? [];
+    }
+
+    const { data: rows } = await supabase.from("tasks")
+      .select("id, title, description, phase, status, assignee_role, assignee_user_id, requires_signoff, completed_at, signed_off_at, trailer_id, shift_id, created_at")
+      .in("shift_id", myShiftIds)
+      .neq("status", "signed_off")
+      .order("created_at");
+
+    const mine = (rows ?? []).filter((t: any) =>
+      t.assignee_user_id === userId
+      || (!t.assignee_user_id && t.assignee_role && myRoles.includes(t.assignee_role))
+    );
+
+    // Also include direct assignments at other trailers (rare but possible)
+    const { data: direct } = await supabase.from("tasks")
+      .select("id, title, description, phase, status, assignee_role, assignee_user_id, requires_signoff, completed_at, signed_off_at, trailer_id, shift_id, created_at")
+      .eq("assignee_user_id", userId).neq("status", "signed_off");
+
+    const seen = new Set(mine.map((t: any) => t.id));
+    for (const t of direct ?? []) if (!seen.has(t.id)) mine.push(t);
+
+    return mine;
+  });
+
 export const completeTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -45,7 +99,6 @@ export const signOffTask = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ taskId: z.string().uuid(), approve: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Verify manager
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const ok = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
     if (!ok) throw new Error("Manager role required to sign off");

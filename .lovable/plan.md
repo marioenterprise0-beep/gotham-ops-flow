@@ -1,111 +1,60 @@
-# Gotham OS V2 Rebuild Plan
+# Multi-Trailer + Editable SOPs + Personal Tasks + Per-Location Analytics
 
-Keep all visuals (palette, type, cards, nav, mobile-first). This is a **functional** rebuild on top of the existing shell.
-
-Given the size, I'll deliver in **5 sequenced phases**, each independently shippable. I'll execute Phase 1 immediately on approval, then continue through 5 in order unless you redirect.
-
----
-
-## Phase 1 — User Access System (PRIORITY 1)
-
-**DB migration**
-- `invite_codes`: add `trailer_id uuid`, `expires_hours int`, `status` computed view (active/used/expired), `disabled_at timestamptz`
-- New `trailers` table (id, name, location, active) — seed "Main Trailer"
-- New `access_log` table (user_id, event: login/logout/invite_used/access_revoked, ip, ua, created_at)
-- `profiles`: add `trailer_id`, `last_login_at`, `sop_accepted_at`, `training_completed_at`, `active`
-- RLS: managers full CRUD; users read self
-- Trigger on auth sign-in → write access_log + bump `last_login_at`
-
-**Server fns** (`src/lib/users.functions.ts`)
-- `generateInvite({ role, trailerId, expiresHours, note })` → code format `GH-XXXX`
-- `listInvites()`, `disableInvite(id)`, `deleteInvite(id)`
-- `listUsers()` with last_login, active sessions, role, trailer
-- `setUserActive(userId, active)`, `reassignRole`, `reassignTrailer`
-- `listAccessLogs(limit)`
-
-**UI**
-- New `/users` route (manager-only) with tabs: **Users · Pending Invites · Access Logs**
-- Invite generation modal (role, trailer, expiry chips: 1h/24h/7d)
-- Copy-to-clipboard, disable, delete actions
-- Onboarding flow on `/auth` after code entry: Create Account → SOP Agreement screen → Training checklist → Activate
-- Replace current invite UI in `/manager` with link to `/users`
-
----
-
-## Phase 2 — Inventory Reset (PRIORITY 2 + 3)
+## 1. Trailers (Greece + Henrietta) — strict per-trailer scoping
 
 **DB**
-- New enum `inventory_category`: proteins, bread, produce, cheese, sauces, sides, drinks, packaging, operations
-- Migrate old categories → new; wipe seed items, reseed Gotham SKUs from your spec
-- `inventory_items`: add `forecast_daily_usage numeric`, `last_counted_by uuid`, `last_counted_at timestamptz`
-- New `inventory_transfers` table (item_id, qty, from_trailer, to_trailer, by, at)
+- Seed two trailers: `Greece` and `Henrietta` (if not already present).
+- Add `trailer_id` (uuid, nullable→backfilled→not null) to: `inventory_items`, `shifts`, `tasks`, `hospitality_incidents`, `waste_log`, `inventory_counts`. (`schedules` and `schedule_shifts` already have it; `profiles` already has it.)
+- Helper SQL function `public.user_trailer_id()` returns `profiles.trailer_id` for `auth.uid()`.
+- Helper `public.is_owner_or_manager()` already exists as `is_manager`.
+- Tighten RLS on the above tables: crew can only `SELECT/INSERT` rows where `trailer_id = user_trailer_id()`. Owners/managers can read all trailers.
 
-**Server fns** — extend `inventory.functions.ts`
-- `transferStock`, `adjustCount` (separate from full recount), `getUsageHistory(itemId, days)`
-- Forecast = trailing 7d avg usage from receipts − counts
-- Coverage days = current_qty / forecast_daily_usage
+**App**
+- New `TrailerContext` reads the user's trailer + (for managers/owners) exposes a switcher with `Greece / Henrietta / Company`.
+- All server fns (`listInventory`, `getActiveShift`, `listTasks`, dashboard, analytics) take an optional `trailerId` param; default = user's own trailer; managers can pass either or `null` (= company).
 
-**UI** — `/inventory`
-- New category tabs grouped per spec
-- Card shows: Current · PAR · Threshold · Forecast · Coverage · Last Count (name + time) · Variance · status pill
-- Action row: Receive · Waste · Transfer · Adjust · History (sheet with sparkline)
+## 2. SOPs — fully editable
 
----
+- New `sop_attachments` table (sop_id, file path in `gotham-photos` bucket, uploaded_by, label).
+- New `sop_versions` table (sop_id, version, title, body, category, role, edited_by, edited_at) — written on every update.
+- `body` stays text but rendered with a lightweight markdown renderer (bold/headers/lists) so users get rich text without adding a heavy editor dependency.
+- SOPs route: inline edit each card (title, category, role dropdown, markdown body, pass standard), "Attach photo" upload, "History" drawer showing versions with diff-friendly view + restore button.
 
-## Phase 3 — Operations Page Rebuild (PRIORITY 4)
+## 3. Tasks — assign to a specific employee
 
-**DB**
-- Update task seed templates: replace generic opening/mid/close with **Trailer / Grill / Prep / Front / Team** sections
-- `tasks`: add `verified_by uuid`, `verified_at`, `photo_required boolean`
-- Storage: ensure `gotham-photos` bucket + signed URL helper
+- Add `assignee_user_id uuid` to `tasks` (already has `owner_id` and `assignee_role`; we'll use `assignee_user_id` as the explicit personal assignment).
+- Manager/owner UI in Operations: when creating a task, can pick an employee from the trailer's roster (or leave blank for role-based / general).
+- New `/my-tasks` route: shows all tasks across active shifts where `assignee_user_id = auth.uid()` OR (`assignee_role = my role` AND no specific assignee).
+- Nav: add **My Tasks** tab visible to all logged-in users.
 
-**Server fns**
-- Update `ensureShiftPhase` to seed Gotham task templates
-- `uploadTaskPhoto(taskId, file)` via signed URL
-- `verifyTask(taskId)` — owner/manager verification with timestamp
+## 4. Analytics — Greece / Henrietta / Company tabs
 
-**UI** — `/operations`
-- Sections: Trailer · Grill · Prep · Front · Team (replaces opening/mid/closing tabs, keep emergency)
-- Each task: checkbox + camera button (if photo_required) + verification badge
-- Footer shows owner + timestamp on every completed task
+- Top of `/analytics`: 3-tab segmented control. Selection drives a `trailerId` query param passed to every chart's data fn.
+- Server fn `getAnalytics({ trailerId | null, range })` returns KPIs + chart series filtered by trailer (`null` = company, both trailers combined).
+- Company view also shows a small "Greece vs Henrietta" comparison row at the top.
 
----
+## 5. Inventory — per location
 
-## Phase 4 — New Modules (PRIORITY 5)
-
-5 new routes, each thin but real:
-
-- `/waste` — waste % vs sales, reason breakdown, cost (uses waste_log + cost_per_unit)
-- `/hospitality` — already exists; extend with greeting/energy/accuracy/recovery scoring per shift
-- `/shift-notes` — new table `shift_notes(shift_id, type: note|problem|win, body, by)`
-- `/receiving` — list of `inventory_receipts` grouped by vendor + signoff field
-- `/maintenance` — new table `maintenance_issues(trailer_id, equipment, severity, status, reported_by, resolved_at)`
-- `/labor` — roster from profiles + today's attendance from shift open/close + task assignments
-
-Add to nav under a "More" group on mobile, sidebar on desktop.
+- `inventory_items` becomes trailer-scoped. Same `/inventory` route, but the active list and counts are filtered to current trailer; managers see a trailer toggle.
 
 ---
 
-## Phase 5 — System Rules Enforcement
+## Out of scope this pass
+- Drag/resize on schedule grid.
+- File-attachment versioning history (we store attachments but they live across versions).
+- Custom roles per trailer.
 
-- `audit_log` already exists — add helper `writeAudit()` called from **every** mutation server fn (sweep all `.functions.ts`)
-- Verification requirement: any task with `requires_signoff` blocks shift close until verified
-- Mobile 3-tap audit: review and shorten flows where needed
-- `/audit` viewer already exists; add filters by entity + actor
+## Files touched (high level)
+- **DB migration** (single) — trailers seed, new columns, RLS rewrite, sop_versions/sop_attachments, has-trailer helpers.
+- `src/lib/role.tsx` — add `useTrailer()` + scope switcher state.
+- `src/lib/sops.functions.ts` — versions, attachments, history.
+- `src/lib/tasks.functions.ts` + `src/lib/manager.functions.ts` — `assignee_user_id`, trailer scoping.
+- `src/lib/inventory.functions.ts` — trailer filter.
+- `src/lib/dashboard.functions.ts` (new `analytics.functions.ts`) — trailer-scoped KPIs.
+- `src/components/gotham/AppShell.tsx` — trailer switcher in header, add **My Tasks** nav.
+- `src/routes/sops.tsx` — inline editor + attachments + history drawer.
+- `src/routes/operations.tsx` — employee picker.
+- `src/routes/inventory.tsx`, `src/routes/analytics.tsx` — trailer tabs/filter.
+- `src/routes/my-tasks.tsx` (new) — personal task list.
 
----
-
-## Technical notes
-
-- All new tables: GRANT to authenticated + service_role, RLS enabled, manager-write policies via `is_manager()`
-- All server fns use `requireSupabaseAuth`; admin client only for cross-user reads
-- No visual changes — reuse `Card`, `StatusPill`, `RoleBadge`, `ProgressBar`, color tokens
-- Migrations split per phase so each can be reviewed independently
-
----
-
-**Scope check before I start:**
-- ~6 migrations, ~12 new/edited server fn files, ~8 new routes, ~10 edited routes
-- Estimated 4–5 turns of work. I'll ship Phase 1 end-to-end first, pause for you to verify the invite flow works, then continue.
-
-Approve and I'll start with Phase 1 (Users + Invites).
+Approve and I'll build it in one pass.

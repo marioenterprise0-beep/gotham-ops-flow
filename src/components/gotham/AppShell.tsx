@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "a
 
 const ALL_TABS: Tab[] = [
   { to: "/",            label: "Dashboard",   icon: Home },
+  { to: "/my-tasks",    label: "My Tasks",    icon: ListChecks },
   { to: "/operations",  label: "Operations",  icon: ClipboardCheck },
   { to: "/schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/inventory",   label: "Inventory",   icon: Boxes },
@@ -87,6 +88,32 @@ function isActive(pathname: string, to: string) {
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
+function TrailerSwitcher() {
+  const { roleId, trailers, trailerScope, setTrailerScope, homeTrailerId } = useRole();
+  const isManager = roleId === "owner" || roleId === "manager";
+  if (trailers.length === 0) return null;
+  const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
+  if (!isManager) {
+    return (
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
+        <span className="label-caps text-white/50">Trailer</span>
+        <span className="text-xs font-medium text-[var(--color-gold)]">{homeName}</span>
+      </div>
+    );
+  }
+  return (
+    <select
+      value={trailerScope ?? ""}
+      onChange={(e) => setTrailerScope(e.target.value || null)}
+      className="hidden md:block bg-[#1C1C1C] border border-[#2A2A2A] rounded-md px-2.5 py-1.5 text-xs font-medium text-[var(--color-gold)] outline-none focus:border-[var(--color-gold)]"
+      title="Trailer scope"
+    >
+      <option value="">All trailers (Company)</option>
+      {trailers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+    </select>
+  );
+}
+
 function TopBar() {
   const { roleId, user, signOut } = useRole();
   const nav = useNavigate();
@@ -108,6 +135,8 @@ function TopBar() {
           <span className="text-xs font-medium text-white/90">Live</span>
           <span className="text-xs text-white/50">· {timeStr}</span>
         </div>
+
+        <TrailerSwitcher />
 
         <div className="flex items-center gap-2.5">
           {role && (

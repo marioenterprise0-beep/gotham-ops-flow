@@ -15,6 +15,8 @@ export const ROLES: Record<RoleId, { id: RoleId; name: string; short: string; bl
 
 const ROLE_RANK: Record<RoleId, number> = { owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1 };
 
+export type Trailer = { id: string; name: string };
+
 type Ctx = {
   loading: boolean;
   session: Session | null;
@@ -22,7 +24,12 @@ type Ctx = {
   roles: RoleId[];
   user: string;
   userId: string | null;
-  setRoleId: (r: RoleId | null) => void;   // signOut helper kept for backward compat
+  homeTrailerId: string | null;
+  trailers: Trailer[];
+  // Currently active scope: trailer id, or null = "Company" (managers only)
+  trailerScope: string | null;
+  setTrailerScope: (id: string | null) => void;
+  setRoleId: (r: RoleId | null) => void;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
 };
@@ -39,21 +46,30 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<RoleId[]>([]);
   const [user, setUser] = useState<string>("Crew");
+  const [homeTrailerId, setHomeTrailerId] = useState<string | null>(null);
+  const [trailers, setTrailers] = useState<Trailer[]>([]);
+  const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
 
   const loadProfileAndRoles = async (uid: string) => {
-    const [{ data: roleRows }, { data: profile }] = await Promise.all([
+    const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
-      supabase.from("profiles").select("display_name").eq("id", uid).maybeSingle(),
+      supabase.from("profiles").select("display_name, trailer_id").eq("id", uid).maybeSingle(),
+      supabase.from("trailers").select("id, name").eq("active", true).order("name"),
     ]);
-    setRoles(((roleRows ?? []) as { role: RoleId }[]).map((r) => r.role));
+    const rs = ((roleRows ?? []) as { role: RoleId }[]).map((r) => r.role);
+    setRoles(rs);
     if (profile?.display_name) setUser(profile.display_name);
+    const tid = (profile as any)?.trailer_id ?? null;
+    setHomeTrailerId(tid);
+    setTrailers((trailerRows ?? []) as Trailer[]);
+    // Initialize scope: crew locked to home; managers default to home (can switch to others or Company)
+    setTrailerScopeState(tid);
   };
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s?.user) {
-        // Defer DB calls to avoid deadlocks in the auth callback
         setTimeout(() => { loadProfileAndRoles(s.user.id); }, 0);
         if (event === "SIGNED_IN") {
           setTimeout(() => {
@@ -65,7 +81,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
           }, 0);
         }
       } else {
-        setRoles([]); setUser("Crew");
+        setRoles([]); setUser("Crew"); setHomeTrailerId(null); setTrailers([]); setTrailerScopeState(null);
       }
     });
     supabase.auth.getSession().then(({ data }) => {
@@ -87,14 +103,27 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const primary = pickPrimary(roles);
+  const isManager = primary === "owner" || primary === "manager";
+
+  const setTrailerScope = (id: string | null) => {
+    // Crew can only operate on their home trailer
+    if (!isManager) { setTrailerScopeState(homeTrailerId); return; }
+    setTrailerScopeState(id);
+  };
+
   return (
     <RoleCtx.Provider value={{
       loading,
       session,
-      roleId: pickPrimary(roles),
+      roleId: primary,
       roles,
       user,
       userId: session?.user?.id ?? null,
+      homeTrailerId,
+      trailers,
+      trailerScope: isManager ? trailerScope : homeTrailerId,
+      setTrailerScope,
       setRoleId: () => { void signOut(); },
       signOut,
       refreshRoles,

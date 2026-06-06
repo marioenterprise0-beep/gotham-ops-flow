@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-// Task template — server seeds these into the DB on first task fetch for a shift.
 const TEMPLATES = {
   opening: [
     { section: "TRAILER",  title: "Power on and confirmed",       assignee_role: "shift_lead", requires_signoff: false },
@@ -32,46 +31,59 @@ const TEMPLATES = {
   ],
 } as const;
 
+async function resolveTrailer(supabase: any, userId: string, trailerId?: string | null) {
+  if (trailerId) return trailerId;
+  const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+  if (profile?.trailer_id) return profile.trailer_id as string;
+  const { data: trailer } = await supabase.from("trailers").select("id").order("created_at").limit(1).maybeSingle();
+  return trailer?.id ?? null;
+}
+
 export const getActiveShift = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase } = context;
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { data: store } = await supabase.from("stores").select("id, name").order("created_at").limit(1).maybeSingle();
-    if (!store) return { shift: null, store: null };
-    const { data: shift } = await supabase
-      .from("shifts").select("*")
-      .eq("store_id", store.id).eq("status", "active")
-      .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-    return { shift, store };
+    const trailerId = await resolveTrailer(supabase, userId, data?.trailerId ?? null);
+
+    let q = supabase.from("shifts").select("*").eq("status", "active").order("opened_at", { ascending: false }).limit(1);
+    if (trailerId) q = q.eq("trailer_id", trailerId);
+    const { data: shift } = await q.maybeSingle();
+    return { shift, store, trailerId };
   });
 
 export const openShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ phase: z.enum(["opening", "mid", "closing", "emergency"]).default("opening") }).parse(d))
+  .inputValidator((d) => z.object({
+    phase: z.enum(["opening", "mid", "closing", "emergency"]).default("opening"),
+    trailerId: z.string().uuid().optional(),
+  }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
     if (!store) throw new Error("No store configured");
+    const trailerId = await resolveTrailer(supabase, userId, data.trailerId);
+    if (!trailerId) throw new Error("No trailer assigned");
 
-    // Reuse an active shift if one already exists
     const { data: existing } = await supabase
       .from("shifts").select("*")
-      .eq("store_id", store.id).eq("status", "active").maybeSingle();
+      .eq("trailer_id", trailerId).eq("status", "active").maybeSingle();
     if (existing) return existing;
 
     const { data: shift, error } = await supabase
-      .from("shifts").insert({ store_id: store.id, phase: data.phase, opened_by: userId, status: "active" })
+      .from("shifts").insert({ store_id: store.id, trailer_id: trailerId, phase: data.phase, opened_by: userId, status: "active" })
       .select().single();
     if (error) throw error;
 
-    // Seed tasks from template
     const tasks = TEMPLATES[data.phase].map((t) => ({
       shift_id: shift.id, phase: data.phase, title: t.title, description: t.section,
       assignee_role: t.assignee_role, requires_signoff: t.requires_signoff, status: "todo" as const,
+      trailer_id: trailerId,
     }));
     await supabase.from("tasks").insert(tasks);
 
-    await supabase.from("audit_log").insert({ actor_id: userId, action: "open_shift", entity: "shift", entity_id: shift.id, payload: { phase: data.phase } });
+    await supabase.from("audit_log").insert({ actor_id: userId, action: "open_shift", entity: "shift", entity_id: shift.id, payload: { phase: data.phase, trailer_id: trailerId } });
     return shift;
   });
 
@@ -96,9 +108,11 @@ export const ensureShiftPhase = createServerFn({ method: "POST" })
     const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true })
       .eq("shift_id", data.shiftId).eq("phase", data.phase);
     if ((count ?? 0) > 0) return { seeded: 0 };
+    const { data: shift } = await supabase.from("shifts").select("trailer_id").eq("id", data.shiftId).maybeSingle();
     const rows = TEMPLATES[data.phase].map((t) => ({
       shift_id: data.shiftId, phase: data.phase, title: t.title, description: t.section,
       assignee_role: t.assignee_role, requires_signoff: t.requires_signoff, status: "todo" as const,
+      trailer_id: shift?.trailer_id ?? null,
     }));
     await supabase.from("tasks").insert(rows);
     await supabase.from("shifts").update({ phase: data.phase }).eq("id", data.shiftId);

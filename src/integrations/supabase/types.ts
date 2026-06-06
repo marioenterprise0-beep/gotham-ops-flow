@@ -83,6 +83,7 @@ export type Database = {
           recovery_action: string | null
           severity: Database["public"]["Enums"]["incident_severity"]
           shift_id: string | null
+          trailer_id: string | null
           type: string
         }
         Insert: {
@@ -93,6 +94,7 @@ export type Database = {
           recovery_action?: string | null
           severity?: Database["public"]["Enums"]["incident_severity"]
           shift_id?: string | null
+          trailer_id?: string | null
           type: string
         }
         Update: {
@@ -103,6 +105,7 @@ export type Database = {
           recovery_action?: string | null
           severity?: Database["public"]["Enums"]["incident_severity"]
           shift_id?: string | null
+          trailer_id?: string | null
           type?: string
         }
         Relationships: [
@@ -124,6 +127,7 @@ export type Database = {
           id: string
           item_id: string
           shift_id: string | null
+          trailer_id: string | null
           variance: number | null
         }
         Insert: {
@@ -134,6 +138,7 @@ export type Database = {
           id?: string
           item_id: string
           shift_id?: string | null
+          trailer_id?: string | null
           variance?: number | null
         }
         Update: {
@@ -144,6 +149,7 @@ export type Database = {
           id?: string
           item_id?: string
           shift_id?: string | null
+          trailer_id?: string | null
           variance?: number | null
         }
         Relationships: [
@@ -174,6 +180,7 @@ export type Database = {
           name: string
           par_level: number
           store_id: string
+          trailer_id: string | null
           unit: string
           updated_at: string
         }
@@ -187,6 +194,7 @@ export type Database = {
           name: string
           par_level?: number
           store_id: string
+          trailer_id?: string | null
           unit?: string
           updated_at?: string
         }
@@ -200,6 +208,7 @@ export type Database = {
           name?: string
           par_level?: number
           store_id?: string
+          trailer_id?: string | null
           unit?: string
           updated_at?: string
         }
@@ -560,6 +569,7 @@ export type Database = {
           shift_date: string
           status: Database["public"]["Enums"]["shift_status"]
           store_id: string
+          trailer_id: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -572,6 +582,7 @@ export type Database = {
           shift_date?: string
           status?: Database["public"]["Enums"]["shift_status"]
           store_id: string
+          trailer_id?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -584,6 +595,7 @@ export type Database = {
           shift_date?: string
           status?: Database["public"]["Enums"]["shift_status"]
           store_id?: string
+          trailer_id?: string | null
         }
         Relationships: [
           {
@@ -591,6 +603,91 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sop_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          id: string
+          label: string | null
+          sop_id: string
+          storage_path: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          sop_id: string
+          storage_path: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          sop_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sop_attachments_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sop_versions: {
+        Row: {
+          body: string
+          category: string
+          edited_at: string
+          edited_by: string | null
+          id: string
+          pass_standard: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          sop_id: string
+          title: string
+          version: number
+        }
+        Insert: {
+          body: string
+          category: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          pass_standard?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          sop_id: string
+          title: string
+          version: number
+        }
+        Update: {
+          body?: string
+          category?: string
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          pass_standard?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          sop_id?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sop_versions_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
             referencedColumns: ["id"]
           },
         ]
@@ -655,6 +752,7 @@ export type Database = {
       tasks: {
         Row: {
           assignee_role: Database["public"]["Enums"]["app_role"] | null
+          assignee_user_id: string | null
           completed_at: string | null
           created_at: string
           description: string | null
@@ -670,9 +768,11 @@ export type Database = {
           status: Database["public"]["Enums"]["task_status"]
           text_value: string | null
           title: string
+          trailer_id: string | null
         }
         Insert: {
           assignee_role?: Database["public"]["Enums"]["app_role"] | null
+          assignee_user_id?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -688,9 +788,11 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           text_value?: string | null
           title: string
+          trailer_id?: string | null
         }
         Update: {
           assignee_role?: Database["public"]["Enums"]["app_role"] | null
+          assignee_user_id?: string | null
           completed_at?: string | null
           created_at?: string
           description?: string | null
@@ -706,6 +808,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["task_status"]
           text_value?: string | null
           title?: string
+          trailer_id?: string | null
         }
         Relationships: [
           {
@@ -771,6 +874,7 @@ export type Database = {
           photo_url: string | null
           qty: number
           reason: string
+          trailer_id: string | null
         }
         Insert: {
           id?: string
@@ -780,6 +884,7 @@ export type Database = {
           photo_url?: string | null
           qty: number
           reason: string
+          trailer_id?: string | null
         }
         Update: {
           id?: string
@@ -789,6 +894,7 @@ export type Database = {
           photo_url?: string | null
           qty?: number
           reason?: string
+          trailer_id?: string | null
         }
         Relationships: [
           {
@@ -809,6 +915,7 @@ export type Database = {
         Args: { _code: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      current_user_trailer: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
