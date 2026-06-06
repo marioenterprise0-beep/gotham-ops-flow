@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useRole } from "@/lib/role";
+import { AppShell } from "@/components/gotham/AppShell";
 import { toast } from "sonner";
 import {
   listSchedules, createSchedule, getSchedule, upsertShift, deleteShift,
