@@ -510,6 +510,45 @@ export type Database = {
           },
         ]
       }
+      shift_notes: {
+        Row: {
+          author_id: string
+          created_at: string
+          employee_id: string
+          for_date: string | null
+          id: string
+          note: string
+          punch_id: string | null
+          schedule_shift_id: string | null
+          trailer_id: string | null
+          visibility: string
+        }
+        Insert: {
+          author_id: string
+          created_at?: string
+          employee_id: string
+          for_date?: string | null
+          id?: string
+          note: string
+          punch_id?: string | null
+          schedule_shift_id?: string | null
+          trailer_id?: string | null
+          visibility?: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          employee_id?: string
+          for_date?: string | null
+          id?: string
+          note?: string
+          punch_id?: string | null
+          schedule_shift_id?: string | null
+          trailer_id?: string | null
+          visibility?: string
+        }
+        Relationships: []
+      }
       shift_templates: {
         Row: {
           break_minutes: number
@@ -850,6 +889,207 @@ export type Database = {
           },
         ]
       }
+      time_audit: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      time_corrections: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          employee_id: string
+          for_date: string
+          id: string
+          punch_id: string | null
+          reason: string
+          requested_in: string | null
+          requested_out: string | null
+          schedule_shift_id: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          trailer_id: string | null
+          type: Database["public"]["Enums"]["correction_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          employee_id: string
+          for_date: string
+          id?: string
+          punch_id?: string | null
+          reason: string
+          requested_in?: string | null
+          requested_out?: string | null
+          schedule_shift_id?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          trailer_id?: string | null
+          type: Database["public"]["Enums"]["correction_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          employee_id?: string
+          for_date?: string
+          id?: string
+          punch_id?: string | null
+          reason?: string
+          requested_in?: string | null
+          requested_out?: string | null
+          schedule_shift_id?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          trailer_id?: string | null
+          type?: Database["public"]["Enums"]["correction_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      time_off_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          employee_id: string
+          end_date: string
+          end_time: string | null
+          full_day: boolean
+          id: string
+          notes: string | null
+          reason: string
+          start_date: string
+          start_time: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          employee_id: string
+          end_date: string
+          end_time?: string | null
+          full_day?: boolean
+          id?: string
+          notes?: string | null
+          reason: string
+          start_date: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          employee_id?: string
+          end_date?: string
+          end_time?: string | null
+          full_day?: boolean
+          id?: string
+          notes?: string | null
+          reason?: string
+          start_date?: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      time_punches: {
+        Row: {
+          break_minutes: number
+          clock_in_at: string
+          clock_out_at: string | null
+          created_at: string
+          device_info: Json | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          schedule_shift_id: string | null
+          status: Database["public"]["Enums"]["punch_status"]
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          break_minutes?: number
+          clock_in_at?: string
+          clock_out_at?: string | null
+          created_at?: string
+          device_info?: Json | null
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          schedule_shift_id?: string | null
+          status?: Database["public"]["Enums"]["punch_status"]
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          break_minutes?: number
+          clock_in_at?: string
+          clock_out_at?: string | null
+          created_at?: string
+          device_info?: Json | null
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          schedule_shift_id?: string | null
+          status?: Database["public"]["Enums"]["punch_status"]
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trailers: {
         Row: {
           active: boolean
@@ -954,6 +1194,7 @@ export type Database = {
         Returns: boolean
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
+      payroll_week_start: { Args: { _d: string }; Returns: string }
     }
     Enums: {
       app_role:
@@ -963,6 +1204,14 @@ export type Database = {
         | "grill"
         | "prep"
         | "cashier"
+      correction_type:
+        | "missed_in"
+        | "missed_out"
+        | "wrong_time"
+        | "extra_time"
+        | "left_early"
+        | "stayed_late"
+        | "other"
       incident_severity: "low" | "medium" | "high"
       inventory_category:
         | "protein"
@@ -971,6 +1220,8 @@ export type Database = {
         | "sauce"
         | "packaging"
         | "supplies"
+      punch_status: "open" | "closed" | "edited" | "voided"
+      request_status: "pending" | "approved" | "declined" | "info_requested"
       schedule_status:
         | "draft"
         | "submitted"
@@ -1109,6 +1360,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
+      correction_type: [
+        "missed_in",
+        "missed_out",
+        "wrong_time",
+        "extra_time",
+        "left_early",
+        "stayed_late",
+        "other",
+      ],
       incident_severity: ["low", "medium", "high"],
       inventory_category: [
         "protein",
@@ -1118,6 +1378,8 @@ export const Constants = {
         "packaging",
         "supplies",
       ],
+      punch_status: ["open", "closed", "edited", "voided"],
+      request_status: ["pending", "approved", "declined", "info_requested"],
       schedule_status: [
         "draft",
         "submitted",

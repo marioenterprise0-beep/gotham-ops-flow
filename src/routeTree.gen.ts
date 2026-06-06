@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as TimeClockRouteImport } from './routes/time-clock'
 import { Route as SopsRouteImport } from './routes/sops'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
@@ -18,6 +19,7 @@ import { Route as PermissionsRouteImport } from './routes/permissions'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
+import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -28,6 +30,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TimeClockRoute = TimeClockRouteImport.update({
+  id: '/time-clock',
+  path: '/time-clock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SopsRoute = SopsRouteImport.update({
@@ -70,6 +77,11 @@ const ManagerRoute = ManagerRouteImport.update({
   path: '/manager',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaborRoute = LaborRouteImport.update({
+  id: '/labor',
+  path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -108,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -116,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +139,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -133,6 +148,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
@@ -143,6 +159,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -151,6 +168,7 @@ export interface FileRoutesById {
   '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
+  '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
@@ -162,6 +180,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -170,6 +189,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/sops'
+    | '/time-clock'
     | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -179,6 +199,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -187,6 +208,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/sops'
+    | '/time-clock'
     | '/users'
   id:
     | '__root__'
@@ -196,6 +218,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -204,6 +227,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/sops'
+    | '/time-clock'
     | '/users'
   fileRoutesById: FileRoutesById
 }
@@ -214,6 +238,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
+  LaborRoute: typeof LaborRoute
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
@@ -222,6 +247,7 @@ export interface RootRouteChildren {
   ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
+  TimeClockRoute: typeof TimeClockRoute
   UsersRoute: typeof UsersRoute
 }
 
@@ -232,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/time-clock': {
+      id: '/time-clock'
+      path: '/time-clock'
+      fullPath: '/time-clock'
+      preLoaderRoute: typeof TimeClockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sops': {
@@ -290,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManagerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/labor': {
+      id: '/labor'
+      path: '/labor'
+      fullPath: '/labor'
+      preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory': {
       id: '/inventory'
       path: '/inventory'
@@ -342,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
+  LaborRoute: LaborRoute,
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
@@ -350,6 +391,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
+  TimeClockRoute: TimeClockRoute,
   UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport

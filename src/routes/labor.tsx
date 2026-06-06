@@ -1,0 +1,317 @@
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { AppShell } from "@/components/gotham/AppShell";
+import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { useRole } from "@/lib/role";
+import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests } from "@/lib/labor.functions";
+import { ChevronLeft, ChevronRight, Check, X, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/labor")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
+  head: () => ({ meta: [{ title: "Labor · Gotham OS" }] }),
+  component: LaborPage,
+});
+
+function fmtH(min: number) {
+  const sign = min < 0 ? "-" : "";
+  const m = Math.abs(min);
+  return `${sign}${Math.floor(m / 60)}h ${Math.round(m % 60)}m`;
+}
+
+function weekStartOf(d: Date): string {
+  const dt = new Date(d);
+  const back = (dt.getDay() + 1) % 7;
+  dt.setDate(dt.getDate() - back);
+  dt.setHours(0, 0, 0, 0);
+  return dt.toISOString().slice(0, 10);
+}
+
+function shiftWeek(ws: string, deltaDays: number): string {
+  const d = new Date(ws + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  return weekStartOf(d);
+}
+
+function LaborPage() {
+  const { roleId, trailerScope } = useRole();
+  if (roleId !== "owner" && roleId !== "manager") return <Navigate to="/" />;
+  const isOwner = roleId === "owner";
+
+  const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date()));
+  const [selectedEmp, setSelectedEmp] = useState<string | null>(null);
+
+  const dashFn = useServerFn(getLaborDashboard);
+  const reqFn = useServerFn(listAllRequests);
+  const { data: dash } = useQuery({
+    queryKey: ["labor-dash", weekStart, trailerScope],
+    queryFn: () => dashFn({ data: { weekStart, trailerId: trailerScope ?? null } }),
+  });
+  const { data: reqs } = useQuery({
+    queryKey: ["labor-reqs", trailerScope],
+    queryFn: () => reqFn({ data: { trailerId: trailerScope ?? null } }),
+  });
+
+  const weekEnd = new Date(weekStart + "T00:00:00");
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  const rangeLabel = `${new Date(weekStart + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+
+  return (
+    <AppShell>
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <div className="label-caps text-muted-foreground">Payroll week · Sat – Fri</div>
+          <h1 className="font-display text-3xl text-foreground">LABOR</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setWeekStart(shiftWeek(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
+          <div className="text-sm font-medium px-3">{rangeLabel}</div>
+          <Button variant="outline" size="sm" onClick={() => setWeekStart(shiftWeek(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
+
+      {dash && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <KPI label="Scheduled" value={fmtH(dash.totals.scheduled)} />
+          <KPI label="Worked" value={fmtH(dash.totals.worked)} />
+          <KPI label="Difference" value={fmtH(dash.totals.worked - dash.totals.scheduled)} />
+          <KPI label="Open shifts" value={String(dash.openShifts)} />
+          <KPI label="Missed clock-outs" value={String(dash.missedClockOuts)} tone={dash.missedClockOuts ? "warning" : "default"} />
+          <KPI label="Pending corrections" value={String(dash.pendingCorrections)} tone={dash.pendingCorrections ? "warning" : "default"} />
+          <KPI label="Pending time off" value={String(dash.pendingTimeOff)} tone={dash.pendingTimeOff ? "warning" : "default"} />
+          <KPI label="Payroll-ready" value={fmtH(dash.totals.worked)} />
+        </div>
+      )}
+
+      <Tabs defaultValue="employees" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="corrections">Corrections {dash?.pendingCorrections ? `(${dash.pendingCorrections})` : ""}</TabsTrigger>
+          <TabsTrigger value="timeoff">Time Off {dash?.pendingTimeOff ? `(${dash.pendingTimeOff})` : ""}</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="employees">
+          <Card className="p-0 overflow-hidden">
+            {(dash?.employees ?? []).length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No employees this week.</div>}
+            {(dash?.employees ?? []).map((e: any, i: number) => {
+              const status = e.flags.includes("missed_clock_out") || e.flags.includes("no_show")
+                ? "danger" : e.flags.includes("overtime") ? "warning" : "success";
+              return (
+                <button key={e.id}
+                  onClick={() => setSelectedEmp(e.id === selectedEmp ? null : e.id)}
+                  className={cn("w-full text-left p-3.5 flex items-center justify-between gap-3 hover:bg-secondary/50", i && "border-t border-border")}>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{e.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Scheduled {fmtH(e.scheduledMin)} · Worked {fmtH(e.workedMin)} · Diff {fmtH(e.diffMin)}
+                    </div>
+                    {e.flags.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {e.flags.map((f: string) => <StatusPill key={f} tone="warning">{f.replace(/_/g, " ")}</StatusPill>)}
+                      </div>
+                    )}
+                  </div>
+                  <StatusPill tone={status as any}>{status === "success" ? "OK" : status === "warning" ? "Review" : "Needs review"}</StatusPill>
+                </button>
+              );
+            })}
+          </Card>
+          {selectedEmp && <EmployeeDrawer userId={selectedEmp} weekStart={weekStart} isOwner={isOwner} onClose={() => setSelectedEmp(null)} />}
+        </TabsContent>
+
+        <TabsContent value="corrections">
+          <CorrectionsList items={reqs?.corrections ?? []} isOwner={isOwner} />
+        </TabsContent>
+        <TabsContent value="timeoff">
+          <TimeOffList items={reqs?.timeoff ?? []} isOwner={isOwner} />
+        </TabsContent>
+        <TabsContent value="notes">
+          <NotesList items={reqs?.notes ?? []} />
+        </TabsContent>
+      </Tabs>
+
+      <div className="h-6" />
+    </AppShell>
+  );
+}
+
+function KPI({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "warning" }) {
+  return (
+    <Card className="p-3">
+      <div className="label-caps text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-xl font-display", tone === "warning" ? "text-[var(--color-danger)]" : "text-foreground")}>{value}</div>
+    </Card>
+  );
+}
+
+function EmployeeDrawer({ userId, weekStart, isOwner, onClose }: { userId: string; weekStart: string; isOwner: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(getEmployeeWeek);
+  const editFn = useServerFn(ownerEditPunch);
+  const { data } = useQuery({ queryKey: ["emp-week", userId, weekStart], queryFn: () => fn({ data: { userId, weekStart } }) });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ in: string; out: string; brk: number; reason: string }>({ in: "", out: "", brk: 0, reason: "" });
+
+  const saveM = useMutation({
+    mutationFn: () => editFn({
+      data: {
+        punchId: editing!,
+        clockInAt: draft.in ? new Date(draft.in).toISOString() : undefined,
+        clockOutAt: draft.out ? new Date(draft.out).toISOString() : undefined,
+        breakMinutes: draft.brk,
+        reason: draft.reason || "Owner edit",
+      },
+    }),
+    onSuccess: () => { toast.success("Punch updated"); setEditing(null); qc.invalidateQueries({ queryKey: ["emp-week"] }); qc.invalidateQueries({ queryKey: ["labor-dash"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="mt-4 p-4">
+      <div className="flex items-center justify-between">
+        <div className="font-display text-lg">Punches</div>
+        <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
+      </div>
+      {(data?.punches ?? []).length === 0 && <div className="text-sm text-muted-foreground py-3">No punches this week.</div>}
+      {(data?.punches ?? []).map((p: any) => {
+        const isEdit = editing === p.id;
+        return (
+          <div key={p.id} className="border-t border-border py-3 text-sm">
+            {!isEdit ? (
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium">{new Date(p.clock_in_at).toLocaleString()} → {p.clock_out_at ? new Date(p.clock_out_at).toLocaleString() : "—"}</div>
+                  <div className="text-xs text-muted-foreground">Break {p.break_minutes}m · {p.status}</div>
+                </div>
+                {isOwner && (
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setEditing(p.id);
+                    setDraft({
+                      in: new Date(p.clock_in_at).toISOString().slice(0, 16),
+                      out: p.clock_out_at ? new Date(p.clock_out_at).toISOString().slice(0, 16) : "",
+                      brk: p.break_minutes ?? 0,
+                      reason: "",
+                    });
+                  }}>Edit</Button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <div><Label>Clock in</Label><Input type="datetime-local" value={draft.in} onChange={(e) => setDraft({ ...draft, in: e.target.value })} /></div>
+                <div><Label>Clock out</Label><Input type="datetime-local" value={draft.out} onChange={(e) => setDraft({ ...draft, out: e.target.value })} /></div>
+                <div><Label>Break (min)</Label><Input type="number" value={draft.brk} onChange={(e) => setDraft({ ...draft, brk: Number(e.target.value) })} /></div>
+                <div><Label>Reason</Label><Input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></div>
+                <div className="col-span-2 flex gap-2">
+                  <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {(data?.notes ?? []).length > 0 && (
+        <>
+          <div className="mt-4 font-display text-lg">Notes</div>
+          {data!.notes.map((n: any) => (
+            <div key={n.id} className="border-t border-border py-2 text-sm">
+              <div>{n.note}</div>
+              <div className="text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString()}</div>
+            </div>
+          ))}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function DecisionButtons({ id, isOwner, decideFn, qkey }: { id: string; isOwner: boolean; decideFn: any; qkey: string }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(decideFn);
+  const m = useMutation({
+    mutationFn: (decision: "approved" | "declined") => fn({ data: { id, decision } }),
+    onSuccess: () => { toast.success("Decision recorded"); qc.invalidateQueries({ queryKey: [qkey] }); qc.invalidateQueries({ queryKey: ["labor-dash"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  if (!isOwner) return <StatusPill tone="warning">Owner approval required</StatusPill>;
+  return (
+    <div className="flex gap-2">
+      <Button size="sm" onClick={() => m.mutate("approved")} disabled={m.isPending}><Check className="h-3.5 w-3.5" /> Approve</Button>
+      <Button size="sm" variant="outline" onClick={() => m.mutate("declined")} disabled={m.isPending}><X className="h-3.5 w-3.5" /> Decline</Button>
+    </div>
+  );
+}
+
+function CorrectionsList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
+  if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No corrections.</Card>;
+  return (
+    <Card className="mt-3 p-0 overflow-hidden">
+      {items.map((c, i) => (
+        <div key={c.id} className={cn("p-3.5", i && "border-t border-border")}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{c.employee_name} · {c.type.replace(/_/g, " ")}</div>
+              <div className="text-xs text-muted-foreground">For {c.for_date} · {c.reason}</div>
+              {(c.requested_in || c.requested_out) && (
+                <div className="text-xs text-muted-foreground">
+                  Requested: {c.requested_in ? new Date(c.requested_in).toLocaleString() : "—"} → {c.requested_out ? new Date(c.requested_out).toLocaleString() : "—"}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusPill tone={c.status === "approved" ? "success" : c.status === "declined" ? "danger" : "warning"}>{c.status}</StatusPill>
+              {c.status === "pending" && <DecisionButtons id={c.id} isOwner={isOwner} decideFn={decideCorrection} qkey="labor-reqs" />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function TimeOffList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
+  if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No time off requests.</Card>;
+  return (
+    <Card className="mt-3 p-0 overflow-hidden">
+      {items.map((t, i) => (
+        <div key={t.id} className={cn("p-3.5", i && "border-t border-border")}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{t.employee_name} · {t.start_date} → {t.end_date}</div>
+              <div className="text-xs text-muted-foreground">{t.full_day ? "Full day(s)" : `${t.start_time} – ${t.end_time}`} · {t.reason}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusPill tone={t.status === "approved" ? "success" : t.status === "declined" ? "danger" : "warning"}>{t.status}</StatusPill>
+              {t.status === "pending" && <DecisionButtons id={t.id} isOwner={isOwner} decideFn={decideTimeOff} qkey="labor-reqs" />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function NotesList({ items }: { items: any[] }) {
+  if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No notes.</Card>;
+  return (
+    <Card className="mt-3 p-0 overflow-hidden">
+      {items.map((n, i) => (
+        <div key={n.id} className={cn("p-3.5", i && "border-t border-border")}>
+          <div className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />{n.employee_name}</div>
+          <div className="text-sm mt-1">{n.note}</div>
+          <div className="text-[11px] text-muted-foreground mt-1">{new Date(n.created_at).toLocaleString()}</div>
+        </div>
+      ))}
+    </Card>
+  );
+}
