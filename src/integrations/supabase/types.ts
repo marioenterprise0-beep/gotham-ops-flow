@@ -363,42 +363,63 @@ export type Database = {
           cost_per_unit: number
           created_at: string
           current_qty: number
+          estimated_cost: number
           id: string
+          last_ordered_at: string | null
+          last_received_at: string | null
           low_threshold: number
+          minimum_qty: number
           name: string
+          pack_size: string | null
           par_level: number
+          preferred_order_qty: number
           store_id: string
           trailer_id: string | null
           unit: string
           updated_at: string
+          vendor: string | null
         }
         Insert: {
           category: Database["public"]["Enums"]["inventory_category"]
           cost_per_unit?: number
           created_at?: string
           current_qty?: number
+          estimated_cost?: number
           id?: string
+          last_ordered_at?: string | null
+          last_received_at?: string | null
           low_threshold?: number
+          minimum_qty?: number
           name: string
+          pack_size?: string | null
           par_level?: number
+          preferred_order_qty?: number
           store_id: string
           trailer_id?: string | null
           unit?: string
           updated_at?: string
+          vendor?: string | null
         }
         Update: {
           category?: Database["public"]["Enums"]["inventory_category"]
           cost_per_unit?: number
           created_at?: string
           current_qty?: number
+          estimated_cost?: number
           id?: string
+          last_ordered_at?: string | null
+          last_received_at?: string | null
           low_threshold?: number
+          minimum_qty?: number
           name?: string
+          pack_size?: string | null
           par_level?: number
+          preferred_order_qty?: number
           store_id?: string
           trailer_id?: string | null
           unit?: string
           updated_at?: string
+          vendor?: string | null
         }
         Relationships: [
           {
