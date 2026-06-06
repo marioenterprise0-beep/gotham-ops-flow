@@ -9,8 +9,8 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare } from "lucide-react";
-import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement } from "@/lib/alerts.functions";
+import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check } from "lucide-react";
+import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement, listCategoryReads, markCategoryRead } from "@/lib/alerts.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
@@ -179,32 +179,70 @@ function AlertsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [loading, session?.access_token, qc]);
 
-  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null }[]>({
+  const fetchReads = useServerFn(listCategoryReads);
+  const { data: reads = [] } = useQuery<{ category: string; last_seen_at: string }[]>({
+    queryKey: ["alert-category-reads"],
+    enabled: !loading && !!session?.access_token,
+    queryFn: () => fetchReads() as any,
+  });
+
+  const seenByCat = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of reads) m[r.category] = r.last_seen_at;
+    return m;
+  }, [reads]);
+
+  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null; created_at: string }[]>({
     queryKey: ["alerts", "unread-by-cat"],
     enabled: !loading && !!session?.access_token,
     queryFn: async () => {
-      const since = (typeof window !== "undefined" && localStorage.getItem("gotham:alerts:lastSeenAt")) || new Date(0).toISOString();
       const { data } = await supabase
         .from("alerts")
-        .select("type, source_module")
+        .select("type, source_module, created_at")
         .neq("status", "resolved")
-        .gt("created_at", since);
+        .order("created_at", { ascending: false })
+        .limit(500);
       return (data as any) ?? [];
     },
   });
 
   const unreadByCat = useMemo(() => {
-    const counts: Record<string, number> = { "": unreadAll.length };
+    const counts: Record<string, number> = {};
+    const allSeen = seenByCat["all"] ?? new Date(0).toISOString();
     for (const a of unreadAll) {
-      for (const k of categoryOf(a as any)) counts[k] = (counts[k] ?? 0) + 1;
+      const cats = categoryOf(a as any);
+      // "all" chip counts alerts newer than the user's last "all" mark
+      if (a.created_at > allSeen) counts[""] = (counts[""] ?? 0) + 1;
+      for (const k of cats) {
+        const seen = seenByCat[k] ?? new Date(0).toISOString();
+        if (a.created_at > seen) counts[k] = (counts[k] ?? 0) + 1;
+      }
     }
     return counts;
-  }, [unreadAll]);
+  }, [unreadAll, seenByCat]);
 
+  const markRead = useServerFn(markCategoryRead);
+  const markMut = useMutation({
+    mutationFn: (cat: string) => markRead({ data: { category: (cat || "all") as any } }) as any,
+    onSuccess: (_d, cat) => {
+      qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
+      if (!cat) markAlertsSeen(); // also clear global bell when marking "All"
+      toast.success(`Marked ${cat || "all"} as read`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to mark read"),
+  });
+
+  // Keep realtime in sync — refresh reads on any alert_category_reads change too
   useEffect(() => {
-    markAlertsSeen();
-    qc.invalidateQueries({ queryKey: ["alerts", "unread-by-cat"] });
-  }, [alerts.length, qc]);
+    if (loading || !session?.access_token) return;
+    const ch = supabase
+      .channel("alert-reads-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_category_reads" }, () => {
+        qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [loading, session?.access_token, qc]);
 
   const stats = useMemo(() => {
     const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
@@ -235,18 +273,32 @@ function AlertsPage() {
         <div className="flex flex-wrap gap-2 mb-3">
           {CATEGORIES.map((c) => {
             const n = unreadByCat[c.key] ?? 0;
+            const isActive = category === c.key;
             return (
-              <button key={c.key} onClick={() => setCategory(c.key)}
-                className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                  category === c.key ? "bg-foreground text-background border-foreground" : "bg-background border-border text-foreground/70 hover:bg-secondary")}>
-                {c.label}
+              <div key={c.key} className={cn("inline-flex items-stretch rounded-full border transition-colors overflow-hidden",
+                isActive ? "bg-foreground border-foreground" : "bg-background border-border")}>
+                <button onClick={() => setCategory(c.key)}
+                  className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
+                    isActive ? "text-background" : "text-foreground/70 hover:bg-secondary")}>
+                  {c.label}
+                  {n > 0 && (
+                    <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
+                      isActive ? "bg-background text-foreground" : "bg-red-600 text-white")}>
+                      {n > 99 ? "99+" : n}
+                    </span>
+                  )}
+                </button>
                 {n > 0 && (
-                  <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
-                    category === c.key ? "bg-background text-foreground" : "bg-red-600 text-white")}>
-                    {n > 99 ? "99+" : n}
-                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); markMut.mutate(c.key); }}
+                    disabled={markMut.isPending}
+                    title={`Mark ${c.label} as read`}
+                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center",
+                      isActive ? "border-background/30 text-background/80 hover:bg-background/10" : "border-border text-foreground/50 hover:bg-secondary hover:text-foreground")}>
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
