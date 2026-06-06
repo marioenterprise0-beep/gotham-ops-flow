@@ -76,6 +76,8 @@ function ManagerPage() {
   });
 
 
+  if (!allowed) return <Navigate to="/" />;
+
   return (
     <AppShell>
       <Card dark>
