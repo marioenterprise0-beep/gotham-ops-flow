@@ -542,19 +542,19 @@ function SessionDetailDialog({ sessionId, isManager, onClose, onChanged }: {
 
           {s.status !== "open" && (
             <Card>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <Field label="Starting Float" value={money(s.starting_float)} />
-                <Field label="Total Cash Sales" value={money(s.total_cash_sales)} />
-                <Field label="Total Drops" value={`−${money(totalDrops)}`} />
-                <Field label="Expected" value={money(s.expected_amount)} />
-                <Field label="Counted" value={money(s.counted_amount)} />
+                <Field label="Total Cash Sales From POS" value={money(s.total_cash_sales)} />
+                <Field label="Expected Drawer Total" value={money(s.expected_amount)} />
+                <Field label="Actual Cash Counted" value={money(s.counted_amount)} />
+                <Field label="Variance" value={`${Number(s.variance) >= 0 ? "+" : ""}${money(s.variance)}`} />
+                <Field label="Drop Amount" value={money(Math.max(0, Number(s.counted_amount ?? 0) - Number(s.starting_float)))} />
+                <Field label="Remaining Float" value={money(s.starting_float)} />
+                <Field label="Mid-shift Drops" value={`${drops.length} · ${money(totalDrops)}`} />
               </div>
-              <div className="mt-2 text-sm">
-                Variance: <b className={Number(s.variance) === 0 ? "" : "text-[var(--color-danger)]"}>
-                  {Number(s.variance) >= 0 ? "+" : ""}{money(s.variance)}
-                </b>
-                {s.variance_reason && <span className="text-muted-foreground ml-2">— {s.variance_reason}</span>}
-              </div>
+              {s.variance_reason && (
+                <div className="mt-2 text-sm text-muted-foreground">Reason / Notes: {s.variance_reason}</div>
+              )}
             </Card>
           )}
 
