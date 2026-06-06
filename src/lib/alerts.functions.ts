@@ -226,3 +226,35 @@ export const createAnnouncement = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true, id: row?.id };
   });
+
+const CATEGORY_KEYS = ["all","announcements","tasks","inventory","labor","scheduling","operations","maintenance","hospitality"] as const;
+
+export const listCategoryReads = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase
+      .from("alert_category_reads")
+      .select("category, last_seen_at")
+      .eq("user_id", userId);
+    return (data ?? []) as { category: string; last_seen_at: string }[];
+  });
+
+export const markCategoryRead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    category: z.enum(CATEGORY_KEYS),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("alert_category_reads").upsert({
+      user_id: userId, category: data.category, last_seen_at: now,
+    } as any, { onConflict: "user_id,category" });
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "mark_alerts_read", entity: "alerts",
+      payload: { category: data.category, at: now },
+    } as any);
+    return { ok: true, at: now };
+  });
