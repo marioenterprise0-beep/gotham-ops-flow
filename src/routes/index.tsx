@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, BookOpen, Boxes, ChevronRight, FileWarning, Flag, MapPin, Play, Timer, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, Boxes, ChevronRight, Download, FileText, FileWarning, Flag, MapPin, Play, Timer, Users } from "lucide-react";
+import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { useEffect, useState } from "react";
 import { useRole, ROLES, initials } from "@/lib/role";
 import { useQuery } from "@tanstack/react-query";
@@ -94,7 +95,16 @@ function Dashboard() {
         <DarkStat label="Shift Window" value={countdown} sub="opening countdown" tone="gold" />
       </div>
 
-      <SectionHeader eyebrow="Execute" title="Quick Actions" />
+      <SectionHeader eyebrow="Execute" title="Quick Actions" action={stats ? (
+        <div className="flex gap-2">
+          <button onClick={() => exportHealthCSV(stats, crew, role?.name ?? "Crew")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold">
+            <Download className="h-3.5 w-3.5" /> Health CSV
+          </button>
+          <button onClick={() => exportHealthPDF(stats, crew, role?.name ?? "Crew", phaseLabel)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+            <FileText className="h-3.5 w-3.5" /> Health PDF
+          </button>
+        </div>
+      ) : null} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <ActionBtn to="/operations" label={shiftActive ? "Open Operations" : "Start Shift"} icon={Play} primary />
         <ActionBtn to="/inventory" label="Inventory Count" icon={Boxes} />
