@@ -160,6 +160,16 @@ function CashPage() {
           qc.invalidateQueries({ queryKey: ["cash-drawers"] });
         }} />
       )}
+      {openFor && (
+        <OpenDrawerDialog
+          drawer={openFor}
+          onClose={() => setOpenFor(null)}
+          onSaved={() => {
+            setOpenFor(null);
+            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+          }}
+        />
+      )}
       {closeFor && (
         <CloseDrawerDialog
           drawer={closeFor}
