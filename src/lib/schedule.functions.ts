@@ -171,7 +171,7 @@ export const transitionSchedule = createServerFn({ method: "POST" })
         if (!isOwner) throw new Error("Only owners can revert");
         patch.status = "draft"; break;
     }
-    const { error } = await supabase.from("schedules").update(patch).eq("id", data.id);
+    const { error } = await supabase.from("schedules").update(patch as any).eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId, action: `schedule_${data.action}`, entity: "schedule", entity_id: data.id, payload: { reason: data.reason ?? null },
