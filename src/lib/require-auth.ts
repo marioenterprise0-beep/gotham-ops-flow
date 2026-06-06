@@ -2,15 +2,21 @@ import { redirect } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
 
-// Use getSession() (reads from local storage) instead of getUser() (network call)
-// to avoid redirect loops when the network is flaky — getUser was throwing
-// "Load failed" TypeErrors and bouncing authenticated users to /auth.
+// Reads from local storage (fast, no network) and falls back to a refresh
+// attempt before giving up — this avoids redirect loops on flaky networks
+// while still ensuring downstream serverFn calls have a valid bearer token.
 export async function requireAuthBeforeLoad() {
   const { data } = await supabase.auth.getSession();
+  let session = data.session;
 
-  if (!data.session) {
+  if (!session) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    session = refreshed.session ?? null;
+  }
+
+  if (!session) {
     throw redirect({ to: "/auth" });
   }
 
-  return { user: data.session.user };
+  return { user: session.user };
 }
