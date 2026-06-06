@@ -83,7 +83,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <CommandPalette />
       <TopBar />
+
       <div className="flex-1 flex">
         <aside className="hidden lg:flex w-60 shrink-0 border-r border-border bg-card flex-col">
           {isOwner && (
