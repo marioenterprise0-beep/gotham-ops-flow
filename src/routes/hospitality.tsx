@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listHospitalityToday, logHospitalityIncident } from "@/lib/hospitality.functions";
+import { listHospitality, logHospitalityIncident } from "@/lib/hospitality.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/hospitality")({
@@ -29,30 +29,69 @@ function fmtTime(iso: string) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function thisMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function shiftMonth(iso: string, delta: number) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(iso: string) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
 function Hospitality() {
   const [showLog, setShowLog] = useState(false);
   const [showRec, setShowRec] = useState(false);
+  const [view, setView] = useState<"today" | "month">("today");
+  const [month, setMonth] = useState<string>(thisMonth());
   const qc = useQueryClient();
-  const fetchToday = useServerFn(listHospitalityToday);
+  const fetchData = useServerFn(listHospitality);
+  const monthArg = view === "month" ? month : null;
   const { data, isLoading } = useQuery({
-    queryKey: ["hospitality-today"],
-    queryFn: () => fetchToday(),
-    refetchInterval: 30_000,
+    queryKey: ["hospitality", view, monthArg],
+    queryFn: () => fetchData({ data: { month: monthArg } }),
+    refetchInterval: view === "today" ? 30_000 : false,
   });
 
   const score = data?.score ?? 100;
   const breakdown = data?.breakdown ?? [];
   const incidents = data?.rows ?? [];
   const recoveries = incidents.filter((i: any) => i.recovery_action);
+  const isHistorical = view === "month" && month !== thisMonth();
 
-  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality-today"] });
+  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality"] });
 
   return (
     <AppShell>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex gap-1 rounded-md border border-border bg-card p-1">
+          <button onClick={() => setView("today")}
+            className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm",
+              view === "today" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>Today</button>
+          <button onClick={() => setView("month")}
+            className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm",
+              view === "month" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>By Month</button>
+        </div>
+        {view === "month" && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMonth(shiftMonth(month, -1))}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">◀ Prev</button>
+            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-md bg-[#0A0A0A] text-[var(--color-gold)]">
+              {monthLabel(month)}{isHistorical && " · archived"}
+            </div>
+            <button disabled={month === thisMonth()} onClick={() => setMonth(shiftMonth(month, 1))}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)] disabled:opacity-40 disabled:cursor-not-allowed">Next ▶</button>
+          </div>
+        )}
+      </div>
       <Card dark>
         <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center">
           <div className="text-center md:text-left">
-            <div className="label-caps text-white/55">Today's Hospitality Score</div>
+            <div className="label-caps text-white/55">{view === "today" ? "Today's Hospitality Score" : `${monthLabel(month)} Score`}</div>
             <div className="mt-1 flex items-baseline justify-center md:justify-start gap-2">
               <span className="font-display text-6xl text-[var(--color-gold)]">{score}</span>
               <span className="text-white/60 text-lg">/100</span>
@@ -87,7 +126,8 @@ function Hospitality() {
         </button>
       </div>
 
-      <SectionHeader eyebrow="Today" title="Guest Recovery Log" action={<StatusPill tone="neutral">{recoveries.length} recoveries</StatusPill>} />
+      <SectionHeader eyebrow={view === "today" ? "Today" : monthLabel(month)} title="Guest Recovery Log" action={<StatusPill tone="neutral">{recoveries.length} recoveries</StatusPill>} />
+      {isLoading && <div className="text-sm text-muted-foreground mb-2">Loading…</div>}
       <Card className="p-0 overflow-hidden">
         <div className="hidden md:grid grid-cols-[80px_120px_1.4fr_1.4fr_120px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
           <div>Time</div><div>Category</div><div>Issue</div><div>Resolution</div><div>Severity</div>

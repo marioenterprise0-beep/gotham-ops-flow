@@ -4,7 +4,14 @@ import { z } from "zod";
 
 const RANGE = z.enum(["today", "week", "month"]);
 
-function rangeBounds(range: "today" | "week" | "month") {
+function rangeBounds(range: "today" | "week" | "month", monthIso?: string | null) {
+  // If an explicit month (YYYY-MM) is provided, return that whole calendar month.
+  if (monthIso) {
+    const [y, m] = monthIso.split("-").map((n) => parseInt(n, 10));
+    const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+    const end = new Date(y, m, 0, 23, 59, 59, 999); // last day of month
+    return { start, end };
+  }
   const end = new Date();
   const start = new Date();
   if (range === "today") {
@@ -33,11 +40,12 @@ export const getAnalytics = createServerFn({ method: "POST" })
     z.object({
       range: RANGE.default("week"),
       trailerId: z.string().uuid().nullable().optional(),
+      month: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    const { start, end } = rangeBounds(data.range);
+    const { start, end } = rangeBounds(data.range, data.month ?? null);
     const startIso = start.toISOString();
     const endIso = end.toISOString();
     const startDate = dayKey(start);
