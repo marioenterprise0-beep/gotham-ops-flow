@@ -114,7 +114,7 @@ function OrderGuide() {
       <SectionHeader
         eyebrow="Vendor · Pack · Par · Cost"
         title={canEdit ? "Editable order guide" : "Order guide"}
-        action={<StatusPill tone={canEdit ? "gold" : "muted"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>}
+        action={<StatusPill tone={canEdit ? "gold" : "info"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>}
       />
 
       {(loading || isLoading) && <Card>Loading…</Card>}
