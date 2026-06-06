@@ -681,6 +681,10 @@ function printCashDropSlip(p: {
 function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: any[]; names: Record<string, string>; totalDrops: number }) {
   const s = p.session;
   const v = Number(s.variance ?? 0);
+  const starting = Number(s.starting_float);
+  const counted = Number(s.counted_amount ?? 0);
+  const expected = Number(s.expected_amount ?? 0);
+  const dropAmount = Math.max(0, counted - starting);
   const dropRows = p.drops.map((d) => [
     d.drop_code,
     `$${Number(d.amount).toFixed(2)}`,
@@ -694,15 +698,15 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
     <h1>Drawer Close Report</h1>
     <div class="meta">Gotham Halal · ${escapeHTML(p.trailer?.name ?? "—")} · Drawer ${escapeHTML(p.drawer?.name ?? "—")}</div>
     ${kpiBlock([
-      { label: "Starting Float", value: `$${Number(s.starting_float).toFixed(2)}` },
-      { label: "Total Cash Sales", value: `$${Number(s.total_cash_sales ?? 0).toFixed(2)}` },
-      { label: "Total Drops", value: `−$${Number(p.totalDrops).toFixed(2)}` },
-      { label: "Expected", value: `$${Number(s.expected_amount ?? 0).toFixed(2)}` },
+      { label: "Starting Float", value: `$${starting.toFixed(2)}` },
+      { label: "Total Cash Sales From POS", value: `$${Number(s.total_cash_sales ?? 0).toFixed(2)}` },
+      { label: "Expected Drawer Total", value: `$${expected.toFixed(2)}` },
+      { label: "Actual Cash Counted", value: `$${counted.toFixed(2)}` },
     ])}
     ${kpiBlock([
-      { label: "Counted", value: `$${Number(s.counted_amount ?? 0).toFixed(2)}` },
       { label: "Variance", value: `${v >= 0 ? "+" : ""}$${v.toFixed(2)}`, tone: v === 0 ? "ok" : "danger" },
-      { label: "Verification", value: String(s.verification) },
+      { label: "Drop Amount", value: `$${dropAmount.toFixed(2)}` },
+      { label: "Remaining Float", value: `$${starting.toFixed(2)}` },
       { label: "Owner Review", value: String(s.owner_review) },
     ])}
     <h2>Session</h2>
@@ -710,12 +714,15 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
       ["Opened At", new Date(s.opened_at).toLocaleString()],
       ["Opened By", p.names[s.opened_by] ?? "—"],
       ["Closed At", s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"],
-      ["Closed By", s.closed_by ? (p.names[s.closed_by] ?? "—") : "—"],
-      ["Variance Reason", s.variance_reason ?? "—"],
+      ["Submitted By (Closed By)", s.closed_by ? (p.names[s.closed_by] ?? "—") : "—"],
+      ["Verified By (Owner Reviewer)", s.owner_reviewed_by ? (p.names[s.owner_reviewed_by] ?? "—") : "—"],
+      ["Verification", String(s.verification)],
+      ["Variance Reason / Notes", s.variance_reason ?? "—"],
       ["Owner Note", s.owner_note ?? "—"],
+      ["Owner Review Status", String(s.owner_review)],
     ])}
-    <h2>Cash Drops (${p.drops.length})</h2>
-    ${p.drops.length ? htmlTable(["Drop ID","Amount","Time","Submitted By","Verified By","Reason","Notes"], dropRows) : '<p style="color:#666;font-size:11px;">No drops in this session.</p>'}
+    <h2>Mid-shift Cash Drops (${p.drops.length})</h2>
+    ${p.drops.length ? htmlTable(["Drop ID","Amount","Time","Submitted By","Verified By","Reason","Notes"], dropRows) : '<p style="color:#666;font-size:11px;">No mid-shift drops in this session.</p>'}
   `;
   openPrintablePDF(`Drawer Close — ${p.drawer?.name ?? "drawer"}`, body);
 }
