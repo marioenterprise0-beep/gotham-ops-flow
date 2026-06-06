@@ -67,10 +67,31 @@ function Hospitality() {
 
   return (
     <AppShell>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex gap-1 rounded-md border border-border bg-card p-1">
+          <button onClick={() => setView("today")}
+            className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm",
+              view === "today" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>Today</button>
+          <button onClick={() => setView("month")}
+            className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm",
+              view === "month" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>By Month</button>
+        </div>
+        {view === "month" && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMonth(shiftMonth(month, -1))}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">◀ Prev</button>
+            <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-md bg-[#0A0A0A] text-[var(--color-gold)]">
+              {monthLabel(month)}{isHistorical && " · archived"}
+            </div>
+            <button disabled={month === thisMonth()} onClick={() => setMonth(shiftMonth(month, 1))}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)] disabled:opacity-40 disabled:cursor-not-allowed">Next ▶</button>
+          </div>
+        )}
+      </div>
       <Card dark>
         <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center">
           <div className="text-center md:text-left">
-            <div className="label-caps text-white/55">Today's Hospitality Score</div>
+            <div className="label-caps text-white/55">{view === "today" ? "Today's Hospitality Score" : `${monthLabel(month)} Score`}</div>
             <div className="mt-1 flex items-baseline justify-center md:justify-start gap-2">
               <span className="font-display text-6xl text-[var(--color-gold)]">{score}</span>
               <span className="text-white/60 text-lg">/100</span>
