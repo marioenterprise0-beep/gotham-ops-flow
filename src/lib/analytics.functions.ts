@@ -46,6 +46,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
+    await requireManager(supabase, context.userId);
     const { start, end } = rangeBounds(data.range, data.month ?? null);
     const startIso = start.toISOString();
     const endIso = end.toISOString();
