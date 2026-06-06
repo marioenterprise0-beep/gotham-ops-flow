@@ -342,3 +342,233 @@ function SOPDetail({ sop, onBack }: { sop: SOP; onBack: () => void }) {
     </AppShell>
   );
 }
+
+// ───────── Editable SOP card with inline edit, history, attachments ─────────
+
+function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [mode, setMode] = useState<"view" | "edit" | "history" | "attach">("view");
+  const [form, setForm] = useState({
+    title: sop.title, category: sop.category, role: sop.role ?? "",
+    body: sop.body, passStandard: sop.pass_standard ?? "",
+  });
+
+  const upsertFn = useServerFn(upsertSop);
+  const deleteFn = useServerFn(deleteSop);
+
+  const saveM = useMutation({
+    mutationFn: () => upsertFn({ data: {
+      id: sop.id, title: form.title.trim(), category: form.category,
+      role: (form.role || undefined) as any, body: form.body.trim(),
+      passStandard: form.passStandard.trim() || undefined,
+    } }),
+    onSuccess: () => { toast.success("SOP updated"); setMode("view"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const delM = useMutation({
+    mutationFn: () => deleteFn({ data: { id: sop.id } }),
+    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (mode === "history") return <SopHistoryDrawer sop={sop} onClose={() => setMode("view")} />;
+  if (mode === "attach")  return <SopAttachDrawer  sop={sop} canEdit={canEdit} onClose={() => setMode("view")} />;
+
+  if (mode === "edit") {
+    return (
+      <Card className="h-full">
+        <div className="space-y-2">
+          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+            className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm font-semibold outline-none focus:border-[var(--color-gold)]" />
+          <div className="flex gap-2">
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="flex-1 bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+              {["Kitchen","Front","Management","Cleaning","Hospitality"].map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="flex-1 bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+              <option value="">Any role</option>
+              <option value="manager">Manager</option>
+              <option value="shift_lead">Shift lead</option>
+              <option value="grill">Grill</option>
+              <option value="prep">Prep</option>
+              <option value="cashier">Cashier</option>
+            </select>
+          </div>
+          <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={6}
+            placeholder="Body — Markdown supported (**bold**, # headings, - lists)"
+            className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)] font-mono" />
+          <input value={form.passStandard} onChange={(e) => setForm({ ...form, passStandard: e.target.value })} placeholder="Pass standard (optional)"
+            className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none" />
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => setMode("view")} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
+            <button onClick={() => saveM.mutate()} disabled={!form.title.trim() || !form.body.trim() || saveM.isPending}
+              className="flex-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] py-2 text-sm font-semibold disabled:opacity-60">
+              {saveM.isPending ? "Saving…" : "Save changes"}
+            </button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="h-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="label-caps text-[var(--color-gold)]">{sop.category}{sop.role ? ` · ${sop.role}` : ""}</span>
+        {canEdit && (
+          <div className="flex items-center gap-1">
+            <button onClick={() => setMode("history")} title="History" className="text-muted-foreground hover:text-foreground p-1"><History className="h-3.5 w-3.5" /></button>
+            <button onClick={() => setMode("attach")}  title="Attachments" className="text-muted-foreground hover:text-foreground p-1"><Paperclip className="h-3.5 w-3.5" /></button>
+            <button onClick={() => setMode("edit")}    title="Edit" className="text-muted-foreground hover:text-foreground p-1"><Pencil className="h-3.5 w-3.5" /></button>
+            <button onClick={() => { if (confirm(`Delete "${sop.title}"?`)) delM.mutate(); }} title="Delete" className="text-muted-foreground hover:text-[var(--color-danger)] p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
+        )}
+      </div>
+      <div className="font-semibold text-[15px] leading-snug">{sop.title}</div>
+      <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-5">{sop.body}</div>
+      {sop.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {sop.pass_standard}</div>}
+      <div className="mt-2 text-[10px] text-muted-foreground">v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}</div>
+    </Card>
+  );
+}
+
+function SopHistoryDrawer({ sop, onClose }: { sop: any; onClose: () => void }) {
+  const fn = useServerFn(listSopVersions);
+  const { data: versions = [], isLoading } = useQuery<any[]>({
+    queryKey: ["sop-versions", sop.id],
+    queryFn: () => fn({ data: { sopId: sop.id } }) as any,
+  });
+  return (
+    <Card className="h-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="label-caps text-[var(--color-gold)]">History · {sop.title}</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+      </div>
+      {isLoading && <div className="text-xs text-muted-foreground">Loading…</div>}
+      {!isLoading && versions.length === 0 && (
+        <div className="text-xs text-muted-foreground">No previous versions yet — edits will be recorded here.</div>
+      )}
+      <div className="space-y-2 max-h-72 overflow-auto">
+        {versions.map((v) => (
+          <div key={v.id} className="rounded-md border border-border p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold">v{v.version} · {v.title}</span>
+              <span className="text-[10px] text-muted-foreground">{new Date(v.edited_at).toLocaleString()}</span>
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground whitespace-pre-wrap line-clamp-4">{v.body}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function SopAttachDrawer({ sop, canEdit, onClose }: { sop: any; canEdit: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listSopAttachments);
+  const addFn = useServerFn(addSopAttachment);
+  const delFn = useServerFn(deleteSopAttachment);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: attachments = [], isLoading } = useQuery<any[]>({
+    queryKey: ["sop-attachments", sop.id],
+    queryFn: () => listFn({ data: { sopId: sop.id } }) as any,
+  });
+
+  const onUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const path = `sops/${sop.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error } = await supabase.storage.from("gotham-photos").upload(path, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type,
+      });
+      if (error) throw error;
+      await addFn({ data: { sopId: sop.id, storagePath: path, label: file.name, contentType: file.type } });
+      toast.success("Uploaded");
+      qc.invalidateQueries({ queryKey: ["sop-attachments", sop.id] });
+    } catch (e: any) {
+      toast.error(e.message ?? "Upload failed");
+    } finally { setUploading(false); }
+  };
+
+  const delM = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sop-attachments", sop.id] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="h-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="label-caps text-[var(--color-gold)]">Attachments · {sop.title}</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+      </div>
+      {canEdit && (
+        <>
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) void onUpload(f); }} />
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="w-full rounded-md border border-dashed border-border py-2 text-xs font-semibold inline-flex items-center justify-center gap-2 hover:border-[var(--color-gold)]">
+            <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Attach photo / PDF"}
+          </button>
+        </>
+      )}
+      {isLoading && <div className="mt-2 text-xs text-muted-foreground">Loading…</div>}
+      <div className="mt-2 space-y-1.5 max-h-60 overflow-auto">
+        {attachments.map((a) => (
+          <div key={a.id} className="flex items-center gap-2 rounded-md border border-border p-2">
+            <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <div className="text-xs flex-1 truncate">{a.label ?? a.storage_path}</div>
+            {a.url && <a href={a.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><Download className="h-3.5 w-3.5" /></a>}
+            {canEdit && <button onClick={() => delM.mutate(a.id)} className="text-muted-foreground hover:text-[var(--color-danger)]"><Trash2 className="h-3.5 w-3.5" /></button>}
+          </div>
+        ))}
+        {!isLoading && attachments.length === 0 && <div className="text-xs text-muted-foreground">No attachments.</div>}
+      </div>
+    </Card>
+  );
+}
+
+function ImportBuiltinsButton({ existing }: { existing: any[] }) {
+  const qc = useQueryClient();
+  const upsertFn = useServerFn(upsertSop);
+  const titles = useMemo(() => new Set(existing.map((s) => s.title)), [existing]);
+  const pending = useMemo(() => SOPS.filter((s) => !titles.has(s.title)), [titles]);
+  const [running, setRunning] = useState(false);
+
+  if (pending.length === 0) return null;
+
+  const ROLE_MAP: Record<string, string> = {
+    "Grill Master": "grill", "Prep": "prep", "Cashier": "cashier",
+    "Shift Lead": "shift_lead", "Manager": "manager",
+  };
+
+  const run = async () => {
+    setRunning(true);
+    try {
+      for (const s of pending) {
+        const body = [
+          `## Objective`, s.objective, "",
+          `## Steps`, ...s.steps.map((st, i) => `${i + 1}. ${st}`), "",
+          `## Common errors`, ...s.errors.map((e) => `- ${e}`),
+        ].join("\n");
+        await upsertFn({ data: {
+          title: s.title, category: s.cat, role: (ROLE_MAP[s.role] ?? "cashier") as any,
+          body, passStandard: s.standard,
+        } });
+      }
+      toast.success(`Imported ${pending.length} built-in SOPs — now fully editable`);
+      qc.invalidateQueries({ queryKey: ["sops"] });
+    } catch (e: any) { toast.error(e.message ?? "Import failed"); }
+    finally { setRunning(false); }
+  };
+
+  return (
+    <button onClick={run} disabled={running}
+      className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 border border-[var(--color-gold)]/40 bg-[#FAF7EE] text-sm font-semibold text-foreground hover:border-[var(--color-gold)] disabled:opacity-60">
+      <Download className="h-4 w-4" /> {running ? "Importing…" : `Import ${pending.length} built-in SOPs to editable library`}
+    </button>
+  );
+}
