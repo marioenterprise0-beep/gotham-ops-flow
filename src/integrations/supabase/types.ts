@@ -790,6 +790,7 @@ export type Database = {
       }
       tab_permissions: {
         Row: {
+          access_level: string
           enabled: boolean
           id: string
           scope_id: string
@@ -799,6 +800,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          access_level?: string
           enabled?: boolean
           id?: string
           scope_id: string
@@ -808,6 +810,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          access_level?: string
           enabled?: boolean
           id?: string
           scope_id?: string
