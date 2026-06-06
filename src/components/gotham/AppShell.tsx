@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, FileText } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const ALL_TABS: Tab[] = [
   { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",    icon: ListChecks },
   { to: "/time-clock",  key: "time-clock",  label: "Time Clock",  icon: Clock },
   { to: "/operations",  key: "operations",  label: "Operations",  icon: ClipboardCheck },
+  { to: "/recaps",      key: "recaps",      label: "Daily Recap", icon: FileText,    gate: "manager" },
   { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/labor",       key: "labor",       label: "Labor",       icon: Timer,       gate: "manager" },
   { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },

@@ -169,6 +169,99 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_recaps: {
+        Row: {
+          created_at: string
+          crew: Json
+          hosp_complaints: string | null
+          hosp_feedback: string | null
+          hosp_wins: string | null
+          id: string
+          inv_concerns: string | null
+          inv_low_stock: string | null
+          inv_orders: string | null
+          labor_attendance: string | null
+          labor_performance: string | null
+          labor_staffing: string | null
+          location: string | null
+          manager_id: string
+          next_shift_notes: string | null
+          ops_attention: string | null
+          ops_slowed: string | null
+          ops_went_well: string | null
+          owner_comment: string | null
+          recap_date: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          shift_id: string | null
+          shift_score: number | null
+          status: Database["public"]["Enums"]["recap_status"]
+          submitted_at: string | null
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crew?: Json
+          hosp_complaints?: string | null
+          hosp_feedback?: string | null
+          hosp_wins?: string | null
+          id?: string
+          inv_concerns?: string | null
+          inv_low_stock?: string | null
+          inv_orders?: string | null
+          labor_attendance?: string | null
+          labor_performance?: string | null
+          labor_staffing?: string | null
+          location?: string | null
+          manager_id: string
+          next_shift_notes?: string | null
+          ops_attention?: string | null
+          ops_slowed?: string | null
+          ops_went_well?: string | null
+          owner_comment?: string | null
+          recap_date?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shift_id?: string | null
+          shift_score?: number | null
+          status?: Database["public"]["Enums"]["recap_status"]
+          submitted_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crew?: Json
+          hosp_complaints?: string | null
+          hosp_feedback?: string | null
+          hosp_wins?: string | null
+          id?: string
+          inv_concerns?: string | null
+          inv_low_stock?: string | null
+          inv_orders?: string | null
+          labor_attendance?: string | null
+          labor_performance?: string | null
+          labor_staffing?: string | null
+          location?: string | null
+          manager_id?: string
+          next_shift_notes?: string | null
+          ops_attention?: string | null
+          ops_slowed?: string | null
+          ops_went_well?: string | null
+          owner_comment?: string | null
+          recap_date?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shift_id?: string | null
+          shift_score?: number | null
+          status?: Database["public"]["Enums"]["recap_status"]
+          submitted_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hospitality_incidents: {
         Row: {
           id: string
@@ -1431,6 +1524,7 @@ export type Database = {
         | "manager_note"
         | "schedule_approval"
         | "maintenance"
+        | "manager_recap"
       app_role:
         | "owner"
         | "manager"
@@ -1470,6 +1564,7 @@ export type Database = {
         | "critical"
         | "emergency"
       punch_status: "open" | "closed" | "edited" | "voided"
+      recap_status: "draft" | "submitted" | "reviewed" | "archived"
       request_status: "pending" | "approved" | "declined" | "info_requested"
       schedule_status:
         | "draft"
@@ -1634,6 +1729,7 @@ export const Constants = {
         "manager_note",
         "schedule_approval",
         "maintenance",
+        "manager_recap",
       ],
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
       correction_type: [
@@ -1672,6 +1768,7 @@ export const Constants = {
         "emergency",
       ],
       punch_status: ["open", "closed", "edited", "voided"],
+      recap_status: ["draft", "submitted", "reviewed", "archived"],
       request_status: ["pending", "approved", "declined", "info_requested"],
       schedule_status: [
         "draft",
