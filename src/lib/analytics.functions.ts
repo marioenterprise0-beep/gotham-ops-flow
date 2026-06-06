@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
 const RANGE = z.enum(["today", "week", "month"]);
@@ -45,6 +46,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
+    await requireManager(supabase, context.userId);
     const { start, end } = rangeBounds(data.range, data.month ?? null);
     const startIso = start.toISOString();
     const endIso = end.toISOString();
