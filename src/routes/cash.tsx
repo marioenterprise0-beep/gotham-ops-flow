@@ -94,7 +94,7 @@ function CashPage() {
           <DrawerCard
             key={d.id}
             drawer={d}
-            onOpen={() => qc.invalidateQueries({ queryKey: ["cash-drawers"] })}
+            onRequestOpen={() => setOpenFor(d)}
             onClose={() => setCloseFor(d)}
             onDrop={() => setDropFor(d)}
             onView={(sid) => setDetailFor(sid)}
