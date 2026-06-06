@@ -73,20 +73,22 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </div>
 
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 surface-dark border-t border-[#1C1C1C]">
-        <div className="mx-auto max-w-3xl grid grid-cols-5">
-          {tabs.slice(0, 5).map((t) => {
+        <div className="mx-auto max-w-3xl overflow-x-auto scrollbar-none">
+          <div className="flex min-w-max px-1">
+            {tabs.map((t) => {
             const active = isActive(pathname, t.to);
             const Icon = t.icon;
             return (
-              <Link key={t.to} to={t.to}
-                className="relative flex flex-col items-center justify-center gap-1 py-2.5 label-caps text-white/60 data-[active=true]:text-[var(--color-gold)]"
-                data-active={active}>
-                {active && <span className="absolute top-0 inset-x-6 h-[2px] bg-[var(--color-gold)] rounded-full" />}
-                <Icon className="h-5 w-5" strokeWidth={1.75} />
-                <span className="text-[9px]">{t.label}</span>
-              </Link>
+                <Link key={t.to} to={t.to}
+                  className="relative flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 px-2 py-2.5 label-caps text-white/60 data-[active=true]:text-[var(--color-gold)]"
+                  data-active={active}>
+                  {active && <span className="absolute top-0 inset-x-3 h-[2px] bg-[var(--color-gold)] rounded-full" />}
+                  <Icon className="h-5 w-5" strokeWidth={1.75} />
+                  <span className="text-[9px] text-center leading-tight">{t.label}</span>
+                </Link>
             );
-          })}
+            })}
+          </div>
         </div>
       </nav>
     </div>

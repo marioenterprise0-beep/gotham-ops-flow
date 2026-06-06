@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   head: () => ({ meta: [{ title: "Sign in · Gotham OS" }] }),
   component: AuthPage,
 });
