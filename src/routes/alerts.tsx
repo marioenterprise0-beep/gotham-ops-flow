@@ -273,18 +273,32 @@ function AlertsPage() {
         <div className="flex flex-wrap gap-2 mb-3">
           {CATEGORIES.map((c) => {
             const n = unreadByCat[c.key] ?? 0;
+            const isActive = category === c.key;
             return (
-              <button key={c.key} onClick={() => setCategory(c.key)}
-                className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                  category === c.key ? "bg-foreground text-background border-foreground" : "bg-background border-border text-foreground/70 hover:bg-secondary")}>
-                {c.label}
+              <div key={c.key} className={cn("inline-flex items-stretch rounded-full border transition-colors overflow-hidden",
+                isActive ? "bg-foreground border-foreground" : "bg-background border-border")}>
+                <button onClick={() => setCategory(c.key)}
+                  className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
+                    isActive ? "text-background" : "text-foreground/70 hover:bg-secondary")}>
+                  {c.label}
+                  {n > 0 && (
+                    <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
+                      isActive ? "bg-background text-foreground" : "bg-red-600 text-white")}>
+                      {n > 99 ? "99+" : n}
+                    </span>
+                  )}
+                </button>
                 {n > 0 && (
-                  <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
-                    category === c.key ? "bg-background text-foreground" : "bg-red-600 text-white")}>
-                    {n > 99 ? "99+" : n}
-                  </span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); markMut.mutate(c.key); }}
+                    disabled={markMut.isPending}
+                    title={`Mark ${c.label} as read`}
+                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center",
+                      isActive ? "border-background/30 text-background/80 hover:bg-background/10" : "border-border text-foreground/50 hover:bg-secondary hover:text-foreground")}>
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
