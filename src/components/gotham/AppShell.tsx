@@ -241,7 +241,18 @@ function TopBar() {
           <span className="text-xs text-white/50">· {timeStr}</span>
         </div>
 
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+          className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-xs text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
+          title="Open command palette (⌘K)"
+        >
+          <span>Search</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">⌘K</kbd>
+        </button>
+
         <TrailerSwitcher />
+
 
         <div className="flex items-center gap-2.5">
           {role && (
