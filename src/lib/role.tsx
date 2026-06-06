@@ -152,6 +152,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setTrailerScopeState(id);
   };
 
+  const isOwner = primary === "owner";
+  const getTabAccess = (tabKey: string): TabAccess => {
+    if (isOwner) return "edit";
+    return tabAccess[tabKey] ?? "edit";
+  };
+
   return (
     <RoleCtx.Provider value={{
       loading,
@@ -168,6 +174,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       signOut,
       refreshRoles,
       disabledTabs,
+      tabAccess,
+      getTabAccess,
       refreshPermissions,
     }}>{children}</RoleCtx.Provider>
   );
