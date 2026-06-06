@@ -221,13 +221,23 @@ function OrderGuide() {
                   </div>
                 </div>
                 {canEdit && (
-                  <button
-                    disabled={!dirty || saveMut.isPending}
-                    onClick={() => save(it)}
-                    className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
-                  >
-                    <Save className="h-3.5 w-3.5" /> Save
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      disabled={!dirty || saveMut.isPending}
+                      onClick={() => save(it)}
+                      className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
+                    >
+                      <Save className="h-3.5 w-3.5" /> Save
+                    </button>
+                    <button
+                      disabled={deleteMut.isPending}
+                      onClick={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) deleteMut.mutate(it.id); }}
+                      className="inline-flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive h-7 w-7 disabled:opacity-40"
+                      aria-label="Delete item"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
