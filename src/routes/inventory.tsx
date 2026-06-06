@@ -85,6 +85,14 @@ function Inventory() {
 
   return (
     <AppShell>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="label-caps text-muted-foreground">Stock</div>
+          <h1 className="font-display text-2xl text-foreground">INVENTORY</h1>
+        </div>
+        <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         <SummaryCard tone="danger"  label="Critical"      value={counts.crit} />
         <SummaryCard tone="warning" label="Low Stock"     value={counts.low} />
