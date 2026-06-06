@@ -5,10 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { ROLES, useRole, type RoleId } from "@/lib/role";
+import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
 import { toast } from "sonner";
-import { Check, X, KeyRound, User as UserIcon, Shield } from "lucide-react";
+import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/permissions")({
@@ -21,8 +21,10 @@ export const Route = createFileRoute("/permissions")({
 const TABS: { key: string; label: string }[] = [
   { key: "dashboard",   label: "Dashboard" },
   { key: "my-tasks",    label: "My Tasks" },
+  { key: "time-clock",  label: "Time Clock" },
   { key: "operations",  label: "Operations" },
   { key: "schedule",    label: "Scheduling" },
+  { key: "labor",       label: "Labor" },
   { key: "inventory",   label: "Inventory" },
   { key: "sops",        label: "SOPs" },
   { key: "hospitality", label: "Hospitality" },
@@ -34,6 +36,12 @@ const TABS: { key: string; label: string }[] = [
 ];
 
 const ROLE_IDS: RoleId[] = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"];
+
+const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[] = [
+  { id: "none", label: "Hidden",    icon: EyeOff, tone: "danger" },
+  { id: "view", label: "View only", icon: Eye,    tone: "warn" },
+  { id: "edit", label: "Full edit", icon: Pencil, tone: "success" },
+];
 
 function PermissionsPage() {
   const { roleId, refreshPermissions } = useRole();
@@ -50,7 +58,7 @@ function PermissionsPage() {
   });
 
   const setM = useMutation({
-    mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; enabled: boolean }) =>
+    mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; accessLevel: TabAccess }) =>
       setFn({ data: v }),
     onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
@@ -65,14 +73,14 @@ function PermissionsPage() {
   const profiles: any[] = data?.profiles ?? [];
   const userRoles: any[] = data?.roles ?? [];
 
-  const enabledFor = (scopeType: "role" | "user", scopeId: string, tabKey: string) => {
+  const accessFor = (scopeType: "role" | "user", scopeId: string, tabKey: string): TabAccess => {
     const found = perms.find((p) => p.scope_type === scopeType && p.scope_id === scopeId && p.tab_key === tabKey);
-    return found ? !!found.enabled : true;
+    if (!found) return "edit";
+    return (found.access_level as TabAccess) ?? (found.enabled === false ? "none" : "edit");
   };
 
-  const toggle = (scopeType: "role" | "user", scopeId: string, tabKey: string) => {
-    const next = !enabledFor(scopeType, scopeId, tabKey);
-    setM.mutate({ scopeType, scopeId, tabKey, enabled: next });
+  const setAccess = (scopeType: "role" | "user", scopeId: string, tabKey: string, accessLevel: TabAccess) => {
+    setM.mutate({ scopeType, scopeId, tabKey, accessLevel });
   };
 
   const roleByUser = useMemo(() => {
@@ -94,7 +102,8 @@ function PermissionsPage() {
         </div>
         <h1 className="font-display text-3xl mt-1 text-white">PERMISSIONS</h1>
         <p className="mt-2 text-sm text-white/70">
-          Disable tabs per role or override for individual users. Owners always see everything.
+          Set per-tab access for each role or override per user. Three levels: <b>Hidden</b> (tab removed),
+          <b> View only</b> (read-only, edits blocked), <b>Full edit</b>. Owners always have full edit on everything.
         </p>
         <div className="mt-4 inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
           {(["role", "user"] as const).map((m) => (
@@ -113,12 +122,12 @@ function PermissionsPage() {
 
       {!isLoading && mode === "role" && (
         <>
-          <SectionHeader eyebrow="Role-based access" title="Toggle tabs visible to each role" />
+          <SectionHeader eyebrow="Role-based access" title="Access level per role" />
           <PermMatrix
             rows={ROLE_IDS.map((r) => ({ id: r, label: ROLES[r].name, locked: r === "owner" }))}
             tabs={TABS}
-            enabledFor={(rowId, tabKey) => enabledFor("role", rowId, tabKey)}
-            onToggle={(rowId, tabKey) => toggle("role", rowId, tabKey)}
+            accessFor={(rowId, tabKey) => accessFor("role", rowId, tabKey)}
+            onSet={(rowId, tabKey, lvl) => setAccess("role", rowId, tabKey, lvl)}
             disabled={setM.isPending}
           />
         </>
@@ -126,7 +135,7 @@ function PermissionsPage() {
 
       {!isLoading && mode === "user" && (
         <>
-          <SectionHeader eyebrow="Per-user overrides" title="Re-enable or hide tabs for a specific user" />
+          <SectionHeader eyebrow="Per-user overrides" title="Override access for a specific user" />
           {profiles.length === 0 && <div className="text-sm text-muted-foreground">No users yet.</div>}
           <PermMatrix
             rows={profiles.map((p) => {
@@ -138,8 +147,8 @@ function PermissionsPage() {
               };
             })}
             tabs={TABS}
-            enabledFor={(rowId, tabKey) => enabledFor("user", rowId, tabKey)}
-            onToggle={(rowId, tabKey) => toggle("user", rowId, tabKey)}
+            accessFor={(rowId, tabKey) => accessFor("user", rowId, tabKey)}
+            onSet={(rowId, tabKey, lvl) => setAccess("user", rowId, tabKey, lvl)}
             disabled={setM.isPending}
           />
         </>
@@ -151,12 +160,12 @@ function PermissionsPage() {
 }
 
 function PermMatrix({
-  rows, tabs, enabledFor, onToggle, disabled,
+  rows, tabs, accessFor, onSet, disabled,
 }: {
   rows: { id: string; label: string; locked?: boolean }[];
   tabs: { key: string; label: string }[];
-  enabledFor: (rowId: string, tabKey: string) => boolean;
-  onToggle: (rowId: string, tabKey: string) => void;
+  accessFor: (rowId: string, tabKey: string) => TabAccess;
+  onSet: (rowId: string, tabKey: string, lvl: TabAccess) => void;
   disabled?: boolean;
 }) {
   return (
@@ -178,24 +187,33 @@ function PermMatrix({
                 {r.locked && <span className="ml-1 text-[10px] text-[var(--color-gold)]">owner</span>}
               </td>
               {tabs.map((t) => {
-                const on = enabledFor(r.id, t.key);
+                const current = r.locked ? "edit" : accessFor(r.id, t.key);
                 return (
                   <td key={t.key} className="text-center px-2 py-2">
-                    <button
-                      disabled={disabled || r.locked}
-                      onClick={() => onToggle(r.id, t.key)}
-                      className={cn(
-                        "h-7 w-7 rounded-md grid place-items-center transition",
-                        r.locked
-                          ? "bg-[var(--color-success-bg)] text-[var(--color-success)] opacity-60 cursor-not-allowed"
-                          : on
-                            ? "bg-[var(--color-success-bg)] text-[var(--color-success)] hover:ring-2 hover:ring-[var(--color-success)]/40"
-                            : "bg-[var(--color-danger-bg)] text-[var(--color-danger)] hover:ring-2 hover:ring-[var(--color-danger)]/40"
-                      )}
-                      title={on ? "Enabled — click to disable" : "Disabled — click to enable"}
-                    >
-                      {on ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                    </button>
+                    <div className="inline-flex rounded-md border border-border overflow-hidden">
+                      {LEVELS.map((lvl) => {
+                        const on = current === lvl.id;
+                        const Icon = lvl.icon;
+                        return (
+                          <button
+                            key={lvl.id}
+                            disabled={disabled || r.locked}
+                            onClick={() => onSet(r.id, t.key, lvl.id)}
+                            title={lvl.label}
+                            className={cn(
+                              "h-7 w-7 grid place-items-center transition",
+                              r.locked && "opacity-50 cursor-not-allowed",
+                              !on && "text-muted-foreground hover:bg-secondary",
+                              on && lvl.tone === "danger"  && "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",
+                              on && lvl.tone === "warn"    && "bg-[var(--color-warn-bg,#FFF7E6)] text-[var(--color-warn,#B7791F)]",
+                              on && lvl.tone === "success" && "bg-[var(--color-success-bg)] text-[var(--color-success)]",
+                            )}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </td>
                 );
               })}
