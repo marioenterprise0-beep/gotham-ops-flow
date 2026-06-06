@@ -28,30 +28,99 @@ const ALL_TABS: Tab[] = [
   { to: "/settings",    key: "settings",    label: "Settings",    icon: SettingsIcon },
 ];
 
+const TAB_ORDER_KEY = "gotham:tab-order:v1";
+
+function loadOrder(): string[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(TAB_ORDER_KEY) ?? "[]"); } catch { return []; }
+}
+function saveOrder(keys: string[]) {
+  try { localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(keys)); } catch {}
+}
+
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { roleId, session, loading, disabledTabs } = useRole();
+  const [orderKeys, setOrderKeys] = useState<string[]>(() => loadOrder());
+  const [reorderMode, setReorderMode] = useState(false);
 
   if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
-  const tabs = ALL_TABS.filter((t) => {
+  const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
     else if (t.gate && !canSee(roleId, t.gate)) return false;
-    // owners always see everything regardless of overrides
     if (roleId !== "owner" && disabledTabs.has(t.key)) return false;
     return true;
   });
+
+  const tabs = useMemo(() => {
+    const byKey = new Map(visibleTabs.map((t) => [t.key, t]));
+    const ordered: Tab[] = [];
+    for (const k of orderKeys) { const t = byKey.get(k); if (t) { ordered.push(t); byKey.delete(k); } }
+    for (const t of visibleTabs) if (byKey.has(t.key)) ordered.push(t);
+    return ordered;
+  }, [visibleTabs, orderKeys]);
+
+  const isOwner = roleId === "owner";
+
+  function move(key: string, dir: -1 | 1) {
+    const keys = tabs.map((t) => t.key);
+    const i = keys.indexOf(key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= keys.length) return;
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+    setOrderKeys(keys);
+    saveOrder(keys);
+  }
+  function resetOrder() { setOrderKeys([]); saveOrder([]); }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <TopBar />
       <div className="flex-1 flex">
         <aside className="hidden lg:flex w-60 shrink-0 border-r border-border bg-card flex-col">
+          {isOwner && (
+            <div className="flex items-center justify-between gap-2 px-3 pt-3">
+              <span className="label-caps text-muted-foreground">Navigation</span>
+              <div className="flex gap-1">
+                {reorderMode && (
+                  <button onClick={resetOrder} title="Reset to default"
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground">
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                )}
+                <button onClick={() => setReorderMode((v) => !v)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
+                    reorderMode ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-[#0A0A0A]" : "border-border text-muted-foreground hover:text-foreground",
+                  )}>
+                  {reorderMode ? <><Check className="h-3 w-3" /> Done</> : <><GripVertical className="h-3 w-3" /> Reorder</>}
+                </button>
+              </div>
+            </div>
+          )}
           <nav className="p-3 flex flex-col gap-1">
-            {tabs.map((t) => {
+            {tabs.map((t, idx) => {
               const active = isActive(pathname, t.to);
               const Icon = t.icon;
+              if (reorderMode && isOwner) {
+                return (
+                  <div key={t.to} className="flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1.5 bg-background">
+                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+                    <Icon className="h-4 w-4 text-foreground/60" strokeWidth={2} />
+                    <span className="flex-1 text-sm font-medium truncate">{t.label}</span>
+                    <button onClick={() => move(t.key, -1)} disabled={idx === 0}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => move(t.key, 1)} disabled={idx === tabs.length - 1}
+                      className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              }
               return (
                 <Link key={t.to} to={t.to}
                   className={cn(
