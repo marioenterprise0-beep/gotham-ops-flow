@@ -27,91 +27,23 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
-const UsersRoute = UsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TimeClockRoute = TimeClockRouteImport.update({
-  id: '/time-clock',
-  path: '/time-clock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SopsRoute = SopsRouteImport.update({
-  id: '/sops',
-  path: '/sops',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScheduleRoute = ScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RoleRoute = RoleRouteImport.update({
-  id: '/role',
-  path: '/role',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PermissionsRoute = PermissionsRouteImport.update({
-  id: '/permissions',
-  path: '/permissions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OperationsRoute = OperationsRouteImport.update({
-  id: '/operations',
-  path: '/operations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MyTasksRoute = MyTasksRouteImport.update({
-  id: '/my-tasks',
-  path: '/my-tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManagerRoute = ManagerRouteImport.update({
-  id: '/manager',
-  path: '/manager',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaborRoute = LaborRouteImport.update({
-  id: '/labor',
-  path: '/labor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryRoute = InventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HospitalityRoute = HospitalityRouteImport.update({
-  id: '/hospitality',
-  path: '/hospitality',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuditRoute = AuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalyticsRoute = AnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const UsersRoute = UsersRouteImport.update({ id: '/users', path: '/users', getParentRoute: () => rootRouteImport } as any)
+const TimeClockRoute = TimeClockRouteImport.update({ id: '/time-clock', path: '/time-clock', getParentRoute: () => rootRouteImport } as any)
+const SopsRoute = SopsRouteImport.update({ id: '/sops', path: '/sops', getParentRoute: () => rootRouteImport } as any)
+const SettingsRoute = SettingsRouteImport.update({ id: '/settings', path: '/settings', getParentRoute: () => rootRouteImport } as any)
+const ScheduleRoute = ScheduleRouteImport.update({ id: '/schedule', path: '/schedule', getParentRoute: () => rootRouteImport } as any)
+const RoleRoute = RoleRouteImport.update({ id: '/role', path: '/role', getParentRoute: () => rootRouteImport } as any)
+const PermissionsRoute = PermissionsRouteImport.update({ id: '/permissions', path: '/permissions', getParentRoute: () => rootRouteImport } as any)
+const OperationsRoute = OperationsRouteImport.update({ id: '/operations', path: '/operations', getParentRoute: () => rootRouteImport } as any)
+const MyTasksRoute = MyTasksRouteImport.update({ id: '/my-tasks', path: '/my-tasks', getParentRoute: () => rootRouteImport } as any)
+const ManagerRoute = ManagerRouteImport.update({ id: '/manager', path: '/manager', getParentRoute: () => rootRouteImport } as any)
+const LaborRoute = LaborRouteImport.update({ id: '/labor', path: '/labor', getParentRoute: () => rootRouteImport } as any)
+const InventoryRoute = InventoryRouteImport.update({ id: '/inventory', path: '/inventory', getParentRoute: () => rootRouteImport } as any)
+const HospitalityRoute = HospitalityRouteImport.update({ id: '/hospitality', path: '/hospitality', getParentRoute: () => rootRouteImport } as any)
+const AuthRoute = AuthRouteImport.update({ id: '/auth', path: '/auth', getParentRoute: () => rootRouteImport } as any)
+const AuditRoute = AuditRouteImport.update({ id: '/audit', path: '/audit', getParentRoute: () => rootRouteImport } as any)
+const AnalyticsRoute = AnalyticsRouteImport.update({ id: '/analytics', path: '/analytics', getParentRoute: () => rootRouteImport } as any)
+const IndexRoute = IndexRouteImport.update({ id: '/', path: '/', getParentRoute: () => rootRouteImport } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -174,61 +106,18 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/analytics'
-    | '/audit'
-    | '/auth'
-    | '/hospitality'
-    | '/inventory'
-    | '/labor'
-    | '/manager'
-    | '/my-tasks'
-    | '/operations'
-    | '/permissions'
-    | '/role'
-    | '/schedule'
-    | '/settings'
-    | '/sops'
-    | '/time-clock'
-    | '/users'
+    | '/' | '/analytics' | '/audit' | '/auth' | '/hospitality' | '/inventory'
+    | '/labor' | '/manager' | '/my-tasks' | '/operations' | '/permissions'
+    | '/role' | '/schedule' | '/settings' | '/sops' | '/time-clock' | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/analytics'
-    | '/audit'
-    | '/auth'
-    | '/hospitality'
-    | '/inventory'
-    | '/labor'
-    | '/manager'
-    | '/my-tasks'
-    | '/operations'
-    | '/permissions'
-    | '/role'
-    | '/schedule'
-    | '/settings'
-    | '/sops'
-    | '/time-clock'
-    | '/users'
+    | '/' | '/analytics' | '/audit' | '/auth' | '/hospitality' | '/inventory'
+    | '/labor' | '/manager' | '/my-tasks' | '/operations' | '/permissions'
+    | '/role' | '/schedule' | '/settings' | '/sops' | '/time-clock' | '/users'
   id:
-    | '__root__'
-    | '/'
-    | '/analytics'
-    | '/audit'
-    | '/auth'
-    | '/hospitality'
-    | '/inventory'
-    | '/labor'
-    | '/manager'
-    | '/my-tasks'
-    | '/operations'
-    | '/permissions'
-    | '/role'
-    | '/schedule'
-    | '/settings'
-    | '/sops'
-    | '/time-clock'
-    | '/users'
+    | '__root__' | '/' | '/analytics' | '/audit' | '/auth' | '/hospitality' | '/inventory'
+    | '/labor' | '/manager' | '/my-tasks' | '/operations' | '/permissions'
+    | '/role' | '/schedule' | '/settings' | '/sops' | '/time-clock' | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -253,146 +142,44 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/time-clock': {
-      id: '/time-clock'
-      path: '/time-clock'
-      fullPath: '/time-clock'
-      preLoaderRoute: typeof TimeClockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sops': {
-      id: '/sops'
-      path: '/sops'
-      fullPath: '/sops'
-      preLoaderRoute: typeof SopsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/schedule': {
-      id: '/schedule'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof ScheduleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/role': {
-      id: '/role'
-      path: '/role'
-      fullPath: '/role'
-      preLoaderRoute: typeof RoleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/permissions': {
-      id: '/permissions'
-      path: '/permissions'
-      fullPath: '/permissions'
-      preLoaderRoute: typeof PermissionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/operations': {
-      id: '/operations'
-      path: '/operations'
-      fullPath: '/operations'
-      preLoaderRoute: typeof OperationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/my-tasks': {
-      id: '/my-tasks'
-      path: '/my-tasks'
-      fullPath: '/my-tasks'
-      preLoaderRoute: typeof MyTasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manager': {
-      id: '/manager'
-      path: '/manager'
-      fullPath: '/manager'
-      preLoaderRoute: typeof ManagerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/labor': {
-      id: '/labor'
-      path: '/labor'
-      fullPath: '/labor'
-      preLoaderRoute: typeof LaborRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory': {
-      id: '/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hospitality': {
-      id: '/hospitality'
-      path: '/hospitality'
-      fullPath: '/hospitality'
-      preLoaderRoute: typeof HospitalityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/audit': {
-      id: '/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analytics': {
-      id: '/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AnalyticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    '/users': { id: '/users'; path: '/users'; fullPath: '/users'; preLoaderRoute: typeof UsersRouteImport; parentRoute: typeof rootRouteImport }
+    '/time-clock': { id: '/time-clock'; path: '/time-clock'; fullPath: '/time-clock'; preLoaderRoute: typeof TimeClockRouteImport; parentRoute: typeof rootRouteImport }
+    '/sops': { id: '/sops'; path: '/sops'; fullPath: '/sops'; preLoaderRoute: typeof SopsRouteImport; parentRoute: typeof rootRouteImport }
+    '/settings': { id: '/settings'; path: '/settings'; fullPath: '/settings'; preLoaderRoute: typeof SettingsRouteImport; parentRoute: typeof rootRouteImport }
+    '/schedule': { id: '/schedule'; path: '/schedule'; fullPath: '/schedule'; preLoaderRoute: typeof ScheduleRouteImport; parentRoute: typeof rootRouteImport }
+    '/role': { id: '/role'; path: '/role'; fullPath: '/role'; preLoaderRoute: typeof RoleRouteImport; parentRoute: typeof rootRouteImport }
+    '/permissions': { id: '/permissions'; path: '/permissions'; fullPath: '/permissions'; preLoaderRoute: typeof PermissionsRouteImport; parentRoute: typeof rootRouteImport }
+    '/operations': { id: '/operations'; path: '/operations'; fullPath: '/operations'; preLoaderRoute: typeof OperationsRouteImport; parentRoute: typeof rootRouteImport }
+    '/my-tasks': { id: '/my-tasks'; path: '/my-tasks'; fullPath: '/my-tasks'; preLoaderRoute: typeof MyTasksRouteImport; parentRoute: typeof rootRouteImport }
+    '/manager': { id: '/manager'; path: '/manager'; fullPath: '/manager'; preLoaderRoute: typeof ManagerRouteImport; parentRoute: typeof rootRouteImport }
+    '/labor': { id: '/labor'; path: '/labor'; fullPath: '/labor'; preLoaderRoute: typeof LaborRouteImport; parentRoute: typeof rootRouteImport }
+    '/inventory': { id: '/inventory'; path: '/inventory'; fullPath: '/inventory'; preLoaderRoute: typeof InventoryRouteImport; parentRoute: typeof rootRouteImport }
+    '/hospitality': { id: '/hospitality'; path: '/hospitality'; fullPath: '/hospitality'; preLoaderRoute: typeof HospitalityRouteImport; parentRoute: typeof rootRouteImport }
+    '/auth': { id: '/auth'; path: '/auth'; fullPath: '/auth'; preLoaderRoute: typeof AuthRouteImport; parentRoute: typeof rootRouteImport }
+    '/audit': { id: '/audit'; path: '/audit'; fullPath: '/audit'; preLoaderRoute: typeof AuditRouteImport; parentRoute: typeof rootRouteImport }
+    '/analytics': { id: '/analytics'; path: '/analytics'; fullPath: '/analytics'; preLoaderRoute: typeof AnalyticsRouteImport; parentRoute: typeof rootRouteImport }
+    '/': { id: '/'; path: '/'; fullPath: '/'; preLoaderRoute: typeof IndexRouteImport; parentRoute: typeof rootRouteImport }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AnalyticsRoute: AnalyticsRoute,
-  AuditRoute: AuditRoute,
-  AuthRoute: AuthRoute,
-  HospitalityRoute: HospitalityRoute,
-  InventoryRoute: InventoryRoute,
-  LaborRoute: LaborRoute,
-  ManagerRoute: ManagerRoute,
-  MyTasksRoute: MyTasksRoute,
-  OperationsRoute: OperationsRoute,
-  PermissionsRoute: PermissionsRoute,
-  RoleRoute: RoleRoute,
-  ScheduleRoute: ScheduleRoute,
-  SettingsRoute: SettingsRoute,
-  SopsRoute: SopsRoute,
-  TimeClockRoute: TimeClockRoute,
-  UsersRoute: UsersRoute,
+  IndexRoute,
+  AnalyticsRoute,
+  AuditRoute,
+  AuthRoute,
+  HospitalityRoute,
+  InventoryRoute,
+  LaborRoute,
+  ManagerRoute,
+  MyTasksRoute,
+  OperationsRoute,
+  PermissionsRoute,
+  RoleRoute,
+  ScheduleRoute,
+  SettingsRoute,
+  SopsRoute,
+  TimeClockRoute,
+  UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
