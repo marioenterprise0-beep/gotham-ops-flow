@@ -771,13 +771,11 @@ function MoneyCount({
   const coinsTotal = COIN_DENOMS.reduce((s, d) => s + (coins[d.label] || 0) * d.value, 0);
   const total = billsTotal + coinsTotal;
 
-  // Push total upward
-  const lastEmitted = (MoneyCount as any)._last ?? "";
-  const key = `${total.toFixed(2)}|${billsTotal.toFixed(2)}|${coinsTotal.toFixed(2)}`;
-  if (onTotalChange && key !== lastEmitted) {
-    (MoneyCount as any)._last = key;
-    queueMicrotask(() => onTotalChange(total, billsTotal, coinsTotal));
-  }
+  useEffect(() => {
+    onTotalChange?.(total, billsTotal, coinsTotal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, billsTotal, coinsTotal]);
+
 
   const reset = () => { setBills({}); setCoins({}); };
 
