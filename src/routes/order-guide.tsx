@@ -160,8 +160,51 @@ function OrderGuide() {
       <SectionHeader
         eyebrow="Vendor · Pack · Par · Cost"
         title={canEdit ? "Editable order guide" : "Order guide"}
-        action={<StatusPill tone={canEdit ? "gold" : "info"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusPill tone={canEdit ? "gold" : "info"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>
+            {canEdit && (
+              <button
+                onClick={() => setShowAdd((v) => !v)}
+                className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold"
+              >
+                {showAdd ? <><X className="h-3.5 w-3.5" /> Close</> : <><Plus className="h-3.5 w-3.5" /> Add item</>}
+              </button>
+            )}
+          </div>
+        }
       />
+
+      {canEdit && showAdd && (
+        <Card className="p-3 mb-2 border-[var(--color-gold)]">
+          <div className="label-caps text-[var(--color-gold)] mb-2">New item</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <TxtField label="Name *" value={newItem.name} onChange={(v) => setNewItem({ ...newItem, name: v })} />
+            <label className="block">
+              <div className="label-caps text-muted-foreground mb-1">Category</div>
+              <select value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm">
+                {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+            <TxtField label="Unit" value={newItem.unit} onChange={(v) => setNewItem({ ...newItem, unit: v })} />
+            <TxtField label="Vendor" value={newItem.vendor} onChange={(v) => setNewItem({ ...newItem, vendor: v })} />
+            <TxtField label="Pack size" value={newItem.pack_size} onChange={(v) => setNewItem({ ...newItem, pack_size: v })} />
+            <NumField label="Est. cost / unit" value={newItem.estimated_cost} onChange={(v) => setNewItem({ ...newItem, estimated_cost: v })} />
+            <NumField label="Par level" value={newItem.par_level} onChange={(v) => setNewItem({ ...newItem, par_level: v })} />
+            <NumField label="Low threshold" value={newItem.low_threshold} onChange={(v) => setNewItem({ ...newItem, low_threshold: v })} />
+            <NumField label="Min order qty" value={newItem.minimum_qty} onChange={(v) => setNewItem({ ...newItem, minimum_qty: v })} />
+            <NumField label="Preferred order qty" value={newItem.preferred_order_qty} onChange={(v) => setNewItem({ ...newItem, preferred_order_qty: v })} />
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <button onClick={() => setShowAdd(false)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Cancel</button>
+            <button disabled={createMut.isPending} onClick={submitNew}
+              className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
+              <Plus className="h-3.5 w-3.5" /> {createMut.isPending ? "Adding…" : "Add item"}
+            </button>
+          </div>
+        </Card>
+      )}
 
       {(loading || isLoading) && <Card>Loading…</Card>}
 
