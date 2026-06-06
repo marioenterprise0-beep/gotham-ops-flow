@@ -24,9 +24,9 @@ export const Route = createFileRoute("/manager")({
 
 function ManagerPage() {
   const { roleId } = useRole();
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
+  const allowed = canSee(roleId, "manager");
 
   const fetchApprovals = useServerFn(listPendingApprovals);
   const fetchInventory = useServerFn(listInventory);
