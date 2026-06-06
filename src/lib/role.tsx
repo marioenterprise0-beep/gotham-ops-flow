@@ -16,6 +16,7 @@ export const ROLES: Record<RoleId, { id: RoleId; name: string; short: string; bl
 const ROLE_RANK: Record<RoleId, number> = { owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1 };
 
 export type Trailer = { id: string; name: string };
+export type TabAccess = "none" | "view" | "edit";
 
 type Ctx = {
   loading: boolean;
@@ -32,10 +33,13 @@ type Ctx = {
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
   disabledTabs: Set<string>;
+  tabAccess: Record<string, TabAccess>;
+  getTabAccess: (tabKey: string) => TabAccess;
   refreshPermissions: () => Promise<void>;
 };
 
 const RoleCtx = createContext<Ctx | null>(null);
+const RANK: Record<TabAccess, number> = { none: 0, view: 1, edit: 2 };
 
 function pickPrimary(rs: RoleId[]): RoleId | null {
   if (rs.length === 0) return null;
@@ -51,6 +55,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
   const [disabledTabs, setDisabledTabs] = useState<Set<string>>(new Set());
+  const [tabAccess, setTabAccess] = useState<Record<string, TabAccess>>({});
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
@@ -104,21 +109,31 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const loadPermissions = async (uid: string, rs: RoleId[]) => {
     const { data: perms } = await supabase
       .from("tab_permissions")
-      .select("scope_type, scope_id, tab_key, enabled");
-    const disabled = new Set<string>();
+      .select("scope_type, scope_id, tab_key, enabled, access_level");
+    // Resolve precedence: user override beats role; highest access wins among roles.
+    const roleAccess = new Map<string, TabAccess>();
+    const userAccess = new Map<string, TabAccess>();
     for (const p of (perms ?? []) as any[]) {
-      const applies = (p.scope_type === "user" && p.scope_id === uid) ||
-        (p.scope_type === "role" && rs.includes(p.scope_id as RoleId));
-      if (!applies) continue;
-      if (p.enabled === false) disabled.add(p.tab_key);
-      else disabled.delete(p.tab_key); // user override re-enables
+      const lvl: TabAccess = (p.access_level as TabAccess) ?? (p.enabled === false ? "none" : "edit");
+      if (p.scope_type === "user" && p.scope_id === uid) {
+        userAccess.set(p.tab_key, lvl);
+      } else if (p.scope_type === "role" && rs.includes(p.scope_id as RoleId)) {
+        const cur = roleAccess.get(p.tab_key);
+        if (!cur || RANK[lvl] > RANK[cur]) roleAccess.set(p.tab_key, lvl);
+      }
     }
+    const merged: Record<string, TabAccess> = {};
+    roleAccess.forEach((v, k) => { merged[k] = v; });
+    userAccess.forEach((v, k) => { merged[k] = v; }); // user override wins
+    const disabled = new Set<string>();
+    for (const [k, v] of Object.entries(merged)) if (v === "none") disabled.add(k);
+    setTabAccess(merged);
     setDisabledTabs(disabled);
   };
 
   useEffect(() => {
     if (session?.user) void loadPermissions(session.user.id, roles);
-    else setDisabledTabs(new Set());
+    else { setDisabledTabs(new Set()); setTabAccess({}); }
   }, [session?.user?.id, roles.join(",")]);
 
   const refreshPermissions = async () => {
@@ -137,6 +152,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setTrailerScopeState(id);
   };
 
+  const isOwner = primary === "owner";
+  const getTabAccess = (tabKey: string): TabAccess => {
+    if (isOwner) return "edit";
+    return tabAccess[tabKey] ?? "edit";
+  };
+
   return (
     <RoleCtx.Provider value={{
       loading,
@@ -153,6 +174,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       signOut,
       refreshRoles,
       disabledTabs,
+      tabAccess,
+      getTabAccess,
       refreshPermissions,
     }}>{children}</RoleCtx.Provider>
   );

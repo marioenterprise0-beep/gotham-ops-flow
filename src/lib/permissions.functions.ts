@@ -13,7 +13,7 @@ export const listAllTabPermissions = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertOwner(context.supabase, context.userId);
     const [{ data: perms }, { data: profiles }, { data: roles }] = await Promise.all([
-      context.supabase.from("tab_permissions").select("id, scope_type, scope_id, tab_key, enabled, updated_at"),
+      context.supabase.from("tab_permissions").select("id, scope_type, scope_id, tab_key, enabled, access_level, updated_at"),
       context.supabase.from("profiles").select("id, display_name"),
       context.supabase.from("user_roles").select("user_id, role"),
     ]);
@@ -32,7 +32,7 @@ export const listMyTabPermissions = createServerFn({ method: "GET" })
     const roles = (roleRows ?? []).map((r: any) => r.role);
     const { data: perms } = await supabase
       .from("tab_permissions")
-      .select("scope_type, scope_id, tab_key, enabled");
+      .select("scope_type, scope_id, tab_key, enabled, access_level");
     const mine = (perms ?? []).filter((p: any) =>
       (p.scope_type === "user" && p.scope_id === userId) ||
       (p.scope_type === "role" && roles.includes(p.scope_id))
@@ -46,7 +46,7 @@ export const setTabPermission = createServerFn({ method: "POST" })
     scopeType: z.enum(["role", "user"]),
     scopeId: z.string().min(1).max(80),
     tabKey: z.string().min(1).max(60),
-    enabled: z.boolean(),
+    accessLevel: z.enum(["none", "view", "edit"]),
   }).parse(d))
   .handler(async ({ context, data }) => {
     await assertOwner(context.supabase, context.userId);
@@ -56,7 +56,8 @@ export const setTabPermission = createServerFn({ method: "POST" })
         scope_type: data.scopeType,
         scope_id: data.scopeId,
         tab_key: data.tabKey,
-        enabled: data.enabled,
+        enabled: data.accessLevel !== "none",
+        access_level: data.accessLevel,
         updated_by: context.userId,
         updated_at: new Date().toISOString(),
       }, { onConflict: "scope_type,scope_id,tab_key" });
