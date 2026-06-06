@@ -60,6 +60,11 @@ function OrderGuide() {
 
   const [drafts, setDrafts] = useState<Record<string, Partial<Row>>>({});
   const [filter, setFilter] = useState<string>("all");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newItem, setNewItem] = useState<{
+    name: string; category: string; unit: string; vendor: string; pack_size: string;
+    par_level: number; low_threshold: number; minimum_qty: number; preferred_order_qty: number; estimated_cost: number;
+  }>({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
 
   useEffect(() => { setDrafts({}); }, [items.length]);
 
@@ -76,6 +81,45 @@ function OrderGuide() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const createMut = useMutation({
+    mutationFn: (vars: any) => create({ data: vars }),
+    onSuccess: () => {
+      toast.success("Item added");
+      setShowAdd(false);
+      setNewItem({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
+      qc.invalidateQueries({ queryKey: ["order-guide"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => remove({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Item removed");
+      qc.invalidateQueries({ queryKey: ["order-guide"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function submitNew() {
+    if (!newItem.name.trim()) { toast.error("Name required"); return; }
+    createMut.mutate({
+      name: newItem.name.trim(),
+      category: newItem.category,
+      unit: newItem.unit || "unit",
+      parLevel: Number(newItem.par_level) || 0,
+      lowThreshold: Number(newItem.low_threshold) || 0,
+      vendor: newItem.vendor || null,
+      packSize: newItem.pack_size || null,
+      minimumQty: Number(newItem.minimum_qty) || 0,
+      preferredOrderQty: Number(newItem.preferred_order_qty) || 0,
+      estimatedCost: Number(newItem.estimated_cost) || 0,
+      trailerId: trailerScope ?? undefined,
+    });
+  }
 
   function setField<K extends keyof Row>(id: string, key: K, value: Row[K]) {
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
