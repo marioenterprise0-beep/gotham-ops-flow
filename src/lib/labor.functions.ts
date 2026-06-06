@@ -211,6 +211,8 @@ export const decideCorrection = createServerFn({ method: "POST" })
           clock_in_at: row.requested_in,
           clock_out_at: row.requested_out ?? null,
           status: row.requested_out ? "closed" : "open",
+          edited_by: userId,
+          edited_at: new Date().toISOString(),
         });
       }
     }

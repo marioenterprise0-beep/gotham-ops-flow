@@ -56,7 +56,7 @@ export const clockOut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
     punchId: z.string().uuid().optional(),
-    breakMinutes: z.number().int().min(0).max(480).default(0),
+    breakMinutes: z.number().int().min(0).max(480).optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -68,12 +68,15 @@ export const clockOut = createServerFn({ method: "POST" })
       if (!open) throw new Error("No open punch found.");
       punchId = open.id;
     }
+    const patch: any = {
+      clock_out_at: new Date().toISOString(),
+      status: "closed",
+    };
+    // Only overwrite break_minutes when the caller explicitly provides a value,
+    // so manager-entered breaks are preserved on auto-clock-out.
+    if (data.breakMinutes !== undefined) patch.break_minutes = data.breakMinutes;
     const { data: row, error } = await supabase.from("time_punches")
-      .update({
-        clock_out_at: new Date().toISOString(),
-        break_minutes: data.breakMinutes,
-        status: "closed",
-      })
+      .update(patch)
       .eq("id", punchId)
       .eq("employee_id", userId)
       .select("*").single();
