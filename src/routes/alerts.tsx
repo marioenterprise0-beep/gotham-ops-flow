@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { markAlertsSeen } from "@/hooks/use-unread-alerts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
@@ -156,6 +157,8 @@ function AlertsPage() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [loading, session?.access_token, qc]);
+
+  useEffect(() => { markAlertsSeen(); }, [alerts.length]);
 
   const stats = useMemo(() => {
     const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;

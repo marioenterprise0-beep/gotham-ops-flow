@@ -3,6 +3,7 @@ import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut,
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
+import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
@@ -47,6 +48,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const [orderKeys, setOrderKeys] = useState<string[]>(() => loadOrder());
   const [reorderMode, setReorderMode] = useState(false);
   const isOwner = roleId === "owner";
+  const unreadAlerts = useUnreadAlerts();
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
@@ -131,7 +133,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
                       ? "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[#FAF7EE]"
                       : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground",
                   )}>
-                  <Icon className="h-4 w-4" strokeWidth={2} />
+                  <span className="relative inline-flex">
+                    <Icon className="h-4 w-4" strokeWidth={2} />
+                    {t.key === "alerts" && unreadAlerts > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-[16px] text-center">
+                        {unreadAlerts > 99 ? "99+" : unreadAlerts}
+                      </span>
+                    )}
+                  </span>
                   {t.label}
                 </Link>
               );
@@ -157,7 +166,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
                   className="relative flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 px-2 py-2.5 label-caps text-white/60 data-[active=true]:text-[var(--color-gold)]"
                   data-active={active}>
                   {active && <span className="absolute top-0 inset-x-3 h-[2px] bg-[var(--color-gold)] rounded-full" />}
-                  <Icon className="h-5 w-5" strokeWidth={1.75} />
+                  <span className="relative inline-flex">
+                    <Icon className="h-5 w-5" strokeWidth={1.75} />
+                    {t.key === "alerts" && unreadAlerts > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-[16px] text-center">
+                        {unreadAlerts > 99 ? "99+" : unreadAlerts}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-[9px] text-center leading-tight">{t.label}</span>
                 </Link>
             );
