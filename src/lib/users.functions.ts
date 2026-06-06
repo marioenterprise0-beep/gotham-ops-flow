@@ -1,13 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { randomInt } from "crypto";
 
 type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
 function newCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "GH-";
-  for (let i = 0; i < 4; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 4; i++) out += alphabet[randomInt(alphabet.length)];
   return out;
 }
 
