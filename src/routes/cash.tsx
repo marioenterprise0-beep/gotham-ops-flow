@@ -209,20 +209,13 @@ function CashPage() {
   );
 }
 
-function DrawerCard({ drawer, onOpen, onClose, onDrop, onView }: {
+function DrawerCard({ drawer, onRequestOpen, onClose, onDrop, onView }: {
   drawer: any;
-  onOpen: () => void;
+  onRequestOpen: () => void;
   onClose: () => void;
   onDrop: () => void;
   onView: (sid: string) => void;
 }) {
-  const openFn = useServerFn(openDrawerSession);
-  const openMu = useMutation({
-    mutationFn: () => openFn({ data: { drawerId: drawer.id } }),
-    onSuccess: () => { toast.success("Drawer opened"); onOpen(); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to open"),
-  });
-
   const isOpen = !!drawer.open_session;
 
   return (
@@ -248,7 +241,7 @@ function DrawerCard({ drawer, onOpen, onClose, onDrop, onView }: {
 
       <div className="flex flex-wrap gap-2">
         {!isOpen && (
-          <Button size="sm" variant="default" disabled={!drawer.enabled || openMu.isPending} onClick={() => openMu.mutate()}>
+          <Button size="sm" variant="default" disabled={!drawer.enabled} onClick={onRequestOpen}>
             Open Drawer
           </Button>
         )}
