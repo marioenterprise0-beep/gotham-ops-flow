@@ -6,9 +6,9 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
-import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
+import { listAllTabPermissions, setTabPermission, applyDefaultPresets } from "@/lib/permissions.functions";
 import { toast } from "sonner";
-import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield } from "lucide-react";
+import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/permissions")({
@@ -55,6 +55,7 @@ function PermissionsPage() {
 
   const listFn = useServerFn(listAllTabPermissions);
   const setFn = useServerFn(setTabPermission);
+  const applyPresetsFn = useServerFn(applyDefaultPresets);
 
   const { data, isLoading } = useQuery({
     queryKey: ["all-tab-permissions"],
@@ -66,6 +67,16 @@ function PermissionsPage() {
     mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; accessLevel: TabAccess }) =>
       setFn({ data: v }),
     onSuccess: async () => {
+      qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
+      await refreshPermissions();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const presetM = useMutation({
+    mutationFn: (overwrite: boolean) => applyPresetsFn({ data: { overwrite } }),
+    onSuccess: async (res: any) => {
+      toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
       qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
       await refreshPermissions();
     },
@@ -110,20 +121,48 @@ function PermissionsPage() {
           Set per-tab access for each role or override per user. Three levels: <b>Hidden</b> (tab removed),
           <b> View only</b> (read-only, edits blocked), <b>Full edit</b>. Owners always have full edit on everything.
         </p>
-        <div className="mt-4 inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
-          {(["role", "user"] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded",
-                mode === m ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/70 hover:text-white"
-              )}>
-              {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>) : (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
+            {(["role", "user"] as const).map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded",
+                  mode === m ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/70 hover:text-white"
+                )}>
+                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>) : (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => presetM.mutate(false)}
+              disabled={presetM.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
+              title="Seed defaults for any role/tab not yet configured"
+            >
+              <Wand2 className="h-3 w-3" /> Apply defaults
             </button>
-          ))}
+            <button
+              onClick={() => {
+                if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) {
+                  presetM.mutate(true);
+                }
+              }}
+              disabled={presetM.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
+            >
+              Reset to defaults
+            </button>
+          </div>
         </div>
+        <p className="mt-3 text-xs text-white/50">
+          Presets: <b>Owner</b> full access · <b>Manager</b> full ops + view audit/settings · <b>Shift Lead</b> ops/recaps/inventory edit, schedule/labor view, no admin · <b>Crew</b> (Grill, Prep, Cashier) tasks + clock edit, view-only ops.
+        </p>
       </Card>
 
       {isLoading && <div className="mt-6 text-sm text-muted-foreground">Loading permissions…</div>}
+
+
 
       {!isLoading && mode === "role" && (
         <>

@@ -64,3 +64,85 @@ export const setTabPermission = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// Default tab access by role. Tabs not listed default to "edit" for managers/owner
+// and effectively whatever the role row says. Crew roles (grill/prep/cashier) share
+// the same preset.
+export const ROLE_PRESETS: Record<string, Record<string, "none" | "view" | "edit">> = {
+  owner: {
+    dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
+    recaps: "edit", schedule: "edit", labor: "edit", inventory: "edit",
+    "order-guide": "edit", sops: "edit", hospitality: "edit", health: "edit",
+    alerts: "edit", manager: "edit", users: "edit", audit: "edit",
+    "change-log": "edit", analytics: "edit", settings: "edit",
+  },
+  manager: {
+    dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
+    recaps: "edit", schedule: "edit", labor: "edit", inventory: "edit",
+    "order-guide": "edit", sops: "edit", hospitality: "edit", health: "edit",
+    alerts: "edit", manager: "edit", users: "edit", audit: "view",
+    "change-log": "view", analytics: "edit", settings: "view",
+  },
+  shift_lead: {
+    dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
+    recaps: "edit", schedule: "view", labor: "view", inventory: "edit",
+    "order-guide": "view", sops: "view", hospitality: "edit", health: "view",
+    alerts: "view", manager: "none", users: "none", audit: "none",
+    "change-log": "none", analytics: "none", settings: "none",
+  },
+  // Crew preset — applied to grill, prep, cashier
+  crew: {
+    dashboard: "view", "my-tasks": "edit", "time-clock": "edit", operations: "view",
+    recaps: "none", schedule: "view", labor: "none", inventory: "view",
+    "order-guide": "none", sops: "view", hospitality: "view", health: "none",
+    alerts: "view", manager: "none", users: "none", audit: "none",
+    "change-log": "none", analytics: "none", settings: "none",
+  },
+};
+
+export const applyDefaultPresets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.supabase, context.userId);
+    const roleMap: Record<string, Record<string, "none" | "view" | "edit">> = {
+      owner: ROLE_PRESETS.owner,
+      manager: ROLE_PRESETS.manager,
+      shift_lead: ROLE_PRESETS.shift_lead,
+      grill: ROLE_PRESETS.crew,
+      prep: ROLE_PRESETS.crew,
+      cashier: ROLE_PRESETS.crew,
+    };
+
+    let existing: any[] = [];
+    if (!data.overwrite) {
+      const { data: existingRows } = await context.supabase
+        .from("tab_permissions")
+        .select("scope_type, scope_id, tab_key")
+        .eq("scope_type", "role");
+      existing = existingRows ?? [];
+    }
+    const existingKey = new Set(existing.map((p) => `${p.scope_id}|${p.tab_key}`));
+
+    const rows: any[] = [];
+    for (const [roleId, tabs] of Object.entries(roleMap)) {
+      for (const [tabKey, level] of Object.entries(tabs)) {
+        if (!data.overwrite && existingKey.has(`${roleId}|${tabKey}`)) continue;
+        rows.push({
+          scope_type: "role",
+          scope_id: roleId,
+          tab_key: tabKey,
+          enabled: level !== "none",
+          access_level: level,
+          updated_by: context.userId,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+    if (rows.length === 0) return { ok: true, applied: 0 };
+    const { error } = await context.supabase
+      .from("tab_permissions")
+      .upsert(rows, { onConflict: "scope_type,scope_id,tab_key" });
+    if (error) throw error;
+    return { ok: true, applied: rows.length };
+  });
