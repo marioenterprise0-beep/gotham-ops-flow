@@ -10,6 +10,7 @@ type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "a
 const ALL_TABS: Tab[] = [
   { to: "/",            label: "Dashboard",   icon: Home },
   { to: "/operations",  label: "Operations",  icon: ClipboardCheck },
+  { to: "/schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/inventory",   label: "Inventory",   icon: Boxes },
   { to: "/sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", label: "Hospitality", icon: Star },
