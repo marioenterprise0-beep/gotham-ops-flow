@@ -101,6 +101,30 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (session?.user) await loadProfileAndRoles(session.user.id);
   };
 
+  const loadPermissions = async (uid: string, rs: RoleId[]) => {
+    const { data: perms } = await supabase
+      .from("tab_permissions")
+      .select("scope_type, scope_id, tab_key, enabled");
+    const disabled = new Set<string>();
+    for (const p of (perms ?? []) as any[]) {
+      const applies = (p.scope_type === "user" && p.scope_id === uid) ||
+        (p.scope_type === "role" && rs.includes(p.scope_id as RoleId));
+      if (!applies) continue;
+      if (p.enabled === false) disabled.add(p.tab_key);
+      else disabled.delete(p.tab_key); // user override re-enables
+    }
+    setDisabledTabs(disabled);
+  };
+
+  useEffect(() => {
+    if (session?.user) void loadPermissions(session.user.id, roles);
+    else setDisabledTabs(new Set());
+  }, [session?.user?.id, roles.join(",")]);
+
+  const refreshPermissions = async () => {
+    if (session?.user) await loadPermissions(session.user.id, roles);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -109,7 +133,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const isManager = primary === "owner" || primary === "manager";
 
   const setTrailerScope = (id: string | null) => {
-    // Crew can only operate on their home trailer
     if (!isManager) { setTrailerScopeState(homeTrailerId); return; }
     setTrailerScopeState(id);
   };
@@ -129,6 +152,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       setRoleId: () => { void signOut(); },
       signOut,
       refreshRoles,
+      disabledTabs,
+      refreshPermissions,
     }}>{children}</RoleCtx.Provider>
   );
 }
