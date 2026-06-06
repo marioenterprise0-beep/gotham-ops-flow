@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as OperationsRouteImport } from './routes/operations'
+import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
@@ -51,6 +52,11 @@ const RoleRoute = RoleRouteImport.update({
 const OperationsRoute = OperationsRouteImport.update({
   id: '/operations',
   path: '/operations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyTasksRoute = MyTasksRouteImport.update({
+  id: '/my-tasks',
+  path: '/my-tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManagerRoute = ManagerRouteImport.update({
@@ -97,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
+  '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
+  '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/manager': typeof ManagerRoute
+  '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/inventory'
     | '/manager'
+    | '/my-tasks'
     | '/operations'
     | '/role'
     | '/schedule'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/inventory'
     | '/manager'
+    | '/my-tasks'
     | '/operations'
     | '/role'
     | '/schedule'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/inventory'
     | '/manager'
+    | '/my-tasks'
     | '/operations'
     | '/role'
     | '/schedule'
@@ -191,6 +203,7 @@ export interface RootRouteChildren {
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
   ManagerRoute: typeof ManagerRoute
+  MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
   RoleRoute: typeof RoleRoute
   ScheduleRoute: typeof ScheduleRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/operations'
       fullPath: '/operations'
       preLoaderRoute: typeof OperationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-tasks': {
+      id: '/my-tasks'
+      path: '/my-tasks'
+      fullPath: '/my-tasks'
+      preLoaderRoute: typeof MyTasksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manager': {
@@ -303,6 +323,7 @@ const rootRouteChildren: RootRouteChildren = {
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
   ManagerRoute: ManagerRoute,
+  MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
   RoleRoute: RoleRoute,
   ScheduleRoute: ScheduleRoute,
@@ -313,3 +334,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
