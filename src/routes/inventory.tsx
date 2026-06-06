@@ -43,12 +43,13 @@ function statusTone(s: Status) {
 
 function Inventory() {
   const qc = useQueryClient();
-  const { roleId, trailerScope, trailers } = useRole();
+  const { roleId, trailerScope, trailers, session, loading } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory", trailerScope ?? "company"],
     queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
+    enabled: !loading && !!session?.access_token,
   });
   const trailerLabel = trailerScope
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
@@ -122,7 +123,7 @@ function Inventory() {
       />
 
 
-      {isLoading && <Card>Loading…</Card>}
+      {(loading || isLoading) && <Card>Loading…</Card>}
 
       <div className="space-y-2">
         {visible.map((it) => {
