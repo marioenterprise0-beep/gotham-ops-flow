@@ -158,6 +158,11 @@ function PermissionsPage() {
         <p className="mt-3 text-xs text-white/50">
           Presets: <b>Owner</b> full access · <b>Manager</b> full ops + view audit/settings · <b>Shift Lead</b> ops/recaps/inventory edit, schedule/labor view, no admin · <b>Crew</b> (Grill, Prep, Cashier) tasks + clock edit, view-only ops.
         </p>
+      </Card>
+
+      {isLoading && <div className="mt-6 text-sm text-muted-foreground">Loading permissions…</div>}
+
+
 
       {!isLoading && mode === "role" && (
         <>
