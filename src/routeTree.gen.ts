@@ -19,6 +19,7 @@ import { Route as PermissionsRouteImport } from './routes/permissions'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
+import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -76,6 +77,11 @@ const ManagerRoute = ManagerRouteImport.update({
   path: '/manager',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LaborRoute = LaborRouteImport.update({
+  id: '/labor',
+  path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hospitality'
     | '/inventory'
+    | '/labor'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
+  LaborRoute: typeof LaborRoute
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManagerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/labor': {
+      id: '/labor'
+      path: '/labor'
+      fullPath: '/labor'
+      preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory': {
       id: '/inventory'
       path: '/inventory'
@@ -362,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
+  LaborRoute: LaborRoute,
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
@@ -376,3 +397,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
