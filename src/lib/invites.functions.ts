@@ -2,14 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
+import { randomInt } from "crypto";
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 
 function randomCode() {
-  // 8-char A-Z/0-9, no ambiguous chars
+  // 8-char A-Z/0-9, no ambiguous chars; cryptographically secure
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "";
-  for (let i = 0; i < 8; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  for (let i = 0; i < 8; i++) out += alphabet[randomInt(alphabet.length)];
   return out;
 }
 
