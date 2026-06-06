@@ -126,7 +126,8 @@ function Hospitality() {
         </button>
       </div>
 
-      <SectionHeader eyebrow="Today" title="Guest Recovery Log" action={<StatusPill tone="neutral">{recoveries.length} recoveries</StatusPill>} />
+      <SectionHeader eyebrow={view === "today" ? "Today" : monthLabel(month)} title="Guest Recovery Log" action={<StatusPill tone="neutral">{recoveries.length} recoveries</StatusPill>} />
+      {isLoading && <div className="text-sm text-muted-foreground mb-2">Loading…</div>}
       <Card className="p-0 overflow-hidden">
         <div className="hidden md:grid grid-cols-[80px_120px_1.4fr_1.4fr_120px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
           <div>Time</div><div>Category</div><div>Issue</div><div>Resolution</div><div>Severity</div>
