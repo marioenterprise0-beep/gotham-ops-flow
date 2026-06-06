@@ -169,6 +169,175 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_drawer_sessions: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          counted_amount: number | null
+          created_at: string
+          drawer_id: string
+          expected_amount: number | null
+          id: string
+          opened_at: string
+          opened_by: string
+          owner_note: string | null
+          owner_review: Database["public"]["Enums"]["cash_owner_review"]
+          owner_reviewed_at: string | null
+          owner_reviewed_by: string | null
+          starting_float: number
+          status: Database["public"]["Enums"]["cash_session_status"]
+          total_cash_sales: number | null
+          trailer_id: string
+          updated_at: string
+          variance: number | null
+          variance_reason: string | null
+          verification: Database["public"]["Enums"]["cash_verification"]
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          drawer_id: string
+          expected_amount?: number | null
+          id?: string
+          opened_at?: string
+          opened_by: string
+          owner_note?: string | null
+          owner_review?: Database["public"]["Enums"]["cash_owner_review"]
+          owner_reviewed_at?: string | null
+          owner_reviewed_by?: string | null
+          starting_float?: number
+          status?: Database["public"]["Enums"]["cash_session_status"]
+          total_cash_sales?: number | null
+          trailer_id: string
+          updated_at?: string
+          variance?: number | null
+          variance_reason?: string | null
+          verification?: Database["public"]["Enums"]["cash_verification"]
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          drawer_id?: string
+          expected_amount?: number | null
+          id?: string
+          opened_at?: string
+          opened_by?: string
+          owner_note?: string | null
+          owner_review?: Database["public"]["Enums"]["cash_owner_review"]
+          owner_reviewed_at?: string | null
+          owner_reviewed_by?: string | null
+          starting_float?: number
+          status?: Database["public"]["Enums"]["cash_session_status"]
+          total_cash_sales?: number | null
+          trailer_id?: string
+          updated_at?: string
+          variance?: number | null
+          variance_reason?: string | null
+          verification?: Database["public"]["Enums"]["cash_verification"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_drawer_sessions_drawer_id_fkey"
+            columns: ["drawer_id"]
+            isOneToOne: false
+            referencedRelation: "cash_drawers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_drawers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          name: string
+          starting_float: number
+          trailer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          name: string
+          starting_float?: number
+          trailer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          enabled?: boolean
+          id?: string
+          name?: string
+          starting_float?: number
+          trailer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cash_drops: {
+        Row: {
+          amount: number
+          created_at: string
+          drawer_id: string
+          drop_code: string
+          id: string
+          notes: string | null
+          reason: string | null
+          session_id: string
+          submitted_at: string
+          submitted_by: string
+          trailer_id: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          drawer_id: string
+          drop_code: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          session_id: string
+          submitted_at?: string
+          submitted_by: string
+          trailer_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          drawer_id?: string
+          drop_code?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          session_id?: string
+          submitted_at?: string
+          submitted_by?: string
+          trailer_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_drops_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_drawer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       change_log: {
         Row: {
           action: string
@@ -1598,6 +1767,9 @@ export type Database = {
         | "grill"
         | "prep"
         | "cashier"
+      cash_owner_review: "pending" | "approved" | "correction" | "flagged"
+      cash_session_status: "open" | "pending" | "closed"
+      cash_verification: "self" | "requested" | "verified"
       correction_type:
         | "missed_in"
         | "missed_out"
@@ -1798,6 +1970,9 @@ export const Constants = {
         "manager_recap",
       ],
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
+      cash_owner_review: ["pending", "approved", "correction", "flagged"],
+      cash_session_status: ["open", "pending", "closed"],
+      cash_verification: ["self", "requested", "verified"],
       correction_type: [
         "missed_in",
         "missed_out",
