@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager } from "@/lib/auth-guards";
 
 export type HealthComponent = {
   key: string;
