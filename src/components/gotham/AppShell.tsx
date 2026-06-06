@@ -11,6 +11,7 @@ const ALL_TABS: Tab[] = [
   { to: "/",            key: "dashboard",   label: "Dashboard",   icon: Home },
   { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",    icon: ListChecks },
   { to: "/time-clock",  key: "time-clock",  label: "Time Clock",  icon: Clock },
+  { to: "/cash",        key: "cash",        label: "Cash",        icon: Banknote },
   { to: "/operations",  key: "operations",  label: "Operations",  icon: ClipboardCheck },
   { to: "/recaps",      key: "recaps",      label: "Daily Recap", icon: ScrollText,  gate: "manager" },
   { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
