@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useRole } from "@/lib/role";
+import { AppShell } from "@/components/gotham/AppShell";
 import { toast } from "sonner";
 import {
   listSchedules, createSchedule, getSchedule, upsertShift, deleteShift,
@@ -66,7 +67,7 @@ function SchedulePage() {
   });
 
   return (
-    <>
+    <AppShell>
       <SectionHeader
         eyebrow="Labor Control"
         title="Scheduling"
@@ -99,7 +100,7 @@ function SchedulePage() {
       {selectedId && <ScheduleEditor scheduleId={selectedId} isOwner={isOwner} isMgr={isMgr} onDeleted={() => setSelectedId(null)} />}
 
       <CreateScheduleDialog open={createOpen} onOpenChange={setCreateOpen} onSubmit={(v) => createMut.mutate(v)} />
-    </>
+    </AppShell>
   );
 }
 
