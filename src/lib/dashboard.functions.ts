@@ -26,12 +26,20 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { data: items } = await supabase.from("inventory_items")
       .select("id, name, category, current_qty, par_level, low_threshold");
     const lowItems = (items ?? [])
-      .filter((i) => Number(i.current_qty) <= Number(i.low_threshold))
+      .filter((i) => Number(i.low_threshold) > 0 && Number(i.current_qty) <= Number(i.low_threshold))
       .map((i) => ({
         id: i.id, name: i.name,
         pct: i.par_level > 0 ? Math.round((Number(i.current_qty) / Number(i.par_level)) * 100) : 0,
         critical: Number(i.current_qty) <= Number(i.low_threshold) * 0.5,
       }));
+
+    // Pull real pending alerts (orders, corrections, recaps, etc.) so the
+    // dashboard reflects the same alerts surface as the alerts page.
+    const { data: pendingAlerts } = await supabase.from("alerts")
+      .select("id, type, title, priority")
+      .in("status", ["open", "pending"])
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     const { data: crew } = await supabase
       .from("profiles").select("id, display_name").limit(20);
@@ -39,7 +47,12 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     return {
       store, shift,
       tasks: { total: totalTasks, done: doneTasks, remaining: Math.max(0, totalTasks - doneTasks) },
-      alerts: { count: lowItems.length, items: lowItems.slice(0, 5) },
+      alerts: {
+        count: lowItems.length + (pendingAlerts ?? []).length,
+        lowStock: lowItems.slice(0, 5),
+        pending: pendingAlerts ?? [],
+        items: lowItems.slice(0, 5), // legacy field, kept for existing UI
+      },
       crew: crew ?? [],
     };
   });
