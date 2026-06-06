@@ -43,13 +43,16 @@ function statusTone(s: Status) {
 
 function Inventory() {
   const qc = useQueryClient();
-  const { roleId } = useRole();
+  const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
-    queryKey: ["inventory"],
-    queryFn: () => list() as Promise<Item[]>,
+    queryKey: ["inventory", trailerScope ?? "company"],
+    queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
   });
+  const trailerLabel = trailerScope
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
+    : "All trailers · Company";
 
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const [cat, setCat] = useState<string>("protein");
