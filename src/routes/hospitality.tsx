@@ -29,23 +29,41 @@ function fmtTime(iso: string) {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function thisMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function shiftMonth(iso: string, delta: number) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(iso: string) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+
 function Hospitality() {
   const [showLog, setShowLog] = useState(false);
   const [showRec, setShowRec] = useState(false);
+  const [view, setView] = useState<"today" | "month">("today");
+  const [month, setMonth] = useState<string>(thisMonth());
   const qc = useQueryClient();
-  const fetchToday = useServerFn(listHospitalityToday);
+  const fetchData = useServerFn(listHospitality);
+  const monthArg = view === "month" ? month : null;
   const { data, isLoading } = useQuery({
-    queryKey: ["hospitality-today"],
-    queryFn: () => fetchToday(),
-    refetchInterval: 30_000,
+    queryKey: ["hospitality", view, monthArg],
+    queryFn: () => fetchData({ data: { month: monthArg } }),
+    refetchInterval: view === "today" ? 30_000 : false,
   });
 
   const score = data?.score ?? 100;
   const breakdown = data?.breakdown ?? [];
   const incidents = data?.rows ?? [];
   const recoveries = incidents.filter((i: any) => i.recovery_action);
+  const isHistorical = view === "month" && month !== thisMonth();
 
-  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality-today"] });
+  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality"] });
 
   return (
     <AppShell>
