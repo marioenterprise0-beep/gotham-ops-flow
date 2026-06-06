@@ -82,6 +82,8 @@ function AnalyticsPage() {
         <Card><MetricStat label="Hosp."      value={k ? `${k.hospScore}` : "—"} /></Card>
       </div>
 
+      <DataQualityAlerts totals={data?.totals} rangeLabel={RANGES.find(r => r.key === range)!.label.toLowerCase()} />
+
       {isLoading && <div className="mt-4 text-sm text-muted-foreground">Loading analytics…</div>}
 
       <SectionHeader eyebrow="Trend" title="Task Completion" />
@@ -161,3 +163,69 @@ function AnalyticsPage() {
     </AppShell>
   );
 }
+
+type Totals = {
+  tasks: number;
+  wasteEntries: number;
+  countEntries: number;
+  incidents: number;
+  shifts: number;
+};
+
+function DataQualityAlerts({ totals, rangeLabel }: { totals?: Totals; rangeLabel: string }) {
+  if (!totals || totals.tasks === 0) return null;
+
+  const alerts: { level: "warn" | "info"; title: string; detail: string }[] = [];
+  if (totals.wasteEntries === 0) {
+    alerts.push({
+      level: "warn",
+      title: "No waste logged",
+      detail: `${totals.tasks} tasks recorded ${rangeLabel} but zero waste entries — crew may be skipping the waste log.`,
+    });
+  }
+  if (totals.countEntries === 0) {
+    alerts.push({
+      level: "warn",
+      title: "No inventory counts",
+      detail: `No counts recorded ${rangeLabel}. Variance & waste % cannot be calculated until counts are entered.`,
+    });
+  }
+  if (totals.incidents === 0 && totals.shifts > 0) {
+    alerts.push({
+      level: "info",
+      title: "No hospitality incidents",
+      detail: `Zero incidents logged across ${totals.shifts} shift(s). Confirm crew is using the hospitality log, not just skipping it.`,
+    });
+  }
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="mt-4 space-y-2">
+      <div className="label-caps text-muted-foreground">Data Quality</div>
+      {alerts.map((a, i) => (
+        <div
+          key={i}
+          className={cn(
+            "rounded-md border p-3 text-sm flex gap-3",
+            a.level === "warn"
+              ? "border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5"
+              : "border-border bg-card",
+          )}
+        >
+          <div
+            className={cn(
+              "mt-1 h-2 w-2 rounded-full shrink-0",
+              a.level === "warn" ? "bg-[var(--color-gold)]" : "bg-muted-foreground",
+            )}
+          />
+          <div>
+            <div className="font-semibold text-foreground">{a.title}</div>
+            <div className="text-muted-foreground text-xs mt-0.5">{a.detail}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
