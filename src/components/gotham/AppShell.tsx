@@ -24,6 +24,7 @@ const ALL_TABS: Tab[] = [
   { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
   { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
   { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
+  { to: "/change-log",  key: "change-log",  label: "Change Log",  icon: ScrollText,  gate: "manager" },
   { to: "/analytics",   key: "analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
   { to: "/settings",    key: "settings",    label: "Settings",    icon: SettingsIcon },
 ];
