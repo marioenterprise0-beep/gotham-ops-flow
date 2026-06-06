@@ -186,9 +186,11 @@ export const reorderItem = createServerFn({ method: "POST" })
 
     const qty = Math.max(0, Number(item.par_level) - Number(item.current_qty));
 
-    const { data: shift } = await supabase.from("shifts")
-      .select("id").eq("trailer_id", item.trailer_id).eq("status", "active")
-      .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: shift } = item.trailer_id
+      ? await supabase.from("shifts")
+          .select("id").eq("trailer_id", item.trailer_id).eq("status", "active")
+          .order("opened_at", { ascending: false }).limit(1).maybeSingle()
+      : { data: null as { id: string } | null };
 
     let taskId: string | null = null;
     if (shift) {
