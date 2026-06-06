@@ -5,6 +5,10 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { Plus, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { listHospitalityToday, logHospitalityIncident } from "@/lib/hospitality.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/hospitality")({
   ssr: false,
@@ -13,35 +17,38 @@ export const Route = createFileRoute("/hospitality")({
   component: Hospitality,
 });
 
-const BREAKDOWN = [
-  { label: "Greeting",             pct: 92 },
-  { label: "Order Accuracy",       pct: 88 },
-  { label: "Upselling",            pct: 71 },
-  { label: "Wait Time Acknowledgement", pct: 85 },
-  { label: "Guest Recovery",       pct: 95 },
-];
-
-const RECOVERIES = [
-  { time: "12:14", emp: "Carlos",  issue: "Wrong sauce on order",           res: "Remade burger, comp drink",        outcome: "Resolved"  as const },
-  { time: "13:02", emp: "Priya",   issue: "Guest waited 6 min without ack", res: "Apologized, offered sample fries", outcome: "Resolved"  as const },
-  { time: "13:41", emp: "Marcus",  issue: "Cold fries complaint",           res: "Manager notified, full refund",    outcome: "Escalated" as const },
-];
-
 const STANDARDS = [
-  { t: "Greeting",        d: "Within 5 seconds. \"Welcome to Gotham Halal!\" — eye contact, smile." },
-  { t: "Upsell",          d: "Suggest drink or combo on every order." },
+  { t: "Greeting", d: "Within 5 seconds. \"Welcome to Gotham Halal!\" — eye contact, smile." },
+  { t: "Upsell", d: "Suggest drink or combo on every order." },
   { t: "Wait Acknowledgement", d: "Update guest if wait exceeds 3 minutes." },
-  { t: "Recovery",        d: "Acknowledge, Apologize, Act — within 60 seconds." },
+  { t: "Recovery", d: "Acknowledge, Apologize, Act — within 60 seconds." },
 ];
+
+function fmtTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 function Hospitality() {
   const [showLog, setShowLog] = useState(false);
   const [showRec, setShowRec] = useState(false);
-  const score = Math.round(BREAKDOWN.reduce((a, b) => a + b.pct, 0) / BREAKDOWN.length);
+  const qc = useQueryClient();
+  const fetchToday = useServerFn(listHospitalityToday);
+  const { data, isLoading } = useQuery({
+    queryKey: ["hospitality-today"],
+    queryFn: () => fetchToday(),
+    refetchInterval: 30_000,
+  });
+
+  const score = data?.score ?? 100;
+  const breakdown = data?.breakdown ?? [];
+  const incidents = data?.rows ?? [];
+  const recoveries = incidents.filter((i: any) => i.recovery_action);
+
+  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality-today"] });
 
   return (
     <AppShell>
-      {/* Hero score */}
       <Card dark>
         <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center">
           <div className="text-center md:text-left">
@@ -50,13 +57,17 @@ function Hospitality() {
               <span className="font-display text-6xl text-[var(--color-gold)]">{score}</span>
               <span className="text-white/60 text-lg">/100</span>
             </div>
-            <StatusPill tone="gold">Above target</StatusPill>
+            <StatusPill tone={score >= 90 ? "gold" : score >= 75 ? "success" : "danger"}>
+              {score >= 90 ? "Above target" : score >= 75 ? "On target" : "Below target"}
+            </StatusPill>
           </div>
           <div className="space-y-2.5">
-            {BREAKDOWN.map((b) => (
-              <div key={b.label}>
+            {isLoading && <div className="text-white/60 text-sm">Loading…</div>}
+            {!isLoading && breakdown.map((b: any) => (
+              <div key={b.key}>
                 <div className="flex justify-between text-xs mb-1.5 text-white/80">
-                  <span>{b.label}</span><span className="font-semibold text-[var(--color-gold)]">{b.pct}%</span>
+                  <span>{b.label} {b.count > 0 && <span className="text-white/50">({b.count})</span>}</span>
+                  <span className="font-semibold text-[var(--color-gold)]">{b.pct}%</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
                   <div className="h-full bg-[var(--color-gold)]" style={{ width: `${b.pct}%` }} />
@@ -76,18 +87,21 @@ function Hospitality() {
         </button>
       </div>
 
-      <SectionHeader eyebrow="Today" title="Guest Recovery Log" action={<StatusPill tone="neutral">{RECOVERIES.length} incidents</StatusPill>} />
+      <SectionHeader eyebrow="Today" title="Guest Recovery Log" action={<StatusPill tone="neutral">{recoveries.length} recoveries</StatusPill>} />
       <Card className="p-0 overflow-hidden">
         <div className="hidden md:grid grid-cols-[80px_120px_1.4fr_1.4fr_120px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
-          <div>Time</div><div>Employee</div><div>Issue</div><div>Resolution</div><div>Outcome</div>
+          <div>Time</div><div>Category</div><div>Issue</div><div>Resolution</div><div>Severity</div>
         </div>
-        {RECOVERIES.map((r, i) => (
-          <div key={i} className={cn("grid grid-cols-1 md:grid-cols-[80px_120px_1.4fr_1.4fr_120px] gap-3 px-4 py-3 text-sm", i && "border-t border-border")}>
-            <div className="text-muted-foreground">{r.time}</div>
-            <div className="font-medium">{r.emp}</div>
-            <div>{r.issue}</div>
-            <div className="text-muted-foreground">{r.res}</div>
-            <div><StatusPill tone={r.outcome === "Resolved" ? "success" : "danger"}>{r.outcome}</StatusPill></div>
+        {recoveries.length === 0 && (
+          <div className="px-4 py-6 text-sm text-muted-foreground text-center">No recoveries logged today.</div>
+        )}
+        {recoveries.map((r: any, i: number) => (
+          <div key={r.id} className={cn("grid grid-cols-1 md:grid-cols-[80px_120px_1.4fr_1.4fr_120px] gap-3 px-4 py-3 text-sm", i && "border-t border-border")}>
+            <div className="text-muted-foreground">{fmtTime(r.logged_at)}</div>
+            <div className="font-medium capitalize">{String(r.type).replace("_", " ")}</div>
+            <div>{r.notes || "—"}</div>
+            <div className="text-muted-foreground">{r.recovery_action}</div>
+            <div><StatusPill tone={r.severity === "high" ? "danger" : r.severity === "medium" ? "gold" : "success"}>{r.severity}</StatusPill></div>
           </div>
         ))}
       </Card>
@@ -102,62 +116,86 @@ function Hospitality() {
         ))}
       </div>
 
-      {showLog && <ObsModal onClose={() => setShowLog(false)} />}
-      {showRec && <RecModal onClose={() => setShowRec(false)} />}
+      {showLog && <LogModal kind="observation" onClose={() => setShowLog(false)} onSaved={onSaved} />}
+      {showRec && <LogModal kind="recovery" onClose={() => setShowRec(false)} onSaved={onSaved} />}
 
       <div className="h-6" />
     </AppShell>
   );
 }
 
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+function LogModal({ kind, onClose, onSaved }: { kind: "observation" | "recovery"; onClose: () => void; onSaved: () => void }) {
+  const [type, setType] = useState<string>("greeting");
+  const [severity, setSeverity] = useState<string>("low");
+  const [notes, setNotes] = useState("");
+  const [recovery, setRecovery] = useState("");
+  const logFn = useServerFn(logHospitalityIncident);
+  const mut = useMutation({
+    mutationFn: () => logFn({ data: {
+      type: type as any,
+      severity: severity as any,
+      notes: notes || undefined,
+      recovery_action: kind === "recovery" ? (recovery || undefined) : undefined,
+    } }),
+    onSuccess: () => { toast.success(kind === "recovery" ? "Recovery logged" : "Observation logged"); onSaved(); onClose(); },
+    onError: (e: Error) => toast.error(e.message ?? "Failed"),
+  });
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 card-shadow" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-xl">{title.toUpperCase()}</h3>
+          <h3 className="font-display text-xl">{kind === "recovery" ? "LOG RECOVERY" : "LOG OBSERVATION"}</h3>
           <button onClick={onClose} className="text-muted-foreground text-sm">✕</button>
         </div>
-        {children}
+
+        <label className="block mb-3">
+          <div className="label-caps text-muted-foreground mb-1">Category</div>
+          <select value={type} onChange={(e) => setType(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+            <option value="greeting">Greeting</option>
+            <option value="accuracy">Order Accuracy</option>
+            <option value="upsell">Upsell</option>
+            <option value="wait_ack">Wait Acknowledgement</option>
+            <option value="recovery">Guest Recovery</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+
+        <label className="block mb-3">
+          <div className="label-caps text-muted-foreground mb-1">Severity</div>
+          <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+
+        <label className="block mb-3">
+          <div className="label-caps text-muted-foreground mb-1">{kind === "recovery" ? "Issue description" : "Notes"}</div>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500}
+            placeholder={kind === "recovery" ? "What went wrong…" : "What you saw…"}
+            className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+        </label>
+
+        {kind === "recovery" && (
+          <label className="block mb-3">
+            <div className="label-caps text-muted-foreground mb-1">Resolution / Recovery Action</div>
+            <input value={recovery} onChange={(e) => setRecovery(e.target.value)} maxLength={500}
+              placeholder="What we did…"
+              className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+          </label>
+        )}
+
+        <div className="text-xs text-muted-foreground">Timestamp auto-recorded at save. Counts feed the hospitality score and analytics.</div>
+
         <div className="mt-5 flex justify-end gap-2">
           <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
-          <button onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A]">Save</button>
+          <button disabled={mut.isPending} onClick={() => mut.mutate()}
+            className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] disabled:opacity-60">
+            {mut.isPending ? "Saving…" : "Save"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block mb-3"><div className="label-caps text-muted-foreground mb-1">{label}</div>{children}</label>;
-}
-function Select({ children }: { children: React.ReactNode }) {
-  return <select className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">{children}</select>;
-}
-function Text({ placeholder }: { placeholder?: string }) {
-  return <input placeholder={placeholder} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />;
-}
-
-function ObsModal({ onClose }: { onClose: () => void }) {
-  return (
-    <Modal title="Log Observation" onClose={onClose}>
-      <Field label="Employee"><Select><option>Carlos</option><option>Priya</option><option>DeShawn</option><option>Marcus</option></Select></Field>
-      <Field label="Category"><Select><option>Greeting</option><option>Accuracy</option><option>Upsell</option><option>Recovery</option><option>Energy</option></Select></Field>
-      <Field label="Result"><Select><option>Pass</option><option>Fail</option></Select></Field>
-      <Field label="Notes"><Text placeholder="What you saw…" /></Field>
-      <div className="text-xs text-muted-foreground">Timestamp auto-recorded at save.</div>
-    </Modal>
-  );
-}
-
-function RecModal({ onClose }: { onClose: () => void }) {
-  return (
-    <Modal title="Log Recovery" onClose={onClose}>
-      <Field label="Employee"><Select><option>Carlos</option><option>Priya</option><option>Marcus</option></Select></Field>
-      <Field label="Issue description"><Text /></Field>
-      <Field label="Resolution"><Text /></Field>
-      <Field label="Outcome"><Select><option>Resolved</option><option>Escalated</option></Select></Field>
-    </Modal>
-  );
-}
-
