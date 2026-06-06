@@ -749,6 +749,36 @@ export type Database = {
         }
         Relationships: []
       }
+      tab_permissions: {
+        Row: {
+          enabled: boolean
+          id: string
+          scope_id: string
+          scope_type: string
+          tab_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          id?: string
+          scope_id: string
+          scope_type: string
+          tab_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          id?: string
+          scope_id?: string
+          scope_type?: string
+          tab_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignee_role: Database["public"]["Enums"]["app_role"] | null
