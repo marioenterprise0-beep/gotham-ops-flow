@@ -139,7 +139,7 @@ export const actOnAlert = createServerFn({ method: "POST" })
         if (data.action === "mark_ordered" && !isOwner && ord?.status !== "approved") {
           throw new Error("Order must be approved by the owner before marking ordered");
         }
-        if (data.action === "mark_received" && !isOwner && !["approved","ordered"].includes(ord?.status)) {
+        if (data.action === "mark_received" && !isOwner && !["approved","ordered"].includes(ord?.status ?? "")) {
           throw new Error("Order must be approved before it can be received");
         }
         const alreadyReceived = data.action === "mark_received" && ord?.status === "received";
