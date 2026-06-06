@@ -79,7 +79,7 @@ function rangeLabel(start: Date, end: Date, mode: ViewMode) {
 
 // ============================================================
 function SchedulePage() {
-  const { roleId } = useRole();
+  const { roleId, trailerScope } = useRole();
   const isOwner = roleId === "owner";
   const isMgr = isOwner || roleId === "manager";
   const qc = useQueryClient();
@@ -93,9 +93,10 @@ function SchedulePage() {
 
   const findOrCreate = useServerFn(getOrCreateScheduleForRange);
   const { data: schedule, refetch: refetchSched } = useQuery({
-    queryKey: ["schedule-range", startStr, endStr],
+    queryKey: ["schedule-range", startStr, endStr, trailerScope],
     queryFn: () => findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: false } }),
   });
+
 
   const createMut = useMutation({
     mutationFn: () => findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: true } }),
