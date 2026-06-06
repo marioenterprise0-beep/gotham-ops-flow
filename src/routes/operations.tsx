@@ -147,7 +147,7 @@ function Operations() {
       <Card dark>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="label-caps text-white/55">Active Shift</div>
+            <div className="label-caps text-white/55">Active Shift · {trailerLabel}</div>
             <h1 className="font-display text-3xl mt-1 text-white">{phase.toUpperCase()} CHECKLIST</h1>
             <div className="mt-1 text-xs text-white/60 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
