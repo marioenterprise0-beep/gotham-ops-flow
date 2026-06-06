@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, FileText, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ const ALL_TABS: Tab[] = [
   { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",    icon: ListChecks },
   { to: "/time-clock",  key: "time-clock",  label: "Time Clock",  icon: Clock },
   { to: "/operations",  key: "operations",  label: "Operations",  icon: ClipboardCheck },
-  { to: "/recaps",      key: "recaps",      label: "Daily Recap", icon: FileText,    gate: "manager" },
+  { to: "/recaps",      key: "recaps",      label: "Daily Recap", icon: ScrollText,  gate: "manager" },
   { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/labor",       key: "labor",       label: "Labor",       icon: Timer,       gate: "manager" },
   { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },
@@ -43,9 +43,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const { roleId, session, loading, disabledTabs } = useRole();
   const [orderKeys, setOrderKeys] = useState<string[]>(() => loadOrder());
   const [reorderMode, setReorderMode] = useState(false);
-
-  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
-  if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
+  const isOwner = roleId === "owner";
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
@@ -62,7 +60,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return ordered;
   }, [visibleTabs, orderKeys]);
 
-  const isOwner = roleId === "owner";
+  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   function move(key: string, dir: -1 | 1) {
     const keys = tabs.map((t) => t.key);
