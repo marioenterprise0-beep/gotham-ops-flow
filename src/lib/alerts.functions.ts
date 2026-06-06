@@ -71,6 +71,12 @@ export const listAlerts = createServerFn({ method: "POST" })
 
     const combined = [...(rows ?? []), ...synthetic];
     if (data?.category) {
+      if (data.category === "announcements") {
+        return combined.filter((a: any) => a.source_module === "announcements" || a.type === "announcement");
+      }
+      if (data.category === "tasks") {
+        return combined.filter((a: any) => a.source_module === "tasks");
+      }
       const map: Record<string, string[]> = {
         inventory: ["inventory_order","low_stock","critical_stock"],
         labor: ["missed_clock_in","missed_clock_out","time_adjustment","time_off"],

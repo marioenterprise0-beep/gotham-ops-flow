@@ -42,6 +42,8 @@ type Alert = {
 
 const CATEGORIES = [
   { key: "", label: "All" },
+  { key: "announcements", label: "Announcements" },
+  { key: "tasks", label: "Tasks" },
   { key: "inventory", label: "Inventory" },
   { key: "labor", label: "Labor" },
   { key: "scheduling", label: "Scheduling" },
@@ -49,6 +51,25 @@ const CATEGORIES = [
   { key: "maintenance", label: "Maintenance" },
   { key: "hospitality", label: "Hospitality" },
 ];
+
+const CATEGORY_TYPES: Record<string, string[]> = {
+  inventory: ["inventory_order","low_stock","critical_stock"],
+  labor: ["missed_clock_in","missed_clock_out","time_adjustment","time_off"],
+  scheduling: ["schedule_approval"],
+  operations: ["checklist_failure","manager_note"],
+  maintenance: ["maintenance"],
+  hospitality: ["manager_note"],
+};
+
+function categoryOf(a: { type: string; source_module?: string | null }): string[] {
+  const cats: string[] = [];
+  if (a.source_module === "announcements" || a.type === "announcement") cats.push("announcements");
+  if (a.source_module === "tasks") cats.push("tasks");
+  for (const [key, types] of Object.entries(CATEGORY_TYPES)) {
+    if (types.includes(a.type)) cats.push(key);
+  }
+  return cats;
+}
 
 const STATUSES = ["open", "pending", "approved", "declined", "resolved"] as const;
 
@@ -158,7 +179,32 @@ function AlertsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [loading, session?.access_token, qc]);
 
-  useEffect(() => { markAlertsSeen(); }, [alerts.length]);
+  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null }[]>({
+    queryKey: ["alerts", "unread-by-cat"],
+    enabled: !loading && !!session?.access_token,
+    queryFn: async () => {
+      const since = (typeof window !== "undefined" && localStorage.getItem("gotham:alerts:lastSeenAt")) || new Date(0).toISOString();
+      const { data } = await supabase
+        .from("alerts")
+        .select("type, source_module")
+        .neq("status", "resolved")
+        .gt("created_at", since);
+      return (data as any) ?? [];
+    },
+  });
+
+  const unreadByCat = useMemo(() => {
+    const counts: Record<string, number> = { "": unreadAll.length };
+    for (const a of unreadAll) {
+      for (const k of categoryOf(a as any)) counts[k] = (counts[k] ?? 0) + 1;
+    }
+    return counts;
+  }, [unreadAll]);
+
+  useEffect(() => {
+    markAlertsSeen();
+    qc.invalidateQueries({ queryKey: ["alerts", "unread-by-cat"] });
+  }, [alerts.length, qc]);
 
   const stats = useMemo(() => {
     const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
@@ -187,13 +233,22 @@ function AlertsPage() {
       <Card className="mb-4">
 
         <div className="flex flex-wrap gap-2 mb-3">
-          {CATEGORIES.map((c) => (
-            <button key={c.key} onClick={() => setCategory(c.key)}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                category === c.key ? "bg-foreground text-background border-foreground" : "bg-background border-border text-foreground/70 hover:bg-secondary")}>
-              {c.label}
-            </button>
-          ))}
+          {CATEGORIES.map((c) => {
+            const n = unreadByCat[c.key] ?? 0;
+            return (
+              <button key={c.key} onClick={() => setCategory(c.key)}
+                className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                  category === c.key ? "bg-foreground text-background border-foreground" : "bg-background border-border text-foreground/70 hover:bg-secondary")}>
+                {c.label}
+                {n > 0 && (
+                  <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
+                    category === c.key ? "bg-background text-foreground" : "bg-red-600 text-white")}>
+                    {n > 99 ? "99+" : n}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap gap-2">
           {STATUSES.map((s) => (
