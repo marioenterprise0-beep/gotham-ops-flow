@@ -170,11 +170,10 @@ export const logWaste = createServerFn({ method: "POST" })
     if (error) throw error;
     if (item) {
       const next = Math.max(0, Number(item.current_qty) - data.qty);
-      const { error: upErr } = await supabase.from("inventory_items").update({ current_qty: next }).eq("id", data.itemId);
-      if (upErr) {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await supabaseAdmin.from("inventory_items").update({ current_qty: next }).eq("id", data.itemId);
-      }
+      // Crew-legitimate decrement tied to the waste_log row inserted above (auditable).
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error: upErr } = await supabaseAdmin.from("inventory_items").update({ current_qty: next }).eq("id", data.itemId);
+      if (upErr) throw upErr;
     }
     await supabase.from("audit_log").insert({ actor_id: userId, action: "log_waste", entity: "inventory_item", entity_id: data.itemId, payload: { qty: data.qty, reason: data.reason } });
     return row;
