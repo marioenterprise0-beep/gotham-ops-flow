@@ -435,8 +435,12 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
             <div>
               <Label>Actual Cash Counted (includes float)</Label>
               <Input type="number" inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} placeholder="750.00" />
+              <p className="text-[11px] text-muted-foreground mt-1">Tip: use Money Count below to total bills + coins automatically.</p>
             </div>
           </div>
+
+          <MoneyCount title="Money Count" onTotalChange={(t) => setCounted(t.toFixed(2))} />
+
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border p-3 bg-[#E8F0FE]">
