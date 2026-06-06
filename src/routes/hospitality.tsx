@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listHospitalityToday, logHospitalityIncident } from "@/lib/hospitality.functions";
+import { listHospitality, logHospitalityIncident } from "@/lib/hospitality.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/hospitality")({
