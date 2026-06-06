@@ -82,6 +82,8 @@ function AnalyticsPage() {
         <Card><MetricStat label="Hosp."      value={k ? `${k.hospScore}` : "—"} /></Card>
       </div>
 
+      <DataQualityAlerts totals={data?.totals} rangeLabel={RANGES.find(r => r.key === range)!.label.toLowerCase()} />
+
       {isLoading && <div className="mt-4 text-sm text-muted-foreground">Loading analytics…</div>}
 
       <SectionHeader eyebrow="Trend" title="Task Completion" />
