@@ -50,6 +50,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [homeTrailerId, setHomeTrailerId] = useState<string | null>(null);
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
+  const [disabledTabs, setDisabledTabs] = useState<Set<string>>(new Set());
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
