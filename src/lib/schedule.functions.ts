@@ -196,5 +196,100 @@ export const listEmployees = createServerFn({ method: "GET" })
       id: p.id,
       name: p.display_name ?? "Crew",
       roles: roleMap.get(p.id) ?? [],
+      targetHours: 40,
     }));
+  });
+
+// Find a schedule whose range overlaps the given week; create a draft if none.
+export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    startDate: z.string(),
+    endDate: z.string(),
+    name: z.string().min(1).max(120).optional(),
+    autoCreate: z.boolean().default(false),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    // Pick the most recent overlapping schedule
+    const { data: existing, error: e1 } = await supabase
+      .from("schedules")
+      .select("*")
+      .lte("start_date", data.endDate)
+      .gte("end_date", data.startDate)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (e1) throw new Error(e1.message);
+    if (existing && existing.length > 0) return existing[0];
+    if (!data.autoCreate) return null;
+    await requireManager(supabase, userId);
+    const name = data.name ?? `Week of ${data.startDate}`;
+    const { data: row, error } = await supabase.from("schedules").insert({
+      name, start_date: data.startDate, end_date: data.endDate, created_by: userId,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const duplicateShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    targetDate: z.string().optional(),
+    targetEmployeeId: z.string().uuid().nullable().optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { data: src, error } = await supabase
+      .from("schedule_shifts").select("*").eq("id", data.id).single();
+    if (error) throw new Error(error.message);
+    const { id, created_at, updated_at, ...rest } = src as any;
+    const insertRow = {
+      ...rest,
+      shift_date: data.targetDate ?? src.shift_date,
+      employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
+      created_by: userId,
+    };
+    const { data: saved, error: e2 } = await supabase
+      .from("schedule_shifts").insert(insertRow).select("*").single();
+    if (e2) throw new Error(e2.message);
+    return saved;
+  });
+
+// Auto-coverage: for each day of the schedule, create one open/mid/close unassigned shift.
+export const generateCoverage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ scheduleId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { data: sched } = await supabase.from("schedules").select("*").eq("id", data.scheduleId).single();
+    if (!sched) throw new Error("Schedule not found");
+    if (sched.status === "locked" || sched.status === "published") throw new Error("Schedule is locked");
+    const days: string[] = [];
+    const start = new Date(sched.start_date + "T00:00:00");
+    const end = new Date(sched.end_date + "T00:00:00");
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      days.push(d.toISOString().slice(0, 10));
+    }
+    const segs = [
+      { segment: "open" as const, start_time: "09:00", end_time: "14:00", role: "prep" as const },
+      { segment: "mid" as const, start_time: "11:00", end_time: "19:00", role: "cashier" as const },
+      { segment: "close" as const, start_time: "16:00", end_time: "23:00", role: "grill" as const },
+    ];
+    const rows = days.flatMap((d) => segs.map((s) => ({
+      schedule_id: data.scheduleId,
+      employee_id: null,
+      role: s.role,
+      segment: s.segment,
+      shift_date: d,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      break_minutes: 30,
+      created_by: userId,
+    })));
+    const { error } = await supabase.from("schedule_shifts").insert(rows);
+    if (error) throw new Error(error.message);
+    return { inserted: rows.length };
   });
