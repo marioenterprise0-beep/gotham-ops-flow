@@ -26,6 +26,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
+import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -117,6 +118,11 @@ const ChangeLogRoute = ChangeLogRouteImport.update({
   path: '/change-log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CashRoute = CashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/cash'
     | '/change-log'
     | '/health'
     | '/hospitality'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/cash'
     | '/change-log'
     | '/health'
     | '/hospitality'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/cash'
     | '/change-log'
     | '/health'
     | '/hospitality'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AuditRoute: typeof AuditRoute
   AuthRoute: typeof AuthRoute
+  CashRoute: typeof CashRoute
   ChangeLogRoute: typeof ChangeLogRoute
   HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
@@ -437,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChangeLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cash': {
+      id: '/cash'
+      path: '/cash'
+      fullPath: '/cash'
+      preLoaderRoute: typeof CashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -481,6 +501,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AuditRoute: AuditRoute,
   AuthRoute: AuthRoute,
+  CashRoute: CashRoute,
   ChangeLogRoute: ChangeLogRoute,
   HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
