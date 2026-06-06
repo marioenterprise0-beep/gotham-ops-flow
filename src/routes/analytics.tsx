@@ -1,11 +1,14 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, MetricStat, SectionHeader } from "@/components/gotham/primitives";
 import { canSee, useRole } from "@/lib/role";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { getAnalytics } from "@/lib/analytics.functions";
 
 export const Route = createFileRoute("/analytics")({
   ssr: false,
@@ -14,40 +17,31 @@ export const Route = createFileRoute("/analytics")({
   component: AnalyticsPage,
 });
 
-const TASK_COMPLETION = [
-  { d: "Mon", v: 78 }, { d: "Tue", v: 84 }, { d: "Wed", v: 91 }, { d: "Thu", v: 88 },
-  { d: "Fri", v: 95 }, { d: "Sat", v: 82 }, { d: "Sun", v: 90 },
-];
-const WASTE_BY_CAT = [
-  { c: "Proteins", v: 4.2 }, { c: "Buns", v: 3.1 }, { c: "Sauces", v: 1.2 },
-  { c: "Beverage", v: 0.8 }, { c: "Sides", v: 2.5 }, { c: "Packaging", v: 0.4 },
-];
-const OPENING_TIME = [
-  { d: "Mon", v: 22 }, { d: "Tue", v: 19 }, { d: "Wed", v: 21 }, { d: "Thu", v: 18 },
-  { d: "Fri", v: 17 }, { d: "Sat", v: 20 }, { d: "Sun", v: 19 },
-];
-const HOSP_BREAKDOWN = [
-  { c: "Greeting", v: 92 }, { c: "Accuracy", v: 88 }, { c: "Upsell", v: 71 },
-  { c: "Wait Ack", v: 85 }, { c: "Recovery", v: 95 },
-];
-
 const GOLD = "#C9973A";
-
-const RANGES = ["Today", "Week", "Month", "Custom"] as const;
-type Range = (typeof RANGES)[number];
+const RANGES = [
+  { label: "Today", key: "today" as const },
+  { label: "Week", key: "week" as const },
+  { label: "Month", key: "month" as const },
+];
+type RangeKey = (typeof RANGES)[number]["key"];
 
 function AnalyticsPage() {
   const { roleId, trailers, trailerScope, setTrailerScope } = useRole();
   if (!canSee(roleId, "analytics")) return <Navigate to="/" />;
-  const [range, setRange] = useState<Range>("Week");
+  const [range, setRange] = useState<RangeKey>("week");
+
+  const fn = useServerFn(getAnalytics);
+  const { data, isLoading } = useQuery({
+    queryKey: ["analytics", range, trailerScope],
+    queryFn: () => fn({ data: { range, trailerId: trailerScope ?? null } }),
+    refetchInterval: 60_000,
+  });
 
   const scopeLabel = trailerScope
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
     : "Company · All trailers";
 
-  // Demo multipliers — replace with real per-trailer queries when wired
-  const scopeMul = trailerScope ? 1 : 1.15;
-  const fmtPct = (n: number) => `${Math.round(n * scopeMul)}%`;
+  const k = data?.kpis;
 
   return (
     <AppShell>
@@ -58,43 +52,43 @@ function AnalyticsPage() {
         </div>
         <div className="flex gap-1 rounded-md border border-border bg-card p-1">
           {RANGES.map((r) => (
-            <button key={r} onClick={() => setRange(r)}
-              className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm", range === r ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>{r}</button>
+            <button key={r.key} onClick={() => setRange(r.key)}
+              className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm", range === r.key ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>{r.label}</button>
           ))}
         </div>
       </div>
 
-      {/* Trailer scope tabs: Greece / Henrietta / Company */}
       <div className="mt-3 flex gap-2 overflow-x-auto">
         {trailers.map((t) => (
           <button key={t.id} onClick={() => setTrailerScope(t.id)}
-            className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition",
+            className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
               trailerScope === t.id ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
             {t.name}
           </button>
         ))}
         <button onClick={() => setTrailerScope(null)}
-          className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition",
+          className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
             trailerScope === null ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
           Company
         </button>
       </div>
 
-      {/* KPI row */}
       <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><MetricStat label="Opening %"  value="94%" sub="+2 vs avg" /></Card>
-        <Card><MetricStat label="Closing %"  value="89%" sub="-3 vs avg" /></Card>
-        <Card><MetricStat label="Inv. Var."  value="2.1%" /></Card>
-        <Card><MetricStat label="Task Comp." value="91%" /></Card>
-        <Card><MetricStat label="Waste %"    value="3.4%" tone="gold" /></Card>
-        <Card><MetricStat label="Hosp."      value="87" /></Card>
+        <Card><MetricStat label="Opening %"  value={k ? `${k.openingPct}%` : "—"} /></Card>
+        <Card><MetricStat label="Closing %"  value={k ? `${k.closingPct}%` : "—"} /></Card>
+        <Card><MetricStat label="Inv. Var."  value={k ? `${k.invVarPct}%` : "—"} /></Card>
+        <Card><MetricStat label="Task Comp." value={k ? `${k.taskCompPct}%` : "—"} /></Card>
+        <Card><MetricStat label="Waste"      value={k ? `${k.wastePct}` : "—"} tone="gold" /></Card>
+        <Card><MetricStat label="Hosp."      value={k ? `${k.hospScore}` : "—"} /></Card>
       </div>
+
+      {isLoading && <div className="mt-4 text-sm text-muted-foreground">Loading analytics…</div>}
 
       <SectionHeader eyebrow="Trend" title="Task Completion" />
       <Card dark>
         <div className="h-64 -ml-2">
           <ResponsiveContainer>
-            <LineChart data={TASK_COMPLETION}>
+            <LineChart data={data?.taskTrend ?? []}>
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="d" stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} />
               <YAxis stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} domain={[0, 100]} />
@@ -111,7 +105,7 @@ function AnalyticsPage() {
           <Card>
             <div className="h-56">
               <ResponsiveContainer>
-                <BarChart data={WASTE_BY_CAT}>
+                <BarChart data={data?.wasteByCat ?? []}>
                   <CartesianGrid stroke="#EAEAE5" vertical={false} />
                   <XAxis dataKey="c" stroke="#6B6B6B" tick={{ fontSize: 11 }} />
                   <YAxis stroke="#6B6B6B" tick={{ fontSize: 11 }} />
@@ -124,11 +118,11 @@ function AnalyticsPage() {
         </div>
 
         <div>
-          <SectionHeader eyebrow="Opening" title="Opening Time vs 20-min Target" />
+          <SectionHeader eyebrow="Opening" title="Opening Lateness (min past 9:00)" />
           <Card>
             <div className="h-56">
               <ResponsiveContainer>
-                <BarChart data={OPENING_TIME}>
+                <BarChart data={data?.openingTrend ?? []}>
                   <CartesianGrid stroke="#EAEAE5" vertical={false} />
                   <XAxis dataKey="d" stroke="#6B6B6B" tick={{ fontSize: 11 }} />
                   <YAxis stroke="#6B6B6B" tick={{ fontSize: 11 }} />
@@ -146,16 +140,22 @@ function AnalyticsPage() {
       <Card>
         <div className="h-64">
           <ResponsiveContainer>
-            <BarChart data={HOSP_BREAKDOWN} layout="vertical">
+            <BarChart data={data?.hospBreakdown ?? []} layout="vertical">
               <CartesianGrid stroke="#EAEAE5" horizontal={false} />
               <XAxis type="number" stroke="#6B6B6B" tick={{ fontSize: 11 }} domain={[0, 100]} />
-              <YAxis type="category" dataKey="c" stroke="#6B6B6B" tick={{ fontSize: 11 }} width={80} />
+              <YAxis type="category" dataKey="c" stroke="#6B6B6B" tick={{ fontSize: 11 }} width={100} />
               <Tooltip cursor={{ fill: "rgba(201,151,58,0.08)" }} />
               <Bar dataKey="v" fill={GOLD} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
+
+      {data?.totals && (
+        <div className="mt-3 text-xs text-muted-foreground">
+          {data.totals.tasks} tasks · {data.totals.wasteEntries} waste entries · {data.totals.countEntries} counts · {data.totals.incidents} incidents · {data.totals.shifts} shifts in range
+        </div>
+      )}
 
       <div className="h-6" />
     </AppShell>
