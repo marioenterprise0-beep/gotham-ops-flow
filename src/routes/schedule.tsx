@@ -587,8 +587,11 @@ function ShiftCard({ shift, status, canEdit, onEdit, onDup }: {
   );
 }
 
-function UnassignedRow({ days, grid, status, canEdit, onAdd, onEdit, onDup }: any) {
-  const hasAny = days.some((d: string) => (grid.get(`unassigned|${d}`) ?? []).length > 0);
+function UnassignedRow({ days, grid, status, canEdit, onAdd, onEdit, onDup }: {
+  days: string[]; grid: Map<string, any[]>; status: Status; canEdit: boolean;
+  onAdd: (d: string) => void; onEdit: (s: any) => void; onDup: (s: any) => void;
+}) {
+  const hasAny = days.some((d) => (grid.get(`unassigned|${d}`) ?? []).length > 0);
   if (!hasAny && !canEdit) return null;
   return (
     <div className="grid border-b border-border bg-[#F8F4E8]/40"
@@ -597,7 +600,7 @@ function UnassignedRow({ days, grid, status, canEdit, onAdd, onEdit, onDup }: an
         <div className="text-sm font-semibold text-[var(--color-gold)]">Open Shifts</div>
         <div className="text-[10px] label-caps text-muted-foreground">Unassigned</div>
       </div>
-      {days.map((d: string) => {
+      {days.map((d) => {
         const cellShifts = grid.get(`unassigned|${d}`) ?? [];
         return (
           <Cell key={d} canEdit={canEdit} shifts={cellShifts} status={status}
