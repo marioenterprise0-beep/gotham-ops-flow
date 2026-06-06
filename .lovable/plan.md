@@ -1,79 +1,63 @@
-# Labor Control System — Scheduling, Time Clock, Weekly Hours
+## Alerts Module + Inventory Orders
 
-Turns the existing `/schedule` route into a Shiftlab-style labor system with clock in/out, weekly hour calculation, corrections, time off, and owner-only approval.
+This is a large build. I'll structure it in phases so we can ship a working core first, then layer integrations. Confirm the plan (or trim/reorder) and I'll execute.
 
-## 1. Database (single migration)
+### Phase 1 — Database (one migration)
 
-New tables (all RLS-locked, trailer-scoped, with grants):
+New tables (all RLS-enabled, scoped by role + trailer):
 
-- **`time_punches`** — clock in/out records
-  - `employee_id`, `trailer_id`, `schedule_shift_id` (nullable), `clock_in_at`, `clock_out_at`, `break_minutes`, `worked_minutes` (generated), `status` (open/closed/edited), `device_info`, `created_at`
-- **`time_corrections`** — employee correction requests
-  - `employee_id`, `punch_id` (nullable), `schedule_shift_id` (nullable), `type` (missed_in/missed_out/wrong_time/extra/other), `requested_in`, `requested_out`, `reason`, `status` (pending/approved/declined/info), `decided_by`, `decided_at`, `decision_note`
-- **`time_off_requests`** — PTO requests
-  - `employee_id`, `start_date`, `end_date`, `start_time` (nullable), `end_time` (nullable), `full_day`, `reason`, `status`, `decided_by`, `decided_at`, `decision_note`
-- **`shift_notes`** — employee notes
-  - `employee_id`, `schedule_shift_id` (nullable), `punch_id` (nullable), `note`, `created_at`
-- **`time_audit`** — immutable audit trail for every hour change
-  - `actor_id`, `entity` (punch/correction/timeoff/schedule_shift), `entity_id`, `action`, `old_value` jsonb, `new_value` jsonb, `reason`, `created_at`
+- `inventory_orders` — id, trailer_id, created_by, status (enum: draft/submitted/pending_owner_review/approved/declined/changes_requested/ordered/received/cancelled), submitted_at, decided_by, decided_at, owner_comment, notes
+- `inventory_order_items` — order_id, item_id, current_qty, par_qty, requested_qty, urgency (normal/needed_soon/critical/emergency), reason, notes
+- `alerts` — id, type (enum: missed_clock_out, missed_clock_in, time_adjustment, time_off, inventory_order, low_stock, critical_stock, checklist_failure, manager_note, schedule_approval, maintenance), title, source_module, source_id (uuid of underlying record), trailer_id, created_by, assigned_role (manager/owner), priority (critical/high/normal/low), status (open/pending/approved/declined/resolved), resolution, resolved_by, resolved_at, payload jsonb
+- `alert_actions` — alert_id, actor_id, action (comment/approve/decline/request_changes/mark_ordered/mark_received/escalate/resolve), note, created_at
 
 RLS:
-- Employees: SELECT/INSERT own rows only
-- Managers: SELECT all in their scope, INSERT notes
-- Owners: full UPDATE/approve on punches, corrections, time off
-- `time_audit`: SELECT for managers/owners, INSERT via triggers only
+- Managers: read alerts where assigned_role='manager' OR trailer matches; insert orders & alerts; cannot approve own.
+- Owners: full read/write on alerts and orders.
+- Triggers: inserting an inventory_order with status='submitted' auto-creates an owner alert. Same pattern for time_corrections, time_off_requests, schedules submitted.
 
-Triggers: write to `time_audit` on any UPDATE of `time_punches` or status change on corrections/time off.
+### Phase 2 — Server functions (`src/lib/alerts.functions.ts`, `src/lib/inventory-orders.functions.ts`)
 
-Helper functions:
-- `payroll_week_bounds(_date date)` → Sat–Fri range
-- `weekly_hours(_user uuid, _week_start date)` → { scheduled_min, worked_min, diff_min, flags[] }
+- `listAlerts({ role, status?, type?, trailer? })`
+- `actOnAlert({ alertId, action, note? })` — owner approve/decline/etc., updates source record (e.g. order status, time_correction status)
+- `createInventoryOrder({ trailer_id, items[], notes })`
+- `listInventoryOrders({ scope: 'mine'|'all', status? })`
+- `getInventoryOrder({ id })`
+- `decideInventoryOrder({ id, decision, comment })` — owner only
 
-## 2. Server functions (`src/lib/`)
+Existing flows (time_corrections, time_off_requests, schedules) get a small adapter so submissions emit alerts via the trigger.
 
-- **`timeclock.functions.ts`** — `clockIn`, `clockOut`, `getMyActivePunch`, `getMyWeek`
-- **`labor.functions.ts`** — `getLaborDashboard({ trailerId, weekStart })`, `getEmployeeWeek({ userId, weekStart })`, `listPunches`, `ownerEditPunch` (owner only), `ownerApproveCorrection`, `ownerApproveTimeOff`
-- **`requests.functions.ts`** — `submitCorrection`, `submitTimeOff`, `submitShiftNote`, `listMyRequests`, `listPendingRequests` (managers/owners)
+### Phase 3 — UI
 
-All owner-only mutations gated by `has_role(uid, 'owner')` server-side.
+New route `src/routes/_authenticated/alerts.tsx`:
+- Top stat cards: Open / Critical / Pending Approval / Resolved Today
+- Filter chips: All | Inventory | Labor | Scheduling | Operations | Maintenance | Hospitality
+- Status tabs: Open / Pending / Approved / Declined / Resolved
+- Alert cards with priority color (red/orange/blue/gray), Type, Title, Location, Submitted By, Time, Action buttons
+- Detail drawer: full payload + action history + comment box + role-appropriate actions
 
-## 3. UI
+Inventory tab additions (`src/routes/inventory.tsx` or new subroute):
+- "Create Inventory Order" button (managers+)
+- Order builder modal: trailer, multi-row item picker (item, current auto-filled, par auto-filled, requested, urgency, reason, notes), submit
+- "My Orders" history table with status + owner comments
 
-### `/schedule` (replaces current)
-- View switcher: **Day / Week / 2-Week / Month** (Week default)
-- Shiftlab-style grid: employees left, days top, draggable shift blocks (click to edit; drag deferred — click+edit only this pass)
-- Status badges on each block: draft/submitted/approved/locked/published
-- Owner-only lock controls: lock day / lock week / lock month with reason
-- Trailer scope honored via existing `TrailerContext`
+Manager dashboard: small "Alerts" badge with open count.
 
-### `/time-clock` (new, employees)
-- Big CLOCK IN / CLOCK OUT / SHIFT COMPLETE button
-- Shows today's scheduled shift, current elapsed time
-- Week summary card: scheduled vs worked, diff, flags
-- "Submit note" / "Request correction" / "Request time off" buttons
+Nav: add `Alerts` link to AppShell (visible to manager + owner).
 
-### `/labor` (new, managers + owners)
-- Header: payroll week Sat–Fri with prev/next
-- KPI row: total scheduled, total worked, diff, open shifts, missed clock-outs, pending corrections, pending time off
-- Employee table: name, scheduled, worked, diff, flags, status
-- Click row → drawer with all punches that week; owner can edit, manager read-only
-- Tabs: **Overview / Punches / Corrections / Time Off / Notes**
-- Approve/Decline buttons (owner only) on each pending request
+### Phase 4 — Wire integrations
+- Missed clock in/out → scheduled check (server fn called on time-clock load) creates alerts
+- Low/critical stock → computed from inventory_items vs low_threshold, alert auto-created
+- Checklist failure → on task with `requires_signoff` failed, alert
+- Owner decisions flow back into the source table (time_corrections.status, schedules.status, inventory_orders.status)
 
-### Nav (`AppShell.tsx`)
-- Add **Time Clock** (all roles) and **Labor** (managers/owners) to nav
-- Existing Schedule tab kept
+### Technical notes
+- All enums as Postgres types; all tables get GRANTs to authenticated + service_role.
+- Use `has_role`/`is_manager` for RLS; owners use `has_role(auth.uid(),'owner')`.
+- Realtime enabled on `alerts` so the badge live-updates.
+- Permission rule enforced server-side: `decideInventoryOrder` rejects if `created_by = auth.uid()`.
 
-## 4. Permissions integration
-Register new tab keys (`time-clock`, `labor`) in `permissions.tsx` matrix so owners can override per-user.
-
-## 5. Out of scope this pass
-- Drag/resize shift blocks (click-to-edit only)
-- Geofencing on clock in
-- Biometric/photo clock in
-- Export to ADP/Gusto (we'll surface a CSV download as a stub)
-- Push notifications
-
----
-
-Approve and I'll ship the migration + all routes/functions in one pass.
+### Scope check before I start
+This is roughly 1 migration + 4 new files + 3 edits + 1 new route. Want me to:
+**(a)** Build it all in one pass, or
+**(b)** Ship Phase 1+2+Alerts UI first, then Inventory Order builder + integrations in a follow-up?

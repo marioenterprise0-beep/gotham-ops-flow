@@ -1,0 +1,269 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { AppShell } from "@/components/gotham/AppShell";
+import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare } from "lucide-react";
+import { listAlerts, actOnAlert, getAlertDetail } from "@/lib/alerts.functions";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { useRole } from "@/lib/role";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/alerts")({
+  ssr: false,
+  beforeLoad: requireAuthBeforeLoad,
+  head: () => ({ meta: [{ title: "Alerts · Gotham OS" }] }),
+  component: AlertsPage,
+});
+
+type Alert = {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  source_module: string;
+  source_id: string | null;
+  trailer_id: string | null;
+  created_by: string | null;
+  assigned_role: "manager" | "owner";
+  priority: "critical" | "high" | "normal" | "low";
+  status: "open" | "pending" | "approved" | "declined" | "resolved";
+  created_at: string;
+  payload?: any;
+  synthetic?: boolean;
+};
+
+const CATEGORIES = [
+  { key: "", label: "All" },
+  { key: "inventory", label: "Inventory" },
+  { key: "labor", label: "Labor" },
+  { key: "scheduling", label: "Scheduling" },
+  { key: "operations", label: "Operations" },
+  { key: "maintenance", label: "Maintenance" },
+  { key: "hospitality", label: "Hospitality" },
+];
+
+const STATUSES = ["open", "pending", "approved", "declined", "resolved"] as const;
+
+function priorityTone(p: string): "danger" | "warning" | "info" | "neutral" {
+  if (p === "critical") return "danger";
+  if (p === "high") return "warning";
+  if (p === "normal") return "info";
+  return "neutral";
+}
+
+function AlertsPage() {
+  const qc = useQueryClient();
+  const { roleId, session, loading } = useRole();
+  const isOwner = roleId === "owner";
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState<typeof STATUSES[number]>("open");
+  const [openAlertId, setOpenAlertId] = useState<string | null>(null);
+
+  const list = useServerFn(listAlerts);
+  const { data: alerts = [], isLoading } = useQuery<Alert[]>({
+    queryKey: ["alerts", category, status],
+    queryFn: () => list({ data: { category: category || undefined, status } }) as any,
+    enabled: !loading && !!session?.access_token,
+  });
+
+  const stats = useMemo(() => {
+    const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
+    const critical = alerts.filter((a) => a.priority === "critical" && a.status !== "resolved").length;
+    const pending = alerts.filter((a) => a.status === "pending").length;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const resolvedToday = alerts.filter((a) => a.status === "resolved" && new Date(a.created_at) >= today).length;
+    return { open, critical, pending, resolvedToday };
+  }, [alerts]);
+
+  if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
+
+  return (
+    <AppShell>
+      <SectionHeader eyebrow="Action Center" title="Alerts" />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <StatCard label="Open" value={stats.open} icon={Bell} tone="info" />
+        <StatCard label="Critical" value={stats.critical} icon={AlertTriangle} tone="danger" />
+        <StatCard label="Pending Approval" value={stats.pending} icon={Clock} tone="warning" />
+        <StatCard label="Resolved Today" value={stats.resolvedToday} icon={CheckCircle2} tone="success" />
+      </div>
+
+      <Card className="mb-4">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {CATEGORIES.map((c) => (
+            <button key={c.key} onClick={() => setCategory(c.key)}
+              className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
+                category === c.key ? "bg-foreground text-background border-foreground" : "bg-background border-border text-foreground/70 hover:bg-secondary")}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {STATUSES.map((s) => (
+            <button key={s} onClick={() => setStatus(s)}
+              className={cn("px-3 py-1 rounded text-xs font-medium uppercase tracking-wide",
+                status === s ? "bg-[var(--color-gold)] text-black" : "bg-secondary text-foreground/60 hover:text-foreground")}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <div className="flex flex-col gap-2">
+        {isLoading ? <Card>Loading alerts…</Card>
+          : alerts.length === 0 ? <Card><div className="text-center py-8 text-muted-foreground">No alerts in this view</div></Card>
+          : alerts.map((a) => (
+            <button key={a.id} onClick={() => !a.synthetic && setOpenAlertId(a.id)}
+              className="text-left w-full">
+              <Card className={cn("transition-colors", !a.synthetic && "hover:bg-secondary cursor-pointer")}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <StatusPill tone={priorityTone(a.priority)}>{a.priority}</StatusPill>
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">{a.type.replace(/_/g, " ")}</span>
+                      <span className="text-xs text-muted-foreground">· {a.assigned_role}</span>
+                    </div>
+                    <div className="font-medium text-sm">{a.title}</div>
+                    {a.description && <div className="text-xs text-muted-foreground mt-0.5">{a.description}</div>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <StatusPill tone={a.status === "resolved" ? "success" : a.status === "declined" ? "danger" : "neutral"}>{a.status}</StatusPill>
+                    <div className="text-[10px] text-muted-foreground mt-1">{new Date(a.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+              </Card>
+            </button>
+          ))}
+      </div>
+
+      {openAlertId && (
+        <AlertDetailDialog
+          alertId={openAlertId}
+          isOwner={isOwner}
+          onClose={() => setOpenAlertId(null)}
+          onDone={() => { setOpenAlertId(null); qc.invalidateQueries({ queryKey: ["alerts"] }); }}
+        />
+      )}
+    </AppShell>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: any; tone: "info" | "danger" | "warning" | "success" }) {
+  const toneClass = tone === "danger" ? "text-red-600" : tone === "warning" ? "text-amber-600" : tone === "success" ? "text-emerald-600" : "text-[var(--color-gold)]";
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="text-2xl font-bold mt-1">{value}</div>
+        </div>
+        <Icon className={cn("h-6 w-6", toneClass)} />
+      </div>
+    </Card>
+  );
+}
+
+function AlertDetailDialog({ alertId, isOwner, onClose, onDone }: { alertId: string; isOwner: boolean; onClose: () => void; onDone: () => void }) {
+  const getDetail = useServerFn(getAlertDetail);
+  const act = useServerFn(actOnAlert);
+  const [note, setNote] = useState("");
+  const { data, isLoading } = useQuery({
+    queryKey: ["alert-detail", alertId],
+    queryFn: () => getDetail({ data: { alertId } }) as any,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (action: string) => act({ data: { alertId, action: action as any, note: note || undefined } }) as any,
+    onSuccess: () => { toast.success("Action recorded"); onDone(); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  const alert = data?.alert;
+  const items = data?.order?.items ?? [];
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{alert?.title ?? "Alert"}</DialogTitle>
+        </DialogHeader>
+        {isLoading || !alert ? <div className="py-6">Loading…</div> : (
+          <div className="space-y-4">
+            <div className="flex gap-2 flex-wrap">
+              <StatusPill tone={priorityTone(alert.priority)}>{alert.priority}</StatusPill>
+              <StatusPill tone="neutral">{alert.status}</StatusPill>
+              <span className="text-xs text-muted-foreground self-center">{new Date(alert.created_at).toLocaleString()}</span>
+            </div>
+            {alert.description && <p className="text-sm">{alert.description}</p>}
+
+            {data?.order && (
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Order Items</div>
+                <div className="border rounded">
+                  <table className="w-full text-xs">
+                    <thead className="bg-secondary text-left">
+                      <tr><th className="p-2">Item</th><th className="p-2">Current</th><th className="p-2">PAR</th><th className="p-2">Req</th><th className="p-2">Urgency</th></tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it: any) => (
+                        <tr key={it.id} className="border-t">
+                          <td className="p-2">{it.item_name}{it.reason && <div className="text-muted-foreground text-[10px]">{it.reason}</div>}</td>
+                          <td className="p-2">{it.current_qty}</td>
+                          <td className="p-2">{it.par_qty}</td>
+                          <td className="p-2 font-medium">{it.requested_qty} {it.unit ?? ""}</td>
+                          <td className="p-2"><StatusPill tone={it.urgency === "critical" || it.urgency === "emergency" ? "danger" : it.urgency === "needed_soon" ? "warning" : "neutral"}>{it.urgency.replace("_", " ")}</StatusPill></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {data?.actions?.length > 0 && (
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">History</div>
+                <div className="space-y-1 text-xs">
+                  {data.actions.map((a: any) => (
+                    <div key={a.id} className="flex gap-2"><MessageSquare className="h-3 w-3 mt-0.5" /><span className="font-medium">{a.action}</span><span className="text-muted-foreground">{a.note ?? ""}</span><span className="ml-auto text-muted-foreground">{new Date(a.created_at).toLocaleTimeString()}</span></div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Textarea placeholder="Add a note / comment" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+          </div>
+        )}
+        <DialogFooter className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => mutation.mutate("comment")} disabled={mutation.isPending}>Comment</Button>
+          {isOwner && alert?.status !== "resolved" && (
+            <>
+              {alert?.type === "inventory_order" && (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_ordered")} disabled={mutation.isPending}>Mark Ordered</Button>
+                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_received")} disabled={mutation.isPending}>Mark Received</Button>
+                </>
+              )}
+              <Button size="sm" variant="outline" onClick={() => mutation.mutate("request_changes")} disabled={mutation.isPending}>Request Changes</Button>
+              <Button size="sm" variant="destructive" onClick={() => mutation.mutate("decline")} disabled={mutation.isPending}><XCircle className="h-3 w-3 mr-1" />Decline</Button>
+              <Button size="sm" onClick={() => mutation.mutate("approve")} disabled={mutation.isPending}><CheckCircle2 className="h-3 w-3 mr-1" />Approve</Button>
+            </>
+          )}
+          {!isOwner && alert?.status !== "resolved" && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => mutation.mutate("review")} disabled={mutation.isPending}>Mark Reviewed</Button>
+              <Button size="sm" variant="outline" onClick={() => mutation.mutate("escalate")} disabled={mutation.isPending}>Escalate to Owner</Button>
+              <Button size="sm" onClick={() => mutation.mutate("resolve")} disabled={mutation.isPending}>Resolve</Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -7,6 +7,7 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
+import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -68,6 +69,8 @@ function Inventory() {
   const [receiveItem, setReceiveItem] = useState<Item | null>(null);
   const [wasteItem, setWasteItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | "new" | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
@@ -116,9 +119,14 @@ function Inventory() {
         eyebrow={CATEGORY_LABELS[cat] ?? cat}
         title="Live Counts"
         action={isManager ? (
-          <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
-            <Plus className="h-3.5 w-3.5" /> New item
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+              <Truck className="h-3.5 w-3.5" /> Create order
+            </button>
+            <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+              <Plus className="h-3.5 w-3.5" /> New item
+            </button>
+          </div>
         ) : <StatusPill tone="gold">On-hand vs Par</StatusPill>}
       />
 
@@ -173,6 +181,13 @@ function Inventory() {
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+      {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); qc.invalidateQueries({ queryKey: ["alerts"] }); qc.invalidateQueries({ queryKey: ["inv-orders"] }); }} />}
+      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
+      {isManager && (
+        <div className="mt-4 flex justify-end">
+          <button onClick={() => setHistoryOpen(true)} className="text-xs underline text-muted-foreground hover:text-foreground">View my orders</button>
+        </div>
+      )}
 
 
       <div className="h-6" />
@@ -316,5 +331,163 @@ function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item 
       </div>
       <ModalActions onClose={onClose} primary={item ? "Save changes" : "Create item"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
     </Modal>
+  );
+}
+
+type OrderRow = {
+  itemId?: string | null; itemName: string; category?: string; unit?: string;
+  currentQty: number; parQty: number; requestedQty: number;
+  urgency: "normal" | "needed_soon" | "critical" | "emergency";
+  reason?: string; notes?: string;
+};
+
+const URGENCY_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "needed_soon", label: "Needed Soon" },
+  { value: "critical", label: "Critical" },
+  { value: "emergency", label: "Emergency" },
+] as const;
+
+function OrderBuilderModal({ items, trailerId, onClose, onDone }: { items: Item[]; trailerId: string | null; onClose: () => void; onDone: () => void }) {
+  const createOrder = useServerFn(createInventoryOrder);
+  const [rows, setRows] = useState<OrderRow[]>([]);
+  const [notes, setNotes] = useState("");
+  const [picker, setPicker] = useState("");
+
+  const addItem = (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return;
+    setRows((r) => [...r, {
+      itemId: it.id, itemName: it.name, category: it.category, unit: it.unit,
+      currentQty: Number(it.current_qty), parQty: Number(it.par_level),
+      requestedQty: Math.max(0, Number(it.par_level) - Number(it.current_qty)),
+      urgency: Number(it.current_qty) <= Number(it.low_threshold) ? "critical" : "normal",
+    }]);
+    setPicker("");
+  };
+
+  const updateRow = (idx: number, patch: Partial<OrderRow>) => {
+    setRows((r) => r.map((row, i) => i === idx ? { ...row, ...patch } : row));
+  };
+  const removeRow = (idx: number) => setRows((r) => r.filter((_, i) => i !== idx));
+
+  const m = useMutation({
+    mutationFn: (submit: boolean) => createOrder({ data: { trailerId, notes: notes || undefined, submit, items: rows } }) as any,
+    onSuccess: (_d, submit) => {
+      toast.success(submit ? "Order submitted to owner" : "Draft saved");
+      onDone(); onClose();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-full max-w-3xl p-5 card-shadow max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-xl">CREATE INVENTORY ORDER</h3>
+          <button onClick={onClose} className="text-muted-foreground text-sm">✕</button>
+        </div>
+
+        <div className="space-y-3">
+          <Field label="Add item from inventory">
+            <select value={picker} onChange={(e) => addItem(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+              <option value="">Pick an item…</option>
+              {items.filter((i) => !rows.some((r) => r.itemId === i.id)).map((i) => (
+                <option key={i.id} value={i.id}>{i.name} — {Number(i.current_qty)}/{Number(i.par_level)} {i.unit}</option>
+              ))}
+            </select>
+          </Field>
+
+          {rows.length === 0 ? (
+            <Card><div className="text-center py-6 text-sm text-muted-foreground">Add items to build the order</div></Card>
+          ) : (
+            <div className="border rounded overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary">
+                  <tr className="text-left">
+                    <th className="p-2">Item</th><th className="p-2">Current</th><th className="p-2">PAR</th>
+                    <th className="p-2">Request</th><th className="p-2">Urgency</th><th className="p-2">Reason</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="p-2 font-medium">{row.itemName}<div className="text-muted-foreground text-[10px]">{row.unit}</div></td>
+                      <td className="p-2">{row.currentQty}</td>
+                      <td className="p-2">{row.parQty}</td>
+                      <td className="p-2">
+                        <input type="number" value={row.requestedQty} onChange={(e) => updateRow(i, { requestedQty: Number(e.target.value) })}
+                          className="w-20 h-8 rounded border border-border px-2 text-xs" />
+                      </td>
+                      <td className="p-2">
+                        <select value={row.urgency} onChange={(e) => updateRow(i, { urgency: e.target.value as any })}
+                          className="h-8 rounded border border-border px-1 text-xs">
+                          {URGENCY_OPTIONS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input value={row.reason ?? ""} onChange={(e) => updateRow(i, { reason: e.target.value })} placeholder="optional"
+                          className="w-32 h-8 rounded border border-border px-2 text-xs" />
+                      </td>
+                      <td className="p-2"><button onClick={() => removeRow(i)} className="text-muted-foreground hover:text-red-600"><Trash2 className="h-3 w-3" /></button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <Field label="Order notes">
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded-md border border-border bg-card p-2 text-sm" />
+          </Field>
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
+          <button disabled={rows.length === 0 || m.isPending} onClick={() => m.mutate(false)} className="rounded-md px-3 py-2 text-sm border border-border disabled:opacity-50">Save Draft</button>
+          <button disabled={rows.length === 0 || m.isPending} onClick={() => m.mutate(true)}
+            className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] inline-flex items-center gap-2 disabled:opacity-50">
+            <Truck className="h-4 w-4" /> Submit Order
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderHistoryModal({ onClose }: { onClose: () => void }) {
+  const list = useServerFn(listInventoryOrders);
+  const { data: orders = [], isLoading } = useQuery<any[]>({
+    queryKey: ["inv-orders", "mine"],
+    queryFn: () => list({ data: { scope: "mine" } }) as any,
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-full max-w-2xl p-5 card-shadow max-h-[85vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-xl">MY INVENTORY ORDERS</h3>
+          <button onClick={onClose} className="text-muted-foreground text-sm">✕</button>
+        </div>
+        {isLoading ? <div>Loading…</div> : orders.length === 0 ? <div className="text-sm text-muted-foreground py-8 text-center">No orders yet</div> : (
+          <div className="space-y-2">
+            {orders.map((o) => (
+              <Card key={o.id}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-sm">{new Date(o.created_at).toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">{(o.items ?? []).length} items{o.notes ? ` · ${o.notes}` : ""}</div>
+                    {o.owner_comment && <div className="text-xs mt-1 italic">Owner: {o.owner_comment}</div>}
+                  </div>
+                  <StatusPill tone={o.status === "approved" || o.status === "received" ? "success" : o.status === "declined" ? "danger" : o.status === "changes_requested" ? "warning" : "neutral"}>
+                    {o.status.replace(/_/g, " ")}
+                  </StatusPill>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
