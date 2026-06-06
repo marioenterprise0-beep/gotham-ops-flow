@@ -30,7 +30,7 @@ type Alert = {
   source_id: string | null;
   trailer_id: string | null;
   created_by: string | null;
-  assigned_role: "manager" | "owner";
+  assigned_role: "manager" | "owner" | "all";
   priority: "critical" | "high" | "normal" | "low";
   status: "open" | "pending" | "approved" | "declined" | "resolved";
   created_at: string;
