@@ -11,9 +11,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests } from "@/lib/labor.functions";
-import { ChevronLeft, ChevronRight, Check, X, MessageSquare } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, X, MessageSquare, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 
 export const Route = createFileRoute("/labor")({
   ssr: false,
@@ -76,6 +77,12 @@ function LaborPage() {
           <Button variant="outline" size="sm" onClick={() => setWeekStart(shiftWeek(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
           <div className="text-sm font-medium px-3">{rangeLabel}</div>
           <Button variant="outline" size="sm" onClick={() => setWeekStart(shiftWeek(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" disabled={!dash} onClick={() => exportLaborCSV(weekStart, dash)}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" disabled={!dash} onClick={() => exportLaborPDF(weekStart, rangeLabel, dash)}>
+            <FileText className="h-4 w-4 mr-1" /> PDF
+          </Button>
         </div>
       </div>
 
