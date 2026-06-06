@@ -128,7 +128,7 @@ export const actOnAlert = createServerFn({ method: "POST" })
 
     // Cascade to source: inventory_order
     if (alert.type === "inventory_order" && alert.source_id) {
-      const map: Record<string, string> = {
+      const map: Record<string, any> = {
         approve: "approved", decline: "declined", request_changes: "changes_requested",
         mark_ordered: "ordered", mark_received: "received",
       };
@@ -136,25 +136,25 @@ export const actOnAlert = createServerFn({ method: "POST" })
         await supabase.from("inventory_orders").update({
           status: map[data.action], owner_comment: data.note ?? null,
           decided_by: userId, decided_at: new Date().toISOString(),
-        }).eq("id", alert.source_id);
+        } as any).eq("id", alert.source_id);
       }
     }
     // Cascade to time_corrections
     if (alert.type === "time_adjustment" && alert.source_id) {
-      const map: Record<string, string> = { approve: "approved", decline: "denied" };
+      const map: Record<string, any> = { approve: "approved", decline: "declined" };
       if (map[data.action]) {
         await supabase.from("time_corrections").update({
           status: map[data.action], decided_by: userId, decided_at: new Date().toISOString(), decision_note: data.note ?? null,
-        }).eq("id", alert.source_id);
+        } as any).eq("id", alert.source_id);
       }
     }
     // Cascade to time_off
     if (alert.type === "time_off" && alert.source_id) {
-      const map: Record<string, string> = { approve: "approved", decline: "denied" };
+      const map: Record<string, any> = { approve: "approved", decline: "declined" };
       if (map[data.action]) {
         await supabase.from("time_off_requests").update({
           status: map[data.action], decided_by: userId, decided_at: new Date().toISOString(), decision_note: data.note ?? null,
-        }).eq("id", alert.source_id);
+        } as any).eq("id", alert.source_id);
       }
     }
 
