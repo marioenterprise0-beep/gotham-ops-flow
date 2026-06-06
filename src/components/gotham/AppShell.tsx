@@ -43,9 +43,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const { roleId, session, loading, disabledTabs } = useRole();
   const [orderKeys, setOrderKeys] = useState<string[]>(() => loadOrder());
   const [reorderMode, setReorderMode] = useState(false);
-
-  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
-  if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
+  const isOwner = roleId === "owner";
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
@@ -62,7 +60,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return ordered;
   }, [visibleTabs, orderKeys]);
 
-  const isOwner = roleId === "owner";
+  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   function move(key: string, dir: -1 | 1) {
     const keys = tabs.map((t) => t.key);
