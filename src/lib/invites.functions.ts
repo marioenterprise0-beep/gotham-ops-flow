@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager } from "@/lib/auth-guards";
+import { z } from "zod";
 
-type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
+const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 
 function randomCode() {
   // 8-char A-Z/0-9, no ambiguous chars
@@ -14,7 +16,8 @@ function randomCode() {
 export const listInvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { data, error } = await supabase
       .from("invite_codes")
       .select("id, code, role, note, created_at, expires_at, used_by, used_at")
@@ -26,9 +29,13 @@ export const listInvites = createServerFn({ method: "GET" })
 
 export const createInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { role: RoleId; note?: string }) => d)
+  .inputValidator((d) => z.object({
+    role: z.enum(ROLE_VALUES),
+    note: z.string().max(200).optional(),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const code = randomCode();
     const { data: row, error } = await supabase
       .from("invite_codes")
@@ -41,9 +48,10 @@ export const createInvite = createServerFn({ method: "POST" })
 
 export const revokeInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => d)
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { error } = await supabase
       .from("invite_codes")
       .update({ expires_at: new Date(Date.now() - 1000).toISOString() })
