@@ -69,17 +69,24 @@ export const deleteSchedule = createServerFn({ method: "POST" })
 
 export const getSchedule = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    trailerId: z.string().uuid().nullable().optional(),
+  }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
+    let shiftsQ = supabase.from("schedule_shifts").select("*")
+      .eq("schedule_id", data.id).order("shift_date").order("start_time");
+    if (data.trailerId) shiftsQ = shiftsQ.eq("trailer_id", data.trailerId);
     const [{ data: schedule, error: sErr }, { data: shifts, error: shErr }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
-      supabase.from("schedule_shifts").select("*").eq("schedule_id", data.id).order("shift_date").order("start_time"),
+      shiftsQ,
     ]);
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
     return { schedule, shifts: shifts ?? [] };
   });
+
 
 export const upsertShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
