@@ -100,7 +100,7 @@ function SchedulePage() {
       {selectedId && <ScheduleEditor scheduleId={selectedId} isOwner={isOwner} isMgr={isMgr} onDeleted={() => setSelectedId(null)} />}
 
       <CreateScheduleDialog open={createOpen} onOpenChange={setCreateOpen} onSubmit={(v) => createMut.mutate(v)} />
-    </>
+    </AppShell>
   );
 }
 
