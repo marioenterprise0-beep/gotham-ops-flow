@@ -40,6 +40,11 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     costPerUnit: z.number().nonnegative().optional(),
     currentQty: z.number().nonnegative().optional(),
     trailerId: z.string().uuid().optional(),
+    vendor: z.string().max(120).nullable().optional(),
+    packSize: z.string().max(60).nullable().optional(),
+    minimumQty: z.number().nonnegative().optional(),
+    preferredOrderQty: z.number().nonnegative().optional(),
+    estimatedCost: z.number().nonnegative().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -56,6 +61,11 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     };
     if (data.currentQty !== undefined) payload.current_qty = data.currentQty;
+    if (data.vendor !== undefined) payload.vendor = data.vendor;
+    if (data.packSize !== undefined) payload.pack_size = data.packSize;
+    if (data.minimumQty !== undefined) payload.minimum_qty = data.minimumQty;
+    if (data.preferredOrderQty !== undefined) payload.preferred_order_qty = data.preferredOrderQty;
+    if (data.estimatedCost !== undefined) payload.estimated_cost = data.estimatedCost;
     if (data.id) {
       const { error } = await supabase.from("inventory_items").update(payload).eq("id", data.id);
       if (error) throw error;
@@ -67,6 +77,36 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     await supabase.from("audit_log").insert({
       actor_id: userId, action: data.id ? "update_item" : "create_item", entity: "inventory_item",
       entity_id: data.id ?? null, payload: { name: data.name, category: data.category, trailer_id: trailerId },
+    });
+    return { ok: true };
+  });
+
+export const updateOrderGuide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    patch: z.object({
+      vendor: z.string().max(120).nullable().optional(),
+      pack_size: z.string().max(60).nullable().optional(),
+      minimum_qty: z.number().nonnegative().optional(),
+      preferred_order_qty: z.number().nonnegative().optional(),
+      estimated_cost: z.number().nonnegative().optional(),
+      par_level: z.number().nonnegative().optional(),
+      low_threshold: z.number().nonnegative().optional(),
+      cost_per_unit: z.number().nonnegative().optional(),
+      unit: z.string().min(1).max(20).optional(),
+      name: z.string().min(1).max(120).optional(),
+    }),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("inventory_items").update(patch).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "update_order_guide", entity: "inventory_item",
+      entity_id: data.id, payload: data.patch,
     });
     return { ok: true };
   });
