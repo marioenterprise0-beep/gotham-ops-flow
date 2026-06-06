@@ -57,6 +57,7 @@ function CashPage() {
   const cashInDrawers = drawers.reduce((s, d) => s + (d.open_session ? Number(d.open_session.starting_float) : 0), 0);
 
   const [addOpen, setAddOpen] = useState(false);
+  const [openFor, setOpenFor] = useState<any | null>(null);
   const [closeFor, setCloseFor] = useState<any | null>(null);
   const [dropFor, setDropFor] = useState<any | null>(null);
   const [detailFor, setDetailFor] = useState<string | null>(null);
