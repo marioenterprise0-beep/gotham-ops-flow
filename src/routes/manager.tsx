@@ -23,7 +23,7 @@ export const Route = createFileRoute("/manager")({
 });
 
 function ManagerPage() {
-  const { roleId } = useRole();
+  const { roleId, session, loading } = useRole();
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const allowed = canSee(roleId, "manager");
@@ -33,7 +33,12 @@ function ManagerPage() {
   const signOff = useServerFn(signOffTask);
 
   const fetchOverview = useServerFn(getManagerOverview);
-  const { data: overview } = useQuery({ queryKey: ["manager-overview"], queryFn: () => fetchOverview(), refetchInterval: 30_000 });
+  const { data: overview } = useQuery({
+    queryKey: ["manager-overview"],
+    queryFn: () => fetchOverview(),
+    refetchInterval: 30_000,
+    enabled: !loading && !!session?.access_token && allowed,
+  });
   const crew = overview?.crew ?? [];
   const openTasks = overview?.openTasks ?? [];
   const hasShift = !!overview?.shift;
@@ -52,8 +57,16 @@ function ManagerPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const { data: approvals = [] } = useQuery({ queryKey: ["pending-approvals"], queryFn: () => fetchApprovals() });
-  const { data: inventory = [] } = useQuery({ queryKey: ["inventory"], queryFn: () => fetchInventory() });
+  const { data: approvals = [] } = useQuery({
+    queryKey: ["pending-approvals"],
+    queryFn: () => fetchApprovals(),
+    enabled: !loading && !!session?.access_token && allowed,
+  });
+  const { data: inventory = [] } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: () => fetchInventory(),
+    enabled: !loading && !!session?.access_token && allowed,
+  });
 
   const alerts = inventory
     .filter((i: any) => Number(i.current_qty) <= Number(i.low_threshold))
@@ -76,6 +89,7 @@ function ManagerPage() {
   });
 
 
+  if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
   if (!allowed) return <Navigate to="/" />;
 
   return (
