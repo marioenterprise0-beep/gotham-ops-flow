@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
+import { CommandPalette } from "@/components/gotham/CommandPalette";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
+
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
 
@@ -81,7 +83,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <CommandPalette />
       <TopBar />
+
       <div className="flex-1 flex">
         <aside className="hidden lg:flex w-60 shrink-0 border-r border-border bg-card flex-col">
           {isOwner && (
@@ -237,7 +241,18 @@ function TopBar() {
           <span className="text-xs text-white/50">· {timeStr}</span>
         </div>
 
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+          className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-xs text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
+          title="Open command palette (⌘K)"
+        >
+          <span>Search</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">⌘K</kbd>
+        </button>
+
         <TrailerSwitcher />
+
 
         <div className="flex items-center gap-2.5">
           {role && (
