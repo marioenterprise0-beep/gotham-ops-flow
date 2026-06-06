@@ -197,11 +197,10 @@ export const submitCount = createServerFn({ method: "POST" })
       trailer_id: item?.trailer_id ?? null,
     }).select().single();
     if (error) throw error;
-    const { error: upErr } = await supabase.from("inventory_items").update({ current_qty: data.countQty }).eq("id", data.itemId);
-    if (upErr) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin.from("inventory_items").update({ current_qty: data.countQty }).eq("id", data.itemId);
-    }
+    // Crew-legitimate count reconciliation tied to the inventory_counts row inserted above (auditable).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin.from("inventory_items").update({ current_qty: data.countQty }).eq("id", data.itemId);
+    if (upErr) throw upErr;
     await supabase.from("audit_log").insert({ actor_id: userId, action: "submit_count", entity: "inventory_item", entity_id: data.itemId, payload: { countQty: data.countQty, variance } });
     return row;
   });
