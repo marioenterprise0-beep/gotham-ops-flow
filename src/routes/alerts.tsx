@@ -9,7 +9,7 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check, Loader2 } from "lucide-react";
 import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement, listCategoryReads, markCategoryRead } from "@/lib/alerts.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -222,15 +222,37 @@ function AlertsPage() {
   }, [unreadAll, seenByCat]);
 
   const markRead = useServerFn(markCategoryRead);
+  const readsKey = ["alert-category-reads"] as const;
   const markMut = useMutation({
     mutationFn: (cat: string) => markRead({ data: { category: (cat || "all") as any } }) as any,
+    onMutate: async (cat: string) => {
+      await qc.cancelQueries({ queryKey: readsKey });
+      const previous = qc.getQueryData<{ category: string; last_seen_at: string }[]>(readsKey);
+      const key = cat || "all";
+      const nowIso = new Date().toISOString();
+      qc.setQueryData<{ category: string; last_seen_at: string }[]>(readsKey, (old) => {
+        const list = old ? [...old] : [];
+        const idx = list.findIndex((r) => r.category === key);
+        if (idx >= 0) list[idx] = { ...list[idx], last_seen_at: nowIso };
+        else list.push({ category: key, last_seen_at: nowIso });
+        return list;
+      });
+      if (!cat) markAlertsSeen(); // optimistic global bell clear
+      return { previous };
+    },
     onSuccess: (_d, cat) => {
-      qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
-      if (!cat) markAlertsSeen(); // also clear global bell when marking "All"
+      qc.invalidateQueries({ queryKey: readsKey });
       toast.success(`Marked ${cat || "all"} as read`);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to mark read"),
+    onError: (e: any, cat, ctx) => {
+      if (ctx?.previous) qc.setQueryData(readsKey, ctx.previous);
+      toast.error(e?.message ?? "Failed to mark read", {
+        action: { label: "Retry", onClick: () => markMut.mutate(cat) },
+      });
+    },
   });
+  const pendingCat = markMut.isPending ? (markMut.variables as string | undefined) : undefined;
+
 
   // Keep realtime in sync — refresh reads on any alert_category_reads change too
   useEffect(() => {
@@ -291,13 +313,17 @@ function AlertsPage() {
                 {n > 0 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markMut.mutate(c.key); }}
-                    disabled={markMut.isPending}
+                    disabled={pendingCat === c.key}
+                    aria-busy={pendingCat === c.key}
                     title={`Mark ${c.label} as read`}
-                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center",
+                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center disabled:opacity-60",
                       isActive ? "border-background/30 text-background/80 hover:bg-background/10" : "border-border text-foreground/50 hover:bg-secondary hover:text-foreground")}>
-                    <Check className="h-3.5 w-3.5" />
+                    {pendingCat === c.key
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Check className="h-3.5 w-3.5" />}
                   </button>
                 )}
+
               </div>
             );
           })}
