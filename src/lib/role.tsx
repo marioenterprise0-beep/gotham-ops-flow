@@ -107,10 +107,15 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   const loadPermissions = async (uid: string, rs: RoleId[]) => {
+    // Owners always have full access — skip override loading entirely.
+    if (rs.includes("owner")) {
+      setTabAccess({});
+      setDisabledTabs(new Set());
+      return;
+    }
     const { data: perms } = await supabase
       .from("tab_permissions")
       .select("scope_type, scope_id, tab_key, enabled, access_level");
-    // Resolve precedence: user override beats role; highest access wins among roles.
     const roleAccess = new Map<string, TabAccess>();
     const userAccess = new Map<string, TabAccess>();
     for (const p of (perms ?? []) as any[]) {
@@ -124,12 +129,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     }
     const merged: Record<string, TabAccess> = {};
     roleAccess.forEach((v, k) => { merged[k] = v; });
-    userAccess.forEach((v, k) => { merged[k] = v; }); // user override wins
+    userAccess.forEach((v, k) => { merged[k] = v; });
     const disabled = new Set<string>();
     for (const [k, v] of Object.entries(merged)) if (v === "none") disabled.add(k);
     setTabAccess(merged);
     setDisabledTabs(disabled);
   };
+
 
   useEffect(() => {
     if (session?.user) void loadPermissions(session.user.id, roles);
