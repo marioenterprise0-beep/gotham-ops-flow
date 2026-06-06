@@ -98,6 +98,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <CommandPalette />
+      <KeyboardShortcuts />
+      <OnlineIndicator />
       <TopBar />
 
       <div className="flex-1 flex">
