@@ -67,7 +67,7 @@ function SchedulePage() {
   });
 
   return (
-    <>
+    <AppShell>
       <SectionHeader
         eyebrow="Labor Control"
         title="Scheduling"
