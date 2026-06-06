@@ -94,7 +94,10 @@ function AlertsPage() {
         <StatCard label="Resolved Today" value={stats.resolvedToday} icon={CheckCircle2} tone="success" />
       </div>
 
+      {isOwner && <AnnouncementComposer onPosted={() => qc.invalidateQueries({ queryKey: ["alerts"] })} />}
+
       <Card className="mb-4">
+
         <div className="flex flex-wrap gap-2 mb-3">
           {CATEGORIES.map((c) => (
             <button key={c.key} onClick={() => setCategory(c.key)}
