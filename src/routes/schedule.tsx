@@ -145,7 +145,9 @@ function SchedulePage() {
           <ScheduleBoard
             scheduleId={schedule.id} startStr={startStr} endStr={endStr}
             filterRole={filterRole} isOwner={isOwner} isMgr={isMgr}
+            trailerScope={trailerScope}
           />
+
         )}
       </div>
     </AppShell>
