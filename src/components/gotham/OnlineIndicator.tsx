@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Wifi, WifiOff } from "lucide-react";
 
-export function OnlineIndicator() {
-  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
-
+function useOnline() {
+  // Always start `true` so SSR and first client render match. Update after mount.
+  const [online, setOnline] = useState(true);
   useEffect(() => {
+    if (typeof navigator !== "undefined") setOnline(navigator.onLine);
     const up = () => setOnline(true);
     const down = () => setOnline(false);
     window.addEventListener("online", up);
@@ -14,7 +15,11 @@ export function OnlineIndicator() {
       window.removeEventListener("offline", down);
     };
   }, []);
+  return online;
+}
 
+export function OnlineIndicator() {
+  const online = useOnline();
   if (online) return null;
   return (
     <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-[var(--color-danger)] text-white px-3 py-1.5 text-xs font-medium shadow-lg">
@@ -25,17 +30,7 @@ export function OnlineIndicator() {
 }
 
 export function OnlineDot() {
-  const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener("online", up);
-    window.addEventListener("offline", down);
-    return () => {
-      window.removeEventListener("online", up);
-      window.removeEventListener("offline", down);
-    };
-  }, []);
+  const online = useOnline();
   return (
     <span
       title={online ? "Online" : "Offline"}
