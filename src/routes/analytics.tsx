@@ -37,15 +37,23 @@ const RANGES = ["Today", "Week", "Month", "Custom"] as const;
 type Range = (typeof RANGES)[number];
 
 function AnalyticsPage() {
-  const { roleId } = useRole();
+  const { roleId, trailers, trailerScope, setTrailerScope } = useRole();
   if (!canSee(roleId, "analytics")) return <Navigate to="/" />;
   const [range, setRange] = useState<Range>("Week");
+
+  const scopeLabel = trailerScope
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
+    : "Company · All trailers";
+
+  // Demo multipliers — replace with real per-trailer queries when wired
+  const scopeMul = trailerScope ? 1 : 1.15;
+  const fmtPct = (n: number) => `${Math.round(n * scopeMul)}%`;
 
   return (
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="label-caps text-muted-foreground">Performance</div>
+          <div className="label-caps text-muted-foreground">Performance · {scopeLabel}</div>
           <h1 className="font-display text-3xl text-foreground">ANALYTICS</h1>
         </div>
         <div className="flex gap-1 rounded-md border border-border bg-card p-1">
@@ -54,6 +62,22 @@ function AnalyticsPage() {
               className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm", range === r ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>{r}</button>
           ))}
         </div>
+      </div>
+
+      {/* Trailer scope tabs: Greece / Henrietta / Company */}
+      <div className="mt-3 flex gap-2 overflow-x-auto">
+        {trailers.map((t) => (
+          <button key={t.id} onClick={() => setTrailerScope(t.id)}
+            className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition",
+              trailerScope === t.id ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
+            {t.name}
+          </button>
+        ))}
+        <button onClick={() => setTrailerScope(null)}
+          className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition",
+            trailerScope === null ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
+          Company
+        </button>
       </div>
 
       {/* KPI row */}
