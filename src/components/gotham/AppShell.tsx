@@ -1,35 +1,42 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
-type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" };
+type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
 
 const ALL_TABS: Tab[] = [
-  { to: "/",            label: "Dashboard",   icon: Home },
-  { to: "/my-tasks",    label: "My Tasks",    icon: ListChecks },
-  { to: "/operations",  label: "Operations",  icon: ClipboardCheck },
-  { to: "/schedule",    label: "Scheduling",  icon: CalendarDays },
-  { to: "/inventory",   label: "Inventory",   icon: Boxes },
-  { to: "/sops",        label: "SOPs",        icon: BookOpen },
-  { to: "/hospitality", label: "Hospitality", icon: Star },
-  { to: "/manager",     label: "Manager",     icon: Shield,      gate: "manager" },
-  { to: "/users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
-  { to: "/audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
-  { to: "/analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
-  { to: "/settings",    label: "Settings",    icon: SettingsIcon },
+  { to: "/",            key: "dashboard",   label: "Dashboard",   icon: Home },
+  { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",    icon: ListChecks },
+  { to: "/operations",  key: "operations",  label: "Operations",  icon: ClipboardCheck },
+  { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
+  { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },
+  { to: "/sops",        key: "sops",        label: "SOPs",        icon: BookOpen },
+  { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
+  { to: "/manager",     key: "manager",     label: "Manager",     icon: Shield,      gate: "manager" },
+  { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
+  { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
+  { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
+  { to: "/analytics",   key: "analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
+  { to: "/settings",    key: "settings",    label: "Settings",    icon: SettingsIcon },
 ];
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roleId, session, loading } = useRole();
+  const { roleId, session, loading, disabledTabs } = useRole();
 
   if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
-  const tabs = ALL_TABS.filter((t) => !t.gate || canSee(roleId, t.gate));
+  const tabs = ALL_TABS.filter((t) => {
+    if (t.gate === "owner") { if (roleId !== "owner") return false; }
+    else if (t.gate && !canSee(roleId, t.gate)) return false;
+    // owners always see everything regardless of overrides
+    if (roleId !== "owner" && disabledTabs.has(t.key)) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
