@@ -55,6 +55,16 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const [reorderMode, setReorderMode] = useState(false);
   const isOwner = roleId === "owner";
   const unreadAlerts = useUnreadAlerts();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const onRefresh = () => {
+      queryClient.invalidateQueries();
+      toast.success("Refreshed");
+    };
+    window.addEventListener("gotham:refresh", onRefresh);
+    return () => window.removeEventListener("gotham:refresh", onRefresh);
+  }, [queryClient]);
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
