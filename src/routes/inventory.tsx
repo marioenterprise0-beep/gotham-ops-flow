@@ -508,3 +508,62 @@ function OrderHistoryModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
+function exportVarianceCSV(items: Item[], _trailerLabel: string) {
+  const rows = items.map((it) => {
+    const variance = Number(it.current_qty) - Number(it.par_level);
+    const pct = it.par_level === 0 ? "" : ((Number(it.current_qty) / Number(it.par_level)) * 100).toFixed(0) + "%";
+    return [
+      CATEGORY_LABELS[it.category] ?? it.category,
+      it.name,
+      it.unit,
+      Number(it.current_qty),
+      Number(it.par_level),
+      Number(it.low_threshold),
+      variance.toFixed(2),
+      pct,
+      statusOf(it),
+    ];
+  });
+  downloadCSV(
+    `inventory-variance-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Category", "Item", "Unit", "On Hand", "Par", "Low Threshold", "Variance", "% of Par", "Status"],
+    rows,
+  );
+}
+
+function exportVariancePDF(items: Item[], trailerLabel: string, counts: { crit: number; low: number; ok: number }) {
+  const rows = items
+    .slice()
+    .sort((a, b) => {
+      const sa = statusOf(a), sb = statusOf(b);
+      if (sa === sb) return a.name.localeCompare(b.name);
+      return sa === "CRITICAL" ? -1 : sb === "CRITICAL" ? 1 : sa === "LOW" ? -1 : 1;
+    })
+    .map((it) => {
+      const v = Number(it.current_qty) - Number(it.par_level);
+      const pct = it.par_level === 0 ? "—" : Math.round((Number(it.current_qty) / Number(it.par_level)) * 100) + "%";
+      return [
+        CATEGORY_LABELS[it.category] ?? it.category,
+        it.name,
+        `${Number(it.current_qty)} ${it.unit}`,
+        `${Number(it.par_level)} ${it.unit}`,
+        `${v.toFixed(1)} ${it.unit}`,
+        pct,
+        statusOf(it),
+      ];
+    });
+  const html = `
+    <h1>Inventory Variance — ${escapeHTML(trailerLabel)}</h1>
+    <div class="meta">As of ${new Date().toLocaleString()}</div>
+    ${kpiBlock([
+      { label: "Critical", value: counts.crit, tone: counts.crit ? "danger" : "ok" },
+      { label: "Low", value: counts.low, tone: counts.low ? "warn" : "ok" },
+      { label: "OK / Stocked", value: counts.ok, tone: "ok" },
+      { label: "Total Items", value: items.length },
+    ])}
+    <h2>Variance vs Par</h2>
+    ${htmlTable(["Category", "Item", "On Hand", "Par", "Variance", "% Par", "Status"], rows)}
+  `;
+  openPrintablePDF("Inventory Variance", html);
+}
