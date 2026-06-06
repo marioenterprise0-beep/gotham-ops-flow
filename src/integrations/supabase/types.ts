@@ -79,6 +79,24 @@ export type Database = {
           },
         ]
       }
+      alert_category_reads: {
+        Row: {
+          category: string
+          last_seen_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          last_seen_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          last_seen_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       alerts: {
         Row: {
           assigned_role: Database["public"]["Enums"]["alert_assigned_role"]
