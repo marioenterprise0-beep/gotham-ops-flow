@@ -78,7 +78,7 @@ function Operations() {
   const signOffFn = useServerFn(signOffTask);
 
   const openM = useMutation({
-    mutationFn: () => openFn({ data: { phase: "opening" } }),
+    mutationFn: () => openFn({ data: { phase: "opening", trailerId: activeTrailer ?? undefined } }),
     onSuccess: () => { toast.success("Shift opened"); qc.invalidateQueries(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -107,12 +107,14 @@ function Operations() {
       title: newTitle.trim(),
       description: newDesc.trim() || (phase.toUpperCase() + " · CUSTOM"),
       assigneeRole: (newRole || undefined) as any,
+      assigneeUserId: (newAssignee || undefined) as any,
       phase,
       requiresSignoff: newSignoff,
+      trailerId: activeTrailer ?? undefined,
     } }),
     onSuccess: () => {
       toast.success("Task added");
-      setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewSignoff(false);
+      setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewAssignee(""); setNewSignoff(false);
       qc.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (e: Error) => toast.error(e.message),
