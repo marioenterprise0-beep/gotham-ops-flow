@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare } from "lucide-react";
-import { listAlerts, actOnAlert, getAlertDetail } from "@/lib/alerts.functions";
+import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement } from "@/lib/alerts.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
