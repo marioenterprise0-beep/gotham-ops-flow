@@ -302,8 +302,8 @@ function WorkflowActions({ schedule, isOwner, isMgr }: { schedule: any; isOwner:
 }
 
 // ============================================================
-function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMgr }: {
-  scheduleId: string; startStr: string; endStr: string; filterRole: string; isOwner: boolean; isMgr: boolean;
+function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMgr, trailerScope }: {
+  scheduleId: string; startStr: string; endStr: string; filterRole: string; isOwner: boolean; isMgr: boolean; trailerScope: string | null;
 }) {
   const qc = useQueryClient();
   const fetchSchedule = useServerFn(getSchedule);
@@ -313,8 +313,9 @@ function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMg
   const dup = useServerFn(duplicateShift);
   const gen = useServerFn(generateCoverage);
 
-  const { data, isLoading } = useQuery({ queryKey: ["schedule", scheduleId], queryFn: () => fetchSchedule({ data: { id: scheduleId } }) });
-  const { data: employees = [] } = useQuery({ queryKey: ["employees"], queryFn: () => fetchEmployees() });
+  const { data, isLoading } = useQuery({ queryKey: ["schedule", scheduleId, trailerScope], queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null } }) });
+  const { data: employees = [] } = useQuery({ queryKey: ["employees", trailerScope], queryFn: () => fetchEmployees({ data: { trailerId: trailerScope ?? null } }) });
+
 
   const [editing, setEditing] = useState<any | null>(null);
 
