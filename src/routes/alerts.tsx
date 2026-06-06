@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare } from "lucide-react";
-import { listAlerts, actOnAlert, getAlertDetail } from "@/lib/alerts.functions";
+import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement } from "@/lib/alerts.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ type Alert = {
   source_id: string | null;
   trailer_id: string | null;
   created_by: string | null;
-  assigned_role: "manager" | "owner";
+  assigned_role: "manager" | "owner" | "all";
   priority: "critical" | "high" | "normal" | "low";
   status: "open" | "pending" | "approved" | "declined" | "resolved";
   created_at: string;
@@ -94,7 +94,10 @@ function AlertsPage() {
         <StatCard label="Resolved Today" value={stats.resolvedToday} icon={CheckCircle2} tone="success" />
       </div>
 
+      {isOwner && <AnnouncementComposer onPosted={() => qc.invalidateQueries({ queryKey: ["alerts"] })} />}
+
       <Card className="mb-4">
+
         <div className="flex flex-wrap gap-2 mb-3">
           {CATEGORIES.map((c) => (
             <button key={c.key} onClick={() => setCategory(c.key)}
@@ -265,5 +268,77 @@ function AlertDetailDialog({ alertId, isOwner, onClose, onDone }: { alertId: str
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function AnnouncementComposer({ onPosted }: { onPosted: () => void }) {
+  const post = useServerFn(createAnnouncement);
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [priority, setPriority] = useState<"low" | "normal" | "high" | "critical">("normal");
+  const mut = useMutation({
+    mutationFn: () => post({ data: { title, description: desc || undefined, priority } }) as any,
+    onSuccess: () => {
+      toast.success("Announcement sent to the whole company");
+      setTitle(""); setDesc(""); setPriority("normal"); setOpen(false);
+      onPosted();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to post"),
+  });
+  return (
+    <Card className="mb-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-[var(--color-gold)]" />
+          <div>
+            <div className="font-medium text-sm">Company Announcement</div>
+            <div className="text-xs text-muted-foreground">Owner broadcast — visible to every signed-in user</div>
+          </div>
+        </div>
+        <Button size="sm" onClick={() => setOpen(true)}>New announcement</Button>
+      </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Post company announcement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">Title</label>
+              <input
+                className="w-full mt-1 rounded border bg-background px-3 py-2 text-sm"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Friday all-hands at 4pm"
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">Message (optional)</label>
+              <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} maxLength={2000} placeholder="Details, links, expectations…" />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">Priority</label>
+              <div className="flex gap-2 mt-1">
+                {(["low", "normal", "high", "critical"] as const).map((p) => (
+                  <button key={p} type="button" onClick={() => setPriority(p)}
+                    className={cn("px-3 py-1 rounded text-xs font-medium uppercase tracking-wide border",
+                      priority === p ? "bg-foreground text-background border-foreground" : "bg-background text-foreground/70 border-border hover:bg-secondary")}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => mut.mutate()} disabled={!title.trim() || mut.isPending}>
+              {mut.isPending ? "Posting…" : "Post to company"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

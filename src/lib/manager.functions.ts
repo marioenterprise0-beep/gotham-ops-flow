@@ -165,6 +165,45 @@ export const createActionTask = createServerFn({ method: "POST" })
       payload: { title: data.title, assignee_role: data.assigneeRole, assignee_user_id: data.assigneeUserId, trailer_id: trailerId, phase: data.phase },
     });
 
+    // Alert the assignee (specific user OR escalate to managers if role-assigned to manager/owner)
+    try {
+      const phaseLabel = data.phase ? ` · ${data.phase}` : "";
+      const baseTitle = `New task assigned: ${data.title}`;
+      const desc = data.description ?? `Phase${phaseLabel}${data.requiresSignoff ? " · requires sign-off" : ""}`;
+      if (data.assigneeUserId) {
+        await supabase.from("alerts").insert({
+          type: "manager_note",
+          title: baseTitle,
+          description: desc,
+          source_module: "tasks",
+          source_id: task.id,
+          trailer_id: trailerId,
+          created_by: userId,
+          assigned_user_id: data.assigneeUserId,
+          assigned_role: "manager",
+          priority: data.requiresSignoff ? "high" : "normal",
+          status: "pending",
+          payload: { task_id: task.id, phase: data.phase },
+        } as any);
+      } else if (data.assigneeRole === "manager" || data.assigneeRole === "owner") {
+        await supabase.from("alerts").insert({
+          type: "manager_note",
+          title: baseTitle,
+          description: desc,
+          source_module: "tasks",
+          source_id: task.id,
+          trailer_id: trailerId,
+          created_by: userId,
+          assigned_role: data.assigneeRole === "owner" ? "owner" : "manager",
+          priority: data.requiresSignoff ? "high" : "normal",
+          status: "pending",
+          payload: { task_id: task.id, phase: data.phase, assignee_role: data.assigneeRole },
+        } as any);
+      }
+    } catch (e) {
+      console.error("[tasks] alert wiring failed", e);
+    }
+
     return task;
   });
 

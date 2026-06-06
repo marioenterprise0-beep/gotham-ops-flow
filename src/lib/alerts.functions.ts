@@ -193,3 +193,30 @@ export const getAlertDetail = createServerFn({ method: "POST" })
     }
     return { alert, actions: actions ?? [], order };
   });
+
+// Owner-only: post a company-wide announcement that becomes a visible alert for every signed-in user.
+export const createAnnouncement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().max(2000).optional(),
+    priority: z.enum(["low", "normal", "high", "critical"]).default("normal"),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
+    if (!isOwner) throw new Error("Only owners can post announcements");
+    const { data: row, error } = await supabase.from("alerts").insert({
+      type: "announcement",
+      title: data.title,
+      description: data.description ?? null,
+      source_module: "announcements",
+      created_by: userId,
+      assigned_role: "all",
+      priority: data.priority,
+      status: "pending",
+      payload: { announcement: true },
+    } as any).select("id").single();
+    if (error) throw error;
+    return { ok: true, id: row?.id };
+  });
