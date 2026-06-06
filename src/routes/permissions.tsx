@@ -32,6 +32,7 @@ const TABS: { key: string; label: string }[] = [
   { key: "hospitality", label: "Hospitality" },
   { key: "health",      label: "Health Score" },
   { key: "alerts",      label: "Alerts" },
+  { key: "cash",        label: "Cash" },
   { key: "manager",     label: "Manager" },
   { key: "users",       label: "Users" },
   { key: "audit",       label: "Audit Log" },
