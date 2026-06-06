@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ type Tab = { to: string; label: string; icon: typeof Home; gate?: "manager" | "a
 const ALL_TABS: Tab[] = [
   { to: "/",            label: "Dashboard",   icon: Home },
   { to: "/operations",  label: "Operations",  icon: ClipboardCheck },
+  { to: "/schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/inventory",   label: "Inventory",   icon: Boxes },
   { to: "/sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", label: "Hospitality", icon: Star },

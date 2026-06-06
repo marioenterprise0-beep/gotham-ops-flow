@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as SopsRouteImport } from './routes/sops'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as ManagerRouteImport } from './routes/manager'
@@ -35,6 +36,11 @@ const SopsRoute = SopsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScheduleRoute = ScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RoleRoute = RoleRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/users': typeof UsersRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/users': typeof UsersRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/manager': typeof ManagerRoute
   '/operations': typeof OperationsRoute
   '/role': typeof RoleRoute
+  '/schedule': typeof ScheduleRoute
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/users': typeof UsersRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/operations'
     | '/role'
+    | '/schedule'
     | '/settings'
     | '/sops'
     | '/users'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/operations'
     | '/role'
+    | '/schedule'
     | '/settings'
     | '/sops'
     | '/users'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/operations'
     | '/role'
+    | '/schedule'
     | '/settings'
     | '/sops'
     | '/users'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   ManagerRoute: typeof ManagerRoute
   OperationsRoute: typeof OperationsRoute
   RoleRoute: typeof RoleRoute
+  ScheduleRoute: typeof ScheduleRoute
   SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
   UsersRoute: typeof UsersRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schedule': {
+      id: '/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof ScheduleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/role': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManagerRoute: ManagerRoute,
   OperationsRoute: OperationsRoute,
   RoleRoute: RoleRoute,
+  ScheduleRoute: ScheduleRoute,
   SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
   UsersRoute: UsersRoute,
@@ -292,13 +313,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
