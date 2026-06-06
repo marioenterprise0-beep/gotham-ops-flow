@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
@@ -57,6 +57,7 @@ function CashPage() {
   const cashInDrawers = drawers.reduce((s, d) => s + (d.open_session ? Number(d.open_session.starting_float) : 0), 0);
 
   const [addOpen, setAddOpen] = useState(false);
+  const [openFor, setOpenFor] = useState<any | null>(null);
   const [closeFor, setCloseFor] = useState<any | null>(null);
   const [dropFor, setDropFor] = useState<any | null>(null);
   const [detailFor, setDetailFor] = useState<string | null>(null);
@@ -93,7 +94,7 @@ function CashPage() {
           <DrawerCard
             key={d.id}
             drawer={d}
-            onOpen={() => qc.invalidateQueries({ queryKey: ["cash-drawers"] })}
+            onRequestOpen={() => setOpenFor(d)}
             onClose={() => setCloseFor(d)}
             onDrop={() => setDropFor(d)}
             onView={(sid) => setDetailFor(sid)}
@@ -159,6 +160,16 @@ function CashPage() {
           qc.invalidateQueries({ queryKey: ["cash-drawers"] });
         }} />
       )}
+      {openFor && (
+        <OpenDrawerDialog
+          drawer={openFor}
+          onClose={() => setOpenFor(null)}
+          onSaved={() => {
+            setOpenFor(null);
+            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+          }}
+        />
+      )}
       {closeFor && (
         <CloseDrawerDialog
           drawer={closeFor}
@@ -198,20 +209,13 @@ function CashPage() {
   );
 }
 
-function DrawerCard({ drawer, onOpen, onClose, onDrop, onView }: {
+function DrawerCard({ drawer, onRequestOpen, onClose, onDrop, onView }: {
   drawer: any;
-  onOpen: () => void;
+  onRequestOpen: () => void;
   onClose: () => void;
   onDrop: () => void;
   onView: (sid: string) => void;
 }) {
-  const openFn = useServerFn(openDrawerSession);
-  const openMu = useMutation({
-    mutationFn: () => openFn({ data: { drawerId: drawer.id } }),
-    onSuccess: () => { toast.success("Drawer opened"); onOpen(); },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to open"),
-  });
-
   const isOpen = !!drawer.open_session;
 
   return (
@@ -237,7 +241,7 @@ function DrawerCard({ drawer, onOpen, onClose, onDrop, onView }: {
 
       <div className="flex flex-wrap gap-2">
         {!isOpen && (
-          <Button size="sm" variant="default" disabled={!drawer.enabled || openMu.isPending} onClick={() => openMu.mutate()}>
+          <Button size="sm" variant="default" disabled={!drawer.enabled} onClick={onRequestOpen}>
             Open Drawer
           </Button>
         )}
@@ -431,8 +435,12 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
             <div>
               <Label>Actual Cash Counted (includes float)</Label>
               <Input type="number" inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} placeholder="750.00" />
+              <p className="text-[11px] text-muted-foreground mt-1">Tip: use Money Count below to total bills + coins automatically.</p>
             </div>
           </div>
+
+          <MoneyCount title="Money Count" onTotalChange={(t) => setCounted(t.toFixed(2))} />
+
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border p-3 bg-[#E8F0FE]">
@@ -726,3 +734,163 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
   `;
   openPrintablePDF(`Drawer Close — ${p.drawer?.name ?? "drawer"}`, body);
 }
+
+// ---------------- Money Count (Bills + Coins denominations) ----------------
+
+const BILL_DENOMS: { label: string; value: number }[] = [
+  { label: "$100", value: 100 },
+  { label: "$50", value: 50 },
+  { label: "$20", value: 20 },
+  { label: "$10", value: 10 },
+  { label: "$5", value: 5 },
+  { label: "$2", value: 2 },
+  { label: "$1", value: 1 },
+];
+const COIN_DENOMS: { label: string; value: number }[] = [
+  { label: "$1", value: 1 },
+  { label: "50¢", value: 0.5 },
+  { label: "25¢", value: 0.25 },
+  { label: "10¢", value: 0.1 },
+  { label: "5¢", value: 0.05 },
+  { label: "1¢", value: 0.01 },
+];
+
+function MoneyCount({
+  title = "Money Count",
+  onTotalChange,
+  target,
+}: {
+  title?: string;
+  onTotalChange?: (total: number, bills: number, coins: number) => void;
+  target?: number;
+}) {
+  const [bills, setBills] = useState<Record<string, number>>({});
+  const [coins, setCoins] = useState<Record<string, number>>({});
+
+  const billsTotal = BILL_DENOMS.reduce((s, d) => s + (bills[d.label] || 0) * d.value, 0);
+  const coinsTotal = COIN_DENOMS.reduce((s, d) => s + (coins[d.label] || 0) * d.value, 0);
+  const total = billsTotal + coinsTotal;
+
+  useEffect(() => {
+    onTotalChange?.(total, billsTotal, coinsTotal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, billsTotal, coinsTotal]);
+
+
+  const reset = () => { setBills({}); setCoins({}); };
+
+  const Row = ({
+    denom, state, set,
+  }: { denom: { label: string; value: number }; state: Record<string, number>; set: (s: Record<string, number>) => void }) => {
+    const qty = state[denom.label] || 0;
+    const update = (n: number) => set({ ...state, [denom.label]: Math.max(0, Math.min(9999, n)) });
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="w-14 h-8 rounded-md bg-foreground text-background text-xs font-semibold flex items-center justify-center">
+          {denom.label}
+        </div>
+        <button type="button" onClick={() => update(qty - 1)} className="h-8 w-8 rounded-md border border-border hover:bg-secondary text-lg leading-none">−</button>
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={qty || ""}
+          onChange={(e) => update(Number(e.target.value) || 0)}
+          placeholder="x Amount"
+          className="h-8 w-20 text-center"
+        />
+        <button type="button" onClick={() => update(qty + 1)} className="h-8 w-8 rounded-md border border-border hover:bg-secondary text-lg leading-none text-[var(--color-success,#16a34a)]">+</button>
+        <div className="ml-auto text-xs text-muted-foreground tabular-nums">{money(qty * denom.value)}</div>
+      </div>
+    );
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold">{title}</h4>
+        <Button type="button" size="sm" variant="ghost" onClick={reset}>Reset Count</Button>
+      </div>
+      <div className="grid md:grid-cols-3 gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+            <Banknote className="h-3 w-3" /> Bills
+          </div>
+          <div className="space-y-2">
+            {BILL_DENOMS.map((d) => <Row key={d.label} denom={d} state={bills} set={setBills} />)}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Coins</div>
+          <div className="space-y-2">
+            {COIN_DENOMS.map((d) => <Row key={d.label} denom={d} state={coins} set={setCoins} />)}
+          </div>
+        </div>
+        <div className="rounded-lg p-4 bg-[var(--color-success,#16a34a)] text-white flex flex-col justify-center min-h-[140px]">
+          <div className="text-3xl font-bold tabular-nums">{money(total)}</div>
+          <div className="mt-3 text-xs opacity-90 flex items-center gap-1"><Banknote className="h-3 w-3" /> Bills</div>
+          <div className="text-sm font-semibold tabular-nums">{money(billsTotal)}</div>
+          <div className="mt-1 text-xs opacity-90">Coins</div>
+          <div className="text-sm font-semibold tabular-nums">{money(coinsTotal)}</div>
+          {typeof target === "number" && (
+            <div className="mt-2 text-[11px] opacity-90">
+              Target {money(target)} · {total === target ? "✓ matches" : `${total > target ? "+" : ""}${money(total - target)}`}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ---------------- Open Drawer Dialog ----------------
+
+function OpenDrawerDialog({ drawer, onClose, onSaved }: { drawer: any; onClose: () => void; onSaved: () => void }) {
+  const { user } = useRole();
+  const target = Number(drawer.starting_float);
+  const [counted, setCounted] = useState(0);
+  const openFn = useServerFn(openDrawerSession);
+  const mu = useMutation({
+    mutationFn: () => openFn({ data: { drawerId: drawer.id } }),
+    onSuccess: () => { toast.success("Drawer opened"); onSaved(); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to open"),
+  });
+
+  const matches = Math.abs(counted - target) < 0.005;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Open Drawer — {drawer.name}</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <Card className="bg-secondary">
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div><div className="text-xs text-muted-foreground">Starting Float (target)</div><div className="font-semibold">{money(target)}</div></div>
+              <div><div className="text-xs text-muted-foreground">Counted</div><div className="font-semibold">{money(counted)}</div></div>
+              <div><div className="text-xs text-muted-foreground">Diff</div>
+                <div className={`font-semibold ${matches ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}>
+                  {counted - target >= 0 ? "+" : ""}{money(counted - target)}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <MoneyCount title="Opening Money Count" target={target} onTotalChange={(t) => setCounted(t)} />
+
+          {!matches && counted > 0 && (
+            <div className="rounded-md border border-[var(--color-warning,#f59e0b)]/40 bg-[var(--color-warning-bg,#FFF8E1)] p-3 text-sm">
+              Counted total does not match the configured starting float. Recount or proceed anyway.
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground">Opened by <b>{user}</b> · {new Date().toLocaleString()}</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => mu.mutate()} disabled={mu.isPending}>Open Drawer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
