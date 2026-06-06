@@ -183,6 +183,65 @@ export const transitionSchedule = createServerFn({ method: "POST" })
     await supabase.from("audit_log").insert({
       actor_id: userId, action: `schedule_${data.action}`, entity: "schedule", entity_id: data.id, payload: { reason: data.reason ?? null },
     });
+
+    // --- Alert wiring: notify owner on submit; resolve alerts on approve/revert/lock/publish ---
+    try {
+      if (data.action === "submit") {
+        const { data: sched } = await supabase
+          .from("schedules")
+          .select("id, name, trailer_id, start_date, end_date")
+          .eq("id", data.id)
+          .maybeSingle();
+        const { data: trailer } = sched?.trailer_id
+          ? await supabase.from("trailers").select("name").eq("id", sched.trailer_id).maybeSingle()
+          : { data: null as any };
+        const trailerName = (trailer as any)?.name ?? "Company";
+        const range = sched ? `${sched.start_date} → ${sched.end_date}` : "";
+        // De-dupe: don't stack alerts if one is already pending for this schedule
+        const { data: existing } = await supabase
+          .from("alerts")
+          .select("id")
+          .eq("source_module", "schedule")
+          .eq("source_id", data.id)
+          .in("status", ["pending", "open"])
+          .limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from("alerts").insert({
+            type: "schedule_approval",
+            title: `Schedule submitted for approval — ${trailerName}`,
+            description: `${(sched as any)?.name ?? "Schedule"} · ${range}`,
+            source_module: "schedule",
+            source_id: data.id,
+            trailer_id: sched?.trailer_id ?? null,
+            created_by: userId,
+            assigned_role: "owner",
+            priority: "high",
+            status: "pending",
+            payload: { schedule_id: data.id, action: "awaiting_owner_approval" },
+          } as any);
+        }
+      } else if (["approve", "revert_draft", "lock", "publish"].includes(data.action)) {
+        // Resolve any pending schedule_approval alerts for this schedule
+        const resolution =
+          data.action === "approve" ? "approved" :
+          data.action === "revert_draft" ? "sent back to draft" :
+          data.action === "lock" ? "locked" : "published";
+        await supabase
+          .from("alerts")
+          .update({
+            status: "resolved",
+            resolved_at: now,
+            resolved_by: userId,
+            resolution: `Schedule ${resolution}${data.reason ? `: ${data.reason}` : ""}`,
+          } as any)
+          .eq("source_module", "schedule")
+          .eq("source_id", data.id)
+          .in("status", ["pending", "open"]);
+      }
+    } catch (e) {
+      console.error("[schedule] alert wiring failed", e);
+    }
+
     return { ok: true };
   });
 
