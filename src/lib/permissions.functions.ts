@@ -73,21 +73,21 @@ export const ROLE_PRESETS: Record<string, Record<string, "none" | "view" | "edit
     dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
     recaps: "edit", schedule: "edit", labor: "edit", inventory: "edit",
     "order-guide": "edit", sops: "edit", hospitality: "edit", health: "edit",
-    alerts: "edit", manager: "edit", users: "edit", audit: "edit",
+    alerts: "edit", cash: "edit", manager: "edit", users: "edit", audit: "edit",
     "change-log": "edit", analytics: "edit", settings: "edit",
   },
   manager: {
     dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
     recaps: "edit", schedule: "edit", labor: "edit", inventory: "edit",
     "order-guide": "edit", sops: "edit", hospitality: "edit", health: "edit",
-    alerts: "edit", manager: "edit", users: "edit", audit: "view",
+    alerts: "edit", cash: "edit", manager: "edit", users: "edit", audit: "view",
     "change-log": "view", analytics: "edit", settings: "view",
   },
   shift_lead: {
     dashboard: "edit", "my-tasks": "edit", "time-clock": "edit", operations: "edit",
     recaps: "edit", schedule: "view", labor: "view", inventory: "edit",
     "order-guide": "view", sops: "view", hospitality: "edit", health: "view",
-    alerts: "view", manager: "none", users: "none", audit: "none",
+    alerts: "view", cash: "edit", manager: "none", users: "none", audit: "none",
     "change-log": "none", analytics: "none", settings: "none",
   },
   // Crew preset — applied to grill, prep, cashier
@@ -95,7 +95,7 @@ export const ROLE_PRESETS: Record<string, Record<string, "none" | "view" | "edit
     dashboard: "view", "my-tasks": "edit", "time-clock": "edit", operations: "view",
     recaps: "none", schedule: "view", labor: "none", inventory: "view",
     "order-guide": "none", sops: "view", hospitality: "view", health: "none",
-    alerts: "view", manager: "none", users: "none", audit: "none",
+    alerts: "view", cash: "edit", manager: "none", users: "none", audit: "none",
     "change-log": "none", analytics: "none", settings: "none",
   },
 };
