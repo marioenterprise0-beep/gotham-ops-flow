@@ -90,6 +90,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       } else {
         setRoles([]); setUser("Crew"); setHomeTrailerId(null); setTrailers([]); setTrailerScopeState(null);
       }
+      setLoading(false);
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
