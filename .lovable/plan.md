@@ -1,60 +1,79 @@
-# Multi-Trailer + Editable SOPs + Personal Tasks + Per-Location Analytics
+# Labor Control System — Scheduling, Time Clock, Weekly Hours
 
-## 1. Trailers (Greece + Henrietta) — strict per-trailer scoping
+Turns the existing `/schedule` route into a Shiftlab-style labor system with clock in/out, weekly hour calculation, corrections, time off, and owner-only approval.
 
-**DB**
-- Seed two trailers: `Greece` and `Henrietta` (if not already present).
-- Add `trailer_id` (uuid, nullable→backfilled→not null) to: `inventory_items`, `shifts`, `tasks`, `hospitality_incidents`, `waste_log`, `inventory_counts`. (`schedules` and `schedule_shifts` already have it; `profiles` already has it.)
-- Helper SQL function `public.user_trailer_id()` returns `profiles.trailer_id` for `auth.uid()`.
-- Helper `public.is_owner_or_manager()` already exists as `is_manager`.
-- Tighten RLS on the above tables: crew can only `SELECT/INSERT` rows where `trailer_id = user_trailer_id()`. Owners/managers can read all trailers.
+## 1. Database (single migration)
 
-**App**
-- New `TrailerContext` reads the user's trailer + (for managers/owners) exposes a switcher with `Greece / Henrietta / Company`.
-- All server fns (`listInventory`, `getActiveShift`, `listTasks`, dashboard, analytics) take an optional `trailerId` param; default = user's own trailer; managers can pass either or `null` (= company).
+New tables (all RLS-locked, trailer-scoped, with grants):
 
-## 2. SOPs — fully editable
+- **`time_punches`** — clock in/out records
+  - `employee_id`, `trailer_id`, `schedule_shift_id` (nullable), `clock_in_at`, `clock_out_at`, `break_minutes`, `worked_minutes` (generated), `status` (open/closed/edited), `device_info`, `created_at`
+- **`time_corrections`** — employee correction requests
+  - `employee_id`, `punch_id` (nullable), `schedule_shift_id` (nullable), `type` (missed_in/missed_out/wrong_time/extra/other), `requested_in`, `requested_out`, `reason`, `status` (pending/approved/declined/info), `decided_by`, `decided_at`, `decision_note`
+- **`time_off_requests`** — PTO requests
+  - `employee_id`, `start_date`, `end_date`, `start_time` (nullable), `end_time` (nullable), `full_day`, `reason`, `status`, `decided_by`, `decided_at`, `decision_note`
+- **`shift_notes`** — employee notes
+  - `employee_id`, `schedule_shift_id` (nullable), `punch_id` (nullable), `note`, `created_at`
+- **`time_audit`** — immutable audit trail for every hour change
+  - `actor_id`, `entity` (punch/correction/timeoff/schedule_shift), `entity_id`, `action`, `old_value` jsonb, `new_value` jsonb, `reason`, `created_at`
 
-- New `sop_attachments` table (sop_id, file path in `gotham-photos` bucket, uploaded_by, label).
-- New `sop_versions` table (sop_id, version, title, body, category, role, edited_by, edited_at) — written on every update.
-- `body` stays text but rendered with a lightweight markdown renderer (bold/headers/lists) so users get rich text without adding a heavy editor dependency.
-- SOPs route: inline edit each card (title, category, role dropdown, markdown body, pass standard), "Attach photo" upload, "History" drawer showing versions with diff-friendly view + restore button.
+RLS:
+- Employees: SELECT/INSERT own rows only
+- Managers: SELECT all in their scope, INSERT notes
+- Owners: full UPDATE/approve on punches, corrections, time off
+- `time_audit`: SELECT for managers/owners, INSERT via triggers only
 
-## 3. Tasks — assign to a specific employee
+Triggers: write to `time_audit` on any UPDATE of `time_punches` or status change on corrections/time off.
 
-- Add `assignee_user_id uuid` to `tasks` (already has `owner_id` and `assignee_role`; we'll use `assignee_user_id` as the explicit personal assignment).
-- Manager/owner UI in Operations: when creating a task, can pick an employee from the trailer's roster (or leave blank for role-based / general).
-- New `/my-tasks` route: shows all tasks across active shifts where `assignee_user_id = auth.uid()` OR (`assignee_role = my role` AND no specific assignee).
-- Nav: add **My Tasks** tab visible to all logged-in users.
+Helper functions:
+- `payroll_week_bounds(_date date)` → Sat–Fri range
+- `weekly_hours(_user uuid, _week_start date)` → { scheduled_min, worked_min, diff_min, flags[] }
 
-## 4. Analytics — Greece / Henrietta / Company tabs
+## 2. Server functions (`src/lib/`)
 
-- Top of `/analytics`: 3-tab segmented control. Selection drives a `trailerId` query param passed to every chart's data fn.
-- Server fn `getAnalytics({ trailerId | null, range })` returns KPIs + chart series filtered by trailer (`null` = company, both trailers combined).
-- Company view also shows a small "Greece vs Henrietta" comparison row at the top.
+- **`timeclock.functions.ts`** — `clockIn`, `clockOut`, `getMyActivePunch`, `getMyWeek`
+- **`labor.functions.ts`** — `getLaborDashboard({ trailerId, weekStart })`, `getEmployeeWeek({ userId, weekStart })`, `listPunches`, `ownerEditPunch` (owner only), `ownerApproveCorrection`, `ownerApproveTimeOff`
+- **`requests.functions.ts`** — `submitCorrection`, `submitTimeOff`, `submitShiftNote`, `listMyRequests`, `listPendingRequests` (managers/owners)
 
-## 5. Inventory — per location
+All owner-only mutations gated by `has_role(uid, 'owner')` server-side.
 
-- `inventory_items` becomes trailer-scoped. Same `/inventory` route, but the active list and counts are filtered to current trailer; managers see a trailer toggle.
+## 3. UI
+
+### `/schedule` (replaces current)
+- View switcher: **Day / Week / 2-Week / Month** (Week default)
+- Shiftlab-style grid: employees left, days top, draggable shift blocks (click to edit; drag deferred — click+edit only this pass)
+- Status badges on each block: draft/submitted/approved/locked/published
+- Owner-only lock controls: lock day / lock week / lock month with reason
+- Trailer scope honored via existing `TrailerContext`
+
+### `/time-clock` (new, employees)
+- Big CLOCK IN / CLOCK OUT / SHIFT COMPLETE button
+- Shows today's scheduled shift, current elapsed time
+- Week summary card: scheduled vs worked, diff, flags
+- "Submit note" / "Request correction" / "Request time off" buttons
+
+### `/labor` (new, managers + owners)
+- Header: payroll week Sat–Fri with prev/next
+- KPI row: total scheduled, total worked, diff, open shifts, missed clock-outs, pending corrections, pending time off
+- Employee table: name, scheduled, worked, diff, flags, status
+- Click row → drawer with all punches that week; owner can edit, manager read-only
+- Tabs: **Overview / Punches / Corrections / Time Off / Notes**
+- Approve/Decline buttons (owner only) on each pending request
+
+### Nav (`AppShell.tsx`)
+- Add **Time Clock** (all roles) and **Labor** (managers/owners) to nav
+- Existing Schedule tab kept
+
+## 4. Permissions integration
+Register new tab keys (`time-clock`, `labor`) in `permissions.tsx` matrix so owners can override per-user.
+
+## 5. Out of scope this pass
+- Drag/resize shift blocks (click-to-edit only)
+- Geofencing on clock in
+- Biometric/photo clock in
+- Export to ADP/Gusto (we'll surface a CSV download as a stub)
+- Push notifications
 
 ---
 
-## Out of scope this pass
-- Drag/resize on schedule grid.
-- File-attachment versioning history (we store attachments but they live across versions).
-- Custom roles per trailer.
-
-## Files touched (high level)
-- **DB migration** (single) — trailers seed, new columns, RLS rewrite, sop_versions/sop_attachments, has-trailer helpers.
-- `src/lib/role.tsx` — add `useTrailer()` + scope switcher state.
-- `src/lib/sops.functions.ts` — versions, attachments, history.
-- `src/lib/tasks.functions.ts` + `src/lib/manager.functions.ts` — `assignee_user_id`, trailer scoping.
-- `src/lib/inventory.functions.ts` — trailer filter.
-- `src/lib/dashboard.functions.ts` (new `analytics.functions.ts`) — trailer-scoped KPIs.
-- `src/components/gotham/AppShell.tsx` — trailer switcher in header, add **My Tasks** nav.
-- `src/routes/sops.tsx` — inline editor + attachments + history drawer.
-- `src/routes/operations.tsx` — employee picker.
-- `src/routes/inventory.tsx`, `src/routes/analytics.tsx` — trailer tabs/filter.
-- `src/routes/my-tasks.tsx` (new) — personal task list.
-
-Approve and I'll build it in one pass.
+Approve and I'll ship the migration + all routes/functions in one pass.
