@@ -10,9 +10,34 @@ import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs,
 } from "@/lib/users.functions";
-import { Copy, Plus, Trash2, Ban } from "lucide-react";
+import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const TABS: { key: string; label: string }[] = [
+  { key: "dashboard",   label: "Dashboard" },
+  { key: "my-tasks",    label: "My Tasks" },
+  { key: "operations",  label: "Operations" },
+  { key: "schedule",    label: "Scheduling" },
+  { key: "inventory",   label: "Inventory" },
+  { key: "sops",        label: "SOPs" },
+  { key: "hospitality", label: "Hospitality" },
+  { key: "manager",     label: "Manager" },
+  { key: "users",       label: "Users" },
+  { key: "audit",       label: "Audit Log" },
+  { key: "analytics",   label: "Analytics" },
+  { key: "settings",    label: "Settings" },
+  { key: "permissions", label: "Permissions" },
+];
+
+const MOD_PRESETS: { id: string; label: string; desc: string; allow: string[] }[] = [
+  { id: "view_only",  label: "View only",  desc: "Dashboard & My Tasks only",                  allow: ["dashboard", "my-tasks"] },
+  { id: "crew",       label: "Crew",       desc: "Operations, schedule, SOPs, inventory view", allow: ["dashboard", "my-tasks", "operations", "schedule", "sops", "inventory"] },
+  { id: "lead",       label: "Shift Lead", desc: "Crew + hospitality logs",                    allow: ["dashboard", "my-tasks", "operations", "schedule", "sops", "inventory", "hospitality"] },
+  { id: "manager",    label: "Manager",    desc: "Everything except Permissions",              allow: TABS.filter((t) => t.key !== "permissions").map((t) => t.key) },
+  { id: "full",       label: "Full access", desc: "All tabs (owner-equivalent)",               allow: TABS.map((t) => t.key) },
+];
 
 export const Route = createFileRoute("/users")({
   ssr: false,
@@ -73,17 +98,30 @@ function UsersPage() {
 }
 
 function UsersTab() {
+  const { roleId } = useRole();
+  const isOwner = roleId === "owner";
   const qc = useQueryClient();
   const fetchUsers = useServerFn(listUsers);
   const fetchTrailers = useServerFn(listTrailers);
   const setRoleFn = useServerFn(setUserRole);
   const setTrailerFn = useServerFn(setUserTrailer);
   const setActiveFn = useServerFn(setUserActive);
+  const fetchPerms = useServerFn(listAllTabPermissions);
+  const setPermFn = useServerFn(setTabPermission);
 
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
+  const { data: permData } = useQuery({
+    queryKey: ["all-tab-permissions"],
+    queryFn: () => fetchPerms() as Promise<any>,
+    enabled: isOwner,
+  });
+  const allPerms: any[] = permData?.perms ?? [];
+
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
+  const refreshPerms = () => qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
 
   const roleMut = useMutation({
     mutationFn: (v: { userId: string; role: RoleId }) => setRoleFn({ data: v }),
@@ -100,6 +138,25 @@ function UsersTab() {
     onSuccess: (_d, v) => { toast.success(v.active ? "Access restored" : "Access disabled"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const permMut = useMutation({
+    mutationFn: (v: { userId: string; tabKey: string; enabled: boolean }) =>
+      setPermFn({ data: { scopeType: "user", scopeId: v.userId, tabKey: v.tabKey, enabled: v.enabled } }),
+    onSuccess: () => refreshPerms(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const isEnabled = (userId: string, tabKey: string) => {
+    const found = allPerms.find((p) => p.scope_type === "user" && p.scope_id === userId && p.tab_key === tabKey);
+    return found ? !!found.enabled : true;
+  };
+
+  const applyPreset = async (userId: string, preset: typeof MOD_PRESETS[number]) => {
+    const allow = new Set(preset.allow);
+    for (const t of TABS) {
+      await permMut.mutateAsync({ userId, tabKey: t.key, enabled: allow.has(t.key) });
+    }
+    toast.success(`Applied "${preset.label}"`);
+  };
 
   return (
     <>
@@ -108,30 +165,95 @@ function UsersTab() {
         {users.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No users yet.</div>}
         {users.map((u: any, i: number) => {
           const role = (u.roles[0] as RoleId | undefined) ?? "cashier";
+          const isUserOwner = u.roles.includes("owner");
+          const open = openId === u.id;
           return (
-            <div key={u.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_140px_auto] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
-              <div>
-                <div className="font-semibold truncate">{u.display_name}</div>
-                <div className="text-xs text-muted-foreground">Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "never"}</div>
+            <div key={u.id} className={cn(i && "border-t border-border")}>
+              <div className="grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_120px_auto_auto] gap-3 px-4 py-3 items-center text-sm">
+                <div>
+                  <div className="font-semibold truncate">{u.display_name}</div>
+                  <div className="text-xs text-muted-foreground">Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "never"}</div>
+                </div>
+                <select value={role} onChange={(e) => roleMut.mutate({ userId: u.id, role: e.target.value as RoleId })}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-xs">
+                  {ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+                <select value={u.trailer_id ?? ""} onChange={(e) => trailerMut.mutate({ userId: u.id, trailerId: e.target.value || null })}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-xs">
+                  <option value="">No trailer</option>
+                  {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <div><StatusPill tone={u.active ? "success" : "danger"}>{u.active ? "Active" : "Disabled"}</StatusPill></div>
+                <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
+                  {u.active ? "Disable" : "Restore"}
+                </button>
+                {isOwner ? (
+                  <button onClick={() => setOpenId(open ? null : u.id)}
+                    className={cn(
+                      "rounded-md border px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5",
+                      open ? "border-[var(--color-gold)] text-[var(--color-gold)]" : "border-border hover:border-[var(--color-gold)]"
+                    )}>
+                    <Shield className="h-3 w-3" /> Permissions
+                    <ChevronDown className={cn("h-3 w-3 transition", open && "rotate-180")} />
+                  </button>
+                ) : <div />}
               </div>
-              <select value={role} onChange={(e) => roleMut.mutate({ userId: u.id, role: e.target.value as RoleId })}
-                className="h-9 rounded-md border border-border bg-card px-2 text-xs">
-                {ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </select>
-              <select value={u.trailer_id ?? ""} onChange={(e) => trailerMut.mutate({ userId: u.id, trailerId: e.target.value || null })}
-                className="h-9 rounded-md border border-border bg-card px-2 text-xs">
-                <option value="">No trailer</option>
-                {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-              <div><StatusPill tone={u.active ? "success" : "danger"}>{u.active ? "Active" : "Disabled"}</StatusPill></div>
-              <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
-                className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
-                {u.active ? "Disable" : "Restore"}
-              </button>
+
+              {isOwner && open && (
+                <div className="px-4 pb-4 border-t border-border bg-[var(--color-muted)]/30">
+                  {isUserOwner ? (
+                    <div className="py-4 text-xs text-muted-foreground">Owners always have full access. Permissions cannot be restricted.</div>
+                  ) : (
+                    <>
+                      <div className="pt-3 pb-2">
+                        <div className="label-caps text-muted-foreground mb-2">Quick mod level</div>
+                        <div className="flex flex-wrap gap-2">
+                          {MOD_PRESETS.map((p) => (
+                            <button key={p.id} onClick={() => applyPreset(u.id, p)}
+                              disabled={permMut.isPending}
+                              className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-[var(--color-gold)] disabled:opacity-60"
+                              title={p.desc}>
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <div className="label-caps text-muted-foreground mb-2">Tab-by-tab access</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {TABS.map((t) => {
+                            const on = isEnabled(u.id, t.key);
+                            return (
+                              <button key={t.key}
+                                disabled={permMut.isPending}
+                                onClick={() => permMut.mutate({ userId: u.id, tabKey: t.key, enabled: !on })}
+                                className={cn(
+                                  "flex items-center justify-between rounded-md border px-3 py-2 text-xs transition",
+                                  on
+                                    ? "border-[var(--color-success)]/40 bg-[var(--color-success-bg)] text-[var(--color-success)]"
+                                    : "border-[var(--color-danger)]/40 bg-[var(--color-danger-bg)] text-[var(--color-danger)]"
+                                )}>
+                                <span className="font-medium">{t.label}</span>
+                                {on ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </Card>
+      {!isOwner && (
+        <div className="mt-3 text-xs text-muted-foreground">
+          Only owners can edit per-user tab permissions. Managers can change roles and trailer assignments.
+        </div>
+      )}
     </>
   );
 }
