@@ -4,7 +4,14 @@ import { z } from "zod";
 
 const RANGE = z.enum(["today", "week", "month"]);
 
-function rangeBounds(range: "today" | "week" | "month") {
+function rangeBounds(range: "today" | "week" | "month", monthIso?: string | null) {
+  // If an explicit month (YYYY-MM) is provided, return that whole calendar month.
+  if (monthIso) {
+    const [y, m] = monthIso.split("-").map((n) => parseInt(n, 10));
+    const start = new Date(y, m - 1, 1, 0, 0, 0, 0);
+    const end = new Date(y, m, 0, 23, 59, 59, 999); // last day of month
+    return { start, end };
+  }
   const end = new Date();
   const start = new Date();
   if (range === "today") {
