@@ -133,10 +133,28 @@ export const actOnAlert = createServerFn({ method: "POST" })
         mark_ordered: "ordered", mark_received: "received",
       };
       if (map[data.action]) {
-        await supabase.from("inventory_orders").update({
-          status: map[data.action], owner_comment: data.note ?? null,
-          decided_by: userId, decided_at: new Date().toISOString(),
-        } as any).eq("id", alert.source_id);
+        // Gate ordered/received behind prior owner approval unless caller is owner
+        const { data: ord } = await supabase.from("inventory_orders")
+          .select("status").eq("id", alert.source_id).single();
+        if (data.action === "mark_ordered" && !isOwner && ord?.status !== "approved") {
+          throw new Error("Order must be approved by the owner before marking ordered");
+        }
+        if (data.action === "mark_received" && !isOwner && !["approved","ordered"].includes(ord?.status ?? "")) {
+          throw new Error("Order must be approved before it can be received");
+        }
+        const alreadyReceived = data.action === "mark_received" && ord?.status === "received";
+        if (!alreadyReceived) {
+          await supabase.from("inventory_orders").update({
+            status: map[data.action], owner_comment: data.note ?? null,
+            decided_by: userId, decided_at: new Date().toISOString(),
+            ...(data.action === "mark_ordered" ? { ordered_at: new Date().toISOString() } : {}),
+            ...(data.action === "mark_received" ? { received_at: new Date().toISOString() } : {}),
+          } as any).eq("id", alert.source_id);
+          if (data.action === "mark_received") {
+            const { applyOrderReceipt } = await import("./inventory-orders.functions");
+            await applyOrderReceipt(supabase, userId, alert.source_id);
+          }
+        }
       }
     }
     // Cascade to time_corrections
