@@ -111,6 +111,7 @@ const CloseSchema = z.object({
   totalCashSales: z.number().min(0).max(1_000_000),
   countedAmount: z.number().min(0).max(1_000_000),
   varianceReason: z.string().max(500).optional(),
+  varianceNotes: z.string().max(2000).optional(),
   verification: z.enum(["self", "requested", "verified"]).default("self"),
 });
 
@@ -124,16 +125,30 @@ export const closeDrawerSession = createServerFn({ method: "POST" })
     if (se) throw se;
     if (session.status === "closed") throw new Error("Session already closed");
 
-    // Sum verified+unverified drops alike (employees can submit alone)
-    const { data: drops } = await supabase
-      .from("cash_drops").select("amount").eq("session_id", data.sessionId);
-    const totalDrops = (drops ?? []).reduce((s: number, d: any) => s + Number(d.amount), 0);
-
     const starting = Number(session.starting_float);
-    const expected = starting + Number(data.totalCashSales) - totalDrops;
+    // CORRECT MODEL: the float stays in the drawer and is counted with the cash.
+    //   Expected Drawer Total = Starting Float + Total Cash Sales
+    //   Variance              = Actual Cash Counted - Expected Drawer Total
+    //   Drop Amount           = Actual Cash Counted - Starting Float
+    //   Remaining Float       = Starting Float (the float is left in the drawer)
+    const expected = starting + Number(data.totalCashSales);
     const variance = Number(data.countedAmount) - expected;
+    const dropAmount = Number(data.countedAmount) - starting;
 
-    const status = data.verification === "requested" ? "pending" : "closed";
+    // Block: counted below float => critical, force owner review path
+    if (Number(data.countedAmount) < starting && data.verification !== "requested") {
+      throw new Error("Counted cash is below the starting float — owner review is required. Select Request Verification.");
+    }
+    if (variance !== 0 && !data.varianceReason?.trim()) {
+      throw new Error("Variance reason is required when variance is not $0.");
+    }
+
+    const needsReview =
+      data.verification === "requested" || Number(data.countedAmount) < starting;
+    const status = needsReview ? "pending" : "closed";
+
+    const reasonCombined =
+      [data.varianceReason, data.varianceNotes].filter((x) => x && String(x).trim()).join(" — ") || null;
 
     const { error } = await supabase.from("cash_drawer_sessions").update({
       status,
@@ -141,14 +156,34 @@ export const closeDrawerSession = createServerFn({ method: "POST" })
       counted_amount: data.countedAmount,
       expected_amount: expected,
       variance,
-      variance_reason: data.varianceReason ?? null,
+      variance_reason: reasonCombined,
       verification: data.verification,
       closed_by: userId,
       closed_at: new Date().toISOString(),
     }).eq("id", data.sessionId);
     if (error) throw error;
 
-    return { ok: true, expected, variance, totalDrops };
+    // Variance alerts: >$20 manager, >$50 owner
+    const absVar = Math.abs(variance);
+    if (absVar > 20) {
+      const assigned = absVar > 50 ? "owner" : "manager";
+      const priority = absVar > 50 ? "critical" : "high";
+      await supabase.from("alerts").insert({
+        type: "manager_note",
+        title: `Cash variance ${variance >= 0 ? "+" : ""}$${variance.toFixed(2)} — drawer close`,
+        description: `Counted $${Number(data.countedAmount).toFixed(2)} vs expected $${expected.toFixed(2)}. Drop $${dropAmount.toFixed(2)}. Reason: ${data.varianceReason ?? "—"}`,
+        source_module: "cash",
+        source_id: data.sessionId,
+        trailer_id: session.trailer_id,
+        created_by: userId,
+        assigned_role: assigned,
+        priority,
+        status: "pending",
+        payload: { session_id: data.sessionId, variance, expected, counted: data.countedAmount, drop_amount: dropAmount },
+      } as any);
+    }
+
+    return { ok: true, expected, variance, dropAmount, remainingFloat: starting };
   });
 
 export const getDrawerSession = createServerFn({ method: "POST" })
