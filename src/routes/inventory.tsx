@@ -69,6 +69,8 @@ function Inventory() {
   const [receiveItem, setReceiveItem] = useState<Item | null>(null);
   const [wasteItem, setWasteItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | "new" | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
