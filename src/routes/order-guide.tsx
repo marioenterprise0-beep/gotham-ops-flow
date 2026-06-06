@@ -45,6 +45,8 @@ function OrderGuide() {
   const canEdit = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const update = useServerFn(updateOrderGuide);
+  const create = useServerFn(upsertInventoryItem);
+  const remove = useServerFn(deleteInventoryItem);
 
   const { data: items = [], isLoading } = useQuery<Row[]>({
     queryKey: ["order-guide", trailerScope ?? "company"],
