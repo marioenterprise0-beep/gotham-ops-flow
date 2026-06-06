@@ -24,6 +24,7 @@ import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
+import { Route as HealthRouteImport } from './routes/health'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditRouteImport } from './routes/audit'
@@ -106,6 +107,11 @@ const HospitalityRoute = HospitalityRouteImport.update({
   path: '/hospitality',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangeLogRoute = ChangeLogRouteImport.update({
   id: '/change-log',
   path: '/change-log',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/change-log': typeof ChangeLogRoute
+  '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/change-log': typeof ChangeLogRoute
+  '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/change-log': typeof ChangeLogRoute
+  '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/auth'
     | '/change-log'
+    | '/health'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/auth'
     | '/change-log'
+    | '/health'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/auth'
     | '/change-log'
+    | '/health'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   AuditRoute: typeof AuditRoute
   AuthRoute: typeof AuthRoute
   ChangeLogRoute: typeof ChangeLogRoute
+  HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
   LaborRoute: typeof LaborRoute
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HospitalityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-log': {
       id: '/change-log'
       path: '/change-log'
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuditRoute: AuditRoute,
   AuthRoute: AuthRoute,
   ChangeLogRoute: ChangeLogRoute,
+  HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
   LaborRoute: LaborRoute,
@@ -481,3 +502,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
