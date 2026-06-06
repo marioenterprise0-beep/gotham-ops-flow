@@ -95,6 +95,13 @@ function PermissionsPage() {
   }
 
   if (!session?.access_token) return <Navigate to="/auth" />;
+  if (session && !roleId) {
+    return (
+      <AppShell>
+        <div className="text-sm text-muted-foreground">Loading permissions…</div>
+      </AppShell>
+    );
+  }
   if (roleId !== "owner") return <Navigate to="/" />;
 
   const queryError = error instanceof Error ? error : null;
