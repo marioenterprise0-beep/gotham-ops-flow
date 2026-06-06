@@ -44,6 +44,101 @@ export type Database = {
         }
         Relationships: []
       }
+      alert_actions: {
+        Row: {
+          action: Database["public"]["Enums"]["alert_action_kind"]
+          actor_id: string
+          alert_id: string
+          created_at: string
+          id: string
+          note: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["alert_action_kind"]
+          actor_id: string
+          alert_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["alert_action_kind"]
+          actor_id?: string
+          alert_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_actions_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alerts: {
+        Row: {
+          assigned_role: Database["public"]["Enums"]["alert_assigned_role"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          payload: Json | null
+          priority: Database["public"]["Enums"]["alert_priority"]
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          source_id: string | null
+          source_module: string
+          status: Database["public"]["Enums"]["alert_status"]
+          title: string
+          trailer_id: string | null
+          type: Database["public"]["Enums"]["alert_type"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          payload?: Json | null
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id?: string | null
+          source_module: string
+          status?: Database["public"]["Enums"]["alert_status"]
+          title: string
+          trailer_id?: string | null
+          type: Database["public"]["Enums"]["alert_type"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          payload?: Json | null
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          source_id?: string | null
+          source_module?: string
+          status?: Database["public"]["Enums"]["alert_status"]
+          title?: string
+          trailer_id?: string | null
+          type?: Database["public"]["Enums"]["alert_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -221,6 +316,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inventory_order_items: {
+        Row: {
+          category: string | null
+          created_at: string
+          current_qty: number
+          id: string
+          item_id: string | null
+          item_name: string
+          notes: string | null
+          order_id: string
+          par_qty: number
+          reason: string | null
+          requested_qty: number
+          unit: string | null
+          urgency: Database["public"]["Enums"]["inventory_order_urgency"]
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          current_qty?: number
+          id?: string
+          item_id?: string | null
+          item_name: string
+          notes?: string | null
+          order_id: string
+          par_qty?: number
+          reason?: string | null
+          requested_qty: number
+          unit?: string | null
+          urgency?: Database["public"]["Enums"]["inventory_order_urgency"]
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          current_qty?: number
+          id?: string
+          item_id?: string | null
+          item_name?: string
+          notes?: string | null
+          order_id?: string
+          par_qty?: number
+          reason?: string | null
+          requested_qty?: number
+          unit?: string | null
+          urgency?: Database["public"]["Enums"]["inventory_order_urgency"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_order_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_orders: {
+        Row: {
+          created_at: string
+          created_by: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          notes: string | null
+          ordered_at: string | null
+          owner_comment: string | null
+          received_at: string | null
+          status: Database["public"]["Enums"]["inventory_order_status"]
+          submitted_at: string | null
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          notes?: string | null
+          ordered_at?: string | null
+          owner_comment?: string | null
+          received_at?: string | null
+          status?: Database["public"]["Enums"]["inventory_order_status"]
+          submitted_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          notes?: string | null
+          ordered_at?: string | null
+          owner_comment?: string | null
+          received_at?: string | null
+          status?: Database["public"]["Enums"]["inventory_order_status"]
+          submitted_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       inventory_receipts: {
         Row: {
@@ -1200,6 +1406,31 @@ export type Database = {
       payroll_week_start: { Args: { _d: string }; Returns: string }
     }
     Enums: {
+      alert_action_kind:
+        | "comment"
+        | "approve"
+        | "decline"
+        | "request_changes"
+        | "mark_ordered"
+        | "mark_received"
+        | "escalate"
+        | "resolve"
+        | "review"
+      alert_assigned_role: "manager" | "owner"
+      alert_priority: "critical" | "high" | "normal" | "low"
+      alert_status: "open" | "pending" | "approved" | "declined" | "resolved"
+      alert_type:
+        | "missed_clock_out"
+        | "missed_clock_in"
+        | "time_adjustment"
+        | "time_off"
+        | "inventory_order"
+        | "low_stock"
+        | "critical_stock"
+        | "checklist_failure"
+        | "manager_note"
+        | "schedule_approval"
+        | "maintenance"
       app_role:
         | "owner"
         | "manager"
@@ -1223,6 +1454,21 @@ export type Database = {
         | "sauce"
         | "packaging"
         | "supplies"
+      inventory_order_status:
+        | "draft"
+        | "submitted"
+        | "pending_owner_review"
+        | "approved"
+        | "declined"
+        | "changes_requested"
+        | "ordered"
+        | "received"
+        | "cancelled"
+      inventory_order_urgency:
+        | "normal"
+        | "needed_soon"
+        | "critical"
+        | "emergency"
       punch_status: "open" | "closed" | "edited" | "voided"
       request_status: "pending" | "approved" | "declined" | "info_requested"
       schedule_status:
@@ -1362,6 +1608,33 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alert_action_kind: [
+        "comment",
+        "approve",
+        "decline",
+        "request_changes",
+        "mark_ordered",
+        "mark_received",
+        "escalate",
+        "resolve",
+        "review",
+      ],
+      alert_assigned_role: ["manager", "owner"],
+      alert_priority: ["critical", "high", "normal", "low"],
+      alert_status: ["open", "pending", "approved", "declined", "resolved"],
+      alert_type: [
+        "missed_clock_out",
+        "missed_clock_in",
+        "time_adjustment",
+        "time_off",
+        "inventory_order",
+        "low_stock",
+        "critical_stock",
+        "checklist_failure",
+        "manager_note",
+        "schedule_approval",
+        "maintenance",
+      ],
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
       correction_type: [
         "missed_in",
@@ -1380,6 +1653,23 @@ export const Constants = {
         "sauce",
         "packaging",
         "supplies",
+      ],
+      inventory_order_status: [
+        "draft",
+        "submitted",
+        "pending_owner_review",
+        "approved",
+        "declined",
+        "changes_requested",
+        "ordered",
+        "received",
+        "cancelled",
+      ],
+      inventory_order_urgency: [
+        "normal",
+        "needed_soon",
+        "critical",
+        "emergency",
       ],
       punch_status: ["open", "closed", "edited", "voided"],
       request_status: ["pending", "approved", "declined", "info_requested"],
