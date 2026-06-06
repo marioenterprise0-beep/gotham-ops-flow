@@ -33,19 +33,35 @@ type Phase = (typeof PHASES)[number];
 
 function Operations() {
   const qc = useQueryClient();
-  const { roleId } = useRole();
+  const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const [phase, setPhase] = useState<Phase>("opening");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newRole, setNewRole] = useState<string>("");
+  const [newAssignee, setNewAssignee] = useState<string>("");
   const [newSignoff, setNewSignoff] = useState(false);
 
+  // For managers in "Company" scope, server resolves to their own trailer
+  const activeTrailer = trailerScope;
+  const trailerLabel = activeTrailer
+    ? (trailers.find((t) => t.id === activeTrailer)?.name ?? "Trailer")
+    : "Your trailer";
 
   const shiftFn = useServerFn(getActiveShift);
-  const { data: shiftData } = useQuery({ queryKey: ["shift"], queryFn: () => shiftFn() });
+  const { data: shiftData } = useQuery({
+    queryKey: ["shift", activeTrailer ?? "own"],
+    queryFn: () => shiftFn({ data: { trailerId: activeTrailer } }),
+  });
   const shift = shiftData?.shift;
+
+  const rosterFn = useServerFn(listCrewRoster);
+  const { data: roster = [] } = useQuery<Array<{ id: string; name: string; role: string }>>({
+    queryKey: ["roster", activeTrailer ?? "company"],
+    queryFn: () => rosterFn({ data: { trailerId: activeTrailer } }) as any,
+    enabled: isManager,
+  });
 
   const tasksFn = useServerFn(listTasks);
   const { data: allTasks = [] } = useQuery<Task[]>({
