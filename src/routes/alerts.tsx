@@ -313,13 +313,17 @@ function AlertsPage() {
                 {n > 0 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markMut.mutate(c.key); }}
-                    disabled={markMut.isPending}
+                    disabled={pendingCat === c.key}
+                    aria-busy={pendingCat === c.key}
                     title={`Mark ${c.label} as read`}
-                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center",
+                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center disabled:opacity-60",
                       isActive ? "border-background/30 text-background/80 hover:bg-background/10" : "border-border text-foreground/50 hover:bg-secondary hover:text-foreground")}>
-                    <Check className="h-3.5 w-3.5" />
+                    {pendingCat === c.key
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Check className="h-3.5 w-3.5" />}
                   </button>
                 )}
+
               </div>
             );
           })}
