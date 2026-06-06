@@ -486,7 +486,7 @@ function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMg
             {/* Unassigned row */}
             <UnassignedRow
               days={days} grid={grid} status={status} canEdit={canEdit}
-              scheduleId={scheduleId} onAdd={(d) => setEditing({
+              onAdd={(d) => setEditing({
                 schedule_id: scheduleId, employee_id: null, shift_date: d,
                 role: "cashier", segment: "mid", start_time: "11:00", end_time: "19:00", break_minutes: 30,
               })}
