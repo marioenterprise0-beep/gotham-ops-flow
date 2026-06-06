@@ -255,6 +255,7 @@ function TopBar() {
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
           <span className="text-xs font-medium text-white/90">Live</span>
           <span className="text-xs text-white/50">· {timeStr}</span>
+          <OnlineDot />
         </div>
 
         <button
@@ -265,6 +266,15 @@ function TopBar() {
         >
           <span>Search</span>
           <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">⌘K</kbd>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", shiftKey: true }))}
+          className="hidden md:grid h-9 w-9 place-items-center rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-4 w-4" />
         </button>
 
         <TrailerSwitcher />
