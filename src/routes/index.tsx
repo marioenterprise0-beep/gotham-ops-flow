@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, BookOpen, Boxes, ChevronRight, FileWarning, Flag, MapPin, Play, Timer, Users } from "lucide-react";
+import { AlertTriangle, BookOpen, Boxes, ChevronRight, Download, FileText, FileWarning, Flag, MapPin, Play, Timer, Users } from "lucide-react";
+import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { useEffect, useState } from "react";
 import { useRole, ROLES, initials } from "@/lib/role";
 import { useQuery } from "@tanstack/react-query";
@@ -94,7 +95,16 @@ function Dashboard() {
         <DarkStat label="Shift Window" value={countdown} sub="opening countdown" tone="gold" />
       </div>
 
-      <SectionHeader eyebrow="Execute" title="Quick Actions" />
+      <SectionHeader eyebrow="Execute" title="Quick Actions" action={stats ? (
+        <div className="flex gap-2">
+          <button onClick={() => exportHealthCSV(stats, crew, role?.name ?? "Crew")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold">
+            <Download className="h-3.5 w-3.5" /> Health CSV
+          </button>
+          <button onClick={() => exportHealthPDF(stats, crew, role?.name ?? "Crew", phaseLabel)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+            <FileText className="h-3.5 w-3.5" /> Health PDF
+          </button>
+        </div>
+      ) : null} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <ActionBtn to="/operations" label={shiftActive ? "Open Operations" : "Start Shift"} icon={Play} primary />
         <ActionBtn to="/inventory" label="Inventory Count" icon={Boxes} />
@@ -168,4 +178,45 @@ function ActionBtn({ to, label, icon: Icon, primary }: { to: string; label: stri
       <span className="font-semibold text-sm">{label}</span>
     </Link>
   );
+}
+
+function exportHealthCSV(stats: any, crew: any[], roleName: string) {
+  const rows: (string | number)[][] = [];
+  rows.push(["Shift", "Phase", stats?.shift?.phase ?? "—"]);
+  rows.push(["Shift", "Store", stats?.store?.name ?? "—"]);
+  rows.push(["Shift", "Opened at", stats?.shift?.opened_at ?? "—"]);
+  rows.push(["Tasks", "Total", stats?.tasks?.total ?? 0]);
+  rows.push(["Tasks", "Done", stats?.tasks?.done ?? 0]);
+  rows.push(["Tasks", "Remaining", stats?.tasks?.remaining ?? 0]);
+  rows.push(["Alerts", "Count", stats?.alerts?.count ?? 0]);
+  rows.push(["Alerts", "Low stock", stats?.alerts?.lowStock ?? 0]);
+  rows.push(["Alerts", "Pending", stats?.alerts?.pending ?? 0]);
+  rows.push(["Crew", "On roster", crew.length]);
+  rows.push(["Viewer role", "Role", roleName]);
+  for (const it of stats?.alerts?.items ?? []) {
+    rows.push(["Critical stock", it.name, `${it.pct}% of par`]);
+  }
+  downloadCSV(`gotham-health-${new Date().toISOString().slice(0, 10)}.csv`, ["Section", "Metric", "Value"], rows);
+}
+
+function exportHealthPDF(stats: any, crew: any[], roleName: string, phaseLabel: string) {
+  const items = (stats?.alerts?.items ?? []).map((r: any) => [r.name, `${r.pct}%`, r.critical ? "CRITICAL" : "LOW"]);
+  const crewRows = crew.map((c: any) => [c.display_name, roleName]);
+  const html = `
+    <h1>Gotham OS — Health Report</h1>
+    <div class="meta">${escapeHTML(phaseLabel)} · ${escapeHTML(stats?.store?.name ?? "—")}</div>
+    ${kpiBlock([
+      { label: "Tasks Remaining", value: stats?.tasks?.remaining ?? 0, tone: (stats?.tasks?.remaining ?? 0) ? "warn" : "ok" },
+      { label: "Tasks Done", value: `${stats?.tasks?.done ?? 0} / ${stats?.tasks?.total ?? 0}` },
+      { label: "Alerts", value: stats?.alerts?.count ?? 0, tone: (stats?.alerts?.count ?? 0) ? "danger" : "ok" },
+      { label: "Low Stock", value: stats?.alerts?.lowStock ?? 0, tone: (stats?.alerts?.lowStock ?? 0) ? "warn" : "ok" },
+      { label: "Pending Actions", value: stats?.alerts?.pending ?? 0, tone: (stats?.alerts?.pending ?? 0) ? "warn" : "ok" },
+      { label: "Crew on Roster", value: crew.length },
+    ])}
+    <h2>Critical Stock</h2>
+    ${items.length ? htmlTable(["Item", "% of Par", "Status"], items) : '<div class="meta">No critical items.</div>'}
+    <h2>Crew</h2>
+    ${crewRows.length ? htmlTable(["Name", "Role"], crewRows) : '<div class="meta">No active crew.</div>'}
+  `;
+  openPrintablePDF("Gotham Health Report", html);
 }
