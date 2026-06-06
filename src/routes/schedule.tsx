@@ -79,7 +79,7 @@ function rangeLabel(start: Date, end: Date, mode: ViewMode) {
 
 // ============================================================
 function SchedulePage() {
-  const { roleId } = useRole();
+  const { roleId, trailerScope } = useRole();
   const isOwner = roleId === "owner";
   const isMgr = isOwner || roleId === "manager";
   const qc = useQueryClient();
@@ -93,9 +93,10 @@ function SchedulePage() {
 
   const findOrCreate = useServerFn(getOrCreateScheduleForRange);
   const { data: schedule, refetch: refetchSched } = useQuery({
-    queryKey: ["schedule-range", startStr, endStr],
+    queryKey: ["schedule-range", startStr, endStr, trailerScope],
     queryFn: () => findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: false } }),
   });
+
 
   const createMut = useMutation({
     mutationFn: () => findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: true } }),
@@ -144,7 +145,9 @@ function SchedulePage() {
           <ScheduleBoard
             scheduleId={schedule.id} startStr={startStr} endStr={endStr}
             filterRole={filterRole} isOwner={isOwner} isMgr={isMgr}
+            trailerScope={trailerScope}
           />
+
         )}
       </div>
     </AppShell>
@@ -299,8 +302,8 @@ function WorkflowActions({ schedule, isOwner, isMgr }: { schedule: any; isOwner:
 }
 
 // ============================================================
-function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMgr }: {
-  scheduleId: string; startStr: string; endStr: string; filterRole: string; isOwner: boolean; isMgr: boolean;
+function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMgr, trailerScope }: {
+  scheduleId: string; startStr: string; endStr: string; filterRole: string; isOwner: boolean; isMgr: boolean; trailerScope: string | null;
 }) {
   const qc = useQueryClient();
   const fetchSchedule = useServerFn(getSchedule);
@@ -310,8 +313,9 @@ function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMg
   const dup = useServerFn(duplicateShift);
   const gen = useServerFn(generateCoverage);
 
-  const { data, isLoading } = useQuery({ queryKey: ["schedule", scheduleId], queryFn: () => fetchSchedule({ data: { id: scheduleId } }) });
-  const { data: employees = [] } = useQuery({ queryKey: ["employees"], queryFn: () => fetchEmployees() });
+  const { data, isLoading } = useQuery({ queryKey: ["schedule", scheduleId, trailerScope], queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null } }) });
+  const { data: employees = [] } = useQuery({ queryKey: ["employees", trailerScope], queryFn: () => fetchEmployees({ data: { trailerId: trailerScope ?? null } }) });
+
 
   const [editing, setEditing] = useState<any | null>(null);
 

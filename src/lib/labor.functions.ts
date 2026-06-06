@@ -34,6 +34,11 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const start = new Date(ws + "T00:00:00");
     const end = new Date(start); end.setDate(end.getDate() + 7);
 
+    let profilesQ = supabase.from("profiles").select("id, display_name, trailer_id, active").eq("active", true);
+    if (data.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
+    const { data: profiles } = await profilesQ;
+    const empIds = (profiles ?? []).map((p: any) => p.id);
+
     let punchesQ = supabase.from("time_punches").select("*")
       .gte("clock_in_at", start.toISOString())
       .lt("clock_in_at", end.toISOString());
@@ -50,30 +55,27 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       timeoffQ = timeoffQ.eq("trailer_id", data.trailerId);
     }
 
-    const [{ data: punches }, { data: shifts }, { data: corrections }, { data: timeoff }, { data: profiles }] = await Promise.all([
+    const [{ data: punches }, { data: shifts }, { data: corrections }, { data: timeoff }] = await Promise.all([
       punchesQ, shiftsQ, corrQ, timeoffQ,
-      supabase.from("profiles").select("id, display_name, trailer_id, active").eq("active", true),
     ]);
 
-    // Aggregate per employee
+    // Seed employee map from profiles so every scoped employee appears
     const empMap = new Map<string, { id: string; name: string; trailerId: string | null; scheduledMin: number; workedMin: number; flags: string[]; openPunch: boolean }>();
-    const ensure = (id: string) => {
-      if (!empMap.has(id)) {
-        const p = (profiles ?? []).find((x: any) => x.id === id);
-        empMap.set(id, {
-          id, name: p?.display_name ?? "Crew", trailerId: p?.trailer_id ?? null,
-          scheduledMin: 0, workedMin: 0, flags: [], openPunch: false,
-        });
-      }
-      return empMap.get(id)!;
-    };
+    for (const p of profiles ?? []) {
+      empMap.set((p as any).id, {
+        id: (p as any).id, name: (p as any).display_name ?? "Crew", trailerId: (p as any).trailer_id ?? null,
+        scheduledMin: 0, workedMin: 0, flags: [], openPunch: false,
+      });
+    }
+    const ensure = (id: string) => empMap.get(id);
 
     for (const s of shifts ?? []) {
       if (!s.employee_id) continue;
+      const e = ensure(s.employee_id); if (!e) continue;
       const [sh, sm] = (s.start_time as string).split(":").map(Number);
       const [eh, em] = (s.end_time as string).split(":").map(Number);
       const mins = (eh * 60 + em) - (sh * 60 + sm) - (s.break_minutes ?? 0);
-      ensure(s.employee_id).scheduledMin += Math.max(0, mins);
+      e.scheduledMin += Math.max(0, mins);
     }
 
     let openShifts = 0;
@@ -81,12 +83,11 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
 
     let missedClockOuts = 0;
     for (const p of punches ?? []) {
-      const e = ensure(p.employee_id);
+      const e = ensure(p.employee_id); if (!e) continue;
       if (p.clock_out_at) {
         const diff = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
         e.workedMin += Math.max(0, diff - (p.break_minutes ?? 0));
       } else {
-        // Open punch older than 16h → missed clock-out
         const ageH = (Date.now() - new Date(p.clock_in_at).getTime()) / 3600000;
         e.openPunch = true;
         if (ageH > 16) { missedClockOuts++; e.flags.push("missed_clock_out"); }
@@ -99,6 +100,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       if (e.scheduledMin > 0 && e.workedMin === 0) e.flags.push("no_show");
       return { ...e, diffMin: diff };
     }).sort((a, b) => a.name.localeCompare(b.name));
+
 
     const totals = employees.reduce((acc, e) => ({
       scheduled: acc.scheduled + e.scheduledMin,
