@@ -143,8 +143,11 @@ export const setUserRole = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    await supabase.from("user_roles").delete().eq("user_id", data.userId);
-    const { error } = await supabase.from("user_roles").insert({ user_id: data.userId, role: data.role });
+    // Use admin client for the privileged write — manager check already passed.
+    // (Avoids RLS edge case where actor delete+insert can flip is_manager mid-transaction.)
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, role: data.role });
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "user_role_changed", entity: "user", entity_id: data.userId, payload: { role: data.role },
