@@ -24,6 +24,7 @@ import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
+import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -105,6 +106,11 @@ const HospitalityRoute = HospitalityRouteImport.update({
   path: '/hospitality',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChangeLogRoute = ChangeLogRouteImport.update({
+  id: '/change-log',
+  path: '/change-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/change-log': typeof ChangeLogRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/change-log': typeof ChangeLogRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
+  '/change-log': typeof ChangeLogRoute
   '/hospitality': typeof HospitalityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/change-log'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/change-log'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/audit'
     | '/auth'
+    | '/change-log'
     | '/hospitality'
     | '/inventory'
     | '/labor'
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   AuditRoute: typeof AuditRoute
   AuthRoute: typeof AuthRoute
+  ChangeLogRoute: typeof ChangeLogRoute
   HospitalityRoute: typeof HospitalityRoute
   InventoryRoute: typeof InventoryRoute
   LaborRoute: typeof LaborRoute
@@ -397,6 +410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HospitalityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/change-log': {
+      id: '/change-log'
+      path: '/change-log'
+      fullPath: '/change-log'
+      preLoaderRoute: typeof ChangeLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -441,6 +461,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   AuditRoute: AuditRoute,
   AuthRoute: AuthRoute,
+  ChangeLogRoute: ChangeLogRoute,
   HospitalityRoute: HospitalityRoute,
   InventoryRoute: InventoryRoute,
   LaborRoute: LaborRoute,
