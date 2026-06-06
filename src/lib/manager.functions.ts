@@ -13,22 +13,27 @@ const PHASE_VALUES = ["opening", "mid", "closing", "emergency"] as const;
 
 export const getManagerOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
     const { supabase } = context;
 
     const { data: store } = await supabase
       .from("stores").select("id, name").order("created_at").limit(1).maybeSingle();
 
-    const { data: shift } = store
-      ? await supabase.from("shifts").select("*")
-          .eq("store_id", store.id).eq("status", "active")
-          .order("opened_at", { ascending: false }).limit(1).maybeSingle()
-      : { data: null };
+    const trailerId = data?.trailerId ?? null;
+    let shiftQ = supabase.from("shifts").select("*").eq("status", "active").order("opened_at", { ascending: false }).limit(1);
+    if (trailerId) shiftQ = shiftQ.eq("trailer_id", trailerId);
+    const { data: shift } = await shiftQ.maybeSingle();
+
+    const profilesQ = trailerId
+      ? supabase.from("profiles").select("id, display_name, trailer_id").eq("trailer_id", trailerId).limit(200)
+      : supabase.from("profiles").select("id, display_name, trailer_id").limit(200);
+    const itemsQ = trailerId
+      ? supabase.from("inventory_items").select("current_qty, low_threshold, par_level").eq("trailer_id", trailerId)
+      : supabase.from("inventory_items").select("current_qty, low_threshold, par_level");
 
     const [{ data: profiles }, { data: roleRows }, { data: items }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name").limit(100),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("inventory_items").select("current_qty, low_threshold, par_level"),
+      profilesQ, supabase.from("user_roles").select("user_id, role"), itemsQ,
     ]);
 
     const rolesByUser = new Map<string, string>();
@@ -79,15 +84,15 @@ export const getManagerOverview = createServerFn({ method: "GET" })
       }));
     }
 
-    // Inventory score: % of items at/above low threshold
     const itemCount = (items ?? []).length;
     const healthy = (items ?? []).filter((i) => Number(i.current_qty) > Number(i.low_threshold)).length;
     const inventoryScore = itemCount ? Math.round((healthy / itemCount) * 100) : 0;
 
-    // Hospitality: last 24h incidents — score deducts per incident
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { data: incidents } = await supabase.from("hospitality_incidents")
-      .select("severity").gte("logged_at", since);
+    const incQ = trailerId
+      ? supabase.from("hospitality_incidents").select("severity").eq("trailer_id", trailerId).gte("logged_at", since)
+      : supabase.from("hospitality_incidents").select("severity").gte("logged_at", since);
+    const { data: incidents } = await incQ;
     const penalty = (incidents ?? []).reduce((acc, i) => acc + (i.severity === "high" ? 15 : i.severity === "medium" ? 7 : 3), 0);
     const hospitalityScore = Math.max(0, 100 - penalty);
 
@@ -105,36 +110,49 @@ export const createActionTask = createServerFn({ method: "POST" })
     title: z.string().min(1).max(200),
     description: z.string().max(500).optional(),
     assigneeRole: z.enum(ROLE_VALUES).optional(),
+    assigneeUserId: z.string().uuid().optional(),
     phase: z.enum(PHASE_VALUES).default("mid"),
     requiresSignoff: z.boolean().default(false),
+    trailerId: z.string().uuid().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
 
-    const { data: store } = await supabase
-      .from("stores").select("id").order("created_at").limit(1).maybeSingle();
-    if (!store) throw new Error("No store configured");
+    // Resolve trailer
+    let trailerId = data.trailerId;
+    if (!trailerId) {
+      const { data: prof } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+      trailerId = prof?.trailer_id ?? undefined;
+    }
+    // If we have an assignee, prefer their trailer
+    if (data.assigneeUserId) {
+      const { data: aprof } = await supabase.from("profiles").select("trailer_id").eq("id", data.assigneeUserId).maybeSingle();
+      if (aprof?.trailer_id) trailerId = aprof.trailer_id;
+    }
+    if (!trailerId) throw new Error("No trailer assigned");
 
     const { data: shift } = await supabase.from("shifts")
-      .select("id").eq("store_id", store.id).eq("status", "active")
+      .select("id").eq("trailer_id", trailerId).eq("status", "active")
       .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-    if (!shift) throw new Error("No active shift. Open a shift first.");
+    if (!shift) throw new Error("No active shift at this trailer. Open a shift first.");
 
     const { data: task, error } = await supabase.from("tasks").insert({
       shift_id: shift.id,
       title: data.title,
       description: data.description ?? null,
       assignee_role: data.assigneeRole ?? null,
+      assignee_user_id: data.assigneeUserId ?? null,
       phase: data.phase,
       requires_signoff: data.requiresSignoff,
       status: "todo",
+      trailer_id: trailerId,
     }).select().single();
     if (error) throw error;
 
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "create_action_task", entity: "task", entity_id: task.id,
-      payload: { title: data.title, assignee_role: data.assigneeRole, phase: data.phase },
+      payload: { title: data.title, assignee_role: data.assigneeRole, assignee_user_id: data.assigneeUserId, trailer_id: trailerId, phase: data.phase },
     });
 
     return task;
@@ -163,14 +181,13 @@ export const reorderItem = createServerFn({ method: "POST" })
     await assertManager(supabase, userId);
 
     const { data: item } = await supabase.from("inventory_items")
-      .select("name, par_level, current_qty, unit, store_id").eq("id", data.itemId).single();
+      .select("name, par_level, current_qty, unit, store_id, trailer_id").eq("id", data.itemId).single();
     if (!item) throw new Error("Item not found");
 
     const qty = Math.max(0, Number(item.par_level) - Number(item.current_qty));
 
-    // Try to attach to active shift; if none, just audit
     const { data: shift } = await supabase.from("shifts")
-      .select("id").eq("store_id", item.store_id).eq("status", "active")
+      .select("id").eq("trailer_id", item.trailer_id).eq("status", "active")
       .order("opened_at", { ascending: false }).limit(1).maybeSingle();
 
     let taskId: string | null = null;
@@ -183,6 +200,7 @@ export const reorderItem = createServerFn({ method: "POST" })
         phase: "mid",
         status: "todo",
         requires_signoff: false,
+        trailer_id: item.trailer_id,
       }).select().single();
       taskId = task?.id ?? null;
     }
@@ -196,19 +214,23 @@ export const reorderItem = createServerFn({ method: "POST" })
 
 export const listCrewRoster = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
+    const trailerId = data?.trailerId ?? null;
+    const profQ = trailerId
+      ? supabase.from("profiles").select("id, display_name, created_at, trailer_id").eq("trailer_id", trailerId).order("display_name")
+      : supabase.from("profiles").select("id, display_name, created_at, trailer_id").order("display_name");
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, created_at").order("display_name"),
-      supabase.from("user_roles").select("user_id, role"),
+      profQ, supabase.from("user_roles").select("user_id, role"),
     ]);
     const byUser = new Map<string, string>();
     for (const r of roles ?? []) {
       const cur = byUser.get(r.user_id);
       if (!cur || r.role === "owner" || (r.role === "manager" && cur !== "owner")) byUser.set(r.user_id, r.role);
     }
-    return (profiles ?? []).map((p) => ({ id: p.id, name: p.display_name, role: byUser.get(p.id) ?? "cashier", joined: p.created_at }));
+    return (profiles ?? []).map((p) => ({ id: p.id, name: p.display_name, role: byUser.get(p.id) ?? "cashier", joined: p.created_at, trailer_id: p.trailer_id }));
   });
 
 export const updateCrewRole = createServerFn({ method: "POST" })
@@ -238,7 +260,6 @@ export const listAuditLog = createServerFn({ method: "GET" })
       .select("id, created_at, actor_id, action, entity, entity_id, payload")
       .order("created_at", { ascending: false }).limit(100);
     if (error) throw error;
-    // Resolve actor names
     const ids = Array.from(new Set((data ?? []).map((r) => r.actor_id).filter((x): x is string => !!x)));
     const { data: profiles } = ids.length
       ? await supabase.from("profiles").select("id, display_name").in("id", ids)
