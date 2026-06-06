@@ -181,6 +181,13 @@ function Inventory() {
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
       {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
+      {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); qc.invalidateQueries({ queryKey: ["alerts"] }); qc.invalidateQueries({ queryKey: ["inv-orders"] }); }} />}
+      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
+      {isManager && (
+        <div className="mt-4 flex justify-end">
+          <button onClick={() => setHistoryOpen(true)} className="text-xs underline text-muted-foreground hover:text-foreground">View my orders</button>
+        </div>
+      )}
 
 
       <div className="h-6" />
