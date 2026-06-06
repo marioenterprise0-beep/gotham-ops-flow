@@ -25,6 +25,7 @@ export const getHealthScore = createServerFn({ method: "GET" })
   .inputValidator((d: { trailerId?: string | null; days?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }): Promise<HealthScore> => {
     const { supabase } = context;
+    await requireManager(supabase, context.userId);
     const days = data.days ?? 1;
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     const today = new Date(); today.setHours(0, 0, 0, 0);
