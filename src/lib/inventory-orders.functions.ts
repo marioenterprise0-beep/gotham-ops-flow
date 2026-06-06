@@ -97,6 +97,34 @@ export const getInventoryOrder = createServerFn({ method: "POST" })
     return order;
   });
 
+// Apply a received order to inventory: insert receipts + increment current_qty.
+// Idempotent-ish: skipped if already received.
+export async function applyOrderReceipt(supabase: any, userId: string, orderId: string) {
+  const { data: items, error } = await supabase
+    .from("inventory_order_items")
+    .select("item_id, item_name, requested_qty")
+    .eq("order_id", orderId);
+  if (error) throw error;
+  for (const it of items ?? []) {
+    if (!it.item_id) continue; // skip free-text items not linked to inventory
+    await supabase.from("inventory_receipts").insert({
+      item_id: it.item_id, qty: it.requested_qty, received_by: userId,
+      notes: `Auto-received from order ${orderId}`,
+    });
+    const { data: row } = await supabase
+      .from("inventory_items").select("current_qty").eq("id", it.item_id).single();
+    if (row) {
+      const next = Number(row.current_qty) + Number(it.requested_qty);
+      const { error: upErr } = await supabase
+        .from("inventory_items").update({ current_qty: next }).eq("id", it.item_id);
+      if (upErr) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin.from("inventory_items").update({ current_qty: next }).eq("id", it.item_id);
+      }
+    }
+  }
+}
+
 export const decideInventoryOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -109,18 +137,33 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
     const { isOwner, isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
 
-    const { data: order, error: ge } = await supabase.from("inventory_orders").select("created_by, status").eq("id", data.id).single();
+    const { data: order, error: ge } = await supabase.from("inventory_orders")
+      .select("created_by, status").eq("id", data.id).single();
     if (ge) throw ge;
 
-    // Managers cannot approve/decline their own orders — only owners can
     const approvalDecisions = ["approved","declined","changes_requested"];
     if (approvalDecisions.includes(data.decision)) {
       if (!isOwner) throw new Error("Only owners can approve/decline orders");
       if (order.created_by === userId) throw new Error("Cannot approve your own order");
     }
+    // ordered/received: must be owner OR the order must already be owner-approved
+    if (data.decision === "ordered" && !isOwner && order.status !== "approved") {
+      throw new Error("Order must be approved by the owner before marking ordered");
+    }
+    if (data.decision === "received" && !isOwner && !["approved","ordered"].includes(order.status)) {
+      throw new Error("Order must be approved before it can be received");
+    }
+    // cancel: only creator (when still in draft/submitted/pending) or owner
+    if (data.decision === "cancelled" && !isOwner && order.created_by !== userId) {
+      throw new Error("Only the creator or owner can cancel an order");
+    }
+    // Block double-receipt
+    if (data.decision === "received" && order.status === "received") {
+      return { ok: true, alreadyReceived: true };
+    }
 
     const patch: any = { status: data.decision, owner_comment: data.comment ?? null };
-    if (["approved","declined","changes_requested"].includes(data.decision)) {
+    if (approvalDecisions.includes(data.decision)) {
       patch.decided_by = userId; patch.decided_at = new Date().toISOString();
     }
     if (data.decision === "ordered") patch.ordered_at = new Date().toISOString();
@@ -128,6 +171,11 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
 
     const { error: ue } = await supabase.from("inventory_orders").update(patch).eq("id", data.id);
     if (ue) throw ue;
+
+    // Apply receipt to inventory when marked received
+    if (data.decision === "received") {
+      await applyOrderReceipt(supabase, userId, data.id);
+    }
 
     // Update related alert
     const alertStatus = data.decision === "approved" ? "approved"
