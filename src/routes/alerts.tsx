@@ -179,32 +179,70 @@ function AlertsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [loading, session?.access_token, qc]);
 
-  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null }[]>({
+  const fetchReads = useServerFn(listCategoryReads);
+  const { data: reads = [] } = useQuery<{ category: string; last_seen_at: string }[]>({
+    queryKey: ["alert-category-reads"],
+    enabled: !loading && !!session?.access_token,
+    queryFn: () => fetchReads() as any,
+  });
+
+  const seenByCat = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of reads) m[r.category] = r.last_seen_at;
+    return m;
+  }, [reads]);
+
+  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null; created_at: string }[]>({
     queryKey: ["alerts", "unread-by-cat"],
     enabled: !loading && !!session?.access_token,
     queryFn: async () => {
-      const since = (typeof window !== "undefined" && localStorage.getItem("gotham:alerts:lastSeenAt")) || new Date(0).toISOString();
       const { data } = await supabase
         .from("alerts")
-        .select("type, source_module")
+        .select("type, source_module, created_at")
         .neq("status", "resolved")
-        .gt("created_at", since);
+        .order("created_at", { ascending: false })
+        .limit(500);
       return (data as any) ?? [];
     },
   });
 
   const unreadByCat = useMemo(() => {
-    const counts: Record<string, number> = { "": unreadAll.length };
+    const counts: Record<string, number> = {};
+    const allSeen = seenByCat["all"] ?? new Date(0).toISOString();
     for (const a of unreadAll) {
-      for (const k of categoryOf(a as any)) counts[k] = (counts[k] ?? 0) + 1;
+      const cats = categoryOf(a as any);
+      // "all" chip counts alerts newer than the user's last "all" mark
+      if (a.created_at > allSeen) counts[""] = (counts[""] ?? 0) + 1;
+      for (const k of cats) {
+        const seen = seenByCat[k] ?? new Date(0).toISOString();
+        if (a.created_at > seen) counts[k] = (counts[k] ?? 0) + 1;
+      }
     }
     return counts;
-  }, [unreadAll]);
+  }, [unreadAll, seenByCat]);
 
+  const markRead = useServerFn(markCategoryRead);
+  const markMut = useMutation({
+    mutationFn: (cat: string) => markRead({ data: { category: (cat || "all") as any } }) as any,
+    onSuccess: (_d, cat) => {
+      qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
+      if (!cat) markAlertsSeen(); // also clear global bell when marking "All"
+      toast.success(`Marked ${cat || "all"} as read`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to mark read"),
+  });
+
+  // Keep realtime in sync — refresh reads on any alert_category_reads change too
   useEffect(() => {
-    markAlertsSeen();
-    qc.invalidateQueries({ queryKey: ["alerts", "unread-by-cat"] });
-  }, [alerts.length, qc]);
+    if (loading || !session?.access_token) return;
+    const ch = supabase
+      .channel("alert-reads-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alert_category_reads" }, () => {
+        qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [loading, session?.access_token, qc]);
 
   const stats = useMemo(() => {
     const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
