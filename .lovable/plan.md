@@ -1,42 +1,60 @@
-# Gotham OS — 5 New Modules
+# Modules 9 + 10 — Change Log & Shift Handoff
 
-Big scope, so I want to confirm direction before building. Below is the build order I recommend, what ships in each phase, and what I'll need decisions on.
+Two new modules, shipped one phase at a time so you can sanity-check each before the next lands.
 
-## Recommended sequence
+---
 
-Each phase is independently shippable and testable. I suggest one phase per turn so you can sanity-check the data shape and UI before the next layer lands on top.
+## Phase 1 — Module 9: Change Log (operational history)
 
-### Phase 1 — Manager Daily Recap (Module 1)
-- DB: `daily_recaps` (date, shift_id, manager_id, trailer_id, shift_score, crew jsonb, status: draft|submitted|reviewed|archived, 14 text sections for Ops/Inventory/Labor/Hospitality/Next-Shift) + RLS (managers write own, owners read/review all).
-- Trigger: on `status='submitted'` → insert `alerts` row (type `manager_recap`, assigned_role `owner`).
-- Server fns: `saveRecapDraft`, `submitRecap`, `listRecaps(scope, dateRange)`, `markRecapReviewed`.
-- UI: `src/routes/_authenticated/operations.recap.tsx` form + dashboard (Today / Pending / Historical tabs). Add link in Operations.
+**Goal:** Every meaningful edit across the app shows up in one searchable history with who / what / before / after / reason / time. No silent edits.
 
-### Phase 2 — Order Guide + Purchasing (Module 3)
-- DB: extend `inventory_items` with `vendor`, `pack_size`, `minimum_qty`, `preferred_order_qty`, `estimated_cost`, `last_ordered_at`, `last_received_at`.
-- UI: new "Order Guide" tab inside `inventory.tsx` showing the table with `Recommended Order = max(par - current, minimum)`; "Build Order" prefills the existing `OrderBuilderModal`. Receive flow updates `last_received_at`.
-- Reuses the alert pipeline already shipped — no new tables.
+### Data
+- New table `change_log` with: `actor_id`, `actor_name` (denorm for fast search), `entity` (e.g. `inventory_item`, `schedule`, `time_punch`, `inventory_order`, `alert`), `entity_id`, `action` (`update | unlock | adjust | approve | close | create | delete`), `before` jsonb, `after` jsonb, `reason` text, `trailer_id`, `created_at`.
+- Owner + manager read. Inserts via server functions only (no direct client writes).
+- We already have `audit_log` and `time_audit`. Change Log is the **user-facing** history: richer (before/after diff, reason required for sensitive actions), and unified across modules. Existing audit tables stay as low-level trails.
 
-### Phase 3 — Employee Accountability Score (Module 2)
-- DB: `performance_events` (employee_id, category enum, delta int, reason, source_module, source_id, occurred_at) — append-only ledger. Score = `100 + sum(delta)` clamped 0–100, grouped by category.
-- Triggers: late punch → -2; missing checklist task at shift close → -3; no-show shift → -10; approved time_correction → reverse penalty.
-- Server fns: `getPerformanceScore(employeeId, range)`, `listTopPerformers`, `listNeedsCoaching`, weekly/monthly aggregation.
-- UI: `src/routes/_authenticated/performance.tsx`. Employees see only themselves (RLS `employee_id = auth.uid()` OR `is_manager`).
+### Wiring (where edits get logged)
+- **Inventory** — qty / par / cost edits in `inventory_items` and order approvals.
+- **Schedule** — unlock, publish, shift edits.
+- **Hours** — `time_corrections` decisions, manual punch edits.
+- **Orders** — submit / approve / reject.
+- **Alerts** — acknowledge / close (with resolution note).
+- A small `logChange()` helper called from each existing server fn — no scattered triggers, no duplication.
 
-### Phase 4 — Training + Certification (Module 5)
-- DB: `training_modules` (category, title, sop_id, quiz jsonb, expires_after_days), `training_assignments` (employee_id, module_id, status, started_at, completed_at, certified_by, expires_at, score).
-- Server fns: `assignTraining`, `startTraining`, `submitQuiz`, `signoffTraining` (manager+), `listMyCertifications`, `listEmployeeCertifications`.
-- UI: `src/routes/_authenticated/training.tsx` (employee view: my modules) + manager assignment panel. Profile widget shows Training %.
+### UI
+- New route `/change-log` (Owner + Manager) with: search box, filters (entity, actor, date range), and a row per change showing actor · action · entity · diff summary · reason · timestamp. Click a row → drawer with full before/after JSON diff.
+- Add **"Reason"** input to: schedule unlock, hours adjust, alert close, order approve/reject (already partly there). Reason is required on those flows going forward.
+- Nav tab: "Change Log" (Owner/Manager), under Audit Log.
 
-### Phase 5 — Role-Based Dashboards (Module 4)
-- No new tables. Replace `src/routes/_authenticated/index.tsx` (or create role-aware home) with a switch on `roleId` from `useRole()` rendering the tile set per role spec (Grill / Prep / Cashier / Shift Lead / Manager / Owner).
-- Update `AppShell` nav to filter tabs per role (already partly role-gated; will tighten).
+---
 
-## Decisions I need from you
+## Phase 2 — Module 10: Shift Handoff
 
-1. **Build order — do you want me to ship Phase 1 (Daily Recap) right now**, or a different starting phase?
-2. **Shift Score (Module 1)** — manual 1–10 slider entered by the manager, or auto-computed from the day's metrics?
-3. **Score baseline (Module 2)** — does everyone start each week at 100 and decay, or rolling 30-day window?
-4. **Training quiz authoring** — owner/manager writes Q&A in-app, or for now just "Read SOP + checklist + manager signoff" (skip quiz engine)?
+**Goal:** Outgoing manager files a structured handoff; incoming manager must acknowledge before the baton passes. Nothing falls through the cracks.
 
-Reply with answers (or just "build phase 1, your call on the rest") and I'll start.
+### Data
+- New table `shift_handoffs`: `trailer_id`, `outgoing_manager_id`, `incoming_manager_id` (nullable until acknowledged), `shift_date`, `outgoing_shift_segment` (am/pm/close), `status` (`draft | sent | read | accepted`), `sent_at`, `read_at`, `accepted_at`, plus sections:
+  - `completed` text, `incomplete` text, `inventory_issues` text, `employee_notes` text, `customer_notes` text, `equipment` text, `priority` (`normal | high | urgent`).
+- RLS: managers of the trailer can read; outgoing can write while draft; incoming can update read/accepted.
+
+### Flow
+1. Outgoing manager opens `/handoff` → fills 6 sections + selects incoming manager → **Send**.
+2. Auto-creates an `alerts` row (`shift_handoff`, assigned to that manager).
+3. Incoming opens the handoff → marks **Read** (auto on open) → **Accept** with optional note.
+4. Status badge on dashboard until accepted; overdue (>1 hr unread) escalates to Owner.
+
+### UI
+- New route `/handoff` with two tabs: **Outgoing (compose/sent)** and **Incoming (to acknowledge)**.
+- Dashboard tile: "Pending handoff from [name]" with one-click open.
+- Nav tab: "Handoff" (Manager + Owner).
+
+---
+
+## Decisions I need
+
+1. **Phase order:** ship Phase 1 (Change Log) first, then Phase 2 (Handoff)? Or reverse?
+2. **Change Log — required reason?** Require a reason on schedule unlock, hours adjust, and alert close, or keep reason optional everywhere?
+3. **Handoff acknowledgement:** must the incoming manager be **clocked in** before accepting, or can they accept from anywhere (e.g. on their way in)?
+4. **Handoff escalation:** if not accepted within 1 hour of `sent_at`, alert the Owner — sound right, or different SLA?
+
+Reply with answers (or "your call, build it") and I'll start Phase 1.
