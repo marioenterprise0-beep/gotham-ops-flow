@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil } from "lucide-react";
+import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
@@ -94,7 +95,23 @@ function Inventory() {
           <div className="label-caps text-muted-foreground">Stock</div>
           <h1 className="font-display text-2xl text-foreground">INVENTORY</h1>
         </div>
-        <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportVarianceCSV(items, trailerLabel)}
+            disabled={!items.length}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+            title="Export variance CSV">
+            <Download className="h-3.5 w-3.5" /> CSV
+          </button>
+          <button
+            onClick={() => exportVariancePDF(items, trailerLabel, counts)}
+            disabled={!items.length}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+            title="Export variance PDF">
+            <FileText className="h-3.5 w-3.5" /> PDF
+          </button>
+          <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
