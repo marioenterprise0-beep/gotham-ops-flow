@@ -26,12 +26,13 @@ type Ctx = {
   userId: string | null;
   homeTrailerId: string | null;
   trailers: Trailer[];
-  // Currently active scope: trailer id, or null = "Company" (managers only)
   trailerScope: string | null;
   setTrailerScope: (id: string | null) => void;
   setRoleId: (r: RoleId | null) => void;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
+  disabledTabs: Set<string>;
+  refreshPermissions: () => Promise<void>;
 };
 
 const RoleCtx = createContext<Ctx | null>(null);
