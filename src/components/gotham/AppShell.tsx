@@ -1,10 +1,14 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw, Activity, Banknote } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw, Activity, Banknote, Keyboard } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
 import { CommandPalette } from "@/components/gotham/CommandPalette";
+import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
+import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 
@@ -51,6 +55,16 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const [reorderMode, setReorderMode] = useState(false);
   const isOwner = roleId === "owner";
   const unreadAlerts = useUnreadAlerts();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const onRefresh = () => {
+      queryClient.invalidateQueries();
+      toast.success("Refreshed");
+    };
+    window.addEventListener("gotham:refresh", onRefresh);
+    return () => window.removeEventListener("gotham:refresh", onRefresh);
+  }, [queryClient]);
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.gate === "owner") { if (roleId !== "owner") return false; }
@@ -84,6 +98,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <CommandPalette />
+      <KeyboardShortcuts />
+      <OnlineIndicator />
       <TopBar />
 
       <div className="flex-1 flex">
@@ -239,6 +255,7 @@ function TopBar() {
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
           <span className="text-xs font-medium text-white/90">Live</span>
           <span className="text-xs text-white/50">· {timeStr}</span>
+          <OnlineDot />
         </div>
 
         <button
@@ -249,6 +266,15 @@ function TopBar() {
         >
           <span>Search</span>
           <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">⌘K</kbd>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", shiftKey: true }))}
+          className="hidden md:grid h-9 w-9 place-items-center rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-4 w-4" />
         </button>
 
         <TrailerSwitcher />
