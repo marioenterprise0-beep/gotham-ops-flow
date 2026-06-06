@@ -4,8 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { Save, Truck } from "lucide-react";
-import { listInventory, updateOrderGuide } from "@/lib/inventory.functions";
+import { Plus, Save, Trash2, Truck, X } from "lucide-react";
+import { deleteInventoryItem, listInventory, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -45,6 +45,8 @@ function OrderGuide() {
   const canEdit = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const update = useServerFn(updateOrderGuide);
+  const create = useServerFn(upsertInventoryItem);
+  const remove = useServerFn(deleteInventoryItem);
 
   const { data: items = [], isLoading } = useQuery<Row[]>({
     queryKey: ["order-guide", trailerScope ?? "company"],
@@ -58,6 +60,11 @@ function OrderGuide() {
 
   const [drafts, setDrafts] = useState<Record<string, Partial<Row>>>({});
   const [filter, setFilter] = useState<string>("all");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newItem, setNewItem] = useState<{
+    name: string; category: string; unit: string; vendor: string; pack_size: string;
+    par_level: number; low_threshold: number; minimum_qty: number; preferred_order_qty: number; estimated_cost: number;
+  }>({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
 
   useEffect(() => { setDrafts({}); }, [items.length]);
 
@@ -74,6 +81,45 @@ function OrderGuide() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const createMut = useMutation({
+    mutationFn: (vars: any) => create({ data: vars }),
+    onSuccess: () => {
+      toast.success("Item added");
+      setShowAdd(false);
+      setNewItem({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
+      qc.invalidateQueries({ queryKey: ["order-guide"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => remove({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Item removed");
+      qc.invalidateQueries({ queryKey: ["order-guide"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function submitNew() {
+    if (!newItem.name.trim()) { toast.error("Name required"); return; }
+    createMut.mutate({
+      name: newItem.name.trim(),
+      category: newItem.category,
+      unit: newItem.unit || "unit",
+      parLevel: Number(newItem.par_level) || 0,
+      lowThreshold: Number(newItem.low_threshold) || 0,
+      vendor: newItem.vendor || null,
+      packSize: newItem.pack_size || null,
+      minimumQty: Number(newItem.minimum_qty) || 0,
+      preferredOrderQty: Number(newItem.preferred_order_qty) || 0,
+      estimatedCost: Number(newItem.estimated_cost) || 0,
+      trailerId: trailerScope ?? undefined,
+    });
+  }
 
   function setField<K extends keyof Row>(id: string, key: K, value: Row[K]) {
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
@@ -114,8 +160,51 @@ function OrderGuide() {
       <SectionHeader
         eyebrow="Vendor · Pack · Par · Cost"
         title={canEdit ? "Editable order guide" : "Order guide"}
-        action={<StatusPill tone={canEdit ? "gold" : "info"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>}
+        action={
+          <div className="flex items-center gap-2">
+            <StatusPill tone={canEdit ? "gold" : "info"}>{canEdit ? "Edit enabled" : "Read only"}</StatusPill>
+            {canEdit && (
+              <button
+                onClick={() => setShowAdd((v) => !v)}
+                className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold"
+              >
+                {showAdd ? <><X className="h-3.5 w-3.5" /> Close</> : <><Plus className="h-3.5 w-3.5" /> Add item</>}
+              </button>
+            )}
+          </div>
+        }
       />
+
+      {canEdit && showAdd && (
+        <Card className="p-3 mb-2 border-[var(--color-gold)]">
+          <div className="label-caps text-[var(--color-gold)] mb-2">New item</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <TxtField label="Name *" value={newItem.name} onChange={(v) => setNewItem({ ...newItem, name: v })} />
+            <label className="block">
+              <div className="label-caps text-muted-foreground mb-1">Category</div>
+              <select value={newItem.category} onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm">
+                {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+            <TxtField label="Unit" value={newItem.unit} onChange={(v) => setNewItem({ ...newItem, unit: v })} />
+            <TxtField label="Vendor" value={newItem.vendor} onChange={(v) => setNewItem({ ...newItem, vendor: v })} />
+            <TxtField label="Pack size" value={newItem.pack_size} onChange={(v) => setNewItem({ ...newItem, pack_size: v })} />
+            <NumField label="Est. cost / unit" value={newItem.estimated_cost} onChange={(v) => setNewItem({ ...newItem, estimated_cost: v })} />
+            <NumField label="Par level" value={newItem.par_level} onChange={(v) => setNewItem({ ...newItem, par_level: v })} />
+            <NumField label="Low threshold" value={newItem.low_threshold} onChange={(v) => setNewItem({ ...newItem, low_threshold: v })} />
+            <NumField label="Min order qty" value={newItem.minimum_qty} onChange={(v) => setNewItem({ ...newItem, minimum_qty: v })} />
+            <NumField label="Preferred order qty" value={newItem.preferred_order_qty} onChange={(v) => setNewItem({ ...newItem, preferred_order_qty: v })} />
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <button onClick={() => setShowAdd(false)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Cancel</button>
+            <button disabled={createMut.isPending} onClick={submitNew}
+              className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
+              <Plus className="h-3.5 w-3.5" /> {createMut.isPending ? "Adding…" : "Add item"}
+            </button>
+          </div>
+        </Card>
+      )}
 
       {(loading || isLoading) && <Card>Loading…</Card>}
 
@@ -132,13 +221,23 @@ function OrderGuide() {
                   </div>
                 </div>
                 {canEdit && (
-                  <button
-                    disabled={!dirty || saveMut.isPending}
-                    onClick={() => save(it)}
-                    className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
-                  >
-                    <Save className="h-3.5 w-3.5" /> Save
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      disabled={!dirty || saveMut.isPending}
+                      onClick={() => save(it)}
+                      className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold disabled:opacity-40"
+                    >
+                      <Save className="h-3.5 w-3.5" /> Save
+                    </button>
+                    <button
+                      disabled={deleteMut.isPending}
+                      onClick={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) deleteMut.mutate(it.id); }}
+                      className="inline-flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive h-7 w-7 disabled:opacity-40"
+                      aria-label="Delete item"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
