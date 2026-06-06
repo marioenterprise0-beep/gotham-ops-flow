@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
@@ -143,6 +144,18 @@ function AlertsPage() {
     queryFn: () => list({ data: { category: category || undefined, status } }) as any,
     enabled: !loading && !!session?.access_token,
   });
+
+  useEffect(() => {
+    if (loading || !session?.access_token) return;
+    const channel = supabase
+      .channel("alerts-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, () => {
+        qc.invalidateQueries({ queryKey: ["alerts"] });
+        qc.invalidateQueries({ queryKey: ["alert-detail"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loading, session?.access_token, qc]);
 
   const stats = useMemo(() => {
     const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
