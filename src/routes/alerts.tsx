@@ -222,15 +222,37 @@ function AlertsPage() {
   }, [unreadAll, seenByCat]);
 
   const markRead = useServerFn(markCategoryRead);
+  const readsKey = ["alert-category-reads"] as const;
   const markMut = useMutation({
     mutationFn: (cat: string) => markRead({ data: { category: (cat || "all") as any } }) as any,
+    onMutate: async (cat: string) => {
+      await qc.cancelQueries({ queryKey: readsKey });
+      const previous = qc.getQueryData<{ category: string; last_seen_at: string }[]>(readsKey);
+      const key = cat || "all";
+      const nowIso = new Date().toISOString();
+      qc.setQueryData<{ category: string; last_seen_at: string }[]>(readsKey, (old) => {
+        const list = old ? [...old] : [];
+        const idx = list.findIndex((r) => r.category === key);
+        if (idx >= 0) list[idx] = { ...list[idx], last_seen_at: nowIso };
+        else list.push({ category: key, last_seen_at: nowIso });
+        return list;
+      });
+      if (!cat) markAlertsSeen(); // optimistic global bell clear
+      return { previous };
+    },
     onSuccess: (_d, cat) => {
-      qc.invalidateQueries({ queryKey: ["alert-category-reads"] });
-      if (!cat) markAlertsSeen(); // also clear global bell when marking "All"
+      qc.invalidateQueries({ queryKey: readsKey });
       toast.success(`Marked ${cat || "all"} as read`);
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to mark read"),
+    onError: (e: any, cat, ctx) => {
+      if (ctx?.previous) qc.setQueryData(readsKey, ctx.previous);
+      toast.error(e?.message ?? "Failed to mark read", {
+        action: { label: "Retry", onClick: () => markMut.mutate(cat) },
+      });
+    },
   });
+  const pendingCat = markMut.isPending ? (markMut.variables as string | undefined) : undefined;
+
 
   // Keep realtime in sync — refresh reads on any alert_category_reads change too
   useEffect(() => {
