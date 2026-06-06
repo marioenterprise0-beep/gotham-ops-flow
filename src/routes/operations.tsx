@@ -8,7 +8,7 @@ import { Check, Play, ShieldCheck, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
-import { createActionTask } from "@/lib/manager.functions";
+import { createActionTask, listCrewRoster } from "@/lib/manager.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -33,19 +33,35 @@ type Phase = (typeof PHASES)[number];
 
 function Operations() {
   const qc = useQueryClient();
-  const { roleId } = useRole();
+  const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const [phase, setPhase] = useState<Phase>("opening");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newRole, setNewRole] = useState<string>("");
+  const [newAssignee, setNewAssignee] = useState<string>("");
   const [newSignoff, setNewSignoff] = useState(false);
 
+  // For managers in "Company" scope, server resolves to their own trailer
+  const activeTrailer = trailerScope;
+  const trailerLabel = activeTrailer
+    ? (trailers.find((t) => t.id === activeTrailer)?.name ?? "Trailer")
+    : "Your trailer";
 
   const shiftFn = useServerFn(getActiveShift);
-  const { data: shiftData } = useQuery({ queryKey: ["shift"], queryFn: () => shiftFn() });
+  const { data: shiftData } = useQuery({
+    queryKey: ["shift", activeTrailer ?? "own"],
+    queryFn: () => shiftFn({ data: { trailerId: activeTrailer } }),
+  });
   const shift = shiftData?.shift;
+
+  const rosterFn = useServerFn(listCrewRoster);
+  const { data: roster = [] } = useQuery<Array<{ id: string; name: string; role: string }>>({
+    queryKey: ["roster", activeTrailer ?? "company"],
+    queryFn: () => rosterFn({ data: { trailerId: activeTrailer } }) as any,
+    enabled: isManager,
+  });
 
   const tasksFn = useServerFn(listTasks);
   const { data: allTasks = [] } = useQuery<Task[]>({
@@ -62,7 +78,7 @@ function Operations() {
   const signOffFn = useServerFn(signOffTask);
 
   const openM = useMutation({
-    mutationFn: () => openFn({ data: { phase: "opening" } }),
+    mutationFn: () => openFn({ data: { phase: "opening", trailerId: activeTrailer ?? undefined } }),
     onSuccess: () => { toast.success("Shift opened"); qc.invalidateQueries(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -91,12 +107,14 @@ function Operations() {
       title: newTitle.trim(),
       description: newDesc.trim() || (phase.toUpperCase() + " · CUSTOM"),
       assigneeRole: (newRole || undefined) as any,
+      assigneeUserId: (newAssignee || undefined) as any,
       phase,
       requiresSignoff: newSignoff,
+      trailerId: activeTrailer ?? undefined,
     } }),
     onSuccess: () => {
       toast.success("Task added");
-      setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewSignoff(false);
+      setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewAssignee(""); setNewSignoff(false);
       qc.invalidateQueries({ queryKey: ["tasks"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -129,7 +147,7 @@ function Operations() {
       <Card dark>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="label-caps text-white/55">Active Shift</div>
+            <div className="label-caps text-white/55">Active Shift · {trailerLabel}</div>
             <h1 className="font-display text-3xl mt-1 text-white">{phase.toUpperCase()} CHECKLIST</h1>
             <div className="mt-1 text-xs text-white/60 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
@@ -183,6 +201,13 @@ function Operations() {
                     Sign-off
                   </label>
                 </div>
+                <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)}
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none">
+                  <option value="">Assign to specific employee… (optional)</option>
+                  {roster.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} · {p.role}</option>
+                  ))}
+                </select>
                 <div className="flex gap-2 pt-1">
                   <button onClick={() => setShowAdd(false)} className="flex-1 rounded-md border border-border py-2 text-sm">Cancel</button>
                   <button onClick={() => addTaskM.mutate()} disabled={!newTitle.trim() || addTaskM.isPending}
