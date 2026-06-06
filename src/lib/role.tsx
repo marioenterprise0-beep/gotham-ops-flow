@@ -109,21 +109,31 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const loadPermissions = async (uid: string, rs: RoleId[]) => {
     const { data: perms } = await supabase
       .from("tab_permissions")
-      .select("scope_type, scope_id, tab_key, enabled");
-    const disabled = new Set<string>();
+      .select("scope_type, scope_id, tab_key, enabled, access_level");
+    // Resolve precedence: user override beats role; highest access wins among roles.
+    const roleAccess = new Map<string, TabAccess>();
+    const userAccess = new Map<string, TabAccess>();
     for (const p of (perms ?? []) as any[]) {
-      const applies = (p.scope_type === "user" && p.scope_id === uid) ||
-        (p.scope_type === "role" && rs.includes(p.scope_id as RoleId));
-      if (!applies) continue;
-      if (p.enabled === false) disabled.add(p.tab_key);
-      else disabled.delete(p.tab_key); // user override re-enables
+      const lvl: TabAccess = (p.access_level as TabAccess) ?? (p.enabled === false ? "none" : "edit");
+      if (p.scope_type === "user" && p.scope_id === uid) {
+        userAccess.set(p.tab_key, lvl);
+      } else if (p.scope_type === "role" && rs.includes(p.scope_id as RoleId)) {
+        const cur = roleAccess.get(p.tab_key);
+        if (!cur || RANK[lvl] > RANK[cur]) roleAccess.set(p.tab_key, lvl);
+      }
     }
+    const merged: Record<string, TabAccess> = {};
+    roleAccess.forEach((v, k) => { merged[k] = v; });
+    userAccess.forEach((v, k) => { merged[k] = v; }); // user override wins
+    const disabled = new Set<string>();
+    for (const [k, v] of Object.entries(merged)) if (v === "none") disabled.add(k);
+    setTabAccess(merged);
     setDisabledTabs(disabled);
   };
 
   useEffect(() => {
     if (session?.user) void loadPermissions(session.user.id, roles);
-    else setDisabledTabs(new Set());
+    else { setDisabledTabs(new Set()); setTabAccess({}); }
   }, [session?.user?.id, roles.join(",")]);
 
   const refreshPermissions = async () => {
