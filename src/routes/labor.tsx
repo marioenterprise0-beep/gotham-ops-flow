@@ -322,3 +322,54 @@ function NotesList({ items }: { items: any[] }) {
     </Card>
   );
 }
+
+function exportLaborCSV(weekStart: string, dash: any) {
+  const rows = (dash.employees ?? []).map((e: any) => [
+    e.name,
+    (e.scheduledMin / 60).toFixed(2),
+    (e.workedMin / 60).toFixed(2),
+    (e.diffMin / 60).toFixed(2),
+    e.openPunch ? "yes" : "no",
+    (e.flags ?? []).join("; "),
+  ]);
+  rows.push([
+    "TOTAL",
+    (dash.totals.scheduled / 60).toFixed(2),
+    (dash.totals.worked / 60).toFixed(2),
+    ((dash.totals.worked - dash.totals.scheduled) / 60).toFixed(2),
+    "",
+    "",
+  ]);
+  downloadCSV(
+    `labor-${weekStart}.csv`,
+    ["Employee", "Scheduled (h)", "Worked (h)", "Diff (h)", "Open Punch", "Flags"],
+    rows,
+  );
+}
+
+function exportLaborPDF(weekStart: string, rangeLabel: string, dash: any) {
+  const rows = (dash.employees ?? []).map((e: any) => [
+    e.name,
+    (e.scheduledMin / 60).toFixed(2) + "h",
+    (e.workedMin / 60).toFixed(2) + "h",
+    (e.diffMin / 60).toFixed(2) + "h",
+    (e.flags ?? []).join(", ") || "—",
+  ]);
+  const html = `
+    <h1>Labor — Week of ${escapeHTML(rangeLabel)}</h1>
+    <div class="meta">Week start ${escapeHTML(weekStart)} · Payroll Sat–Fri</div>
+    ${kpiBlock([
+      { label: "Scheduled", value: (dash.totals.scheduled / 60).toFixed(1) + "h" },
+      { label: "Worked", value: (dash.totals.worked / 60).toFixed(1) + "h" },
+      { label: "Difference", value: ((dash.totals.worked - dash.totals.scheduled) / 60).toFixed(1) + "h" },
+      { label: "Open Shifts", value: dash.openShifts ?? 0 },
+      { label: "Missed Clock-outs", value: dash.missedClockOuts ?? 0, tone: dash.missedClockOuts ? "danger" : "ok" },
+      { label: "Pending Corrections", value: dash.pendingCorrections ?? 0, tone: dash.pendingCorrections ? "warn" : "ok" },
+      { label: "Pending Time Off", value: dash.pendingTimeOff ?? 0, tone: dash.pendingTimeOff ? "warn" : "ok" },
+      { label: "Employees", value: dash.employees?.length ?? 0 },
+    ])}
+    <h2>Employees</h2>
+    ${htmlTable(["Employee", "Scheduled", "Worked", "Diff", "Flags"], rows)}
+  `;
+  openPrintablePDF(`Labor ${weekStart}`, html);
+}
