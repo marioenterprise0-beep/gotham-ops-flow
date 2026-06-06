@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { canSee, initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
+import { CommandPalette } from "@/components/gotham/CommandPalette";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
+
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
 
