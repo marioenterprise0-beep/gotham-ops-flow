@@ -98,9 +98,19 @@ export const getManagerOverview = createServerFn({ method: "GET" })
 
     const overall = Math.round((opsScore + inventoryScore + hospitalityScore + teamScore) / 4);
 
+    // Cross-module pending counts so the owner sees what's waiting on them.
+    let alertsQ = supabase.from("alerts").select("id", { count: "exact", head: true })
+      .in("status", ["open", "pending"]);
+    if (trailerId) alertsQ = alertsQ.eq("trailer_id", trailerId);
+    let recapsQ = supabase.from("daily_recaps").select("id", { count: "exact", head: true })
+      .eq("status", "submitted");
+    if (trailerId) recapsQ = recapsQ.eq("trailer_id", trailerId);
+    const [{ count: pendingAlerts }, { count: pendingRecaps }] = await Promise.all([alertsQ, recapsQ]);
+
     return {
       store, shift, crew: crewStats, openTasks,
       scores: { ops: opsScore, inventory: inventoryScore, hospitality: hospitalityScore, team: teamScore, overall },
+      pending: { alerts: pendingAlerts ?? 0, recaps: pendingRecaps ?? 0 },
     };
   });
 

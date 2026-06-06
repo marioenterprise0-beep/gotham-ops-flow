@@ -40,10 +40,20 @@ export const clockIn = createServerFn({ method: "POST" })
     const { data: open } = await supabase.from("time_punches")
       .select("id").eq("employee_id", userId).eq("status", "open").limit(1).maybeSingle();
     if (open) throw new Error("You are already clocked in.");
+    // Auto-link to today's scheduled shift when caller didn't pass one,
+    // so weekly hours and labor dashboards can match punches to shifts.
+    let scheduleShiftId = data.scheduleShiftId ?? null;
+    if (!scheduleShiftId) {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: todaysShift } = await supabase.from("schedule_shifts")
+        .select("id").eq("employee_id", userId).eq("shift_date", today)
+        .order("start_time").limit(1).maybeSingle();
+      if (todaysShift) scheduleShiftId = todaysShift.id;
+    }
     const { data: row, error } = await supabase.from("time_punches").insert({
       employee_id: userId,
       trailer_id: profile?.trailer_id ?? null,
-      schedule_shift_id: data.scheduleShiftId ?? null,
+      schedule_shift_id: scheduleShiftId,
       clock_in_at: new Date().toISOString(),
       status: "open",
       device_info: data.deviceInfo ?? null,
