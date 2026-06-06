@@ -371,6 +371,7 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
   const [sales, setSales] = useState("");
   const [counted, setCounted] = useState("");
   const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
   const [verification, setVerification] = useState<"self" | "requested">("self");
 
   const detailFn = useServerFn(getDrawerSession);
@@ -382,16 +383,28 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
   const totalDrops = drops.reduce((s: number, d: any) => s + Number(d.amount), 0);
 
   const starting = Number(session.starting_float);
-  const expected = starting + (Number(sales) || 0) - totalDrops;
-  const variance = (Number(counted) || 0) - expected;
+  const salesNum = Number(sales) || 0;
+  const countedNum = Number(counted) || 0;
+  // Correct model: float stays in drawer and is counted with the cash.
+  const expectedDrawerTotal = starting + salesNum;
+  const variance = countedNum - expectedDrawerTotal;
+  const dropAmount = countedNum - starting;
+  const remainingFloat = starting;
+  const belowFloat = counted !== "" && countedNum < starting;
+  const needsReason = variance !== 0;
+  const canSubmit =
+    sales !== "" && counted !== "" &&
+    (!needsReason || reason.trim().length > 0) &&
+    (!belowFloat || verification === "requested");
 
   const closeFn = useServerFn(closeDrawerSession);
   const mu = useMutation({
     mutationFn: () => closeFn({ data: {
       sessionId: session.id,
-      totalCashSales: Number(sales) || 0,
-      countedAmount: Number(counted) || 0,
+      totalCashSales: salesNum,
+      countedAmount: countedNum,
       varianceReason: reason || undefined,
+      varianceNotes: notes || undefined,
       verification,
     } }),
     onSuccess: () => { toast.success("Drawer closed"); onSaved(session.id); },
@@ -400,55 +413,72 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Close Drawer — {drawer.name}</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <Card className="bg-secondary">
             <div className="grid grid-cols-3 gap-3 text-sm">
               <div><div className="text-xs text-muted-foreground">Starting Float</div><div className="font-semibold">{money(starting)}</div></div>
-              <div><div className="text-xs text-muted-foreground">Total Drops</div><div className="font-semibold">−{money(totalDrops)}</div></div>
-              <div><div className="text-xs text-muted-foreground">Drops Count</div><div className="font-semibold">{drops.length}</div></div>
+              <div><div className="text-xs text-muted-foreground">Mid-shift Drops</div><div className="font-semibold">{drops.length} · {money(totalDrops)}</div></div>
+              <div><div className="text-xs text-muted-foreground">Remaining Float (target)</div><div className="font-semibold">{money(remainingFloat)}</div></div>
             </div>
           </Card>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label>Total Cash Sales (from POS report)</Label>
-              <Input type="number" inputMode="decimal" value={sales} onChange={(e) => setSales(e.target.value)} placeholder="742.38" autoFocus />
+              <Label>Total Cash Sales From POS</Label>
+              <Input type="number" inputMode="decimal" value={sales} onChange={(e) => setSales(e.target.value)} placeholder="550.00" autoFocus />
             </div>
             <div>
-              <Label>Actual Cash Counted</Label>
-              <Input type="number" inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} placeholder="0.00" />
+              <Label>Actual Cash Counted (includes float)</Label>
+              <Input type="number" inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} placeholder="750.00" />
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border p-3 bg-[#E8F0FE]">
-              <div className="text-[10px] uppercase tracking-wider text-[#2D6CDF]">Your Total</div>
-              <div className="text-2xl font-bold text-[#2D6CDF]">{money(Number(counted) || 0)}</div>
+              <div className="text-[10px] uppercase tracking-wider text-[#2D6CDF]">Actual Count</div>
+              <div className="text-xl font-bold text-[#2D6CDF]">{money(countedNum)}</div>
             </div>
             <div className="rounded-lg border border-border p-3 bg-[var(--color-success-bg)]">
-              <div className="text-[10px] uppercase tracking-wider text-[var(--color-success)]">Expected</div>
-              <div className="text-2xl font-bold text-[var(--color-success)]">{money(expected)}</div>
+              <div className="text-[10px] uppercase tracking-wider text-[var(--color-success)]">Expected Drawer Total</div>
+              <div className="text-xl font-bold text-[var(--color-success)]">{money(expectedDrawerTotal)}</div>
             </div>
             <div className={`rounded-lg border p-3 ${variance === 0 ? "border-border bg-secondary" : "border-[var(--color-danger)]/40 bg-[var(--color-danger-bg)]"}`}>
               <div className="text-[10px] uppercase tracking-wider text-[var(--color-danger)]">Variance</div>
-              <div className={`text-2xl font-bold ${variance === 0 ? "text-foreground" : "text-[var(--color-danger)]"}`}>
+              <div className={`text-xl font-bold ${variance === 0 ? "text-foreground" : "text-[var(--color-danger)]"}`}>
                 {variance >= 0 ? "+" : ""}{money(variance)}
               </div>
             </div>
+            <div className="rounded-lg border border-border p-3 bg-[var(--color-warning-bg,#FFF8E1)]">
+              <div className="text-[10px] uppercase tracking-wider">Drop Amount</div>
+              <div className="text-xl font-bold">{money(Math.max(0, dropAmount))}</div>
+              <div className="text-[10px] text-muted-foreground">Remaining float {money(remainingFloat)}</div>
+            </div>
           </div>
 
-          {variance !== 0 && (
-            <div>
-              <Label>Reason for Variance (optional)</Label>
-              <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
+          {belowFloat && (
+            <div className="rounded-md border border-[var(--color-danger)]/40 bg-[var(--color-danger-bg)] p-3 text-sm text-[var(--color-danger)]">
+              <b>Drawer below starting float.</b> Owner review is required — Request Verification is enforced.
             </div>
+          )}
+
+          {needsReason && (
+            <>
+              <div>
+                <Label>Variance Reason {variance !== 0 && <span className="text-[var(--color-danger)]">*</span>}</Label>
+                <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="Short cause (e.g. wrong change given)" />
+              </div>
+              <div>
+                <Label>Variance Notes</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} rows={3} />
+              </div>
+            </>
           )}
 
           <div>
             <Label>Verification</Label>
             <div className="flex gap-2 mt-1">
-              <Button size="sm" variant={verification === "self" ? "default" : "outline"} onClick={() => setVerification("self")}>Self-Verify</Button>
+              <Button size="sm" variant={verification === "self" ? "default" : "outline"} disabled={belowFloat} onClick={() => setVerification("self")}>Self-Verify</Button>
               <Button size="sm" variant={verification === "requested" ? "default" : "outline"} onClick={() => setVerification("requested")}>Request Verification</Button>
             </div>
             <p className="text-xs text-muted-foreground mt-1">Closed by <b>{user}</b> · {new Date().toLocaleString()}</p>
@@ -456,7 +486,7 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Go Back</Button>
-          <Button onClick={() => mu.mutate()} disabled={!sales || !counted || mu.isPending}>Submit</Button>
+          <Button onClick={() => mu.mutate()} disabled={!canSubmit || mu.isPending}>Submit</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -512,19 +542,19 @@ function SessionDetailDialog({ sessionId, isManager, onClose, onChanged }: {
 
           {s.status !== "open" && (
             <Card>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <Field label="Starting Float" value={money(s.starting_float)} />
-                <Field label="Total Cash Sales" value={money(s.total_cash_sales)} />
-                <Field label="Total Drops" value={`−${money(totalDrops)}`} />
-                <Field label="Expected" value={money(s.expected_amount)} />
-                <Field label="Counted" value={money(s.counted_amount)} />
+                <Field label="Total Cash Sales From POS" value={money(s.total_cash_sales)} />
+                <Field label="Expected Drawer Total" value={money(s.expected_amount)} />
+                <Field label="Actual Cash Counted" value={money(s.counted_amount)} />
+                <Field label="Variance" value={`${Number(s.variance) >= 0 ? "+" : ""}${money(s.variance)}`} />
+                <Field label="Drop Amount" value={money(Math.max(0, Number(s.counted_amount ?? 0) - Number(s.starting_float)))} />
+                <Field label="Remaining Float" value={money(s.starting_float)} />
+                <Field label="Mid-shift Drops" value={`${drops.length} · ${money(totalDrops)}`} />
               </div>
-              <div className="mt-2 text-sm">
-                Variance: <b className={Number(s.variance) === 0 ? "" : "text-[var(--color-danger)]"}>
-                  {Number(s.variance) >= 0 ? "+" : ""}{money(s.variance)}
-                </b>
-                {s.variance_reason && <span className="text-muted-foreground ml-2">— {s.variance_reason}</span>}
-              </div>
+              {s.variance_reason && (
+                <div className="mt-2 text-sm text-muted-foreground">Reason / Notes: {s.variance_reason}</div>
+              )}
             </Card>
           )}
 
@@ -651,6 +681,10 @@ function printCashDropSlip(p: {
 function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: any[]; names: Record<string, string>; totalDrops: number }) {
   const s = p.session;
   const v = Number(s.variance ?? 0);
+  const starting = Number(s.starting_float);
+  const counted = Number(s.counted_amount ?? 0);
+  const expected = Number(s.expected_amount ?? 0);
+  const dropAmount = Math.max(0, counted - starting);
   const dropRows = p.drops.map((d) => [
     d.drop_code,
     `$${Number(d.amount).toFixed(2)}`,
@@ -664,15 +698,15 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
     <h1>Drawer Close Report</h1>
     <div class="meta">Gotham Halal · ${escapeHTML(p.trailer?.name ?? "—")} · Drawer ${escapeHTML(p.drawer?.name ?? "—")}</div>
     ${kpiBlock([
-      { label: "Starting Float", value: `$${Number(s.starting_float).toFixed(2)}` },
-      { label: "Total Cash Sales", value: `$${Number(s.total_cash_sales ?? 0).toFixed(2)}` },
-      { label: "Total Drops", value: `−$${Number(p.totalDrops).toFixed(2)}` },
-      { label: "Expected", value: `$${Number(s.expected_amount ?? 0).toFixed(2)}` },
+      { label: "Starting Float", value: `$${starting.toFixed(2)}` },
+      { label: "Total Cash Sales From POS", value: `$${Number(s.total_cash_sales ?? 0).toFixed(2)}` },
+      { label: "Expected Drawer Total", value: `$${expected.toFixed(2)}` },
+      { label: "Actual Cash Counted", value: `$${counted.toFixed(2)}` },
     ])}
     ${kpiBlock([
-      { label: "Counted", value: `$${Number(s.counted_amount ?? 0).toFixed(2)}` },
       { label: "Variance", value: `${v >= 0 ? "+" : ""}$${v.toFixed(2)}`, tone: v === 0 ? "ok" : "danger" },
-      { label: "Verification", value: String(s.verification) },
+      { label: "Drop Amount", value: `$${dropAmount.toFixed(2)}` },
+      { label: "Remaining Float", value: `$${starting.toFixed(2)}` },
       { label: "Owner Review", value: String(s.owner_review) },
     ])}
     <h2>Session</h2>
@@ -680,12 +714,15 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
       ["Opened At", new Date(s.opened_at).toLocaleString()],
       ["Opened By", p.names[s.opened_by] ?? "—"],
       ["Closed At", s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"],
-      ["Closed By", s.closed_by ? (p.names[s.closed_by] ?? "—") : "—"],
-      ["Variance Reason", s.variance_reason ?? "—"],
+      ["Submitted By (Closed By)", s.closed_by ? (p.names[s.closed_by] ?? "—") : "—"],
+      ["Verified By (Owner Reviewer)", s.owner_reviewed_by ? (p.names[s.owner_reviewed_by] ?? "—") : "—"],
+      ["Verification", String(s.verification)],
+      ["Variance Reason / Notes", s.variance_reason ?? "—"],
       ["Owner Note", s.owner_note ?? "—"],
+      ["Owner Review Status", String(s.owner_review)],
     ])}
-    <h2>Cash Drops (${p.drops.length})</h2>
-    ${p.drops.length ? htmlTable(["Drop ID","Amount","Time","Submitted By","Verified By","Reason","Notes"], dropRows) : '<p style="color:#666;font-size:11px;">No drops in this session.</p>'}
+    <h2>Mid-shift Cash Drops (${p.drops.length})</h2>
+    ${p.drops.length ? htmlTable(["Drop ID","Amount","Time","Submitted By","Verified By","Reason","Notes"], dropRows) : '<p style="color:#666;font-size:11px;">No mid-shift drops in this session.</p>'}
   `;
   openPrintablePDF(`Drawer Close — ${p.drawer?.name ?? "drawer"}`, body);
 }
