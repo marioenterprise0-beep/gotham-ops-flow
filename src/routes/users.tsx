@@ -10,9 +10,34 @@ import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs,
 } from "@/lib/users.functions";
-import { Copy, Plus, Trash2, Ban } from "lucide-react";
+import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const TABS: { key: string; label: string }[] = [
+  { key: "dashboard",   label: "Dashboard" },
+  { key: "my-tasks",    label: "My Tasks" },
+  { key: "operations",  label: "Operations" },
+  { key: "schedule",    label: "Scheduling" },
+  { key: "inventory",   label: "Inventory" },
+  { key: "sops",        label: "SOPs" },
+  { key: "hospitality", label: "Hospitality" },
+  { key: "manager",     label: "Manager" },
+  { key: "users",       label: "Users" },
+  { key: "audit",       label: "Audit Log" },
+  { key: "analytics",   label: "Analytics" },
+  { key: "settings",    label: "Settings" },
+  { key: "permissions", label: "Permissions" },
+];
+
+const MOD_PRESETS: { id: string; label: string; desc: string; allow: string[] }[] = [
+  { id: "view_only",  label: "View only",  desc: "Dashboard & My Tasks only",                  allow: ["dashboard", "my-tasks"] },
+  { id: "crew",       label: "Crew",       desc: "Operations, schedule, SOPs, inventory view", allow: ["dashboard", "my-tasks", "operations", "schedule", "sops", "inventory"] },
+  { id: "lead",       label: "Shift Lead", desc: "Crew + hospitality logs",                    allow: ["dashboard", "my-tasks", "operations", "schedule", "sops", "inventory", "hospitality"] },
+  { id: "manager",    label: "Manager",    desc: "Everything except Permissions",              allow: TABS.filter((t) => t.key !== "permissions").map((t) => t.key) },
+  { id: "full",       label: "Full access", desc: "All tabs (owner-equivalent)",               allow: TABS.map((t) => t.key) },
+];
 
 export const Route = createFileRoute("/users")({
   ssr: false,
