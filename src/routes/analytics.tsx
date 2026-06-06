@@ -25,17 +25,36 @@ const RANGES = [
 ];
 type RangeKey = (typeof RANGES)[number]["key"];
 
+function monthLabel(iso: string) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+}
+function shiftMonth(iso: string, delta: number) {
+  const [y, m] = iso.split("-").map((n) => parseInt(n, 10));
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function thisMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function AnalyticsPage() {
   const { roleId, trailers, trailerScope, setTrailerScope } = useRole();
-  if (!canSee(roleId, "analytics")) return <Navigate to="/" />;
+  const allowed = canSee(roleId, "analytics");
   const [range, setRange] = useState<RangeKey>("week");
+  const [month, setMonth] = useState<string>(thisMonth());
+  const isHistoricalMonth = range === "month" && month !== thisMonth();
 
   const fn = useServerFn(getAnalytics);
   const { data, isLoading } = useQuery({
-    queryKey: ["analytics", range, trailerScope],
-    queryFn: () => fn({ data: { range, trailerId: trailerScope ?? null } }),
+    queryKey: ["analytics", range, trailerScope, range === "month" ? month : null],
+    queryFn: () => fn({ data: { range, trailerId: trailerScope ?? null, month: range === "month" ? month : null } }),
     refetchInterval: 60_000,
+    enabled: allowed,
   });
+
+  if (!allowed) return <Navigate to="/" />;
 
   const scopeLabel = trailerScope
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
@@ -57,6 +76,21 @@ function AnalyticsPage() {
           ))}
         </div>
       </div>
+
+      {range === "month" && (
+        <div className="mt-3 flex items-center gap-2">
+          <button onClick={() => setMonth(shiftMonth(month, -1))}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">◀ Prev</button>
+          <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-md bg-[#0A0A0A] text-[var(--color-gold)]">
+            {monthLabel(month)}{isHistoricalMonth && " · archived"}
+          </div>
+          <button disabled={month === thisMonth()} onClick={() => setMonth(shiftMonth(month, 1))}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)] disabled:opacity-40 disabled:cursor-not-allowed">Next ▶</button>
+          {isHistoricalMonth && (
+            <button onClick={() => setMonth(thisMonth())} className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">Jump to current</button>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2 overflow-x-auto">
         {trailers.map((t) => (
