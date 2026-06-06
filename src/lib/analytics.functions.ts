@@ -40,11 +40,12 @@ export const getAnalytics = createServerFn({ method: "POST" })
     z.object({
       range: RANGE.default("week"),
       trailerId: z.string().uuid().nullable().optional(),
+      month: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    const { start, end } = rangeBounds(data.range);
+    const { start, end } = rangeBounds(data.range, data.month ?? null);
     const startIso = start.toISOString();
     const endIso = end.toISOString();
     const startDate = dayKey(start);
