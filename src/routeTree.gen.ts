@@ -17,6 +17,7 @@ import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as RecapsRouteImport } from './routes/recaps'
 import { Route as PermissionsRouteImport } from './routes/permissions'
+import { Route as OrderGuideRouteImport } from './routes/order-guide'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
@@ -67,6 +68,11 @@ const RecapsRoute = RecapsRouteImport.update({
 const PermissionsRoute = PermissionsRouteImport.update({
   id: '/permissions',
   path: '/permissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrderGuideRoute = OrderGuideRouteImport.update({
+  id: '/order-guide',
+  path: '/order-guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OperationsRoute = OperationsRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
+  '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
+  '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
+  '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/my-tasks'
     | '/operations'
+    | '/order-guide'
     | '/permissions'
     | '/recaps'
     | '/role'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/my-tasks'
     | '/operations'
+    | '/order-guide'
     | '/permissions'
     | '/recaps'
     | '/role'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/manager'
     | '/my-tasks'
     | '/operations'
+    | '/order-guide'
     | '/permissions'
     | '/recaps'
     | '/role'
@@ -267,6 +279,7 @@ export interface RootRouteChildren {
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
+  OrderGuideRoute: typeof OrderGuideRoute
   PermissionsRoute: typeof PermissionsRoute
   RecapsRoute: typeof RecapsRoute
   RoleRoute: typeof RoleRoute
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/permissions'
       fullPath: '/permissions'
       preLoaderRoute: typeof PermissionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/order-guide': {
+      id: '/order-guide'
+      path: '/order-guide'
+      fullPath: '/order-guide'
+      preLoaderRoute: typeof OrderGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/operations': {
@@ -427,6 +447,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
+  OrderGuideRoute: OrderGuideRoute,
   PermissionsRoute: PermissionsRoute,
   RecapsRoute: RecapsRoute,
   RoleRoute: RoleRoute,
