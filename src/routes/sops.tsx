@@ -227,24 +227,18 @@ function SOPs() {
         </div>
       )}
 
+      {isManager && (
+        <div className="mt-3">
+          <ImportBuiltinsButton existing={customSops} />
+        </div>
+      )}
+
       {customList.length > 0 && (
         <>
-          <SectionHeader eyebrow="Team-authored" title={`${customList.length} custom SOPs`} />
+          <SectionHeader eyebrow="Editable library" title={`${customList.length} procedures`} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {customList.map((s: any) => (
-              <Card key={s.id} className="h-full">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="label-caps text-[var(--color-gold)]">{s.category}</span>
-                  {isManager && (
-                    <button onClick={() => delM.mutate(s.id)} className="text-muted-foreground hover:text-[var(--color-danger)]">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-                <div className="font-semibold text-[15px] leading-snug">{s.title}</div>
-                <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-4">{s.body}</div>
-                {s.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {s.pass_standard}</div>}
-              </Card>
+              <CustomSopCard key={s.id} sop={s} canEdit={isManager} />
             ))}
           </div>
         </>
