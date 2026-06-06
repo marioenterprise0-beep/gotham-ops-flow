@@ -1,60 +1,86 @@
-# Modules 9 + 10 — Change Log & Shift Handoff
+# Modules 11 + 12 + 13 — Health Score, Command Center, Employee Profile
 
-Two new modules, shipped one phase at a time so you can sanity-check each before the next lands.
-
----
-
-## Phase 1 — Module 9: Change Log (operational history)
-
-**Goal:** Every meaningful edit across the app shows up in one searchable history with who / what / before / after / reason / time. No silent edits.
-
-### Data
-- New table `change_log` with: `actor_id`, `actor_name` (denorm for fast search), `entity` (e.g. `inventory_item`, `schedule`, `time_punch`, `inventory_order`, `alert`), `entity_id`, `action` (`update | unlock | adjust | approve | close | create | delete`), `before` jsonb, `after` jsonb, `reason` text, `trailer_id`, `created_at`.
-- Owner + manager read. Inserts via server functions only (no direct client writes).
-- We already have `audit_log` and `time_audit`. Change Log is the **user-facing** history: richer (before/after diff, reason required for sensitive actions), and unified across modules. Existing audit tables stay as low-level trails.
-
-### Wiring (where edits get logged)
-- **Inventory** — qty / par / cost edits in `inventory_items` and order approvals.
-- **Schedule** — unlock, publish, shift edits.
-- **Hours** — `time_corrections` decisions, manual punch edits.
-- **Orders** — submit / approve / reject.
-- **Alerts** — acknowledge / close (with resolution note).
-- A small `logChange()` helper called from each existing server fn — no scattered triggers, no duplication.
-
-### UI
-- New route `/change-log` (Owner + Manager) with: search box, filters (entity, actor, date range), and a row per change showing actor · action · entity · diff summary · reason · timestamp. Click a row → drawer with full before/after JSON diff.
-- Add **"Reason"** input to: schedule unlock, hours adjust, alert close, order approve/reject (already partly there). Reason is required on those flows going forward.
-- Nav tab: "Change Log" (Owner/Manager), under Audit Log.
+Three connected modules. Recommend shipping in this order so each builds on the last.
 
 ---
 
-## Phase 2 — Module 10: Shift Handoff
+## Phase 1 — Module 11: Store Health Score
 
-**Goal:** Outgoing manager files a structured handoff; incoming manager must acknowledge before the baton passes. Nothing falls through the cracks.
+**Goal:** One 0–100 number per trailer per day that summarizes operation quality.
 
-### Data
-- New table `shift_handoffs`: `trailer_id`, `outgoing_manager_id`, `incoming_manager_id` (nullable until acknowledged), `shift_date`, `outgoing_shift_segment` (am/pm/close), `status` (`draft | sent | read | accepted`), `sent_at`, `read_at`, `accepted_at`, plus sections:
-  - `completed` text, `incomplete` text, `inventory_issues` text, `employee_notes` text, `customer_notes` text, `equipment` text, `priority` (`normal | high | urgent`).
-- RLS: managers of the trailer can read; outgoing can write while draft; incoming can update read/accepted.
+### Formula (weighted, all already in the DB)
+- **Opening** 10% — shift opened on time? (`shifts.opened_at` vs schedule start)
+- **Inventory** 15% — % items at/above `low_threshold` (no critical lows)
+- **Labor** 15% — scheduled hours vs actual punched (deviation penalty)
+- **Training** 10% — % active employees with `training_completed_at` in last 90 days
+- **Checklist** 20% — % of today's `tasks` completed (weighted by `requires_signoff`)
+- **Hospitality** 15% — `100 - (incidents × severity weight)` from `hospitality_incidents`
+- **Alerts** 15% — `100 - (open critical × 20 + open high × 10 + open normal × 3)`, clamped
 
-### Flow
-1. Outgoing manager opens `/handoff` → fills 6 sections + selects incoming manager → **Send**.
-2. Auto-creates an `alerts` row (`shift_handoff`, assigned to that manager).
-3. Incoming opens the handoff → marks **Read** (auto on open) → **Accept** with optional note.
-4. Status badge on dashboard until accepted; overdue (>1 hr unread) escalates to Owner.
+Bands: ≥80 Green, 60–79 Yellow, <60 Red.
 
-### UI
-- New route `/handoff` with two tabs: **Outgoing (compose/sent)** and **Incoming (to acknowledge)**.
-- Dashboard tile: "Pending handoff from [name]" with one-click open.
-- Nav tab: "Handoff" (Manager + Owner).
+### Implementation
+- Server fn `getHealthScore({ scope: trailer | company, range: today | week | month })` — computes live from existing tables (no new table needed for v1).
+- New route `/health` with a big number, color band, sparkline of last 14 days, and a breakdown card per component (score + 1-line explanation).
+- Dashboard tile on home: "Store Health · 87 · Green".
+
+---
+
+## Phase 2 — Module 12: Owner Command Center
+
+**Goal:** Owner opens one screen and sees everything.
+
+### Layout (`/command` route, owner-only)
+A dense grid of 9 widgets, each linking to its full page:
+
+1. **Open Alerts** — count + top 3 critical (acknowledge inline).
+2. **Pending Approvals** — time corrections + time-off + orders awaiting owner review.
+3. **Inventory Orders** — submitted/pending count + total $.
+4. **Labor** — today's hours vs scheduled, OT risk.
+5. **Performance** — top 3 / bottom 3 by recent activity.
+6. **Schedule Status** — current week: draft / published / locked.
+7. **Daily Recaps** — last 3 with shift score; unreviewed badge.
+8. **Health Score** — number + band per trailer.
+9. **Recent Changes** — last 5 from `change_log`.
+
+Inline actions per widget: Approve, Review, Comment, Assign.
+Add nav tab "Command" (owner only) above Dashboard.
+
+---
+
+## Phase 3 — Module 13: Employee Profile
+
+**Goal:** One page per employee with everything about them. Historical records are read-only.
+
+### Route `/employees/$id` (manager + owner)
+Tabs:
+- **Overview** — role, trailer, contact, current week hours, health KPIs.
+- **Schedule** — upcoming shifts from `schedule_shifts`.
+- **Hours** — `time_punches` history (read-only past, edit current open only).
+- **Performance** — score over time, recent positives/negatives.
+- **Training** — completed/in-progress/expired (uses `profiles.training_completed_at` + future `training_assignments`).
+- **Corrections** — `time_corrections` history.
+- **Time Off** — `time_off_requests` history.
+- **Certifications** — SOPs accepted, sign-offs.
+- **Notes** — `shift_notes` thread (manager-visible).
+- **Manager Comments** — new lightweight table `employee_comments` (manager-only, append-only).
+- **History** — merged `change_log` + `audit_log` filtered to this employee.
+
+### Rule enforcement
+- All historical tabs render with disabled inputs for employees.
+- Edits route through existing server fns (which already write to `change_log`).
+- New tiny table `employee_comments` (manager_id, employee_id, body, created_at) — managers insert, all managers + the employee can read.
+
+### Nav
+- "Users" page (already exists) — make each row clickable into `/employees/$id`.
 
 ---
 
 ## Decisions I need
 
-1. **Phase order:** ship Phase 1 (Change Log) first, then Phase 2 (Handoff)? Or reverse?
-2. **Change Log — required reason?** Require a reason on schedule unlock, hours adjust, and alert close, or keep reason optional everywhere?
-3. **Handoff acknowledgement:** must the incoming manager be **clocked in** before accepting, or can they accept from anywhere (e.g. on their way in)?
-4. **Handoff escalation:** if not accepted within 1 hour of `sent_at`, alert the Owner — sound right, or different SLA?
+1. **Phase order:** 11 → 12 → 13 as listed, or different?
+2. **Health Score weights** — defaults above OK, or do you want different weights (e.g. labor heavier than training)?
+3. **Manager Comments visibility** — can the employee see comments left about them, or managers-only?
+4. **Command Center default trailer** — show owner all trailers stacked, or one-at-a-time with the existing trailer switcher?
 
-Reply with answers (or "your call, build it") and I'll start Phase 1.
+Reply with answers (or "your call, build it all") and I'll start Phase 1.
