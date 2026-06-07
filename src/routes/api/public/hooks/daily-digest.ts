@@ -192,7 +192,7 @@ export const Route = createFileRoute('/api/public/hooks/daily-digest')({
             template_name: 'daily-digest',
             recipient_email: profile.email,
             subject: payload.subject,
-            status: 'queued',
+            status: 'pending',
           })
           enqueued++
         }
