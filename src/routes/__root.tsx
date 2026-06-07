@@ -124,9 +124,22 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <RoleProvider>
+        <AuthSyncBridge />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </RoleProvider>
     </QueryClientProvider>
   );
 }
+
+function AuthSyncBridge() {
+  const { queryClient } = Route.useRouteContext();
+  if (typeof window === "undefined") return null;
+  // Lazy single-mount: refresh every cached query when identity changes so
+  // dashboards, permissions, and modules can never drift after sign-in / sign-out.
+  // Kept narrow to identity transitions to avoid thrash on TOKEN_REFRESHED.
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useAuthSync(queryClient);
+  return null;
+}
+
