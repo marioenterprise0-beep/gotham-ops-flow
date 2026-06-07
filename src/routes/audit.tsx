@@ -46,7 +46,7 @@ function AuditPage() {
             <div key={r.id} className={cn("p-4 grid grid-cols-1 md:grid-cols-[160px_140px_1fr_auto] gap-3 items-start", i && "border-t border-border")}>
               <div className="text-xs text-muted-foreground">
                 <div>{new Date(r.created_at).toLocaleDateString()}</div>
-                <div>{new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                <div>{new Date(r.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</div>
               </div>
               <div className="text-sm font-medium truncate">{r.actor_name}</div>
               <div className="text-sm">

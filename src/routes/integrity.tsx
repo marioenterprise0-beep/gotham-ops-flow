@@ -72,7 +72,7 @@ function IntegrityPage() {
               </Card>
               <Card><div className="p-4"><div className="text-xs text-muted-foreground">Critical</div><div className="text-2xl font-semibold text-destructive">{data.totals.critical}</div></div></Card>
               <Card><div className="p-4"><div className="text-xs text-muted-foreground">Warning</div><div className="text-2xl font-semibold text-amber-500">{data.totals.warning}</div></div></Card>
-              <Card><div className="p-4"><div className="text-xs text-muted-foreground">Last run</div><div className="text-sm mt-1">{new Date(data.ranAt).toLocaleTimeString()}</div></div></Card>
+              <Card><div className="p-4"><div className="text-xs text-muted-foreground">Last run</div><div className="text-sm mt-1">{new Date(data.ranAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</div></div></Card>
             </div>
 
             {data.issues.length === 0 ? (

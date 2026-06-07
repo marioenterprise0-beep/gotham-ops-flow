@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRole } from "@/lib/role";
 import { AppShell } from "@/components/gotham/AppShell";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, fmtTime12 } from "@/lib/utils";
 import {
   getSchedule, upsertShift, deleteShift, duplicateShift,
   transitionSchedule, listEmployees, deleteSchedule,
@@ -573,7 +573,7 @@ function ShiftCard({ shift, status, canEdit, onEdit, onDup }: {
     >
       <div className="flex items-center justify-between gap-1">
         <div className="text-[11px] font-semibold leading-tight">
-          {shift.start_time.slice(0,5)}–{shift.end_time.slice(0,5)}
+          {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)}
         </div>
         {canEdit && (
           <button
