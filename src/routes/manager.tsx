@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

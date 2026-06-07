@@ -6,6 +6,7 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Check, Play, ShieldCheck, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
 import { createActionTask, listCrewRoster } from "@/lib/manager.functions";

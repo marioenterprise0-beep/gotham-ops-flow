@@ -5,6 +5,7 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { toast } from "sonner";
