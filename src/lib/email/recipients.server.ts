@@ -43,9 +43,9 @@ async function fetchProfilesByRole(role: string): Promise<Recipient[]> {
     .from('profiles')
     .select('id, display_name, email, active')
     .in('id', ids)
-  const pmap = new Map((profiles ?? []).map((p: any) => [p.id, p]))
+  const pmap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]))
   return (roles as any[])
-    .map((r) => ({ r, p: pmap.get(r.user_id) }))
+    .map((r) => ({ r, p: pmap.get(r.user_id) as any }))
     .filter(({ p }) => p?.active && p?.email)
     .map(({ r, p }) => ({
       user_id: r.user_id,
