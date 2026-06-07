@@ -54,6 +54,12 @@ function EmailLogPage() {
     queryKey: ["email-stats", hours],
     queryFn: () => statsFn({ data: { sinceHours: hours } }),
   });
+  const depthsFn = useServerFn(getEmailQueueDepths);
+  const { data: depths } = useQuery({
+    queryKey: ["email-queue-depths"],
+    queryFn: () => depthsFn(),
+    refetchInterval: 30000,
+  });
 
   const templates = Array.from(new Set(rows.map((r: any) => r.template_name))).sort();
 
