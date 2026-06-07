@@ -262,7 +262,7 @@ const MAPPINGS: Record<string, Mapping> = {
 // (e.g. cash drawer close → cash-drawer-submitted OR cash-variance-alert),
 // these helpers override the default mapping.
 async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
-  if (alert.source_module !== 'cash') return null
+  if (alert.source_module !== 'cash' || alert.type !== 'manager_note') return null
   const sb = admin()
   const { data: session } = await sb
     .from('cash_drawer_sessions')
@@ -291,6 +291,96 @@ async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
     }),
   }
 }
+
+// Large cash drop ($500+) — emitted as manager_note from cash_drops trigger.
+async function resolveCashDropMapping(alert: any): Promise<Mapping | null> {
+  if (alert.source_module !== 'cash' || alert.type !== 'manager_note') return null
+  if (!alert.payload?.drop_code) return null
+  const sb = admin()
+  const { data: drop } = await sb
+    .from('cash_drops')
+    .select('amount, drop_code, reason, drawer_id, submitted_by')
+    .eq('id', alert.source_id)
+    .maybeSingle()
+  if (!drop) return null
+  const { data: drawer } = drop.drawer_id
+    ? await sb.from('cash_drawers').select('name').eq('id', drop.drawer_id).maybeSingle()
+    : { data: null }
+  return {
+    template: 'cash-drop-submitted',
+    category: 'cash',
+    subject: (_a, ctx) => `Cash drop ${drop.drop_code} — ${ctx.trailer.name}`,
+    recipients: async () => getOwners(),
+    buildData: async (_a, ctx) => ({
+      trailer_name: ctx.trailer.name,
+      drop_code: drop.drop_code,
+      amount: drop.amount,
+      reason: drop.reason,
+      drawer_name: (drawer as any)?.name,
+      submitted_by: ctx.creator?.display_name ?? 'Cashier',
+      drop_id: alert.source_id,
+      cta_url: `${SITE_URL}/cash`,
+    }),
+  }
+}
+
+// Schedule published — emitted as manager_note from schedules trigger.
+async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | null> {
+  if (alert.source_module !== 'schedule' || alert.type !== 'manager_note') return null
+  if (alert.payload?.event !== 'schedule_published') return null
+  const sb = admin()
+  const { data: sched } = await sb
+    .from('schedules')
+    .select('name, start_date, end_date')
+    .eq('id', alert.source_id)
+    .maybeSingle()
+  return {
+    template: 'schedule-published',
+    category: 'schedule',
+    subject: (_a, ctx) => `Schedule published — ${ctx.trailer.name}`,
+    recipients: async () => getCrewForTrailer(alert.trailer_id),
+    buildData: async (_a, ctx) => {
+      const { data: shifts } = await sb
+        .from('schedule_shifts')
+        .select('shift_date, start_time, end_time, role')
+        .eq('schedule_id', alert.source_id)
+        .order('shift_date', { ascending: true })
+        .limit(50)
+      return {
+        trailer_name: ctx.trailer.name,
+        week_range: sched ? `${sched.start_date} → ${sched.end_date}` : '',
+        location: ctx.trailer.name,
+        shifts: (shifts ?? []).map((s: any) => ({
+          date: s.shift_date, start: s.start_time, end: s.end_time, role: s.role,
+        })),
+        schedule_id: alert.source_id,
+        cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
+      }
+    },
+  }
+}
+
+// SOP accepted / training completed — emitted as manager_note from profiles trigger.
+async function resolveTrainingMilestoneMapping(alert: any): Promise<Mapping | null> {
+  if (alert.source_module !== 'training' || alert.type !== 'manager_note') return null
+  const kind = alert.payload?.kind
+  if (kind !== 'training_completed' && kind !== 'sop_accepted') return null
+  return {
+    template: 'training-completed',
+    category: 'training',
+    subject: (_a, ctx) =>
+      `${kind === 'sop_accepted' ? 'SOP accepted' : 'Training completed'} — ${ctx.creator?.display_name ?? 'Crew'}`,
+    recipients: async () => getOwners(),
+    buildData: async (_a, ctx) => ({
+      trailer_name: ctx.trailer.name,
+      employee_name: ctx.creator?.display_name ?? 'Crew',
+      sop_title: kind === 'sop_accepted' ? 'Standard Operating Procedures' : 'Training program',
+      completed_at: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+      cta_url: `${SITE_URL}/training`,
+    }),
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 
