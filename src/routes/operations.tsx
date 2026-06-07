@@ -173,6 +173,8 @@ function Operations() {
         ))}
       </div>
 
+      <ChecklistSessionForm shiftId={shift.id} phase={phase} trailerId={activeTrailer ?? null} />
+
       {isManager && (
         <div className="mt-4">
           {!showAdd ? (
