@@ -296,7 +296,7 @@ function TimeOffList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="min-w-0">
               <div className="text-sm font-semibold">{t.employee_name} · {t.start_date} → {t.end_date}</div>
-              <div className="text-xs text-muted-foreground">{t.full_day ? "Full day(s)" : `${t.start_time} – ${t.end_time}`} · {t.reason}</div>
+              <div className="text-xs text-muted-foreground">{t.full_day ? "Full day(s)" : `${fmtTime12(t.start_time)} – ${fmtTime12(t.end_time)}`} · {t.reason}</div>
             </div>
             <div className="flex items-center gap-2">
               <StatusPill tone={t.status === "approved" ? "success" : t.status === "declined" ? "danger" : "warning"}>{t.status}</StatusPill>
