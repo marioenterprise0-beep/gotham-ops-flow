@@ -41,7 +41,9 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicHooksEmailQaSelftestRouteImport } from './routes/api/public/hooks/email-qa-selftest'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
+import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
 import { Route as ApiPublicHooksAlertEmailDispatchRouteImport } from './routes/api/public/hooks/alert-email-dispatch'
 
 const UsersRoute = UsersRouteImport.update({
@@ -207,10 +209,22 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksEmailQaSelftestRoute =
+  ApiPublicHooksEmailQaSelftestRouteImport.update({
+    id: '/api/public/hooks/email-qa-selftest',
+    path: '/api/public/hooks/email-qa-selftest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyRolloverRoute =
   ApiPublicHooksDailyRolloverRouteImport.update({
     id: '/api/public/hooks/daily-rollover',
     path: '/api/public/hooks/daily-rollover',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDailyDigestRoute =
+  ApiPublicHooksDailyDigestRouteImport.update({
+    id: '/api/public/hooks/daily-digest',
+    path: '/api/public/hooks/daily-digest',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksAlertEmailDispatchRoute =
@@ -249,7 +263,9 @@ export interface FileRoutesByFullPath {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -285,7 +301,9 @@ export interface FileRoutesByTo {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -322,7 +340,9 @@ export interface FileRoutesById {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -360,7 +380,9 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
+    | '/api/public/hooks/email-qa-selftest'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -396,7 +418,9 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
+    | '/api/public/hooks/email-qa-selftest'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -432,7 +456,9 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
+    | '/api/public/hooks/email-qa-selftest'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -469,7 +495,9 @@ export interface RootRouteChildren {
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksAlertEmailDispatchRoute: typeof ApiPublicHooksAlertEmailDispatchRoute
+  ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
+  ApiPublicHooksEmailQaSelftestRoute: typeof ApiPublicHooksEmailQaSelftestRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -703,11 +731,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/email-qa-selftest': {
+      id: '/api/public/hooks/email-qa-selftest'
+      path: '/api/public/hooks/email-qa-selftest'
+      fullPath: '/api/public/hooks/email-qa-selftest'
+      preLoaderRoute: typeof ApiPublicHooksEmailQaSelftestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-rollover': {
       id: '/api/public/hooks/daily-rollover'
       path: '/api/public/hooks/daily-rollover'
       fullPath: '/api/public/hooks/daily-rollover'
       preLoaderRoute: typeof ApiPublicHooksDailyRolloverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/daily-digest': {
+      id: '/api/public/hooks/daily-digest'
+      path: '/api/public/hooks/daily-digest'
+      fullPath: '/api/public/hooks/daily-digest'
+      preLoaderRoute: typeof ApiPublicHooksDailyDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/alert-email-dispatch': {
@@ -749,7 +791,9 @@ const rootRouteChildren: RootRouteChildren = {
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksAlertEmailDispatchRoute: ApiPublicHooksAlertEmailDispatchRoute,
+  ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
+  ApiPublicHooksEmailQaSelftestRoute: ApiPublicHooksEmailQaSelftestRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
