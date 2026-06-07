@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { requireManager, requireTabAccess } from "./auth-guards";
 
 async function assertManager(supabase: any, userId: string) {
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  const ok = (roles ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
-  if (!ok) throw new Error("Manager role required");
+  await requireManager(supabase, userId);
+  await requireTabAccess(supabase, userId, "inventory", "edit");
 }
 
 async function resolveTrailer(supabase: any, userId: string, trailerId?: string | null) {
