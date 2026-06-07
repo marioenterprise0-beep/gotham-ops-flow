@@ -9,6 +9,7 @@ import { deleteInventoryItem, listInventory, updateOrderGuide, upsertInventoryIt
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/order-guide")({
   ssr: false,
