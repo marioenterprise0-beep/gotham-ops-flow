@@ -10,6 +10,7 @@ import { syncDomains } from "@/lib/sync-bus";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
 import { createActionTask, listCrewRoster } from "@/lib/manager.functions";
+import { getChecklistSession, upsertChecklistSession } from "@/lib/checklist-sessions.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
