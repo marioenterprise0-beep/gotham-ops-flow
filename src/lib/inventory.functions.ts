@@ -153,6 +153,7 @@ export const receiveStock = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: receipt, error } = await supabase.from("inventory_receipts").insert({
       item_id: data.itemId, qty: data.qty, supplier: data.supplier ?? null, notes: data.notes ?? null, received_by: userId,
     }).select().single();
@@ -180,6 +181,7 @@ export const logWaste = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: item } = await supabase.from("inventory_items").select("current_qty, trailer_id").eq("id", data.itemId).single();
     const { data: row, error } = await supabase.from("waste_log").insert({
       item_id: data.itemId, qty: data.qty, reason: data.reason, photo_url: data.photoUrl ?? null, logged_by: userId,
@@ -206,6 +208,7 @@ export const submitCount = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: item } = await supabase.from("inventory_items").select("current_qty, trailer_id").eq("id", data.itemId).single();
     const expected = item ? Number(item.current_qty) : null;
     const variance = expected === null ? null : data.countQty - expected;
