@@ -20,6 +20,9 @@ export type NotificationPreferences = {
   email_enabled: boolean;
   frequency: "immediate" | "daily_digest" | "critical_only";
   categories: Record<NotificationCategory, boolean>;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  quiet_hours_timezone: string;
   updated_at: string;
 };
 
