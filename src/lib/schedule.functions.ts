@@ -378,8 +378,15 @@ export const generateCoverage = createServerFn({ method: "POST" })
       })));
 
     if (rows.length === 0) return { inserted: 0, skipped: days.length * segs.length };
-    const { error } = await supabase.from("schedule_shifts").insert(rows);
+    // The pre-filter above plus the partial unique index
+    // (schedule_shifts_unassigned_unique) make this idempotent under repeat
+    // clicks. Concurrent clicks fall back to the unique index for safety.
+    const { data: saved, error } = await supabase
+      .from("schedule_shifts")
+      .insert(rows)
+      .select("id");
     if (error) throw new Error(error.message);
-    return { inserted: rows.length, skipped: days.length * segs.length - rows.length };
+    const inserted = saved?.length ?? 0;
+    return { inserted, skipped: days.length * segs.length - inserted };
   });
 
