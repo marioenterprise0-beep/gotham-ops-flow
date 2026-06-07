@@ -105,11 +105,11 @@ export const actOnAlert = createServerFn({ method: "POST" })
     const { data: alert, error: ge } = await supabase.from("alerts").select("*").eq("id", data.alertId).single();
     if (ge) throw ge;
 
-    // Permissions: owner can do anything; manager can comment/review/escalate; manager cannot approve own
+    // Permissions: owner can do anything (including approving things they created themselves);
+    // managers can only comment/review/escalate.
     const ownerOnly = ["approve","decline","request_changes"];
-    if (ownerOnly.includes(data.action)) {
-      if (!isOwner) throw new Error("Owner role required");
-      if (alert.created_by === userId) throw new Error("Cannot approve your own request");
+    if (ownerOnly.includes(data.action) && !isOwner) {
+      throw new Error("Owner role required");
     }
 
     await supabase.from("alert_actions").insert({
