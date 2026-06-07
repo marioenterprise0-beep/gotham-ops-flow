@@ -10,6 +10,7 @@ import { listAllTabPermissions, setTabPermission, applyDefaultPresets } from "@/
 import { toast } from "sonner";
 import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/permissions")({
   ssr: false,
@@ -71,7 +72,7 @@ function PermissionsPage() {
     mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; accessLevel: TabAccess }) =>
       setFn({ data: v }),
     onSuccess: async () => {
-      qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
+      syncDomains(qc, "permissions", "users");
       await refreshPermissions();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -81,7 +82,7 @@ function PermissionsPage() {
     mutationFn: (overwrite: boolean) => applyPresetsFn({ data: { overwrite } }),
     onSuccess: async (res: any) => {
       toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
-      qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
+      syncDomains(qc, "permissions", "users");
       await refreshPermissions();
     },
     onError: (e: Error) => toast.error(e.message),
