@@ -121,7 +121,7 @@ function ChangeLogPage() {
               <button key={r.id} onClick={() => setSelected(r)}
                 className="w-full text-left p-4 grid grid-cols-1 md:grid-cols-[140px_140px_1fr_auto] gap-3 items-start border-t border-border hover:bg-secondary/30 transition">
                 <div className="text-xs text-muted-foreground">
-                  {new Date(r.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(r.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
                 </div>
                 <div className="text-sm font-medium truncate">{r.actor_name ?? "—"}</div>
                 <div className="text-sm">

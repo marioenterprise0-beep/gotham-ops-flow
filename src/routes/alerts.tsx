@@ -455,7 +455,7 @@ function AlertDetailDialog({ alertId, isOwner, onClose, onDone }: { alertId: str
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">History</div>
                 <div className="space-y-1 text-xs">
                   {data.actions.map((a: any) => (
-                    <div key={a.id} className="flex gap-2"><MessageSquare className="h-3 w-3 mt-0.5" /><span className="font-medium">{a.action}</span><span className="text-muted-foreground">{a.note ?? ""}</span><span className="ml-auto text-muted-foreground">{new Date(a.created_at).toLocaleTimeString()}</span></div>
+                    <div key={a.id} className="flex gap-2"><MessageSquare className="h-3 w-3 mt-0.5" /><span className="font-medium">{a.action}</span><span className="text-muted-foreground">{a.note ?? ""}</span><span className="ml-auto text-muted-foreground">{new Date(a.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span></div>
                   ))}
                 </div>
               </div>

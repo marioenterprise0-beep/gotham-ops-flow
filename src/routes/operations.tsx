@@ -150,7 +150,7 @@ function Operations() {
           <div>
             <div className="label-caps text-white/55">Active Shift · {trailerLabel}</div>
             <h1 className="font-display text-3xl mt-1 text-white">{phase.toUpperCase()} CHECKLIST</h1>
-            <div className="mt-1 text-xs text-white/60 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="mt-1 text-xs text-white/60 flex items-center gap-2"><Timer className="h-3.5 w-3.5" /> Opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</div>
           </div>
           <div className="text-right">
             <div className="text-3xl font-semibold text-[var(--color-gold)]">{pct}%</div>
@@ -258,7 +258,7 @@ function Operations() {
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         {t.assignee_role && <RoleBadge role={t.assignee_role} />}
                         {t.requires_signoff && <StatusPill tone={isSigned ? "success" : "warning"}>{isSigned ? "Signed off" : "Needs sign-off"}</StatusPill>}
-                        {t.completed_at && <span className="text-[10px] text-muted-foreground">· {new Date(t.completed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+                        {t.completed_at && <span className="text-[10px] text-muted-foreground">· {new Date(t.completed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>}
                       </div>
                     </div>
                     {isDone && !isSigned && t.requires_signoff && isManager && (

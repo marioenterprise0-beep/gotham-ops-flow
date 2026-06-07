@@ -657,7 +657,7 @@ function printCashDropSlip(p: {
       { label: "Drop ID", value: d.drop_code },
       { label: "Amount", value: `$${Number(d.amount).toFixed(2)}`, tone: "warn" },
       { label: "Date", value: when.toLocaleDateString() },
-      { label: "Time", value: when.toLocaleTimeString() },
+      { label: "Time", value: when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }) },
     ])}
     <h2>Details</h2>
     ${htmlTable(

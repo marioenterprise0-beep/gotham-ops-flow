@@ -375,7 +375,7 @@ function SOPDetail({ sop, onBack }: { sop: SOP; onBack: () => void }) {
             "mt-6 w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold text-sm",
             signed ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40" : "bg-[var(--color-gold)] text-[#0A0A0A]",
           )}>
-          {signed ? (<><Check className="h-4 w-4" /> Signed off at {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>) : "Sign off — I've read this SOP"}
+          {signed ? (<><Check className="h-4 w-4" /> Signed off at {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</>) : "Sign off — I've read this SOP"}
         </button>
       </Card>
 

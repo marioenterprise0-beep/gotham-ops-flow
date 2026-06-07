@@ -151,7 +151,7 @@ function ManagerPage() {
           <div key={a.id} className={cn("p-4 flex items-start justify-between gap-3", i && "border-t border-border")}>
             <div className="min-w-0">
               <div className="font-semibold text-sm">{a.title}</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{a.description ?? "—"} · {a.completed_at ? new Date(a.completed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{a.description ?? "—"} · {a.completed_at ? new Date(a.completed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }) : ""}</div>
               {a.text_value && (
                 <div className="mt-2 text-sm rounded-md bg-[var(--color-warning-bg)] border border-[var(--color-warning)]/30 px-3 py-1.5 text-[#7C3A00]">
                   {a.text_value}

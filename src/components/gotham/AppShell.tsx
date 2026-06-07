@@ -242,7 +242,7 @@ function TopBar() {
   const role = roleId ? ROLES[roleId] : null;
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
-  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeStr = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
 
   return (
     <header className="sticky top-0 z-30 surface-dark border-b border-[#1C1C1C]">
