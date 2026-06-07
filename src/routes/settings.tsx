@@ -6,10 +6,16 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
 import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
 import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
+import {
+  getMyNotificationPreferences,
+  updateMyNotificationPreferences,
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+} from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { LogOut, Save, Zap } from "lucide-react";
+import { LogOut, Mail, Save, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
@@ -98,6 +104,8 @@ function Settings() {
           </Card>
         </>
       )}
+
+      <NotificationsPanel />
 
       {roleId === "owner" && <AutomationPanel />}
 
@@ -223,5 +231,78 @@ function ToggleRow({ label, help, checked, onChange }: { label: string; help: st
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
       </button>
     </div>
+  );
+}
+
+function NotificationsPanel() {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getMyNotificationPreferences);
+  const saveFn = useServerFn(updateMyNotificationPreferences);
+  const { data: prefs } = useQuery({ queryKey: ["my-notif-prefs"], queryFn: () => getFn() });
+
+  const save = useMutation({
+    mutationFn: (patch: Record<string, unknown>) => saveFn({ data: patch as any }),
+    onSuccess: () => { toast.success("Preferences saved"); qc.invalidateQueries({ queryKey: ["my-notif-prefs"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!prefs) return null;
+  const categories = (prefs.categories ?? {}) as Record<NotificationCategory, boolean>;
+
+  const CATEGORY_LABELS: Record<NotificationCategory, string> = {
+    schedule: "Schedule changes",
+    time_clock: "Time clock & punches",
+    inventory: "Inventory orders & low stock",
+    cash: "Cash drawer & variance",
+    operations: "Daily recaps & ops",
+    training: "Training assignments",
+    announcements: "Announcements",
+    critical: "Critical alerts",
+  };
+
+  return (
+    <>
+      <SectionHeader eyebrow="Notifications" title="Email Preferences" />
+      <Card>
+        <div className="space-y-4">
+          <ToggleRow
+            label="Email notifications"
+            help="Master switch. When off, you will not receive any system emails (auth emails are unaffected)."
+            checked={prefs.email_enabled}
+            onChange={(v) => save.mutate({ emailEnabled: v })}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold inline-flex items-center gap-2">
+                <Mail className="h-3.5 w-3.5 text-[var(--color-gold)]" /> Delivery frequency
+              </div>
+              <div className="text-xs text-muted-foreground">Immediate sends each event live; daily digest batches; critical-only suppresses non-urgent.</div>
+            </div>
+            <select
+              disabled={!prefs.email_enabled}
+              value={prefs.frequency}
+              onChange={(e) => save.mutate({ frequency: e.target.value })}
+              className="h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-50"
+            >
+              <option value="immediate">Immediate</option>
+              <option value="daily_digest">Daily digest</option>
+              <option value="critical_only">Critical only</option>
+            </select>
+          </div>
+          <div className="pt-2 border-t border-border space-y-2">
+            <div className="label-caps text-muted-foreground">Categories</div>
+            {NOTIFICATION_CATEGORIES.map((cat) => (
+              <ToggleRow
+                key={cat}
+                label={CATEGORY_LABELS[cat]}
+                help={cat === "critical" ? "Always recommended on — covers safety and outage events." : ""}
+                checked={categories[cat] !== false}
+                onChange={(v) => save.mutate({ categories: { ...categories, [cat]: v } })}
+              />
+            ))}
+          </div>
+        </div>
+      </Card>
+    </>
   );
 }
