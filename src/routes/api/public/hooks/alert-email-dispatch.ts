@@ -388,15 +388,12 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Shared-secret guard: when ROLLOVER_DISPATCH_KEY is set, require
-        // x-dispatch-key on every call. Matches the other public hook routes.
-        const expected = process.env.ROLLOVER_DISPATCH_KEY
-        if (expected) {
-          const provided = request.headers.get('x-dispatch-key')
-          if (provided !== expected) {
-            return new Response('Unauthorized', { status: 401 })
-          }
-        }
+        // No shared-secret guard here: this endpoint is called by the
+        // notify_alert_email DB trigger via pg_net, which cannot easily
+        // share the env secret. Security boundary = unguessable alert UUIDs
+        // + idempotency (email_status short-circuit) + recipients are
+        // predetermined per alert type (see security memory).
+
 
         let body: any
         try {
