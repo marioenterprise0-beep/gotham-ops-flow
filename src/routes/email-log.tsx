@@ -1,12 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listEmailDeliveryLog, emailDeliveryStats } from "@/lib/notifications.functions";
+import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog } from "@/lib/notifications.functions";
 import { useRole } from "@/lib/role";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/email-log")({
   ssr: false,
@@ -31,7 +32,8 @@ function EmailLogPage() {
 
   const listFn = useServerFn(listEmailDeliveryLog);
   const statsFn = useServerFn(emailDeliveryStats);
-
+  const resendFn = useServerFn(resendEmailFromLog);
+  const qc = useQueryClient();
   const [hours, setHours] = useState(24 * 7);
   const [template, setTemplate] = useState<string>("");
   const [status, setStatus] = useState<string>("all");
@@ -54,6 +56,16 @@ function EmailLogPage() {
   });
 
   const templates = Array.from(new Set(rows.map((r: any) => r.template_name))).sort();
+
+  const resend = useMutation({
+    mutationFn: (logId: string) => resendFn({ data: { logId } }),
+    onSuccess: () => {
+      toast.success("Re-queued for delivery");
+      qc.invalidateQueries({ queryKey: ["email-log"] });
+      qc.invalidateQueries({ queryKey: ["email-stats"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Resend failed"),
+  });
 
   return (
     <AppShell>
@@ -106,21 +118,35 @@ function EmailLogPage() {
         {rows.length === 0 && (
           <div className="p-6 text-sm text-muted-foreground text-center">No emails in this window.</div>
         )}
-        {rows.map((r: any, i: number) => (
-          <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="font-medium truncate">{r.subject || r.template_name}</div>
-              <StatusBadge status={r.status} />
+        {rows.map((r: any, i: number) => {
+          const canResend = r.status === "failed" || r.status === "dlq" || r.status === "bounced";
+          return (
+            <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium truncate">{r.subject || r.template_name}</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={r.status} />
+                  {canResend && (
+                    <button
+                      onClick={() => resend.mutate(r.id)}
+                      disabled={resend.isPending}
+                      className="h-6 px-2 rounded text-[10px] font-semibold uppercase tracking-[1px] border border-[var(--color-gold)]/40 text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10 disabled:opacity-50"
+                    >
+                      Resend
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
+                <span className="truncate">{r.template_name} · {r.recipient_email}</span>
+                <span className="shrink-0">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
+              </div>
+              {r.error_message && (
+                <div className="text-xs text-[var(--color-danger)] mt-1 truncate">{r.error_message}</div>
+              )}
             </div>
-            <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
-              <span className="truncate">{r.template_name} · {r.recipient_email}</span>
-              <span className="shrink-0">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
-            </div>
-            {r.error_message && (
-              <div className="text-xs text-[var(--color-danger)] mt-1 truncate">{r.error_message}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </Card>
 
       <div className="h-6" />

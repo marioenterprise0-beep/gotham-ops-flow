@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 
 export const NOTIFICATION_CATEGORIES = [
   "schedule",
@@ -199,4 +200,81 @@ export const emailDeliveryStats = createServerFn({ method: "POST" })
       counts[r.status] = (counts[r.status] ?? 0) + 1;
     }
     return counts;
+  });
+
+const SITE_URL =
+  "https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app";
+
+function adminClient() {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+export const resendEmailFromLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ logId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
+    if (!isOwner) throw new Error("forbidden");
+
+    const sb = adminClient();
+    const { data: row, error } = await sb
+      .from("email_send_log")
+      .select("id, alert_id, template_name, recipient_email, subject, metadata, status")
+      .eq("id", data.logId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) throw new Error("log_row_not_found");
+
+    // Path 1: alert-driven → reset email_status and re-invoke dispatcher
+    if (row.alert_id) {
+      // Drop the prior failed log row so the dispatcher's idempotency check passes
+      await sb.from("email_send_log").delete().eq("id", row.id);
+      await sb
+        .from("alerts")
+        .update({ email_status: "none" })
+        .eq("id", row.alert_id);
+
+      const res = await fetch(`${SITE_URL}/api/public/hooks/alert-email-dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alert_id: row.alert_id }),
+      });
+      if (!res.ok) throw new Error(`dispatch_failed_${res.status}`);
+      return { ok: true, mode: "alert" };
+    }
+
+    // Path 2: raw enqueue using whatever template_data we stored in metadata
+    const meta = (row.metadata ?? {}) as any;
+    const payload = {
+      template_name: row.template_name,
+      recipient_email: row.recipient_email,
+      subject: row.subject ?? row.template_name,
+      template_data: meta.template_data ?? {
+        recipient_email: row.recipient_email,
+      },
+      idempotency_key: `resend:${row.id}:${Date.now()}`,
+      metadata: { ...meta, resent_from: row.id, resent_by: userId },
+    };
+    const { error: enqErr } = await sb.rpc("enqueue_email", {
+      queue_name: "transactional_emails",
+      payload,
+    });
+    if (enqErr) throw enqErr;
+    await sb.from("email_send_log").insert({
+      template_name: row.template_name,
+      recipient_email: row.recipient_email,
+      subject: row.subject,
+      source_module: (row as any).source_module ?? null,
+      source_id: (row as any).source_id ?? null,
+      status: "pending",
+      metadata: { resent_from: row.id, resent_by: userId },
+    });
+    return { ok: true, mode: "raw" };
   });
