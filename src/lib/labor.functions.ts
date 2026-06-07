@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { requireManager as requireManagerRole, requireOwner as requireOwnerRole, requireTabAccess } from "./auth-guards";
 
 function weekStartOf(d: Date): string {
   const dt = new Date(d);
@@ -12,12 +13,11 @@ function weekStartOf(d: Date): string {
 }
 
 async function requireManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
-  if (!data) throw new Error("Manager access required");
+  await requireManagerRole(supabase, userId);
+  await requireTabAccess(supabase, userId, "labor", "edit");
 }
 async function requireOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
-  if (!data) throw new Error("Owner access required");
+  await requireOwnerRole(supabase, userId);
 }
 
 export const getLaborDashboard = createServerFn({ method: "POST" })

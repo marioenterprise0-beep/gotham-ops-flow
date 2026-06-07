@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { randomInt } from "crypto";
+import { requireManager as requireManagerRole, requireTabAccess } from "./auth-guards";
 
 type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
@@ -13,8 +14,8 @@ function newCode() {
 }
 
 async function requireManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
-  if (!data) throw new Error("Manager access required");
+  await requireManagerRole(supabase, userId);
+  await requireTabAccess(supabase, userId, "users", "edit");
 }
 
 export const listTrailers = createServerFn({ method: "GET" })

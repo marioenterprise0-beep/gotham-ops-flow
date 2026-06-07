@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { requireTabAccess } from "./auth-guards";
 
 async function getRoles(supabase: any, userId: string) {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -69,6 +70,7 @@ export const saveRecap = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "recaps", "edit");
 
     const row = toRow(data, userId);
 

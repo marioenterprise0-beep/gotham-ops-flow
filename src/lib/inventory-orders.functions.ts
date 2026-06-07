@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { requireTabAccess } from "./auth-guards";
 
 async function getRoles(supabase: any, userId: string) {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -37,6 +38,8 @@ export const createInventoryOrder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "order-guide", "edit");
+
 
     let trailerId = data.trailerId ?? null;
     if (!trailerId) {
@@ -136,6 +139,8 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isOwner, isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "order-guide", "edit");
+
 
     const { data: order, error: ge } = await supabase.from("inventory_orders")
       .select("created_by, status").eq("id", data.id).single();
