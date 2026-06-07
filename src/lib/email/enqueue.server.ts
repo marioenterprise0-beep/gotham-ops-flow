@@ -105,16 +105,25 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
 
   let enqueued = 0
   for (const recipient of sendable) {
-    // Idempotency: skip if already logged for this alert+recipient+template
+    // Idempotency: skip only if there is an active/successful send already.
+    // Older broken rows can exist without a message_id; those should not block requeueing.
     if (input.alertId) {
       const { data: existing } = await sb
         .from('email_send_log')
-        .select('id')
+        .select('status, message_id, created_at')
         .eq('alert_id', input.alertId)
         .eq('recipient_email', recipient.email)
         .eq('template_name', input.templateName)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle()
-      if (existing) continue
+
+      const shouldSkip =
+        existing?.status === 'sent' ||
+        existing?.status === 'suppressed' ||
+        (existing?.status === 'pending' && Boolean(existing?.message_id))
+
+      if (shouldSkip) continue
     }
 
     const messageId = crypto.randomUUID()
