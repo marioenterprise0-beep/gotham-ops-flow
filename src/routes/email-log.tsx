@@ -1,12 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listEmailDeliveryLog, emailDeliveryStats } from "@/lib/notifications.functions";
+import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog } from "@/lib/notifications.functions";
 import { useRole } from "@/lib/role";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/email-log")({
   ssr: false,
