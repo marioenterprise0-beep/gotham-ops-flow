@@ -416,7 +416,11 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
         }
 
         // Pick mapping (per-module override first, then per-type default)
-        let mapping: Mapping | null = await resolveCashDrawerMapping(alert)
+        let mapping: Mapping | null =
+          (await resolveCashDropMapping(alert)) ||
+          (await resolveCashDrawerMapping(alert)) ||
+          (await resolveSchedulePublishedMapping(alert)) ||
+          (await resolveTrainingMilestoneMapping(alert))
         if (!mapping) mapping = MAPPINGS[alert.type] ?? null
 
         if (!mapping) {
