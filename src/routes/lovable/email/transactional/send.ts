@@ -59,6 +59,20 @@ export const Route = createFileRoute("/lovable/email/transactional/send")({
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
+        // Restrict ad-hoc sends to owners/managers. Crew/cashier accounts
+        // must not be able to trigger branded email to arbitrary recipients.
+        // Service-role calls bypass this check (they don't carry a user JWT).
+        const { data: roleRows } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+        const isManager = (roleRows ?? []).some(
+          (r: any) => r.role === 'owner' || r.role === 'manager',
+        )
+        if (!isManager) {
+          return Response.json({ error: 'Forbidden' }, { status: 403 })
+        }
+
         // Parse request body
         let templateName: string
         let recipientEmail: string
