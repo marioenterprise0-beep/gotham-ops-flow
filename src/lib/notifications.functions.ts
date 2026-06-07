@@ -68,6 +68,9 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         emailEnabled: z.boolean().optional(),
         frequency: z.enum(["immediate", "daily_digest", "critical_only"]).optional(),
         categories: z.record(z.string(), z.boolean()).optional(),
+        quietHoursStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
+        quietHoursEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
+        quietHoursTimezone: z.string().min(1).max(64).optional(),
       })
       .parse(d),
   )
