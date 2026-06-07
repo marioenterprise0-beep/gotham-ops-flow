@@ -34,6 +34,8 @@ import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
 
 const UsersRoute = UsersRouteImport.update({
@@ -162,6 +164,16 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
+  id: '/lovable/email/auth/preview',
+  path: '/lovable/email/auth/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksDailyRolloverRoute =
   ApiPublicHooksDailyRolloverRouteImport.update({
     id: '/api/public/hooks/daily-rollover',
@@ -195,6 +207,8 @@ export interface FileRoutesByFullPath {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -223,6 +237,8 @@ export interface FileRoutesByTo {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -252,6 +268,8 @@ export interface FileRoutesById {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -282,6 +300,8 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -310,6 +330,8 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -338,6 +360,8 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -367,6 +391,8 @@ export interface RootRouteChildren {
   TimeClockRoute: typeof TimeClockRoute
   UsersRoute: typeof UsersRoute
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
+  LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
+  LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -547,6 +573,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/auth/webhook': {
+      id: '/lovable/email/auth/webhook'
+      path: '/lovable/email/auth/webhook'
+      fullPath: '/lovable/email/auth/webhook'
+      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-rollover': {
       id: '/api/public/hooks/daily-rollover'
       path: '/api/public/hooks/daily-rollover'
@@ -583,6 +623,8 @@ const rootRouteChildren: RootRouteChildren = {
   TimeClockRoute: TimeClockRoute,
   UsersRoute: UsersRoute,
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
+  LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
+  LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
