@@ -5,10 +5,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
 import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
+import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { LogOut, Save } from "lucide-react";
+import { LogOut, Save, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
