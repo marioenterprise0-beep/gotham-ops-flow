@@ -37,10 +37,9 @@ function IntegrityPage() {
     <AppShell>
       <div className="p-6 space-y-6 max-w-6xl mx-auto">
         <SectionHeader
-          icon={ShieldCheck}
+          eyebrow="Owner diagnostics"
           title="Data Integrity"
-          subtitle="Continuous cross-model consistency check across schedules, labor, inventory, permissions, and users."
-          actions={
+          action={
             <button
               onClick={() => refetch()}
               className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-muted hover:bg-muted/70 text-sm"
@@ -50,6 +49,9 @@ function IntegrityPage() {
             </button>
           }
         />
+        <p className="text-sm text-muted-foreground -mt-2">
+          Continuous cross-model consistency check across schedules, labor, inventory, permissions, and users. Auto-refreshes after every mutation.
+        </p>
 
         {isLoading && <Card><div className="p-6 text-muted-foreground">Running sweep…</div></Card>}
 
