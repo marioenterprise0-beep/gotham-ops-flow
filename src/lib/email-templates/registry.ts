@@ -1,5 +1,28 @@
 import type { ComponentType } from 'react'
 
+import { template as scheduleSubmitted } from './schedule-submitted'
+import { template as scheduleApproved } from './schedule-approved'
+import { template as schedulePublished } from './schedule-published'
+import { template as scheduleLocked } from './schedule-locked'
+import { template as scheduleChanged } from './schedule-changed'
+import { template as missedClockOut } from './missed-clock-out'
+import { template as autoClockOut } from './auto-clock-out'
+import { template as timeAdjustmentRequest } from './time-adjustment-request'
+import { template as timeAdjustmentApproved } from './time-adjustment-approved'
+import { template as timeAdjustmentDeclined } from './time-adjustment-declined'
+import { template as inventoryOrderSubmitted } from './inventory-order-submitted'
+import { template as inventoryOrderApproved } from './inventory-order-approved'
+import { template as inventoryOrderDeclined } from './inventory-order-declined'
+import { template as lowStockAlert } from './low-stock-alert'
+import { template as cashDrawerSubmitted } from './cash-drawer-submitted'
+import { template as cashVarianceAlert } from './cash-variance-alert'
+import { template as cashDropSubmitted } from './cash-drop-submitted'
+import { template as trainingAssigned } from './training-assigned'
+import { template as trainingCompleted } from './training-completed'
+import { template as dailyRecapSubmitted } from './daily-recap-submitted'
+import { template as announcementPublished } from './announcement-published'
+import { template as criticalAlert } from './critical-alert'
+
 export interface TemplateEntry {
   component: ComponentType<any>
   subject: string | ((data: Record<string, any>) => string)
@@ -9,15 +32,27 @@ export interface TemplateEntry {
   to?: string
 }
 
-/**
- * Template registry — maps template names to their React Email components.
- * Import and register new templates here after creating them in this directory.
- *
- * Example:
- *   import { template as welcomeTemplate } from './welcome'
- *   // then add to TEMPLATES: 'welcome': welcomeTemplate
- */
 export const TEMPLATES: Record<string, TemplateEntry> = {
-  // Add templates here as they are created, e.g.:
-  // 'welcome': welcomeTemplate,
+  'schedule-submitted': scheduleSubmitted,
+  'schedule-approved': scheduleApproved,
+  'schedule-published': schedulePublished,
+  'schedule-locked': scheduleLocked,
+  'schedule-changed': scheduleChanged,
+  'missed-clock-out': missedClockOut,
+  'auto-clock-out': autoClockOut,
+  'time-adjustment-request': timeAdjustmentRequest,
+  'time-adjustment-approved': timeAdjustmentApproved,
+  'time-adjustment-declined': timeAdjustmentDeclined,
+  'inventory-order-submitted': inventoryOrderSubmitted,
+  'inventory-order-approved': inventoryOrderApproved,
+  'inventory-order-declined': inventoryOrderDeclined,
+  'low-stock-alert': lowStockAlert,
+  'cash-drawer-submitted': cashDrawerSubmitted,
+  'cash-variance-alert': cashVarianceAlert,
+  'cash-drop-submitted': cashDropSubmitted,
+  'training-assigned': trainingAssigned,
+  'training-completed': trainingCompleted,
+  'daily-recap-submitted': dailyRecapSubmitted,
+  'announcement-published': announcementPublished,
+  'critical-alert': criticalAlert,
 }
