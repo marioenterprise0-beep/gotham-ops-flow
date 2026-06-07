@@ -1,86 +1,75 @@
-# Modules 11 + 12 + 13 — Health Score, Command Center, Employee Profile
 
-Three connected modules. Recommend shipping in this order so each builds on the last.
+This is a big build — at least 6 distinct systems. To ship it safely without breaking what already works, I'll deliver it in 4 phases. Each phase is independently usable; we ship + verify before starting the next.
 
----
+## Phase 1 — Daily Rollover Engine (3 AM, location-based)
 
-## Phase 1 — Module 11: Store Health Score
+What it does, at 3 AM trailer-local time:
+- Auto-close any active shift; archive notes/recap.
+- Auto-clock-out anyone still punched in. Marks punch `status = auto_closed`, reason `System Auto Clock Out`, clock-out stamped at rollover time. Manager + employee notifications created. Original punch preserved; corrections use the existing time-correction flow.
+- Mark all incomplete tasks (`opening`, `mid`, `closing`, `emergency` + daily/shift tasks) as `missed`. Yesterday's checklist is archived (read-only), not deleted. New shift container ready for the next day's open.
+- Reset *daily forms only* on inventory: daily count status, order requests, receiving queue. **Quantities, par levels, history untouched.**
+- Alerts: nothing deleted. Status buckets: `open`, `resolved`, `archived`. Only `open` shown by default; archived stay searchable.
+- Writes one `daily_rollover` audit row per trailer with counts (shifts closed, punches auto-closed, tasks missed, etc.).
 
-**Goal:** One 0–100 number per trailer per day that summarizes operation quality.
+How:
+- New TanStack server route `/api/public/hooks/daily-rollover` (signature-verified) plus a SQL function `public.run_daily_rollover(trailer_id, as_of)` doing the work in one transaction.
+- `pg_cron` schedules per-trailer at the trailer's local 3 AM (driven by a new `trailers.timezone` column, default `America/New_York`).
+- New owner setting toggles: `rollover_enabled`, `rollover_hour` (default 3).
 
-### Formula (weighted, all already in the DB)
-- **Opening** 10% — shift opened on time? (`shifts.opened_at` vs schedule start)
-- **Inventory** 15% — % items at/above `low_threshold` (no critical lows)
-- **Labor** 15% — scheduled hours vs actual punched (deviation penalty)
-- **Training** 10% — % active employees with `training_completed_at` in last 90 days
-- **Checklist** 20% — % of today's `tasks` completed (weighted by `requires_signoff`)
-- **Hospitality** 15% — `100 - (incidents × severity weight)` from `hospitality_incidents`
-- **Alerts** 15% — `100 - (open critical × 20 + open high × 10 + open normal × 3)`, clamped
+## Phase 2 — Schedule Approval Workflow + Self-Approval
 
-Bands: ≥80 Green, 60–79 Yellow, <60 Red.
+- Statuses extend: `draft → submitted → approved → published`.
+- Manager submits → owner gets in-app + email alert → owner approves → lock → publish → crew notified.
+- Owner-only setting `manager_self_approval`. When on, manager can approve+publish in one step.
+- Every schedule row tracks `approved_by`, `approval_type` (`owner` / `self`), `published_by`, `published_at` (already partially present — wired into UI).
+- Audit + change-log entries on each transition.
 
-### Implementation
-- Server fn `getHealthScore({ scope: trailer | company, range: today | week | month })` — computes live from existing tables (no new table needed for v1).
-- New route `/health` with a big number, color band, sparkline of last 14 days, and a breakdown card per component (score + 1-line explanation).
-- Dashboard tile on home: "Store Health · 87 · Green".
+## Phase 3 — Notification Center (in-app inbox)
 
----
+- `notifications` table per user: `type` (info / action_needed / approval / critical), `title`, `message`, `source_module`, `source_id`, `action_url`, `read_at`, `archived_at`.
+- Inbox UI at `/inbox` with Unread / Read / Archived tabs and the unread-count badge already in the nav.
+- Server helper `createNotification(userId, …)` used by all the triggers (rollover, schedule approval, time-off, inventory, etc.).
+- Dedupe by `(user_id, source_module, source_id, type)` within a window to satisfy "no duplicates" rule.
 
-## Phase 2 — Module 12: Owner Command Center
+## Phase 4 — Email Engine
 
-**Goal:** Owner opens one screen and sees everything.
+Two parts:
 
-### Layout (`/command` route, owner-only)
-A dense grid of 9 widgets, each linking to its full page:
+**4a. Auth emails** (signup confirmation, password reset, etc.) — uses Lovable's built-in email system.
 
-1. **Open Alerts** — count + top 3 critical (acknowledge inline).
-2. **Pending Approvals** — time corrections + time-off + orders awaiting owner review.
-3. **Inventory Orders** — submitted/pending count + total $.
-4. **Labor** — today's hours vs scheduled, OT risk.
-5. **Performance** — top 3 / bottom 3 by recent activity.
-6. **Schedule Status** — current week: draft / published / locked.
-7. **Daily Recaps** — last 3 with shift score; unreviewed badge.
-8. **Health Score** — number + band per trailer.
-9. **Recent Changes** — last 5 from `change_log`.
+**4b. App emails** — one notification = one email when the user has email enabled. Includes:
+- Schedule published, time-off approved, shift changes, missed clock-out, training, inventory approval, cash review, owner notes, announcements, critical alerts (per your list).
+- Owner-side: schedule submitted, inventory order submitted, time adjustment request, approval required.
+- Per-user preference (`email_enabled`) + per-category opt-out. Owner can disable all email globally.
+- Critical alerts send immediately; low-priority bundles into a digest.
+- Tracks `queued / sent / delivered / opened / failed / retry`.
 
-Inline actions per widget: Approve, Review, Comment, Assign.
-Add nav tab "Command" (owner only) above Dashboard.
+This phase **requires an email domain set up on Lovable Cloud first**. I'll prompt you to set that up when we get there.
 
----
+## Owner Controls (added incrementally with the relevant phase)
 
-## Phase 3 — Module 13: Employee Profile
+Single Settings → Automation panel:
+- Enable / disable email (global)
+- Enable manager self-approval
+- Enable daily rollover
+- Rollover time (hour selector, default 3 AM)
+- Enable auto-clock-out
 
-**Goal:** One page per employee with everything about them. Historical records are read-only.
+## Technical Section
 
-### Route `/employees/$id` (manager + owner)
-Tabs:
-- **Overview** — role, trailer, contact, current week hours, health KPIs.
-- **Schedule** — upcoming shifts from `schedule_shifts`.
-- **Hours** — `time_punches` history (read-only past, edit current open only).
-- **Performance** — score over time, recent positives/negatives.
-- **Training** — completed/in-progress/expired (uses `profiles.training_completed_at` + future `training_assignments`).
-- **Corrections** — `time_corrections` history.
-- **Time Off** — `time_off_requests` history.
-- **Certifications** — SOPs accepted, sign-offs.
-- **Notes** — `shift_notes` thread (manager-visible).
-- **Manager Comments** — new lightweight table `employee_comments` (manager-only, append-only).
-- **History** — merged `change_log` + `audit_log` filtered to this employee.
+- New tables: `notifications`, `notification_preferences`, `automation_settings` (single row keyed by `owner_scope`), `rollover_runs` (audit). Adds `timezone` to `trailers`, `approval_type` to `schedules`, `auto_closed` enum value to `time_punches.status`.
+- New server fns: `runDailyRollover`, `submitSchedule`, `approveSchedule`, `publishSchedule`, `listNotifications`, `markNotificationRead`, `archiveNotification`, `setAutomationSetting`.
+- New routes: `/inbox`, plus `Settings → Automation` panel.
+- `pg_cron` runs a single dispatcher every 15 minutes that fires per-trailer rollover when local time crosses the configured hour — avoids needing one cron per trailer.
+- Emails use Lovable's app-email queue (`@lovable.dev/email-js`) once the domain is verified.
 
-### Rule enforcement
-- All historical tabs render with disabled inputs for employees.
-- Edits route through existing server fns (which already write to `change_log`).
-- New tiny table `employee_comments` (manager_id, employee_id, body, created_at) — managers insert, all managers + the employee can read.
+## Open Questions
 
-### Nav
-- "Users" page (already exists) — make each row clickable into `/employees/$id`.
+I'd like to confirm before I start:
 
----
+1. **Timezone source**: today trailers have no timezone column. OK to default everything to `America/New_York` and let you set per-trailer later? Or do you want to set them now?
+2. **"Auto-close approval adjustments"** — when a manager later approves a correction on an auto-closed punch, should that override the auto-close stamp or keep both rows (original + adjustment)? I'd recommend keeping both for audit.
+3. **Self-approval default**: off (owner must approve every schedule until they flip the toggle)?
+4. **Phase 4 email domain**: do you already own a sending domain you want to use (e.g. `notify.gothamhalaldash.com`), or should I leave Phase 4 until you're ready to point DNS?
 
-## Decisions I need
-
-1. **Phase order:** 11 → 12 → 13 as listed, or different?
-2. **Health Score weights** — defaults above OK, or do you want different weights (e.g. labor heavier than training)?
-3. **Manager Comments visibility** — can the employee see comments left about them, or managers-only?
-4. **Command Center default trailer** — show owner all trailers stacked, or one-at-a-time with the existing trailer switcher?
-
-Reply with answers (or "your call, build it all") and I'll start Phase 1.
+Approve the plan and I'll start with Phase 1.

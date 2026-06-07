@@ -190,6 +190,45 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_settings: {
+        Row: {
+          auto_clock_out_enabled: boolean
+          created_at: string
+          email_enabled: boolean
+          id: string
+          manager_self_approval: boolean
+          rollover_enabled: boolean
+          rollover_hour: number
+          scope: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          auto_clock_out_enabled?: boolean
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          manager_self_approval?: boolean
+          rollover_enabled?: boolean
+          rollover_hour?: number
+          scope?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          auto_clock_out_enabled?: boolean
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          manager_self_approval?: boolean
+          rollover_enabled?: boolean
+          rollover_hour?: number
+          scope?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cash_drawer_sessions: {
         Row: {
           closed_at: string | null
@@ -970,6 +1009,42 @@ export type Database = {
           },
         ]
       }
+      rollover_runs: {
+        Row: {
+          alerts_archived: number
+          as_of: string
+          id: string
+          notes: string | null
+          punches_auto_closed: number
+          ran_at: string
+          shifts_closed: number
+          tasks_missed: number
+          trailer_id: string | null
+        }
+        Insert: {
+          alerts_archived?: number
+          as_of: string
+          id?: string
+          notes?: string | null
+          punches_auto_closed?: number
+          ran_at?: string
+          shifts_closed?: number
+          tasks_missed?: number
+          trailer_id?: string | null
+        }
+        Update: {
+          alerts_archived?: number
+          as_of?: string
+          id?: string
+          notes?: string | null
+          punches_auto_closed?: number
+          ran_at?: string
+          shifts_closed?: number
+          tasks_missed?: number
+          trailer_id?: string | null
+        }
+        Relationships: []
+      }
       schedule_shifts: {
         Row: {
           break_minutes: number
@@ -1703,6 +1778,7 @@ export type Database = {
           id: string
           location: string | null
           name: string
+          timezone: string
         }
         Insert: {
           active?: boolean
@@ -1710,6 +1786,7 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
+          timezone?: string
         }
         Update: {
           active?: boolean
@@ -1717,6 +1794,7 @@ export type Database = {
           id?: string
           location?: string | null
           name?: string
+          timezone?: string
         }
         Relationships: []
       }
@@ -1792,6 +1870,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_user_trailer: { Args: never; Returns: string }
+      dispatch_daily_rollover: { Args: { _now?: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1801,6 +1880,26 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       payroll_week_start: { Args: { _d: string }; Returns: string }
+      run_daily_rollover: {
+        Args: { _as_of?: string; _trailer_id: string }
+        Returns: {
+          alerts_archived: number
+          as_of: string
+          id: string
+          notes: string | null
+          punches_auto_closed: number
+          ran_at: string
+          shifts_closed: number
+          tasks_missed: number
+          trailer_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rollover_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       alert_action_kind:
@@ -1815,7 +1914,13 @@ export type Database = {
         | "review"
       alert_assigned_role: "manager" | "owner" | "all"
       alert_priority: "critical" | "high" | "normal" | "low"
-      alert_status: "open" | "pending" | "approved" | "declined" | "resolved"
+      alert_status:
+        | "open"
+        | "pending"
+        | "approved"
+        | "declined"
+        | "resolved"
+        | "archived"
       alert_type:
         | "missed_clock_out"
         | "missed_clock_in"
@@ -1871,7 +1976,7 @@ export type Database = {
         | "needed_soon"
         | "critical"
         | "emergency"
-      punch_status: "open" | "closed" | "edited" | "voided"
+      punch_status: "open" | "closed" | "edited" | "voided" | "auto_closed"
       recap_status: "draft" | "submitted" | "reviewed" | "archived"
       request_status: "pending" | "approved" | "declined" | "info_requested"
       schedule_status:
@@ -1883,7 +1988,13 @@ export type Database = {
       shift_phase: "opening" | "mid" | "closing" | "emergency"
       shift_segment: "open" | "mid" | "close" | "custom"
       shift_status: "active" | "closed"
-      task_status: "todo" | "in_progress" | "done" | "signed_off" | "blocked"
+      task_status:
+        | "todo"
+        | "in_progress"
+        | "done"
+        | "signed_off"
+        | "blocked"
+        | "missed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2024,7 +2135,14 @@ export const Constants = {
       ],
       alert_assigned_role: ["manager", "owner", "all"],
       alert_priority: ["critical", "high", "normal", "low"],
-      alert_status: ["open", "pending", "approved", "declined", "resolved"],
+      alert_status: [
+        "open",
+        "pending",
+        "approved",
+        "declined",
+        "resolved",
+        "archived",
+      ],
       alert_type: [
         "missed_clock_out",
         "missed_clock_in",
@@ -2079,7 +2197,7 @@ export const Constants = {
         "critical",
         "emergency",
       ],
-      punch_status: ["open", "closed", "edited", "voided"],
+      punch_status: ["open", "closed", "edited", "voided", "auto_closed"],
       recap_status: ["draft", "submitted", "reviewed", "archived"],
       request_status: ["pending", "approved", "declined", "info_requested"],
       schedule_status: [
@@ -2092,7 +2210,14 @@ export const Constants = {
       shift_phase: ["opening", "mid", "closing", "emergency"],
       shift_segment: ["open", "mid", "close", "custom"],
       shift_status: ["active", "closed"],
-      task_status: ["todo", "in_progress", "done", "signed_off", "blocked"],
+      task_status: [
+        "todo",
+        "in_progress",
+        "done",
+        "signed_off",
+        "blocked",
+        "missed",
+      ],
     },
   },
 } as const

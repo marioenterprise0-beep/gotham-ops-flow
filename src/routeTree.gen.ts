@@ -33,6 +33,7 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -154,6 +155,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksDailyRolloverRoute =
+  ApiPublicHooksDailyRolloverRouteImport.update({
+    id: '/api/public/hooks/daily-rollover',
+    path: '/api/public/hooks/daily-rollover',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -180,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -206,6 +214,7 @@ export interface FileRoutesByTo {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -233,6 +242,7 @@ export interface FileRoutesById {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/api/public/hooks/daily-rollover'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/api/public/hooks/daily-rollover'
   id:
     | '__root__'
     | '/'
@@ -313,6 +325,7 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/api/public/hooks/daily-rollover'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -340,6 +353,7 @@ export interface RootRouteChildren {
   SopsRoute: typeof SopsRoute
   TimeClockRoute: typeof TimeClockRoute
   UsersRoute: typeof UsersRoute
+  ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -512,6 +526,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/daily-rollover': {
+      id: '/api/public/hooks/daily-rollover'
+      path: '/api/public/hooks/daily-rollover'
+      fullPath: '/api/public/hooks/daily-rollover'
+      preLoaderRoute: typeof ApiPublicHooksDailyRolloverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -540,6 +561,7 @@ const rootRouteChildren: RootRouteChildren = {
   SopsRoute: SopsRoute,
   TimeClockRoute: TimeClockRoute,
   UsersRoute: UsersRoute,
+  ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
