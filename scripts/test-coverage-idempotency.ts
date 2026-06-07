@@ -53,8 +53,14 @@ async function generateCoverage(scheduleId: string) {
     .single();
   if (sErr || !sched) throw new Error(sErr?.message ?? "Schedule not found");
   const days = daysBetween(sched.start_date, sched.end_date);
+  const { data: existing } = await sb
+    .from("schedule_shifts")
+    .select("shift_date, segment")
+    .eq("schedule_id", scheduleId)
+    .is("employee_id", null);
+  const taken = new Set((existing ?? []).map((r: any) => `${r.shift_date}|${r.segment}`));
   const rows = days.flatMap((d) =>
-    SEGS.map((s) => ({
+    SEGS.filter((s) => !taken.has(`${d}|${s.segment}`)).map((s) => ({
       schedule_id: scheduleId,
       employee_id: null,
       trailer_id: sched.trailer_id ?? null,
@@ -66,12 +72,11 @@ async function generateCoverage(scheduleId: string) {
       break_minutes: 30,
     })),
   );
-  const { data, error } = await sb
-    .from("schedule_shifts")
-    .upsert(rows, { onConflict: "schedule_id,shift_date,segment", ignoreDuplicates: true })
-    .select("id");
+  const expected = days.length * SEGS.length;
+  if (rows.length === 0) return { inserted: 0, expected };
+  const { data, error } = await sb.from("schedule_shifts").insert(rows).select("id");
   if (error) throw new Error(error.message);
-  return { inserted: data?.length ?? 0, expected: days.length * SEGS.length };
+  return { inserted: data?.length ?? 0, expected };
 }
 
 async function countCoverage(scheduleId: string) {
