@@ -54,7 +54,8 @@ export function openPrintablePDF(title: string, bodyHTML: string) {
     alert("Pop-up blocked. Allow pop-ups to export PDF.");
     return;
   }
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${bodyHTML}<footer>Generated ${new Date().toLocaleString()} · Gotham OS</footer><script>window.onload = () => { setTimeout(() => window.print(), 250); };</script></body></html>`;
+  const safeTitle = escapeHTML(title);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>${PRINT_CSS}</style></head><body>${bodyHTML}<footer>Generated ${new Date().toLocaleString()} · Gotham OS</footer><script>window.onload = () => { setTimeout(() => window.print(), 250); };</script></body></html>`;
   w.document.open();
   w.document.write(html);
   w.document.close();
