@@ -55,12 +55,12 @@ function TimeClockPage() {
 
   const inM = useMutation({
     mutationFn: () => inFn({ data: { deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" } } }),
-    onSuccess: () => { toast.success("Clocked in"); qc.invalidateQueries({ queryKey: ["my-active-punch"] }); qc.invalidateQueries({ queryKey: ["my-week"] }); },
+    onSuccess: () => { toast.success("Clocked in"); syncDomains(qc, "timeclock", "labor", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
   const outM = useMutation({
     mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
-    onSuccess: () => { toast.success("Clocked out"); qc.invalidateQueries({ queryKey: ["my-active-punch"] }); qc.invalidateQueries({ queryKey: ["my-week"] }); },
+    onSuccess: () => { toast.success("Clocked out"); syncDomains(qc, "timeclock", "labor", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
