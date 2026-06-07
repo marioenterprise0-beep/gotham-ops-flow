@@ -38,6 +38,8 @@ export const createInventoryOrder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "order-guide", "edit");
+
 
     let trailerId = data.trailerId ?? null;
     if (!trailerId) {
