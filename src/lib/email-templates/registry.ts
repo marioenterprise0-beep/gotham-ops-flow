@@ -22,6 +22,7 @@ import { template as trainingCompleted } from './training-completed'
 import { template as dailyRecapSubmitted } from './daily-recap-submitted'
 import { template as announcementPublished } from './announcement-published'
 import { template as criticalAlert } from './critical-alert'
+import { template as dailyDigest } from './daily-digest'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -55,4 +56,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'daily-recap-submitted': dailyRecapSubmitted,
   'announcement-published': announcementPublished,
   'critical-alert': criticalAlert,
+  'daily-digest': dailyDigest,
 }
