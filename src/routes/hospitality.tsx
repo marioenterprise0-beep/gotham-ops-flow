@@ -64,7 +64,7 @@ function Hospitality() {
   const recoveries = incidents.filter((i: any) => i.recovery_action);
   const isHistorical = view === "month" && month !== thisMonth();
 
-  const onSaved = () => qc.invalidateQueries({ queryKey: ["hospitality"] });
+  const onSaved = () => syncDomains(qc, "hospitality");
 
   return (
     <AppShell>

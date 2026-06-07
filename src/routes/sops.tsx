@@ -139,13 +139,13 @@ function SOPs() {
     onSuccess: () => {
       toast.success("SOP saved");
       setShowAdd(false); setForm({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
-      qc.invalidateQueries({ queryKey: ["sops"] });
+      syncDomains(qc, "sops");
     },
     onError: (e: Error) => toast.error(e.message),
   });
   const delM = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -177,7 +177,7 @@ function SOPs() {
         } catch { /* ignore */ }
       }
       toast.success(`Made ${pending.length} built-in SOPs editable`);
-      qc.invalidateQueries({ queryKey: ["sops"] });
+      syncDomains(qc, "sops");
     })();
   }, [isManager, customSops.length]);
 
@@ -403,12 +403,12 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
       role: (form.role || undefined) as any, body: form.body.trim(),
       passStandard: form.passStandard.trim() || undefined,
     } }),
-    onSuccess: () => { toast.success("SOP updated"); setMode("view"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onSuccess: () => { toast.success("SOP updated"); setMode("view"); syncDomains(qc, "sops"); },
     onError: (e: Error) => toast.error(e.message),
   });
   const delM = useMutation({
     mutationFn: () => deleteFn({ data: { id: sop.id } }),
-    onSuccess: () => { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["sops"] }); },
+    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -601,7 +601,7 @@ function ImportBuiltinsButton({ existing }: { existing: any[] }) {
         } });
       }
       toast.success(`Imported ${pending.length} built-in SOPs — now fully editable`);
-      qc.invalidateQueries({ queryKey: ["sops"] });
+      syncDomains(qc, "sops");
     } catch (e: any) { toast.error(e.message ?? "Import failed"); }
     finally { setRunning(false); }
   };

@@ -34,7 +34,7 @@ function MyTasks() {
   const completeFn = useServerFn(completeTask);
   const completeM = useMutation({
     mutationFn: (taskId: string) => completeFn({ data: { taskId } }),
-    onSuccess: () => { toast.success("Task complete"); qc.invalidateQueries({ queryKey: ["my-tasks"] }); },
+    onSuccess: () => { toast.success("Task complete"); qc.invalidateQueries({ queryKey: ["my-tasks"] }); syncDomains(qc, "tasks", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
 

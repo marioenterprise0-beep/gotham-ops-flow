@@ -80,25 +80,25 @@ function Operations() {
 
   const openM = useMutation({
     mutationFn: () => openFn({ data: { phase: "opening", trailerId: activeTrailer ?? undefined } }),
-    onSuccess: () => { toast.success("Shift opened"); qc.invalidateQueries(); },
+    onSuccess: () => { toast.success("Shift opened"); syncDomains(qc, "operations", "tasks", "labor"); },
     onError: (e: Error) => toast.error(e.message),
   });
   const ensureM = useMutation({
     mutationFn: (p: Phase) => ensureFn({ data: { shiftId: shift!.id, phase: p } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => syncDomains(qc, "tasks", "operations"),
   });
   const closeM = useMutation({
     mutationFn: () => closeFn({ data: { shiftId: shift!.id } }),
-    onSuccess: () => { toast.success("Shift closed"); qc.invalidateQueries(); },
+    onSuccess: () => { toast.success("Shift closed"); syncDomains(qc, "operations", "tasks", "labor", "recaps"); },
   });
   const completeM = useMutation({
     mutationFn: (taskId: string) => completeFn({ data: { taskId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => syncDomains(qc, "tasks", "operations"),
     onError: (e: Error) => toast.error(e.message),
   });
   const signOffM = useMutation({
     mutationFn: (vars: { taskId: string; approve: boolean }) => signOffFn({ data: vars }),
-    onSuccess: () => { toast.success("Signed off"); qc.invalidateQueries({ queryKey: ["tasks"] }); },
+    onSuccess: () => { toast.success("Signed off"); syncDomains(qc, "tasks", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -116,7 +116,7 @@ function Operations() {
     onSuccess: () => {
       toast.success("Task added");
       setShowAdd(false); setNewTitle(""); setNewDesc(""); setNewRole(""); setNewAssignee(""); setNewSignoff(false);
-      qc.invalidateQueries({ queryKey: ["tasks"] });
+      syncDomains(qc, "tasks", "operations");
     },
     onError: (e: Error) => toast.error(e.message),
   });
