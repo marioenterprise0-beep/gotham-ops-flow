@@ -15,6 +15,7 @@ import { ChevronLeft, ChevronRight, Check, X, MessageSquare, Download, FileText 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/labor")({
   ssr: false,
@@ -179,7 +180,7 @@ function EmployeeDrawer({ userId, weekStart, isOwner, onClose }: { userId: strin
         reason: draft.reason || "Owner edit",
       },
     }),
-    onSuccess: () => { toast.success("Punch updated"); setEditing(null); qc.invalidateQueries({ queryKey: ["emp-week"] }); qc.invalidateQueries({ queryKey: ["labor-dash"] }); },
+    onSuccess: () => { toast.success("Punch updated"); setEditing(null); syncDomains(qc, "labor", "timeclock"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -247,7 +248,7 @@ function DecisionButtons({ id, isOwner, decideFn, qkey }: { id: string; isOwner:
   const fn = useServerFn(decideFn);
   const m = useMutation({
     mutationFn: (decision: "approved" | "declined") => fn({ data: { id, decision } }),
-    onSuccess: () => { toast.success("Decision recorded"); qc.invalidateQueries({ queryKey: [qkey] }); qc.invalidateQueries({ queryKey: ["labor-dash"] }); },
+    onSuccess: () => { toast.success("Decision recorded"); qc.invalidateQueries({ queryKey: [qkey] }); syncDomains(qc, "labor", "alerts"); },
     onError: (e: Error) => toast.error(e.message),
   });
   if (!isOwner) return <StatusPill tone="warning">Owner approval required</StatusPill>;
