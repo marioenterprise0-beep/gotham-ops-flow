@@ -77,7 +77,9 @@ export const getSchedule = createServerFn({ method: "GET" })
     const { supabase } = context;
     let shiftsQ = supabase.from("schedule_shifts").select("*")
       .eq("schedule_id", data.id).order("shift_date").order("start_time");
-    if (data.trailerId) shiftsQ = shiftsQ.eq("trailer_id", data.trailerId);
+    // Include null-trailer shifts (e.g. generated coverage with no trailer scope)
+    // alongside the scoped ones so they don't get hidden from the board.
+    if (data.trailerId) shiftsQ = shiftsQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
     const [{ data: schedule, error: sErr }, { data: shifts, error: shErr }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
       shiftsQ,
