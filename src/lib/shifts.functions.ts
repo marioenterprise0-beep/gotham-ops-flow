@@ -210,6 +210,8 @@ async function seedPhaseIfMissing(
   shiftId: string,
   trailerId: string | null,
   phase: "opening" | "mid" | "closing" | "emergency",
+  actorId?: string,
+  trigger: "open_shift" | "reopen_shift" | "seed_phase" = "open_shift",
 ) {
   const { count } = await supabase
     .from("tasks")
@@ -228,6 +230,15 @@ async function seedPhaseIfMissing(
     trailer_id: trailerId,
   }));
   await supabase.from("tasks").insert(rows);
+  if (rows.length > 0 && (phase === "opening" || phase === "closing")) {
+    await supabase.from("audit_log").insert({
+      actor_id: actorId ?? null,
+      action: "seed_required_checklist",
+      entity: "shift",
+      entity_id: shiftId,
+      payload: { phase, trigger, seeded: rows.length, trailer_id: trailerId },
+    });
+  }
   return rows.length;
 }
 
