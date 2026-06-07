@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/recaps")({
   ssr: false,
@@ -114,7 +115,7 @@ function RecapsPage() {
           isOwner={isOwner}
           defaultTrailerId={trailerScope}
           onClose={() => { setEditorOpen(false); setOpenId(null); }}
-          onSaved={() => qc.invalidateQueries({ queryKey: ["recaps"] })}
+          onSaved={() => syncDomains(qc, "recaps", "alerts")}
         />
       )}
 
