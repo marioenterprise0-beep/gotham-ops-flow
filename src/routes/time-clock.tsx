@@ -141,7 +141,7 @@ function NoteForm() {
   const fn = useServerFn(submitShiftNote);
   const m = useMutation({
     mutationFn: () => fn({ data: { note } }),
-    onSuccess: () => { toast.success("Note submitted"); setNote(""); qc.invalidateQueries({ queryKey: ["my-requests"] }); },
+    onSuccess: () => { toast.success("Note submitted"); setNote(""); syncDomains(qc, "labor", "timeclock"); },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
@@ -170,7 +170,7 @@ function CorrectionForm() {
         requestedOut: outTime ? new Date(`${forDate}T${outTime}:00`).toISOString() : null,
       },
     }),
-    onSuccess: () => { toast.success("Correction sent for approval"); setReason(""); setInTime(""); setOutTime(""); qc.invalidateQueries({ queryKey: ["my-requests"] }); },
+    onSuccess: () => { toast.success("Correction sent for approval"); setReason(""); setInTime(""); setOutTime(""); syncDomains(qc, "labor", "timeclock", "alerts"); },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
@@ -223,7 +223,7 @@ function TimeOffForm() {
   const fn = useServerFn(submitTimeOff);
   const m = useMutation({
     mutationFn: () => fn({ data: { startDate, endDate, fullDay, startTime: startTime || null, endTime: endTime || null, reason, notes } }),
-    onSuccess: () => { toast.success("Time off requested"); setReason(""); setNotes(""); qc.invalidateQueries({ queryKey: ["my-requests"] }); },
+    onSuccess: () => { toast.success("Time off requested"); setReason(""); setNotes(""); syncDomains(qc, "labor", "timeclock", "alerts"); },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
