@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRole } from "@/lib/role";
 import { AppShell } from "@/components/gotham/AppShell";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, fmtTime12 } from "@/lib/utils";
 import {
   getSchedule, upsertShift, deleteShift, duplicateShift,
   transitionSchedule, listEmployees, deleteSchedule,
