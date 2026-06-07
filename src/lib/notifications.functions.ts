@@ -82,7 +82,7 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
       .eq("user_id", userId)
       .maybeSingle();
 
-    const next = {
+    const next: any = {
       user_id: userId,
       email_enabled:
         data.emailEnabled ?? (existing?.email_enabled ?? true),
@@ -94,6 +94,9 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         ...(data.categories ?? {}),
       },
     };
+    if (data.quietHoursStart !== undefined) next.quiet_hours_start = data.quietHoursStart;
+    if (data.quietHoursEnd !== undefined) next.quiet_hours_end = data.quietHoursEnd;
+    if (data.quietHoursTimezone !== undefined) next.quiet_hours_timezone = data.quietHoursTimezone;
 
     if (existing) {
       const { data: row, error } = await supabase
