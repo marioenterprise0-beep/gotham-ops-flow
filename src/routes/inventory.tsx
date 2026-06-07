@@ -12,6 +12,7 @@ import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-order
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
 
 
 export const Route = createFileRoute("/inventory")({
@@ -76,14 +77,14 @@ function Inventory() {
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
     mutationFn: (vars: { itemId: string; countQty: number }) => submitCountFn({ data: vars }),
-    onSuccess: () => { toast.success("Count saved"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
+    onSuccess: () => { toast.success("Count saved"); syncDomains(qc, "inventory"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteFn = useServerFn(deleteInventoryItem);
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item removed"); qc.invalidateQueries({ queryKey: ["inventory"] }); },
+    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -195,10 +196,10 @@ function Inventory() {
         {!isLoading && visible.length === 0 && <Card>No items in this category.</Card>}
       </div>
 
-      {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
-      {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
-      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => qc.invalidateQueries({ queryKey: ["inventory"] })} />}
-      {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); qc.invalidateQueries({ queryKey: ["alerts"] }); qc.invalidateQueries({ queryKey: ["inv-orders"] }); }} />}
+      {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
+      {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
+      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
+      {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
       {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
       {isManager && (
         <div className="mt-4 flex justify-end">
