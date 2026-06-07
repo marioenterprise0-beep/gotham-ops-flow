@@ -2039,6 +2039,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _has_open_alert: {
+        Args: {
+          _source_id: string
+          _type: Database["public"]["Enums"]["alert_type"]
+        }
+        Returns: boolean
+      }
       consume_invite_code: {
         Args: { _code: string }
         Returns: Database["public"]["Enums"]["app_role"]
