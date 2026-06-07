@@ -7,7 +7,7 @@ interface ReauthenticationEmailProps {
 }
 
 export const ReauthenticationEmail = ({ token }: ReauthenticationEmailProps) => (
-  <BrandLayout preview="Your verification code" siteName="Gotham Halal Dash">
+  <BrandLayout preview="Your verification code">
     <Heading style={styles.h1}>Confirm it's you</Heading>
     <Text style={styles.text}>
       Use the verification code below to confirm your identity:
