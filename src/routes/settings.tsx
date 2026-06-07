@@ -99,6 +99,8 @@ function Settings() {
         </>
       )}
 
+      {roleId === "owner" && <AutomationPanel />}
+
       <SectionHeader eyebrow="Session" title="Sign out" />
       <Card>
         <div className="flex items-center justify-between gap-3">
