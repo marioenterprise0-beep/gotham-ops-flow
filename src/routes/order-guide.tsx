@@ -9,6 +9,7 @@ import { deleteInventoryItem, listInventory, updateOrderGuide, upsertInventoryIt
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/order-guide")({
   ssr: false,
@@ -76,8 +77,7 @@ function OrderGuide() {
     onSuccess: (_d, vars) => {
       toast.success("Saved");
       setDrafts((prev) => { const n = { ...prev }; delete n[vars.id]; return n; });
-      qc.invalidateQueries({ queryKey: ["order-guide"] });
-      qc.invalidateQueries({ queryKey: ["inventory"] });
+      syncDomains(qc, "inventory", "orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -88,8 +88,7 @@ function OrderGuide() {
       toast.success("Item added");
       setShowAdd(false);
       setNewItem({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
-      qc.invalidateQueries({ queryKey: ["order-guide"] });
-      qc.invalidateQueries({ queryKey: ["inventory"] });
+      syncDomains(qc, "inventory", "orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -98,8 +97,7 @@ function OrderGuide() {
     mutationFn: (id: string) => remove({ data: { id } }),
     onSuccess: () => {
       toast.success("Item removed");
-      qc.invalidateQueries({ queryKey: ["order-guide"] });
-      qc.invalidateQueries({ queryKey: ["inventory"] });
+      syncDomains(qc, "inventory", "orders");
     },
     onError: (e: Error) => toast.error(e.message),
   });

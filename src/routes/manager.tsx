@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, ProgressBar, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
 import { Check, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +54,7 @@ function ManagerPage() {
   });
   const reorderMut = useMutation({
     mutationFn: (itemId: string) => reorderFn({ data: { itemId } }),
-    onSuccess: (res: any) => { toast.success(`Reorder task created (${res.qty})`); qc.invalidateQueries({ queryKey: ["manager-overview"] }); },
+    onSuccess: (res: any) => { toast.success(`Reorder task created (${res.qty})`); qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "tasks", "inventory", "alerts"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -83,7 +84,7 @@ function ManagerPage() {
     mutationFn: (vars: { taskId: string; approve: boolean }) => signOff({ data: vars }),
     onSuccess: (_d, vars) => {
       toast.success(vars.approve ? "Approved" : "Sent back");
-      qc.invalidateQueries({ queryKey: ["pending-approvals"] });
+      qc.invalidateQueries({ queryKey: ["pending-approvals"] }); syncDomains(qc, "orders", "labor", "alerts");
     },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
@@ -205,7 +206,7 @@ function ManagerPage() {
       <SectionHeader eyebrow="Access" title="Invite Codes" />
       <InviteCodesPanel />
 
-      {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => qc.invalidateQueries({ queryKey: ["manager-overview"] })} />}
+      {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "tasks", "alerts"); }} />}
 
       <div className="h-6" />
     </AppShell>
@@ -303,7 +304,7 @@ function InviteCodesPanel() {
 
   const revokeMut = useMutation({
     mutationFn: (id: string) => revokeFn({ data: { id } }),
-    onSuccess: () => { toast.success("Revoked"); qc.invalidateQueries({ queryKey: ["invites"] }); },
+    onSuccess: () => { toast.success("Revoked"); qc.invalidateQueries({ queryKey: ["invites"] }); syncDomains(qc, "invites"); },
     onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
 
@@ -366,7 +367,7 @@ function CrewRosterPanel() {
 
   const roleMut = useMutation({
     mutationFn: (vars: { userId: string; role: RoleId }) => updateRole({ data: vars }),
-    onSuccess: () => { toast.success("Role updated"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); qc.invalidateQueries({ queryKey: ["manager-overview"] }); },
+    onSuccess: () => { toast.success("Role updated"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "roles", "users", "permissions"); },
     onError: (e: Error) => toast.error(e.message),
   });
 

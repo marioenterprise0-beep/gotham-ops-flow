@@ -18,6 +18,7 @@ import {
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML } from "@/lib/exports";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/cash")({
   ssr: false,
@@ -157,7 +158,7 @@ function CashPage() {
       {addOpen && trailerId && (
         <AddDrawerDialog trailerId={trailerId} onClose={() => setAddOpen(false)} onSaved={() => {
           setAddOpen(false);
-          qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+          syncDomains(qc, "cash");
         }} />
       )}
       {openFor && (
@@ -166,7 +167,7 @@ function CashPage() {
           onClose={() => setOpenFor(null)}
           onSaved={() => {
             setOpenFor(null);
-            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+            syncDomains(qc, "cash");
           }}
         />
       )}
@@ -177,8 +178,7 @@ function CashPage() {
           onClose={() => setCloseFor(null)}
           onSaved={(sid) => {
             setCloseFor(null);
-            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
-            qc.invalidateQueries({ queryKey: ["cash-sessions"] });
+            syncDomains(qc, "cash");
             setDetailFor(sid);
           }}
         />
@@ -190,7 +190,7 @@ function CashPage() {
           onClose={() => setDropFor(null)}
           onSaved={() => {
             setDropFor(null);
-            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+            syncDomains(qc, "cash");
           }}
         />
       )}
@@ -200,8 +200,7 @@ function CashPage() {
           isManager={isManager}
           onClose={() => setDetailFor(null)}
           onChanged={() => {
-            qc.invalidateQueries({ queryKey: ["cash-sessions"] });
-            qc.invalidateQueries({ queryKey: ["cash-drawers"] });
+            syncDomains(qc, "cash");
           }}
         />
       )}

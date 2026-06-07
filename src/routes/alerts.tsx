@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check, Loader2 } from "lucide-react";
 import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement, listCategoryReads, markCategoryRead } from "@/lib/alerts.functions";
+import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
@@ -172,8 +173,7 @@ function AlertsPage() {
     const channel = supabase
       .channel("alerts-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, () => {
-        qc.invalidateQueries({ queryKey: ["alerts"] });
-        qc.invalidateQueries({ queryKey: ["alert-detail"] });
+        syncDomains(qc, "alerts"); qc.invalidateQueries({ queryKey: ["alert-detail"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -288,7 +288,7 @@ function AlertsPage() {
         <StatCard label="Resolved Today" value={stats.resolvedToday} icon={CheckCircle2} tone="success" />
       </div>
 
-      {isOwner && <AnnouncementComposer onPosted={() => qc.invalidateQueries({ queryKey: ["alerts"] })} />}
+      {isOwner && <AnnouncementComposer onPosted={() => syncDomains(qc, "alerts")} />}
 
       <Card className="mb-4">
 
@@ -371,7 +371,7 @@ function AlertsPage() {
           alertId={openAlertId}
           isOwner={isOwner}
           onClose={() => setOpenAlertId(null)}
-          onDone={() => { setOpenAlertId(null); qc.invalidateQueries({ queryKey: ["alerts"] }); }}
+          onDone={() => { setOpenAlertId(null); syncDomains(qc, "alerts"); }}
         />
       )}
     </AppShell>

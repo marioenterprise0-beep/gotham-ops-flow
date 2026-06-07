@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
 import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
+import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { LogOut, Save } from "lucide-react";
@@ -40,13 +41,13 @@ function Settings() {
 
   const saveProfile = useMutation({
     mutationFn: () => updateProfile({ data: { displayName: name.trim() } }),
-    onSuccess: () => { toast.success("Profile saved"); qc.invalidateQueries({ queryKey: ["my-profile"] }); refreshRoles(); },
+    onSuccess: () => { toast.success("Profile saved"); syncDomains(qc, "profiles", "users"); refreshRoles(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const saveStore = useMutation({
     mutationFn: () => updateStore({ data: { storeId: data!.store!.id, name: storeName.trim(), location: storeLoc.trim() || undefined } }),
-    onSuccess: () => { toast.success("Store updated"); qc.invalidateQueries({ queryKey: ["my-profile"] }); },
+    onSuccess: () => { toast.success("Store updated"); syncDomains(qc, "profiles"); },
     onError: (e: Error) => toast.error(e.message),
   });
 

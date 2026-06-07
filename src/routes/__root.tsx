@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleProvider } from "../lib/role";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -124,9 +125,27 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <RoleProvider>
+        <AuthSyncBridge />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </RoleProvider>
     </QueryClientProvider>
   );
 }
+
+function AuthSyncBridge() {
+  const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        queryClient.invalidateQueries();
+      } else if (event === "SIGNED_OUT") {
+        queryClient.clear();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [queryClient]);
+  return null;
+}
+
+

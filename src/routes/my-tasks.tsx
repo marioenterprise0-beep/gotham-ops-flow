@@ -5,6 +5,7 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { toast } from "sonner";
@@ -33,7 +34,7 @@ function MyTasks() {
   const completeFn = useServerFn(completeTask);
   const completeM = useMutation({
     mutationFn: (taskId: string) => completeFn({ data: { taskId } }),
-    onSuccess: () => { toast.success("Task complete"); qc.invalidateQueries({ queryKey: ["my-tasks"] }); },
+    onSuccess: () => { toast.success("Task complete"); qc.invalidateQueries({ queryKey: ["my-tasks"] }); syncDomains(qc, "tasks", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
 

@@ -22,6 +22,7 @@ import {
   transitionSchedule, listEmployees, deleteSchedule,
   getOrCreateScheduleForRange, generateCoverage,
 } from "@/lib/schedule.functions";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/schedule")({ component: SchedulePage });
 
@@ -100,7 +101,7 @@ function SchedulePage() {
 
   const createMut = useMutation({
     mutationFn: () => findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: true } }),
-    onSuccess: () => { toast.success("Draft schedule created"); refetchSched(); qc.invalidateQueries({ queryKey: ["schedule-range"] }); },
+    onSuccess: () => { toast.success("Draft schedule created"); refetchSched(); syncDomains(qc, "schedule"); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -238,12 +239,12 @@ function WorkflowActions({ schedule, isOwner, isMgr }: { schedule: any; isOwner:
 
   const mut = useMutation({
     mutationFn: (v: any) => transition({ data: v }),
-    onSuccess: () => { qc.invalidateQueries(); toast.success("Status updated"); },
+    onSuccess: () => { syncDomains(qc, "schedule", "labor", "alerts"); toast.success("Status updated"); },
     onError: (e: any) => toast.error(e.message),
   });
   const delMut = useMutation({
     mutationFn: () => removeSchedule({ data: { id: schedule.id } }),
-    onSuccess: () => { qc.invalidateQueries(); toast.success("Schedule deleted"); },
+    onSuccess: () => { syncDomains(qc, "schedule", "labor", "alerts"); toast.success("Schedule deleted"); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -319,7 +320,7 @@ function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMg
 
   const [editing, setEditing] = useState<any | null>(null);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["schedule", scheduleId] });
+  const invalidate = () => syncDomains(qc, "schedule", "labor");
 
   const saveMut = useMutation({
     mutationFn: (v: any) => save({ data: v }),

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { listChangeLog, recordChange, type ChangeLogRow } from "@/lib/change-log.functions";
+import { syncDomains } from "@/lib/sync-bus";
 import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,7 @@ function ChangeLogPage() {
   // Demo seed for the very first visit so the page isn't empty.
   const seed = useMutation({
     mutationFn: () => insertLog({ data: { entity: "system", action: "create", summary: "Change Log enabled", reason: "Module 9 rollout" } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["change-log"] }),
+    onSuccess: () => syncDomains(qc, "history"),
   });
 
   const grouped = useMemo(() => {

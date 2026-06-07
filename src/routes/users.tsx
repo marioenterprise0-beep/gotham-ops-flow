@@ -14,6 +14,7 @@ import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.funct
 import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { syncDomains } from "@/lib/sync-bus";
 
 const TABS: { key: string; label: string }[] = [
   { key: "dashboard",   label: "Dashboard" },
@@ -120,8 +121,8 @@ function UsersTab() {
 
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
-  const refreshPerms = () => qc.invalidateQueries({ queryKey: ["all-tab-permissions"] });
+  const refresh = () => syncDomains(qc, "users", "roles", "permissions");
+  const refreshPerms = () => syncDomains(qc, "permissions", "users");
 
   const roleMut = useMutation({
     mutationFn: (v: { userId: string; role: RoleId }) => setRoleFn({ data: v }),
@@ -274,7 +275,7 @@ function InvitesTab() {
   const { data: invites = [] } = useQuery({ queryKey: ["invites-v2"], queryFn: () => fetchInvites() });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["invites-v2"] });
+  const refresh = () => syncDomains(qc, "invites");
 
   const genMut = useMutation({
     mutationFn: () => genFn({ data: { role, trailerId: trailerId || undefined, expiresHours: hours, note: note || undefined } }),
