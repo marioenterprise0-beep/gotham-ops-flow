@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog } from "@/lib/notifications.functions";
+import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog, getEmailQueueDepths } from "@/lib/notifications.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 
