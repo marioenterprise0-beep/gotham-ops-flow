@@ -290,6 +290,46 @@ function NotificationsPanel() {
             </select>
           </div>
           <div className="pt-2 border-t border-border space-y-2">
+            <div className="label-caps text-muted-foreground">Quiet hours</div>
+            <div className="text-xs text-muted-foreground -mt-1">Non-critical emails are held during this window in your timezone. Critical alerts always go through.</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
+              <div>
+                <div className="label-caps text-muted-foreground mb-1 text-[10px]">Start</div>
+                <input
+                  type="time"
+                  disabled={!prefs.email_enabled}
+                  value={prefs.quiet_hours_start?.slice(0, 5) ?? ""}
+                  onChange={(e) => save.mutate({ quietHoursStart: e.target.value || null })}
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground mb-1 text-[10px]">End</div>
+                <input
+                  type="time"
+                  disabled={!prefs.email_enabled}
+                  value={prefs.quiet_hours_end?.slice(0, 5) ?? ""}
+                  onChange={(e) => save.mutate({ quietHoursEnd: e.target.value || null })}
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground mb-1 text-[10px]">Timezone</div>
+                <select
+                  disabled={!prefs.email_enabled}
+                  value={prefs.quiet_hours_timezone ?? "America/New_York"}
+                  onChange={(e) => save.mutate({ quietHoursTimezone: e.target.value })}
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-50"
+                >
+                  {["America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Phoenix","America/Anchorage","Pacific/Honolulu","UTC"].map((tz) => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border space-y-2">
             <div className="label-caps text-muted-foreground">Categories</div>
             {NOTIFICATION_CATEGORIES.map((cat) => (
               <ToggleRow

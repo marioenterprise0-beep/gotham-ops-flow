@@ -2092,6 +2092,13 @@ export type Database = {
         Returns: boolean
       }
       dispatch_daily_rollover: { Args: { _now?: string }; Returns: number }
+      email_queue_depths: {
+        Args: never
+        Returns: {
+          depth: number
+          queue_name: string
+        }[]
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number

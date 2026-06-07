@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog } from "@/lib/notifications.functions";
+import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog, getEmailQueueDepths } from "@/lib/notifications.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 
@@ -54,6 +54,12 @@ function EmailLogPage() {
     queryKey: ["email-stats", hours],
     queryFn: () => statsFn({ data: { sinceHours: hours } }),
   });
+  const depthsFn = useServerFn(getEmailQueueDepths);
+  const { data: depths } = useQuery({
+    queryKey: ["email-queue-depths"],
+    queryFn: () => depthsFn(),
+    refetchInterval: 30000,
+  });
 
   const templates = Array.from(new Set(rows.map((r: any) => r.template_name))).sort();
 
@@ -70,6 +76,23 @@ function EmailLogPage() {
   return (
     <AppShell>
       <SectionHeader eyebrow="Notifications" title="Email Delivery Log" />
+
+
+      {depths && (depths.transactional_emails_dlq + depths.auth_emails_dlq > 0 ||
+        depths.transactional_emails + depths.auth_emails > 50) && (
+        <Card className="border-[var(--color-danger)]/40 bg-[var(--color-danger)]/5">
+          <div className="text-sm flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-[var(--color-danger)]">Queue health</span>
+            <span className="text-muted-foreground">
+              Pending: {depths.transactional_emails + depths.auth_emails} ·
+              {" "}DLQ: <span className="text-[var(--color-danger)] font-semibold">{depths.transactional_emails_dlq + depths.auth_emails_dlq}</span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              (tx {depths.transactional_emails}/{depths.transactional_emails_dlq}, auth {depths.auth_emails}/{depths.auth_emails_dlq})
+            </span>
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total" value={stats?.total ?? 0} />

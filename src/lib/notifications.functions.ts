@@ -68,6 +68,9 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         emailEnabled: z.boolean().optional(),
         frequency: z.enum(["immediate", "daily_digest", "critical_only"]).optional(),
         categories: z.record(z.string(), z.boolean()).optional(),
+        quietHoursStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
+        quietHoursEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
+        quietHoursTimezone: z.string().min(1).max(64).optional(),
       })
       .parse(d),
   )
@@ -79,7 +82,7 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
       .eq("user_id", userId)
       .maybeSingle();
 
-    const next = {
+    const next: any = {
       user_id: userId,
       email_enabled:
         data.emailEnabled ?? (existing?.email_enabled ?? true),
@@ -91,6 +94,9 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         ...(data.categories ?? {}),
       },
     };
+    if (data.quietHoursStart !== undefined) next.quiet_hours_start = data.quietHoursStart;
+    if (data.quietHoursEnd !== undefined) next.quiet_hours_end = data.quietHoursEnd;
+    if (data.quietHoursTimezone !== undefined) next.quiet_hours_timezone = data.quietHoursTimezone;
 
     if (existing) {
       const { data: row, error } = await supabase
@@ -283,4 +289,24 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
       metadata: { resent_from: row.id, resent_by: userId },
     });
     return { ok: true, mode: "raw" };
+  });
+
+export const getEmailQueueDepths = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
+    if (!isOwner) throw new Error("forbidden");
+    const sb = adminClient();
+    const { data, error } = await sb.rpc("email_queue_depths");
+    if (error) throw error;
+    const out: Record<string, number> = {
+      transactional_emails: 0,
+      auth_emails: 0,
+      transactional_emails_dlq: 0,
+      auth_emails_dlq: 0,
+    };
+    for (const r of (data ?? []) as any[]) out[r.queue_name] = Number(r.depth ?? 0);
+    return out;
   });
