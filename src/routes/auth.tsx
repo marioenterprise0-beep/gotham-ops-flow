@@ -20,16 +20,39 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState<string | null>(null);
 
   if (loading) return <FullScreen>Loading…</FullScreen>;
   if (session) return <Navigate to="/" />;
 
+  const resendVerification = async () => {
+    if (!needsVerify) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: needsVerify,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) throw error;
+      toast.success(`Verification email re-sent to ${needsVerify}.`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Could not resend email");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
+    setNeedsVerify(null);
     try {
       if (mode === "signup") {
-        if (!inviteCode.trim()) throw new Error("Invite code required. Ask a manager for one.");
+        const code = inviteCode.trim().toUpperCase();
+        if (!code) throw new Error("Invite code required. Ask a manager for one.");
+        if (!/^[A-Z0-9-]{4,16}$/.test(code)) throw new Error("Invite codes are 4–16 letters/numbers.");
+        if (password.length < 8) throw new Error("Password must be at least 8 characters.");
         const redirectTo = `${window.location.origin}/`;
         const { error } = await supabase.auth.signUp({
           email, password,
@@ -37,23 +60,39 @@ function AuthPage() {
             emailRedirectTo: redirectTo,
             data: {
               display_name: name || email.split("@")[0],
-              invite_code: inviteCode.trim().toUpperCase(),
+              invite_code: code,
             },
           },
         });
         if (error) {
-          const msg = /invite_code_required/i.test(error.message)
+          const m = error.message || "";
+          const msg = /invite_code_required/i.test(m)
             ? "Invite code required."
-            : /invalid_or_expired/i.test(error.message)
-            ? "That invite code is invalid or expired."
-            : error.message;
+            : /invalid_or_expired/i.test(m)
+            ? "That invite code is invalid, already used, or expired. Ask a manager for a new one."
+            : /already registered|already exists|user.*exists/i.test(m)
+            ? "An account with this email already exists. Try signing in."
+            : m;
           throw new Error(msg);
         }
-        toast.success("Account created. Check email to verify, then sign in.");
+        toast.success("Account created. Check your email to verify, then sign in.");
+        setNeedsVerify(email);
         setMode("signin");
+        setPassword("");
+        setInviteCode("");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          const m = error.message || "";
+          if (/email not confirmed|confirm/i.test(m)) {
+            setNeedsVerify(email);
+            throw new Error("Email not verified yet. Check your inbox — we can resend the link below.");
+          }
+          if (/invalid login credentials/i.test(m)) {
+            throw new Error("Wrong email or password.");
+          }
+          throw new Error(m);
+        }
         nav({ to: "/" });
       }
     } catch (err: unknown) {
@@ -114,6 +153,18 @@ function AuthPage() {
               className="w-full h-11 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm disabled:opacity-60">
               {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>
+            {needsVerify && (
+              <div className="mt-2 rounded-md border border-border bg-card p-3 text-xs">
+                <div className="text-foreground font-semibold">Verify your email</div>
+                <div className="mt-1 text-muted-foreground">
+                  We sent a verification link to <span className="text-foreground">{needsVerify}</span>. Click it, then sign in.
+                </div>
+                <button type="button" onClick={resendVerification} disabled={busy}
+                  className="mt-2 text-[var(--color-gold)] font-semibold disabled:opacity-60">
+                  Resend verification email
+                </button>
+              </div>
+            )}
           </form>
 
 
