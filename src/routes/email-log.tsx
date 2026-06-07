@@ -34,6 +34,7 @@ function EmailLogPage() {
   const statsFn = useServerFn(emailDeliveryStats);
   const resendFn = useServerFn(resendEmailFromLog);
   const qc = useQueryClient();
+  const [hours, setHours] = useState(24 * 7);
   const [template, setTemplate] = useState<string>("");
   const [status, setStatus] = useState<string>("all");
 
