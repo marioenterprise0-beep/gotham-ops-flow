@@ -29,7 +29,8 @@ export type SyncDomain =
   | "recaps"
   | "hospitality"
   | "history"
-  | "dashboard";
+  | "dashboard"
+  | "integrity";
 
 const MAP: Record<SyncDomain, string[][]> = {
   users:        [["users"], ["employees"], ["my-profile"], ["dashboard-stats"], ["change-log"]],
