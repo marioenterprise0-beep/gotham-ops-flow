@@ -53,6 +53,9 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
       email_enabled: true,
       frequency: "immediate" as const,
       categories: DEFAULT_CATEGORIES,
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      quiet_hours_timezone: "America/New_York",
       updated_at: new Date().toISOString(),
     };
   });
