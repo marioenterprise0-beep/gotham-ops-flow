@@ -104,6 +104,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          email_error: string | null
+          email_message_id: string | null
+          email_sent_at: string | null
+          email_status: Database["public"]["Enums"]["alert_email_status"]
+          email_template: string | null
           id: string
           payload: Json | null
           priority: Database["public"]["Enums"]["alert_priority"]
@@ -124,6 +129,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          email_error?: string | null
+          email_message_id?: string | null
+          email_sent_at?: string | null
+          email_status?: Database["public"]["Enums"]["alert_email_status"]
+          email_template?: string | null
           id?: string
           payload?: Json | null
           priority?: Database["public"]["Enums"]["alert_priority"]
@@ -144,6 +154,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          email_error?: string | null
+          email_message_id?: string | null
+          email_sent_at?: string | null
+          email_status?: Database["public"]["Enums"]["alert_email_status"]
+          email_template?: string | null
           id?: string
           payload?: Json | null
           priority?: Database["public"]["Enums"]["alert_priority"]
@@ -586,33 +601,51 @@ export type Database = {
       }
       email_send_log: {
         Row: {
+          alert_id: string | null
           created_at: string
           error_message: string | null
           id: string
           message_id: string | null
           metadata: Json | null
+          opened_at: string | null
           recipient_email: string
+          retry_count: number
+          source_id: string | null
+          source_module: string | null
           status: string
+          subject: string | null
           template_name: string
         }
         Insert: {
+          alert_id?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          opened_at?: string | null
           recipient_email: string
+          retry_count?: number
+          source_id?: string | null
+          source_module?: string | null
           status: string
+          subject?: string | null
           template_name: string
         }
         Update: {
+          alert_id?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          opened_at?: string | null
           recipient_email?: string
+          retry_count?: number
+          source_id?: string | null
+          source_module?: string | null
           status?: string
+          subject?: string | null
           template_name?: string
         }
         Relationships: []
@@ -1042,11 +1075,39 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          categories: Json
+          created_at: string
+          email_enabled: boolean
+          frequency: Database["public"]["Enums"]["email_frequency"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          categories?: Json
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: Database["public"]["Enums"]["email_frequency"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          categories?: Json
+          created_at?: string
+          email_enabled?: boolean
+          frequency?: Database["public"]["Enums"]["email_frequency"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           active: boolean
           created_at: string
           display_name: string
+          email: string | null
           id: string
           last_login_at: string | null
           sop_accepted_at: string | null
@@ -1059,6 +1120,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           display_name?: string
+          email?: string | null
           id: string
           last_login_at?: string | null
           sop_accepted_at?: string | null
@@ -1071,6 +1133,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           display_name?: string
+          email?: string | null
           id?: string
           last_login_at?: string | null
           sop_accepted_at?: string | null
@@ -2049,6 +2112,13 @@ export type Database = {
         | "resolve"
         | "review"
       alert_assigned_role: "manager" | "owner" | "all"
+      alert_email_status:
+        | "none"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "suppressed"
+        | "skipped"
       alert_priority: "critical" | "high" | "normal" | "low"
       alert_status:
         | "open"
@@ -2089,6 +2159,7 @@ export type Database = {
         | "left_early"
         | "stayed_late"
         | "other"
+      email_frequency: "immediate" | "daily_digest" | "critical_only" | "off"
       incident_severity: "low" | "medium" | "high"
       inventory_category:
         | "protein"
@@ -2270,6 +2341,14 @@ export const Constants = {
         "review",
       ],
       alert_assigned_role: ["manager", "owner", "all"],
+      alert_email_status: [
+        "none",
+        "queued",
+        "sent",
+        "failed",
+        "suppressed",
+        "skipped",
+      ],
       alert_priority: ["critical", "high", "normal", "low"],
       alert_status: [
         "open",
@@ -2307,6 +2386,7 @@ export const Constants = {
         "stayed_late",
         "other",
       ],
+      email_frequency: ["immediate", "daily_digest", "critical_only", "off"],
       incident_severity: ["low", "medium", "high"],
       inventory_category: [
         "protein",

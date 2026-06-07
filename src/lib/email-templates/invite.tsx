@@ -9,7 +9,7 @@ interface InviteEmailProps {
 }
 
 export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: InviteEmailProps) => (
-  <BrandLayout preview={`You've been invited to join ${siteName}`} siteName={siteName}>
+  <BrandLayout preview={`You've been invited to join ${siteName}`}>
     <Heading style={styles.h1}>You're invited</Heading>
     <Text style={styles.text}>
       You've been invited to join{' '}

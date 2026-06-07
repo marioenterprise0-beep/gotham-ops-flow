@@ -8,7 +8,7 @@ interface RecoveryEmailProps {
 }
 
 export const RecoveryEmail = ({ siteName, confirmationUrl }: RecoveryEmailProps) => (
-  <BrandLayout preview={`Reset your password for ${siteName}`} siteName={siteName}>
+  <BrandLayout preview={`Reset your password for ${siteName}`}>
     <Heading style={styles.h1}>Reset your password</Heading>
     <Text style={styles.text}>
       We received a request to reset the password for your {siteName} account. Click the button below to choose a new password.

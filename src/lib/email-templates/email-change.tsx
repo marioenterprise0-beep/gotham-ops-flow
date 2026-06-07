@@ -16,7 +16,7 @@ export const EmailChangeEmail = ({
   newEmail,
   confirmationUrl,
 }: EmailChangeEmailProps) => (
-  <BrandLayout preview={`Confirm your email change for ${siteName}`} siteName={siteName}>
+  <BrandLayout preview={`Confirm your email change for ${siteName}`}>
     <Heading style={styles.h1}>Confirm your email change</Heading>
     <Text style={styles.text}>
       You requested to change the email on your {siteName} account from{' '}
