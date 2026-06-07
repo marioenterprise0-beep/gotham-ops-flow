@@ -18,6 +18,7 @@ import { useRole } from "@/lib/role";
 import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/time-clock")({
   ssr: false,
