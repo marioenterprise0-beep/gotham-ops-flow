@@ -110,6 +110,29 @@ export async function getEmployee(userId: string): Promise<Recipient | null> {
   }
 }
 
+// Returns true if the recipient is currently inside their quiet-hours window.
+// Quiet hours are user-local. Critical-priority emails always bypass.
+function isInQuietHours(p: any, now: Date): boolean {
+  const start: string | null = p?.quiet_hours_start ?? null
+  const end: string | null = p?.quiet_hours_end ?? null
+  const tz: string = p?.quiet_hours_timezone || 'America/New_York'
+  if (!start || !end) return false
+  let hhmm = ''
+  try {
+    hhmm = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: tz,
+    }).format(now) // "HH:MM"
+  } catch { return false }
+  const toMin = (s: string) => {
+    const [h, m] = s.split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
+  const cur = toMin(hhmm)
+  const s = toMin(start)
+  const e = toMin(end)
+  return s <= e ? cur >= s && cur < e : cur >= s || cur < e // window wraps midnight
+}
+
 // Filter recipients by notification preferences for a given category/priority.
 export async function filterByPreferences(
   recipients: Recipient[],
@@ -120,19 +143,20 @@ export async function filterByPreferences(
   const sb = admin()
   const { data } = await sb
     .from('notification_preferences')
-    .select('user_id, email_enabled, frequency, categories')
+    .select('user_id, email_enabled, frequency, categories, quiet_hours_start, quiet_hours_end, quiet_hours_timezone')
     .in('user_id', recipients.map((r) => r.user_id))
   const prefs = new Map((data ?? []).map((p: any) => [p.user_id, p]))
+  const now = new Date()
 
   return recipients.filter((r) => {
     const p: any = prefs.get(r.user_id)
-    // Default: opt-in for all categories, immediate
     if (!p) return true
     if (!p.email_enabled || p.frequency === 'off') return false
     const cats = p.categories ?? {}
     if (cats[category] === false) return false
     if (p.frequency === 'critical_only' && priority !== 'critical') return false
     if (p.frequency === 'daily_digest' && priority !== 'critical') return false
+    if (priority !== 'critical' && isInQuietHours(p, now)) return false
     return true
   })
 }

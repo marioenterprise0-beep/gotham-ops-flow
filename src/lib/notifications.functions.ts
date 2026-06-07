@@ -20,6 +20,9 @@ export type NotificationPreferences = {
   email_enabled: boolean;
   frequency: "immediate" | "daily_digest" | "critical_only";
   categories: Record<NotificationCategory, boolean>;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  quiet_hours_timezone: string;
   updated_at: string;
 };
 
@@ -50,6 +53,9 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
       email_enabled: true,
       frequency: "immediate" as const,
       categories: DEFAULT_CATEGORIES,
+      quiet_hours_start: null,
+      quiet_hours_end: null,
+      quiet_hours_timezone: "America/New_York",
       updated_at: new Date().toISOString(),
     };
   });

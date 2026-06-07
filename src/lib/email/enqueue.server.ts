@@ -116,7 +116,7 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
       subject: input.subject,
       source_module: input.sourceModule,
       source_id: input.sourceId,
-      status: 'queued',
+      status: 'pending',
     })
   }
 

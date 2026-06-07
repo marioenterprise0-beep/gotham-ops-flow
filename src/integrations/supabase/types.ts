@@ -1081,6 +1081,9 @@ export type Database = {
           created_at: string
           email_enabled: boolean
           frequency: Database["public"]["Enums"]["email_frequency"]
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          quiet_hours_timezone: string
           updated_at: string
           user_id: string
         }
@@ -1089,6 +1092,9 @@ export type Database = {
           created_at?: string
           email_enabled?: boolean
           frequency?: Database["public"]["Enums"]["email_frequency"]
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          quiet_hours_timezone?: string
           updated_at?: string
           user_id: string
         }
@@ -1097,6 +1103,9 @@ export type Database = {
           created_at?: string
           email_enabled?: boolean
           frequency?: Database["public"]["Enums"]["email_frequency"]
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          quiet_hours_timezone?: string
           updated_at?: string
           user_id?: string
         }
@@ -2033,6 +2042,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_rollup_runs: {
+        Row: {
+          enqueued: number
+          id: string
+          notes: string | null
+          ran_at: string
+          recipients: number
+          week_start: string
+        }
+        Insert: {
+          enqueued?: number
+          id?: string
+          notes?: string | null
+          ran_at?: string
+          recipients?: number
+          week_start: string
+        }
+        Update: {
+          enqueued?: number
+          id?: string
+          notes?: string | null
+          ran_at?: string
+          recipients?: number
+          week_start?: string
+        }
+        Relationships: []
       }
     }
     Views: {
