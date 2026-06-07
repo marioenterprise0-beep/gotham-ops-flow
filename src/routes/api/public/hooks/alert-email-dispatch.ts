@@ -471,11 +471,12 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
 
           return Response.json({ ok: true, ...result, template: mapping.template })
         } catch (err: any) {
+          console.error('alert-email-dispatch failed', { alertId, error: err })
           await sb
             .from('alerts')
             .update({ email_status: 'failed', email_error: err?.message?.slice(0, 500) })
             .eq('id', alertId)
-          return Response.json({ ok: false, error: err?.message }, { status: 500 })
+          return Response.json({ ok: false, error: 'Internal server error' }, { status: 500 })
         }
       },
     },

@@ -14,11 +14,9 @@ export const Route = createFileRoute("/api/public/hooks/daily-rollover")({
     handlers: {
       POST: async ({ request }) => {
         const expected = process.env.ROLLOVER_DISPATCH_KEY;
-        if (expected) {
-          const provided = request.headers.get("x-rollover-key");
-          if (provided !== expected) {
-            return new Response("Unauthorized", { status: 401 });
-          }
+        const provided = request.headers.get("x-rollover-key");
+        if (!expected || provided !== expected) {
+          return new Response("Unauthorized", { status: 401 });
         }
 
         const url = process.env.SUPABASE_URL;
@@ -30,7 +28,8 @@ export const Route = createFileRoute("/api/public/hooks/daily-rollover")({
 
         const { data, error } = await supabase.rpc("dispatch_daily_rollover", {});
         if (error) {
-          return new Response(JSON.stringify({ ok: false, error: error.message }), {
+          console.error("daily-rollover dispatch failed", { error });
+          return new Response(JSON.stringify({ ok: false, error: "Internal server error" }), {
             status: 500, headers: { "Content-Type": "application/json" },
           });
         }

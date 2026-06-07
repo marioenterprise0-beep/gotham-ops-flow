@@ -34,11 +34,11 @@ export const Route = createFileRoute('/api/public/hooks/daily-digest')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Optional dispatch guard (same convention as daily-rollover)
+        // Required dispatch guard
         const expected = process.env.ROLLOVER_DISPATCH_KEY
-        if (expected) {
-          const provided = request.headers.get('x-digest-key') ?? request.headers.get('x-rollover-key')
-          if (provided !== expected) return new Response('Unauthorized', { status: 401 })
+        const provided = request.headers.get('x-digest-key') ?? request.headers.get('x-rollover-key')
+        if (!expected || provided !== expected) {
+          return new Response('Unauthorized', { status: 401 })
         }
 
         const sb = admin()
@@ -52,7 +52,8 @@ export const Route = createFileRoute('/api/public/hooks/daily-digest')({
           .eq('frequency', 'daily_digest')
           .eq('email_enabled', true)
         if (prefErr) {
-          return Response.json({ ok: false, error: prefErr.message }, { status: 500 })
+          console.error('daily-digest pref fetch failed', { error: prefErr })
+          return Response.json({ ok: false, error: 'Internal server error' }, { status: 500 })
         }
         if (!prefs || prefs.length === 0) {
           return Response.json({ ok: true, processed: 0, reason: 'no_digest_users' })
