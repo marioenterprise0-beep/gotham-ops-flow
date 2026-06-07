@@ -87,17 +87,23 @@ export async function getCrewForTrailer(trailerId: string): Promise<Recipient[]>
   const sb = admin()
   const { data, error } = await sb
     .from('profiles')
-    .select('id, display_name, email, active, trailer_id, user_roles!inner(role)')
+    .select('id, display_name, email, active, trailer_id')
     .eq('trailer_id', trailerId)
     .eq('active', true)
   if (error || !data) return []
+  const ids = (data as any[]).map((p) => p.id)
+  const { data: roles } = await sb
+    .from('user_roles')
+    .select('user_id, role')
+    .in('user_id', ids)
+  const rmap = new Map<string, string>((roles ?? []).map((r: any) => [r.user_id, r.role]))
   return (data as any[])
     .filter((p) => p.email)
     .map((p) => ({
       user_id: p.id,
       email: p.email as string,
       display_name: p.display_name as string,
-      role: (p.user_roles?.[0]?.role as Recipient['role']) ?? 'crew',
+      role: (rmap.get(p.id) as Recipient['role']) ?? 'crew',
     }))
 }
 
