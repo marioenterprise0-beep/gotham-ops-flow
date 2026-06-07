@@ -23,6 +23,7 @@ import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as IntegrityRouteImport } from './routes/integrity'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
@@ -103,6 +104,11 @@ const InventoryRoute = InventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IntegrityRoute = IntegrityRouteImport.update({
+  id: '/integrity',
+  path: '/integrity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HospitalityRoute = HospitalityRouteImport.update({
   id: '/hospitality',
   path: '/hospitality',
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/change-log': typeof ChangeLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/health'
     | '/hospitality'
+    | '/integrity'
     | '/inventory'
     | '/labor'
     | '/manager'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/health'
     | '/hospitality'
+    | '/integrity'
     | '/inventory'
     | '/labor'
     | '/manager'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/health'
     | '/hospitality'
+    | '/integrity'
     | '/inventory'
     | '/labor'
     | '/manager'
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   ChangeLogRoute: typeof ChangeLogRoute
   HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
+  IntegrityRoute: typeof IntegrityRoute
   InventoryRoute: typeof InventoryRoute
   LaborRoute: typeof LaborRoute
   ManagerRoute: typeof ManagerRoute
@@ -429,6 +442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/integrity': {
+      id: '/integrity'
+      path: '/integrity'
+      fullPath: '/integrity'
+      preLoaderRoute: typeof IntegrityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hospitality': {
       id: '/hospitality'
       path: '/hospitality'
@@ -505,6 +525,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChangeLogRoute: ChangeLogRoute,
   HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
+  IntegrityRoute: IntegrityRoute,
   InventoryRoute: InventoryRoute,
   LaborRoute: LaborRoute,
   ManagerRoute: ManagerRoute,
