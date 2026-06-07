@@ -1,17 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { requireManager as requireManagerRole, requireOwner as requireOwnerRole, requireTabAccess } from "./auth-guards";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const SEGMENT = z.enum(["open", "mid", "close", "custom"]);
 
 async function requireManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
-  if (!data) throw new Error("Manager access required");
+  await requireManagerRole(supabase, userId);
+  await requireTabAccess(supabase, userId, "schedule", "edit");
 }
 async function requireOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
-  if (!data) throw new Error("Owner access required");
+  await requireOwnerRole(supabase, userId);
 }
 
 export const listSchedules = createServerFn({ method: "GET" })
