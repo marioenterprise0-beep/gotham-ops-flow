@@ -273,7 +273,7 @@ export const openShift = createServerFn({ method: "POST" })
     if (!required.includes(data.phase)) required.push(data.phase);
     let totalSeeded = 0;
     for (const ph of required) {
-      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, trailerId, ph);
+      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, trailerId, ph, userId, existing ? "reopen_shift" : "open_shift");
     }
 
     await supabase.from("audit_log").insert({
@@ -300,7 +300,7 @@ export const reopenShift = createServerFn({ method: "POST" })
     if (error) throw error;
     let totalSeeded = 0;
     for (const ph of ["opening", "closing"] as const) {
-      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, shift.trailer_id ?? null, ph);
+      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, shift.trailer_id ?? null, ph, userId, "reopen_shift");
     }
     await supabase.from("audit_log").insert({
       actor_id: userId,
