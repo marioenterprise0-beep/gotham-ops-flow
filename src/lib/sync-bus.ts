@@ -52,6 +52,7 @@ const MAP: Record<SyncDomain, string[][]> = {
   hospitality:  [["hospitality"], ["dashboard-stats"]],
   history:      [["change-log"], ["audit-log"], ["access-logs"]],
   dashboard:    [["dashboard-stats"]],
+  integrity:    [["integrity-sweep"]],
 };
 
 export function syncDomains(qc: QueryClient, ...domains: SyncDomain[]) {
