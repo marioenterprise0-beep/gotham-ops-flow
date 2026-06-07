@@ -124,7 +124,7 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
     await sb
       .from('alerts')
       .update({
-        email_status: enqueued > 0 ? 'pending' : 'skipped',
+        email_status: enqueued > 0 ? 'queued' : 'skipped',
         email_template: input.templateName,
       })
       .eq('id', input.alertId)
