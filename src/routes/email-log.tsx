@@ -57,6 +57,16 @@ function EmailLogPage() {
 
   const templates = Array.from(new Set(rows.map((r: any) => r.template_name))).sort();
 
+  const resend = useMutation({
+    mutationFn: (logId: string) => resendFn({ data: { logId } }),
+    onSuccess: () => {
+      toast.success("Re-queued for delivery");
+      qc.invalidateQueries({ queryKey: ["email-log"] });
+      qc.invalidateQueries({ queryKey: ["email-stats"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Resend failed"),
+  });
+
   return (
     <AppShell>
       <SectionHeader eyebrow="Notifications" title="Email Delivery Log" />
