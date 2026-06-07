@@ -135,12 +135,17 @@ function RootComponent() {
 
 function AuthSyncBridge() {
   const { queryClient } = Route.useRouteContext();
-  if (typeof window === "undefined") return null;
-  // Lazy single-mount: refresh every cached query when identity changes so
-  // dashboards, permissions, and modules can never drift after sign-in / sign-out.
-  // Kept narrow to identity transitions to avoid thrash on TOKEN_REFRESHED.
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useAuthSync(queryClient);
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        queryClient.invalidateQueries();
+      } else if (event === "SIGNED_OUT") {
+        queryClient.clear();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [queryClient]);
   return null;
 }
+
 
