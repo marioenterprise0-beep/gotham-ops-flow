@@ -105,6 +105,8 @@ function Settings() {
         </>
       )}
 
+      <NotificationsPanel />
+
       {roleId === "owner" && <AutomationPanel />}
 
       <SectionHeader eyebrow="Session" title="Sign out" />
