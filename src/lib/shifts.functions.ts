@@ -205,6 +205,32 @@ export const getActiveShift = createServerFn({ method: "GET" })
     return { shift, store, trailerId };
   });
 
+async function seedPhaseIfMissing(
+  supabase: any,
+  shiftId: string,
+  trailerId: string | null,
+  phase: "opening" | "mid" | "closing" | "emergency",
+) {
+  const { count } = await supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("shift_id", shiftId)
+    .eq("phase", phase);
+  if ((count ?? 0) > 0) return 0;
+  const rows = TEMPLATES[phase].map((t) => ({
+    shift_id: shiftId,
+    phase,
+    title: t.title,
+    description: t.section,
+    assignee_role: t.assignee_role,
+    requires_signoff: t.requires_signoff,
+    status: "todo" as const,
+    trailer_id: trailerId,
+  }));
+  await supabase.from("tasks").insert(rows);
+  return rows.length;
+}
+
 export const openShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -221,21 +247,57 @@ export const openShift = createServerFn({ method: "POST" })
     const { data: existing } = await supabase
       .from("shifts").select("*")
       .eq("trailer_id", trailerId).eq("status", "active").maybeSingle();
-    if (existing) return existing;
 
+    let shift = existing;
+    if (!shift) {
+      const { data: created, error } = await supabase
+        .from("shifts").insert({ store_id: store.id, trailer_id: trailerId, phase: data.phase, opened_by: userId, status: "active" })
+        .select().single();
+      if (error) throw error;
+      shift = created;
+    }
+
+    // Opening + Closing checklists are mandatory every shift; seed the current phase too.
+    const required: Array<"opening" | "mid" | "closing" | "emergency"> = ["opening", "closing"];
+    if (!required.includes(data.phase)) required.push(data.phase);
+    let totalSeeded = 0;
+    for (const ph of required) {
+      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, trailerId, ph);
+    }
+
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: existing ? "reopen_shift" : "open_shift",
+      entity: "shift",
+      entity_id: shift.id,
+      payload: { phase: data.phase, trailer_id: trailerId, seeded: totalSeeded, reused: !!existing },
+    });
+    return shift;
+  });
+
+export const reopenShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { data: shift, error } = await supabase
-      .from("shifts").insert({ store_id: store.id, trailer_id: trailerId, phase: data.phase, opened_by: userId, status: "active" })
-      .select().single();
+      .from("shifts")
+      .update({ status: "active", closed_at: null, closed_by: null })
+      .eq("id", data.shiftId)
+      .select()
+      .single();
     if (error) throw error;
-
-    const tasks = TEMPLATES[data.phase].map((t) => ({
-      shift_id: shift.id, phase: data.phase, title: t.title, description: t.section,
-      assignee_role: t.assignee_role, requires_signoff: t.requires_signoff, status: "todo" as const,
-      trailer_id: trailerId,
-    }));
-    await supabase.from("tasks").insert(tasks);
-
-    await supabase.from("audit_log").insert({ actor_id: userId, action: "open_shift", entity: "shift", entity_id: shift.id, payload: { phase: data.phase, trailer_id: trailerId } });
+    let totalSeeded = 0;
+    for (const ph of ["opening", "closing"] as const) {
+      totalSeeded += await seedPhaseIfMissing(supabase, shift.id, shift.trailer_id ?? null, ph);
+    }
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "reopen_shift",
+      entity: "shift",
+      entity_id: shift.id,
+      payload: { seeded: totalSeeded },
+    });
     return shift;
   });
 
