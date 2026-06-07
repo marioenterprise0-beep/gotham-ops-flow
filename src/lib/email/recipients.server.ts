@@ -33,17 +33,24 @@ export type Category =
 
 async function fetchProfilesByRole(role: string): Promise<Recipient[]> {
   const sb = admin()
-  const { data, error } = await sb
+  const { data: roles, error } = await sb
     .from('user_roles')
-    .select('user_id, role, profiles!inner(id, display_name, email, active)')
+    .select('user_id, role')
     .eq('role', role)
-  if (error || !data) return []
-  return (data as any[])
-    .filter((r) => r.profiles?.active && r.profiles?.email)
-    .map((r) => ({
+  if (error || !roles || roles.length === 0) return []
+  const ids = (roles as any[]).map((r) => r.user_id)
+  const { data: profiles } = await sb
+    .from('profiles')
+    .select('id, display_name, email, active')
+    .in('id', ids)
+  const pmap = new Map((profiles ?? []).map((p: any) => [p.id, p]))
+  return (roles as any[])
+    .map((r) => ({ r, p: pmap.get(r.user_id) }))
+    .filter(({ p }) => p?.active && p?.email)
+    .map(({ r, p }) => ({
       user_id: r.user_id,
-      email: r.profiles.email as string,
-      display_name: r.profiles.display_name as string,
+      email: p.email as string,
+      display_name: p.display_name as string,
       role: r.role as Recipient['role'],
     }))
 }
