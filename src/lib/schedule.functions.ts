@@ -367,6 +367,7 @@ export const generateCoverage = createServerFn({ method: "POST" })
       .map((s) => ({
         schedule_id: data.scheduleId,
         employee_id: null,
+        trailer_id: sched.trailer_id ?? null,
         role: s.role,
         segment: s.segment,
         shift_date: d,
