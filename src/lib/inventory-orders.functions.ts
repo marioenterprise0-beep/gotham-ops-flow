@@ -139,6 +139,8 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isOwner, isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "order-guide", "edit");
+
 
     const { data: order, error: ge } = await supabase.from("inventory_orders")
       .select("created_by, status").eq("id", data.id).single();
