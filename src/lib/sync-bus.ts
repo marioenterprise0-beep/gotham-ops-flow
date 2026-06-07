@@ -68,6 +68,9 @@ export function syncDomains(qc: QueryClient, ...domains: SyncDomain[]) {
   // Every mutation also bumps history + dashboard summaries.
   if (!domains.includes("history")) qc.invalidateQueries({ queryKey: ["change-log"] });
   if (!domains.includes("dashboard")) qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+  // Every mutation also flags the data-integrity sweep as stale so the
+  // owner's diagnostics page reflects current cross-model consistency.
+  if (!domains.includes("integrity")) qc.invalidateQueries({ queryKey: ["integrity-sweep"] });
 }
 
 /** Refresh literally everything — use sparingly (sign-in, role change, big imports). */
