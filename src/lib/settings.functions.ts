@@ -34,9 +34,8 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    const isMgr = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
-    if (!isMgr) throw new Error("Manager role required");
+    await requireManager(supabase, userId);
+    await requireTabAccess(supabase, userId, "settings", "edit");
     const { error } = await supabase.from("stores").update({ name: data.name, location: data.location ?? null }).eq("id", data.storeId);
     if (error) throw error;
     return { ok: true };
