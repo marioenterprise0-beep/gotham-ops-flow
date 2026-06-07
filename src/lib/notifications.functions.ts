@@ -43,7 +43,7 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .maybeSingle();
     if (error) throw error;
-    if (data) return data as NotificationPreferences;
+    if (data) return data as unknown as NotificationPreferences;
     return {
       user_id: userId,
       email_enabled: true,
@@ -93,7 +93,7 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         .select()
         .single();
       if (error) throw error;
-      return row as NotificationPreferences;
+      return row as unknown as NotificationPreferences;
     }
     const { data: row, error } = await supabase
       .from("notification_preferences")
@@ -101,7 +101,7 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
       .select()
       .single();
     if (error) throw error;
-    return row as NotificationPreferences;
+    return row as unknown as NotificationPreferences;
   });
 
 export type EmailLogRow = {
