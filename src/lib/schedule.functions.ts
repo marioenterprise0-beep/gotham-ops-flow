@@ -327,7 +327,9 @@ export const duplicateShift = createServerFn({ method: "POST" })
     return saved;
   });
 
-// Auto-coverage: for each day of the schedule, create one open/mid/close unassigned shift.
+// Auto-coverage: for each day of the schedule, ensure one open/mid/close
+// unassigned shift exists. Existing matching shifts are kept so the button
+// is safe to click repeatedly without piling up duplicates.
 export const generateCoverage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ scheduleId: z.string().uuid() }).parse(d))
@@ -348,18 +350,33 @@ export const generateCoverage = createServerFn({ method: "POST" })
       { segment: "mid" as const, start_time: "11:00", end_time: "19:00", role: "cashier" as const },
       { segment: "close" as const, start_time: "16:00", end_time: "23:00", role: "grill" as const },
     ];
-    const rows = days.flatMap((d) => segs.map((s) => ({
-      schedule_id: data.scheduleId,
-      employee_id: null,
-      role: s.role,
-      segment: s.segment,
-      shift_date: d,
-      start_time: s.start_time,
-      end_time: s.end_time,
-      break_minutes: 30,
-      created_by: userId,
-    })));
+
+    // Skip combinations that already have an unassigned shift for the same
+    // date + segment so repeat clicks don't create duplicates.
+    const { data: existing } = await supabase
+      .from("schedule_shifts")
+      .select("shift_date, segment, employee_id")
+      .eq("schedule_id", data.scheduleId)
+      .is("employee_id", null);
+    const taken = new Set<string>((existing ?? []).map((r: any) => `${r.shift_date}|${r.segment}`));
+
+    const rows = days.flatMap((d) => segs
+      .filter((s) => !taken.has(`${d}|${s.segment}`))
+      .map((s) => ({
+        schedule_id: data.scheduleId,
+        employee_id: null,
+        role: s.role,
+        segment: s.segment,
+        shift_date: d,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        break_minutes: 30,
+        created_by: userId,
+      })));
+
+    if (rows.length === 0) return { inserted: 0, skipped: days.length * segs.length };
     const { error } = await supabase.from("schedule_shifts").insert(rows);
     if (error) throw new Error(error.message);
-    return { inserted: rows.length };
+    return { inserted: rows.length, skipped: days.length * segs.length - rows.length };
   });
+
