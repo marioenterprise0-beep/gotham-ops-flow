@@ -290,3 +290,23 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
     });
     return { ok: true, mode: "raw" };
   });
+
+export const getEmailQueueDepths = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
+    if (!isOwner) throw new Error("forbidden");
+    const sb = adminClient();
+    const { data, error } = await sb.rpc("email_queue_depths");
+    if (error) throw error;
+    const out: Record<string, number> = {
+      transactional_emails: 0,
+      auth_emails: 0,
+      transactional_emails_dlq: 0,
+      auth_emails_dlq: 0,
+    };
+    for (const r of (data ?? []) as any[]) out[r.queue_name] = Number(r.depth ?? 0);
+    return out;
+  });
