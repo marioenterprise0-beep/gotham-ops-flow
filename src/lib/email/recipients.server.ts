@@ -3,10 +3,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 
-type AdminClient = ReturnType<typeof createClient>
-
-let _admin: AdminClient | null = null
-function admin(): AdminClient {
+let _admin: any = null
+function admin(): any {
   if (_admin) return _admin
   _admin = createClient(
     process.env.SUPABASE_URL!,

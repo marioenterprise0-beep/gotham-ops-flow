@@ -15,7 +15,7 @@ export const SignupEmail = ({
   recipient,
   confirmationUrl,
 }: SignupEmailProps) => (
-  <BrandLayout preview={`Confirm your email for ${siteName}`} siteName={siteName}>
+  <BrandLayout preview={`Confirm your email for ${siteName}`}>
     <Heading style={styles.h1}>Confirm your email</Heading>
     <Text style={styles.text}>
       Welcome to{' '}

@@ -8,7 +8,7 @@ interface MagicLinkEmailProps {
 }
 
 export const MagicLinkEmail = ({ siteName, confirmationUrl }: MagicLinkEmailProps) => (
-  <BrandLayout preview={`Your login link for ${siteName}`} siteName={siteName}>
+  <BrandLayout preview={`Your login link for ${siteName}`}>
     <Heading style={styles.h1}>Your login link</Heading>
     <Text style={styles.text}>
       Click the button below to sign in to {siteName}. This link will expire shortly for your security.
