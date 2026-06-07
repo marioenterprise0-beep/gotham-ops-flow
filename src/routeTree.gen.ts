@@ -33,6 +33,7 @@ import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
 
 const UsersRoute = UsersRouteImport.update({
@@ -155,6 +156,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyRolloverRoute =
   ApiPublicHooksDailyRolloverRouteImport.update({
     id: '/api/public/hooks/daily-rollover',
@@ -188,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -215,6 +223,7 @@ export interface FileRoutesByTo {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -243,6 +252,7 @@ export interface FileRoutesById {
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
@@ -326,6 +338,7 @@ export interface FileRouteTypes {
     | '/time-clock'
     | '/users'
     | '/api/public/hooks/daily-rollover'
+    | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -354,6 +367,7 @@ export interface RootRouteChildren {
   TimeClockRoute: typeof TimeClockRoute
   UsersRoute: typeof UsersRoute
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -526,6 +540,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-rollover': {
       id: '/api/public/hooks/daily-rollover'
       path: '/api/public/hooks/daily-rollover'
@@ -562,6 +583,7 @@ const rootRouteChildren: RootRouteChildren = {
   TimeClockRoute: TimeClockRoute,
   UsersRoute: UsersRoute,
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
