@@ -573,7 +573,7 @@ function ShiftCard({ shift, status, canEdit, onEdit, onDup }: {
     >
       <div className="flex items-center justify-between gap-1">
         <div className="text-[11px] font-semibold leading-tight">
-          {shift.start_time.slice(0,5)}–{shift.end_time.slice(0,5)}
+          {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)}
         </div>
         {canEdit && (
           <button
