@@ -153,6 +153,18 @@ function AuthPage() {
               className="w-full h-11 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm disabled:opacity-60">
               {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>
+            {needsVerify && (
+              <div className="mt-2 rounded-md border border-border bg-card p-3 text-xs">
+                <div className="text-foreground font-semibold">Verify your email</div>
+                <div className="mt-1 text-muted-foreground">
+                  We sent a verification link to <span className="text-foreground">{needsVerify}</span>. Click it, then sign in.
+                </div>
+                <button type="button" onClick={resendVerification} disabled={busy}
+                  className="mt-2 text-[var(--color-gold)] font-semibold disabled:opacity-60">
+                  Resend verification email
+                </button>
+              </div>
+            )}
           </form>
 
 
