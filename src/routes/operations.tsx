@@ -10,6 +10,7 @@ import { syncDomains } from "@/lib/sync-bus";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
 import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
 import { createActionTask, listCrewRoster } from "@/lib/manager.functions";
+import { getChecklistSession, upsertChecklistSession } from "@/lib/checklist-sessions.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -172,6 +173,8 @@ function Operations() {
         ))}
       </div>
 
+      <ChecklistSessionForm shiftId={shift.id} phase={phase} trailerId={activeTrailer ?? null} />
+
       {isManager && (
         <div className="mt-4">
           {!showAdd ? (
@@ -292,5 +295,148 @@ function Operations() {
 
       <div className="h-6" />
     </AppShell>
+  );
+}
+
+function toLocalInput(v: string | null | undefined): string {
+  if (!v) return "";
+  const d = new Date(v);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fromLocalInput(v: string): string | null {
+  if (!v) return null;
+  return new Date(v).toISOString();
+}
+function minutesBetween(a: string | null, b: string | null): number | null {
+  if (!a || !b) return null;
+  const diff = (new Date(b).getTime() - new Date(a).getTime()) / 60000;
+  return diff > 0 ? Math.round(diff) : null;
+}
+
+const TARGETS: Record<Phase, string> = {
+  opening: "10–15 min",
+  mid: "60–75 min",
+  closing: "35–50 min",
+  emergency: "15–25 min",
+};
+const PHASE_TITLES: Record<Phase, string> = {
+  opening: "Opening Session",
+  mid: "Prep Session",
+  closing: "Closing Session",
+  emergency: "Inventory Check Session",
+};
+
+function ChecklistSessionForm({ shiftId, phase, trailerId }: { shiftId: string; phase: Phase; trailerId: string | null }) {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getChecklistSession);
+  const saveFn = useServerFn(upsertChecklistSession);
+  const { data: session } = useQuery<any>({
+    queryKey: ["checklist-session", shiftId, phase],
+    queryFn: () => getFn({ data: { shiftId, phase } }) as any,
+  });
+
+  const [employee, setEmployee] = useState("");
+  const [manager, setManager] = useState("");
+  const [initials, setInitials] = useState("");
+  const [startAt, setStartAt] = useState("");
+  const [endAt, setEndAt] = useState("");
+  const [notes, setNotes] = useState("");
+  const [hydrated, setHydrated] = useState<string | null>(null);
+
+  if (hydrated !== `${shiftId}|${phase}`) {
+    setEmployee(session?.employee_name ?? "");
+    setManager(session?.manager_name ?? "");
+    setInitials(session?.manager_initials ?? "");
+    setStartAt(toLocalInput(session?.start_at));
+    setEndAt(toLocalInput(session?.end_at));
+    setNotes(session?.notes ?? "");
+    setHydrated(`${shiftId}|${phase}`);
+  }
+
+  const saveM = useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      saveFn({
+        data: {
+          shiftId,
+          phase,
+          trailerId,
+          employeeName: employee.trim() || null,
+          managerName: manager.trim() || null,
+          managerInitials: initials.trim().toUpperCase() || null,
+          startAt: fromLocalInput(startAt),
+          endAt: fromLocalInput(endAt),
+          notes: notes.trim() || null,
+          ...patch,
+        } as any,
+      }),
+    onSuccess: () => {
+      toast.success("Session saved");
+      qc.invalidateQueries({ queryKey: ["checklist-session", shiftId, phase] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const total = minutesBetween(fromLocalInput(startAt), fromLocalInput(endAt));
+
+  return (
+    <Card className="mt-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="label-caps text-muted-foreground">{PHASE_TITLES[phase]}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Target {TARGETS[phase]} · {new Date().toLocaleDateString()}</div>
+        </div>
+        <button
+          onClick={() => {
+            const now = new Date().toISOString();
+            setStartAt(toLocalInput(now));
+            saveM.mutate({ startAt: now });
+          }}
+          className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]"
+        >
+          Stamp start
+        </button>
+      </div>
+      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input value={employee} onChange={(e) => setEmployee(e.target.value)} placeholder="Employee name" maxLength={120}
+          className="bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+        <input value={manager} onChange={(e) => setManager(e.target.value)} placeholder="Manager name" maxLength={120}
+          className="bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          Start time
+          <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)}
+            className="bg-secondary border border-border rounded-md px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--color-gold)]" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+          End time
+          <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)}
+            className="bg-secondary border border-border rounded-md px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--color-gold)]" />
+        </label>
+        <input value={initials} onChange={(e) => setInitials(e.target.value)} placeholder="Manager initials" maxLength={8}
+          className="bg-secondary border border-border rounded-md px-3 py-2 text-sm uppercase tracking-widest outline-none focus:border-[var(--color-gold)]" />
+        <div className="bg-secondary border border-border rounded-md px-3 py-2 text-sm flex items-center justify-between">
+          <span className="text-muted-foreground text-xs">Total minutes</span>
+          <span className="font-semibold">{total ?? "—"}</span>
+        </div>
+      </div>
+      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" maxLength={2000} rows={2}
+        className="mt-2 w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]" />
+      <div className="mt-2 flex gap-2 justify-end">
+        <button
+          onClick={() => {
+            const now = new Date().toISOString();
+            setEndAt(toLocalInput(now));
+            saveM.mutate({ endAt: now });
+          }}
+          className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]"
+        >
+          Stamp end
+        </button>
+        <button onClick={() => saveM.mutate({})} disabled={saveM.isPending}
+          className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-1.5 text-xs font-semibold disabled:opacity-60">
+          {saveM.isPending ? "Saving…" : "Save session"}
+        </button>
+      </div>
+    </Card>
   );
 }

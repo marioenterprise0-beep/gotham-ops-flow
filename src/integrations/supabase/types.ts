@@ -404,6 +404,54 @@ export type Database = {
         }
         Relationships: []
       }
+      checklist_sessions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string | null
+          end_at: string | null
+          id: string
+          manager_initials: string | null
+          manager_name: string | null
+          notes: string | null
+          phase: Database["public"]["Enums"]["shift_phase"]
+          shift_id: string
+          start_at: string | null
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          end_at?: string | null
+          id?: string
+          manager_initials?: string | null
+          manager_name?: string | null
+          notes?: string | null
+          phase: Database["public"]["Enums"]["shift_phase"]
+          shift_id: string
+          start_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          end_at?: string | null
+          id?: string
+          manager_initials?: string | null
+          manager_name?: string | null
+          notes?: string | null
+          phase?: Database["public"]["Enums"]["shift_phase"]
+          shift_id?: string
+          start_at?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_recaps: {
         Row: {
           created_at: string
