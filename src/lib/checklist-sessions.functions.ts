@@ -45,7 +45,7 @@ export const upsertChecklistSession = createServerFn({ method: "POST" })
       .eq("phase", data.phase)
       .maybeSingle();
 
-    const payload: Record<string, unknown> = {
+    const payload = {
       employee_name: data.employeeName ?? null,
       manager_name: data.managerName ?? null,
       manager_initials: data.managerInitials ?? null,
