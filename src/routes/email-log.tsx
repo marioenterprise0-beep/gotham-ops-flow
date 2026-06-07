@@ -118,21 +118,35 @@ function EmailLogPage() {
         {rows.length === 0 && (
           <div className="p-6 text-sm text-muted-foreground text-center">No emails in this window.</div>
         )}
-        {rows.map((r: any, i: number) => (
-          <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
-            <div className="flex items-center justify-between gap-2">
-              <div className="font-medium truncate">{r.subject || r.template_name}</div>
-              <StatusBadge status={r.status} />
+        {rows.map((r: any, i: number) => {
+          const canResend = r.status === "failed" || r.status === "dlq" || r.status === "bounced";
+          return (
+            <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium truncate">{r.subject || r.template_name}</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={r.status} />
+                  {canResend && (
+                    <button
+                      onClick={() => resend.mutate(r.id)}
+                      disabled={resend.isPending}
+                      className="h-6 px-2 rounded text-[10px] font-semibold uppercase tracking-[1px] border border-[var(--color-gold)]/40 text-[var(--color-gold)] hover:bg-[var(--color-gold)]/10 disabled:opacity-50"
+                    >
+                      Resend
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
+                <span className="truncate">{r.template_name} · {r.recipient_email}</span>
+                <span className="shrink-0">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
+              </div>
+              {r.error_message && (
+                <div className="text-xs text-[var(--color-danger)] mt-1 truncate">{r.error_message}</div>
+              )}
             </div>
-            <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
-              <span className="truncate">{r.template_name} · {r.recipient_email}</span>
-              <span className="shrink-0">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
-            </div>
-            {r.error_message && (
-              <div className="text-xs text-[var(--color-danger)] mt-1 truncate">{r.error_message}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </Card>
 
       <div className="h-6" />
