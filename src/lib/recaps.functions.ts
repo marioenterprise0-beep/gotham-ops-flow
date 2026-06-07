@@ -70,6 +70,7 @@ export const saveRecap = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
+    await requireTabAccess(supabase, userId, "recaps", "edit");
 
     const row = toRow(data, userId);
 
