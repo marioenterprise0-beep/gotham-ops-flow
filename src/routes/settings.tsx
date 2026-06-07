@@ -116,3 +116,112 @@ function Settings() {
     </AppShell>
   );
 }
+
+function AutomationPanel() {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getAutomationSettings);
+  const saveFn = useServerFn(updateAutomationSettings);
+  const runsFn = useServerFn(listRolloverRuns);
+  const { data: settings } = useQuery({ queryKey: ["automation-settings"], queryFn: () => getFn() });
+  const { data: runs = [] } = useQuery<any[]>({
+    queryKey: ["rollover-runs"],
+    queryFn: () => runsFn({ data: { limit: 10 } }) as any,
+  });
+
+  const save = useMutation({
+    mutationFn: (patch: Record<string, unknown>) => saveFn({ data: patch as any }),
+    onSuccess: () => { toast.success("Automation updated"); qc.invalidateQueries({ queryKey: ["automation-settings"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!settings) return null;
+
+  return (
+    <>
+      <SectionHeader eyebrow="Automation" title="Daily Rollover & Approvals" />
+      <Card>
+        <div className="space-y-4">
+          <ToggleRow
+            label="Daily rollover"
+            help="At each trailer's local rollover hour, close active shifts, mark incomplete checklist items missed, auto clock-out open punches, and archive old resolved alerts. History is preserved."
+            checked={settings.rollover_enabled}
+            onChange={(v) => save.mutate({ rolloverEnabled: v })}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Rollover hour (trailer local time)</div>
+              <div className="text-xs text-muted-foreground">Runs every 15 minutes; fires once when local hour matches.</div>
+            </div>
+            <select
+              value={settings.rollover_hour}
+              onChange={(e) => save.mutate({ rolloverHour: Number(e.target.value) })}
+              className="h-10 rounded-md border border-border bg-card px-3 text-sm"
+            >
+              {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                <option key={h} value={h}>{new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric", hour12: true })}</option>
+              ))}
+            </select>
+          </div>
+          <ToggleRow
+            label="Auto clock-out at rollover"
+            help="If an employee is still on the clock at rollover, stamp them out and mark the punch as auto closed."
+            checked={settings.auto_clock_out_enabled}
+            onChange={(v) => save.mutate({ autoClockOutEnabled: v })}
+          />
+          <ToggleRow
+            label="Manager self-approval (schedules)"
+            help="When on, managers can approve and publish their own schedules without owner sign-off."
+            checked={settings.manager_self_approval}
+            onChange={(v) => save.mutate({ managerSelfApproval: v })}
+          />
+          <ToggleRow
+            label="Email notifications"
+            help="Master switch for outgoing emails (schedules, approvals, alerts). Defaults to on."
+            checked={settings.email_enabled}
+            onChange={(v) => save.mutate({ emailEnabled: v })}
+          />
+        </div>
+      </Card>
+
+      <SectionHeader eyebrow="History" title="Recent Rollover Runs" />
+      <Card className="p-0 overflow-hidden">
+        {runs.length === 0 && (
+          <div className="p-4 text-sm text-muted-foreground text-center">No rollovers yet. The dispatcher runs every 15 minutes.</div>
+        )}
+        {runs.map((r: any, i: number) => (
+          <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="font-medium inline-flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-[var(--color-gold)]" />
+                {new Date(r.ran_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+              </div>
+              <div className="text-xs text-muted-foreground">{r.notes ?? "ok"}</div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              shifts {r.shifts_closed} · punches {r.punches_auto_closed} · tasks missed {r.tasks_missed} · alerts archived {r.alerts_archived}
+            </div>
+          </div>
+        ))}
+      </Card>
+    </>
+  );
+}
+
+function ToggleRow({ label, help, checked, onChange }: { label: string; help: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold">{label}</div>
+        <div className="text-xs text-muted-foreground">{help}</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 rounded-full border transition shrink-0 ${checked ? "bg-[var(--color-gold)] border-[var(--color-gold)]" : "bg-card border-border"}`}
+        aria-pressed={checked}
+      >
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
+      </button>
+    </div>
+  );
+}
