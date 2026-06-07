@@ -77,7 +77,6 @@ function EmailLogPage() {
     <AppShell>
       <SectionHeader eyebrow="Notifications" title="Email Delivery Log" />
 
-      <SectionHeader eyebrow="Notifications" title="Email Delivery Log" />
 
       {depths && (depths.transactional_emails_dlq + depths.auth_emails_dlq > 0 ||
         depths.transactional_emails + depths.auth_emails > 50) && (
