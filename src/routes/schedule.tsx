@@ -339,8 +339,13 @@ function ScheduleBoard({ scheduleId, startStr, endStr, filterRole, isOwner, isMg
   });
   const genMut = useMutation({
     mutationFn: () => gen({ data: { scheduleId } }),
-    onSuccess: (r: any) => { toast.success(`Generated ${r.inserted} shifts`); invalidate(); },
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: (r: any) => {
+      if (r.inserted > 0) toast.success(`Generated ${r.inserted} open shift${r.inserted === 1 ? "" : "s"}`);
+      else toast.info("Coverage already in place — no new shifts to add");
+      invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Generate coverage failed"),
   });
 
   const schedule = data?.schedule;
