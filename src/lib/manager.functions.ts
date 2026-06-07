@@ -15,7 +15,8 @@ export const getManagerOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
 
     const { data: store } = await supabase
       .from("stores").select("id, name").order("created_at").limit(1).maybeSingle();

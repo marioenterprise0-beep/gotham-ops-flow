@@ -14,6 +14,24 @@ async function resolveTrailer(supabase: any, userId: string, trailerId?: string 
   return profile?.trailer_id ?? null;
 }
 
+// Crew mutation gate for inventory_items writes that happen via admin client:
+// the caller must have inventory tab access AND the item must belong to the
+// caller's own trailer (managers bypass the trailer check).
+async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: string) {
+  await requireTabAccess(supabase, userId, "inventory", "edit");
+  const [{ data: profile }, { data: item }, { data: roleRows }] = await Promise.all([
+    supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
+    supabase.from("inventory_items").select("trailer_id").eq("id", itemId).maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+  ]);
+  const isManager = (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
+  if (isManager) return;
+  if (!item) throw new Error("Inventory item not found");
+  if (!profile?.trailer_id || profile.trailer_id !== item.trailer_id) {
+    throw new Error("Not authorized for this trailer's inventory");
+  }
+}
+
 const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "packaging", "supplies"] as const;
 
 export const listInventory = createServerFn({ method: "GET" })

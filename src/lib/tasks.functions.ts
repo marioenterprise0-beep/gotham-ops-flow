@@ -78,6 +78,27 @@ export const completeTask = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    // Authorization: caller must be the direct assignee, hold the task's
+    // assignee_role at the same trailer, or be a manager.
+    const { data: task0, error: te } = await supabase.from("tasks")
+      .select("id, assignee_user_id, assignee_role, trailer_id").eq("id", data.taskId).maybeSingle();
+    if (te) throw te;
+    if (!task0) throw new Error("Task not found");
+    const [{ data: profile }, { data: roleRows }] = await Promise.all([
+      supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+    ]);
+    const myRoles = (roleRows ?? []).map((r: any) => r.role as string);
+    const isManager = myRoles.some((r) => r === "owner" || r === "manager");
+    const directAssignee = task0.assignee_user_id === userId;
+    const roleMatchSameTrailer =
+      !task0.assignee_user_id
+      && !!task0.assignee_role
+      && myRoles.includes(task0.assignee_role)
+      && (!task0.trailer_id || task0.trailer_id === profile?.trailer_id);
+    if (!directAssignee && !roleMatchSameTrailer && !isManager) {
+      throw new Error("Not authorized to complete this task");
+    }
     const { data: task, error } = await supabase.from("tasks").update({
       status: "done",
       owner_id: userId,
@@ -120,7 +141,11 @@ export const signOffTask = createServerFn({ method: "POST" })
 export const listPendingApprovals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isManager = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
+    if (!isManager) throw new Error("Manager role required");
+    const { data, error } = await supabase
       .from("tasks").select("*")
       .eq("status", "done").eq("requires_signoff", true)
       .order("completed_at", { ascending: false }).limit(50);

@@ -59,6 +59,7 @@ export const addCashDrawer = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { error } = await supabase.from("cash_drawers").insert({
       trailer_id: data.trailerId,
       name: data.name,
@@ -73,6 +74,7 @@ export const toggleCashDrawer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ drawerId: z.string().uuid(), enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireManager(context.supabase, context.userId);
     const { error } = await context.supabase
       .from("cash_drawers").update({ enabled: data.enabled }).eq("id", data.drawerId);
     if (error) throw error;

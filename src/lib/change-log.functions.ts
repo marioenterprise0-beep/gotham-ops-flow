@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 export type ChangeLogRow = {
   id: string;
@@ -40,16 +41,16 @@ export const listChangeLog = createServerFn({ method: "GET" })
 
 export const recordChange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: {
-    entity: string;
-    action: string;
-    entity_id?: string | null;
-    summary?: string | null;
-    before?: any;
-    after?: any;
-    reason?: string | null;
-    trailer_id?: string | null;
-  }) => d)
+  .inputValidator((d) => z.object({
+    entity: z.string().min(1).max(80).regex(/^[a-zA-Z0-9_-]+$/),
+    action: z.string().min(1).max(80).regex(/^[a-zA-Z0-9_.-]+$/),
+    entity_id: z.string().uuid().nullable().optional(),
+    summary: z.string().max(2000).nullable().optional(),
+    before: z.any().optional(),
+    after: z.any().optional(),
+    reason: z.string().max(2000).nullable().optional(),
+    trailer_id: z.string().uuid().nullable().optional(),
+  }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
