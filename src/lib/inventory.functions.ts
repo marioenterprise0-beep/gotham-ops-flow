@@ -14,6 +14,24 @@ async function resolveTrailer(supabase: any, userId: string, trailerId?: string 
   return profile?.trailer_id ?? null;
 }
 
+// Crew mutation gate for inventory_items writes that happen via admin client:
+// the caller must have inventory tab access AND the item must belong to the
+// caller's own trailer (managers bypass the trailer check).
+async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: string) {
+  await requireTabAccess(supabase, userId, "inventory", "edit");
+  const [{ data: profile }, { data: item }, { data: roleRows }] = await Promise.all([
+    supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
+    supabase.from("inventory_items").select("trailer_id").eq("id", itemId).maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+  ]);
+  const isManager = (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
+  if (isManager) return;
+  if (!item) throw new Error("Inventory item not found");
+  if (!profile?.trailer_id || profile.trailer_id !== item.trailer_id) {
+    throw new Error("Not authorized for this trailer's inventory");
+  }
+}
+
 const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "packaging", "supplies"] as const;
 
 export const listInventory = createServerFn({ method: "GET" })
@@ -135,6 +153,7 @@ export const receiveStock = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: receipt, error } = await supabase.from("inventory_receipts").insert({
       item_id: data.itemId, qty: data.qty, supplier: data.supplier ?? null, notes: data.notes ?? null, received_by: userId,
     }).select().single();
@@ -162,6 +181,7 @@ export const logWaste = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: item } = await supabase.from("inventory_items").select("current_qty, trailer_id").eq("id", data.itemId).single();
     const { data: row, error } = await supabase.from("waste_log").insert({
       item_id: data.itemId, qty: data.qty, reason: data.reason, photo_url: data.photoUrl ?? null, logged_by: userId,
@@ -188,6 +208,7 @@ export const submitCount = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await assertCrewTrailerAccess(supabase, userId, data.itemId);
     const { data: item } = await supabase.from("inventory_items").select("current_qty, trailer_id").eq("id", data.itemId).single();
     const expected = item ? Number(item.current_qty) : null;
     const variance = expected === null ? null : data.countQty - expected;

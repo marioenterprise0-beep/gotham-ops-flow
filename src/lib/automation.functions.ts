@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager, requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 
 export type AutomationSettings = {
@@ -16,7 +17,8 @@ export type AutomationSettings = {
 export const getAutomationSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { data, error } = await supabase
       .from("automation_settings")
       .select("*")
@@ -41,6 +43,7 @@ export const updateAutomationSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
     const patch: Record<string, unknown> = { updated_by: userId };
     if (data.rolloverEnabled !== undefined) patch.rollover_enabled = data.rolloverEnabled;
     if (data.rolloverHour !== undefined) patch.rollover_hour = data.rolloverHour;
