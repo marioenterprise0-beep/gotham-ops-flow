@@ -1870,6 +1870,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_user_trailer: { Args: never; Returns: string }
+      dispatch_daily_rollover: { Args: { _now?: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1879,6 +1880,26 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       payroll_week_start: { Args: { _d: string }; Returns: string }
+      run_daily_rollover: {
+        Args: { _as_of?: string; _trailer_id: string }
+        Returns: {
+          alerts_archived: number
+          as_of: string
+          id: string
+          notes: string | null
+          punches_auto_closed: number
+          ran_at: string
+          shifts_closed: number
+          tasks_missed: number
+          trailer_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "rollover_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       alert_action_kind:
