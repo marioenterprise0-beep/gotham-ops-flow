@@ -22,9 +22,9 @@ export const Route = createFileRoute('/api/public/hooks/email-qa-selftest')({
     handlers: {
       POST: async ({ request }) => {
         const expected = process.env.ROLLOVER_DISPATCH_KEY
-        if (expected) {
-          const provided = request.headers.get('x-qa-key') ?? request.headers.get('x-rollover-key')
-          if (provided !== expected) return new Response('Unauthorized', { status: 401 })
+        const provided = request.headers.get('x-qa-key') ?? request.headers.get('x-rollover-key')
+        if (!expected || provided !== expected) {
+          return new Response('Unauthorized', { status: 401 })
         }
 
         const url = new URL(request.url)
