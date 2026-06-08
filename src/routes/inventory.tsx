@@ -49,7 +49,9 @@ function statusTone(s: Status) {
 function Inventory() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers, session, loading } = useRole();
+  const isOwner = roleId === "owner";
   const isManager = roleId === "owner" || roleId === "manager";
+  const canPropose = !!session?.access_token;
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory", trailerScope ?? "company"],
