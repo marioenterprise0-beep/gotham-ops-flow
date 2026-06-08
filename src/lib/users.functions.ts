@@ -219,9 +219,10 @@ export const setUserActive = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireSuperAdmin(supabase, userId);
-    const { error } = await supabase.from("profiles").update({ active: data.active }).eq("id", data.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("profiles").update({ active: data.active }).eq("id", data.userId);
     if (error) throw new Error(error.message);
-    await supabase.from("access_log").insert({
+    await supabaseAdmin.from("access_log").insert({
       user_id: data.userId, event: data.active ? "access_restored" : "access_revoked",
       payload: { by: userId },
     });
