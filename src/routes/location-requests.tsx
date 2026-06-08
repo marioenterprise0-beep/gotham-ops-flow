@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { Check, X, MapPin } from "lucide-react";
+import { Check, X, MapPin, Clock, Ban } from "lucide-react";
 import { toast } from "sonner";
 import {
   listLocationRequests,
   approveLocationRequest,
   declineLocationRequest,
+  listActiveLocationGrants,
+  revokeLocationGrant,
 } from "@/lib/location-access.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
