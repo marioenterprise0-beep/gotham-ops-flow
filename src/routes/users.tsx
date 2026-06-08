@@ -8,7 +8,7 @@ import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
-  listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs,
+  listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
 import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
@@ -109,9 +109,12 @@ function UsersTab() {
   const setActiveFn = useServerFn(setUserActive);
   const fetchPerms = useServerFn(listAllTabPermissions);
   const setPermFn = useServerFn(setTabPermission);
+  const fetchSuper = useServerFn(amISuperAdmin);
 
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
+  const { data: superData } = useQuery({ queryKey: ["am-i-super-admin"], queryFn: () => fetchSuper() });
+  const isSuperAdmin = !!superData?.isSuperAdmin;
   const { data: permData } = useQuery({
     queryKey: ["all-tab-permissions"],
     queryFn: () => fetchPerms() as Promise<any>,
@@ -185,10 +188,12 @@ function UsersTab() {
                   {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
                 <div><StatusPill tone={u.active ? "success" : "danger"}>{u.active ? "Active" : "Disabled"}</StatusPill></div>
-                <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
-                  {u.active ? "Disable" : "Restore"}
-                </button>
+                {isSuperAdmin ? (
+                  <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
+                    {u.active ? "Disable" : "Restore"}
+                  </button>
+                ) : <div />}
                 {isOwner ? (
                   <button onClick={() => setOpenId(open ? null : u.id)}
                     className={cn(
