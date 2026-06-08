@@ -110,7 +110,18 @@ export const clockIn = createServerFn({ method: "POST" })
       status: "open",
       device_info: Object.keys(deviceInfo).length ? deviceInfo : null,
     }).select("*").single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (
+        error.message.includes("You are too far from") ||
+        error.message.includes("Location required to clock in")
+      ) {
+        return {
+          ok: false as const,
+          message: error.message,
+        };
+      }
+      throw new Error(error.message);
+    }
     return {
       ok: true as const,
       punch: row,
