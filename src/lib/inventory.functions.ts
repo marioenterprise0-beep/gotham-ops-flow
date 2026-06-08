@@ -73,7 +73,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
     if (!store) throw new Error("No store configured");
     const trailerId = await resolveTrailer(supabase, userId, data.trailerId);
@@ -125,7 +125,7 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
     const { error } = await supabase.from("inventory_items").update(patch).eq("id", data.id);
     if (error) throw error;
@@ -141,7 +141,7 @@ export const deleteInventoryItem = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("inventory_items").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
