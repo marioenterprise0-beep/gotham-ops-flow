@@ -180,7 +180,7 @@ export const listRoleEmailPolicies = createServerFn({ method: "GET" })
       .from("role_email_policies" as any)
       .select("role, category, enabled");
     if (error) throw error;
-    return { policies: (data ?? []) as { role: string; category: string; enabled: boolean }[] };
+    return { policies: ((data ?? []) as unknown) as { role: string; category: string; enabled: boolean }[] };
   });
 
 export const setRoleEmailPolicy = createServerFn({ method: "POST" })
