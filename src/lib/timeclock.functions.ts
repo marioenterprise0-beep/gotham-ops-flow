@@ -27,11 +27,25 @@ export const getMyActivePunch = createServerFn({ method: "GET" })
     return data;
   });
 
+// Haversine distance in meters between two lat/lng points.
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
 export const clockIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
     deviceInfo: z.record(z.string(), z.any()).optional(),
     scheduleShiftId: z.string().uuid().optional().nullable(),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    accuracy: z.number().min(0).max(100000).optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -40,8 +54,31 @@ export const clockIn = createServerFn({ method: "POST" })
     const { data: open } = await supabase.from("time_punches")
       .select("id").eq("employee_id", userId).eq("status", "open").limit(1).maybeSingle();
     if (open) throw new Error("You are already clocked in.");
-    // Auto-link to today's scheduled shift when caller didn't pass one,
-    // so weekly hours and labor dashboards can match punches to shifts.
+
+    // Geofence: when the trailer has coordinates configured, require the
+    // caller to be within geofence_radius_m of the trailer. The server
+    // re-checks distance so a tampered client can't bypass the limit.
+    const trailerId = profile?.trailer_id ?? null;
+    if (trailerId) {
+      const { data: trailer } = await supabase.from("trailers")
+        .select("geofence_lat, geofence_lng, geofence_radius_m, name")
+        .eq("id", trailerId).maybeSingle();
+      if (trailer?.geofence_lat != null && trailer?.geofence_lng != null) {
+        if (data.lat == null || data.lng == null) {
+          throw new Error("Location required to clock in. Enable location access and try again.");
+        }
+        const radius = trailer.geofence_radius_m ?? 25;
+        const dist = distanceMeters(data.lat, data.lng, trailer.geofence_lat, trailer.geofence_lng);
+        // Allow GPS accuracy (capped) as edge tolerance so a good reading near the boundary isn't rejected.
+        const tolerance = Math.min(50, data.accuracy ?? 0);
+        if (dist - tolerance > radius) {
+          throw new Error(
+            `You are too far from ${trailer.name ?? "the trailer"} (${Math.round(dist)} m away, must be within ${radius} m). Clock in once you arrive.`
+          );
+        }
+      }
+    }
+
     let scheduleShiftId = data.scheduleShiftId ?? null;
     if (!scheduleShiftId) {
       const today = new Date().toISOString().slice(0, 10);
@@ -50,16 +87,55 @@ export const clockIn = createServerFn({ method: "POST" })
         .order("start_time").limit(1).maybeSingle();
       if (todaysShift) scheduleShiftId = todaysShift.id;
     }
+    const deviceInfo = {
+      ...(data.deviceInfo ?? {}),
+      ...(data.lat != null && data.lng != null
+        ? { geo: { lat: data.lat, lng: data.lng, accuracy: data.accuracy ?? null } }
+        : {}),
+    };
     const { data: row, error } = await supabase.from("time_punches").insert({
       employee_id: userId,
-      trailer_id: profile?.trailer_id ?? null,
+      trailer_id: trailerId,
       schedule_shift_id: scheduleShiftId,
       clock_in_at: new Date().toISOString(),
       status: "open",
-      device_info: data.deviceInfo ?? null,
+      device_info: Object.keys(deviceInfo).length ? deviceInfo : null,
     }).select("*").single();
     if (error) throw new Error(error.message);
     return row;
+  });
+
+// Owner-only: configure geofence coordinates / radius for a trailer.
+export const setTrailerGeofence = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    trailerId: z.string().uuid(),
+    lat: z.number().min(-90).max(90).nullable(),
+    lng: z.number().min(-180).max(180).nullable(),
+    radiusM: z.number().int().min(10).max(2000).default(25),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    if (!isOwner) throw new Error("Only owners can configure trailer geofences.");
+    const { data: row, error } = await supabase.from("trailers").update({
+      geofence_lat: data.lat,
+      geofence_lng: data.lng,
+      geofence_radius_m: data.radiusM,
+    }).eq("id", data.trailerId).select("id, name, geofence_lat, geofence_lng, geofence_radius_m").single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
+
+export const listTrailerGeofences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase.from("trailers")
+      .select("id, name, geofence_lat, geofence_lng, geofence_radius_m, active")
+      .order("name");
+    if (error) throw new Error(error.message);
+    return data ?? [];
   });
 
 export const clockOut = createServerFn({ method: "POST" })
