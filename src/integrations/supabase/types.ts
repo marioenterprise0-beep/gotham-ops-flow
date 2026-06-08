@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      active_location_grants: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          request_id: string | null
+          trailer_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          request_id?: string | null
+          trailer_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          request_id?: string | null
+          trailer_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_location_grants_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "location_access_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_actions: {
         Row: {
           action: Database["public"]["Enums"]["alert_action_kind"]
@@ -748,6 +783,54 @@ export type Database = {
           },
         ]
       }
+      inventory_change_requests: {
+        Row: {
+          action: Database["public"]["Enums"]["inventory_change_action"]
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          payload: Json
+          reason: string | null
+          requested_by: string
+          status: Database["public"]["Enums"]["inventory_change_status"]
+          target_item_id: string | null
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["inventory_change_action"]
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          payload?: Json
+          reason?: string | null
+          requested_by: string
+          status?: Database["public"]["Enums"]["inventory_change_status"]
+          target_item_id?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["inventory_change_action"]
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          payload?: Json
+          reason?: string | null
+          requested_by?: string
+          status?: Database["public"]["Enums"]["inventory_change_status"]
+          target_item_id?: string | null
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_counts: {
         Row: {
           count_qty: number
@@ -801,12 +884,15 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          archived_at: string | null
           category: Database["public"]["Enums"]["inventory_category"]
           cost_per_unit: number
+          count_instructions: string | null
           created_at: string
           current_qty: number
           estimated_cost: number
           id: string
+          image_url: string | null
           last_ordered_at: string | null
           last_received_at: string | null
           low_threshold: number
@@ -815,6 +901,7 @@ export type Database = {
           pack_size: string | null
           par_level: number
           preferred_order_qty: number
+          storage_location: string | null
           store_id: string
           trailer_id: string | null
           unit: string
@@ -822,12 +909,15 @@ export type Database = {
           vendor: string | null
         }
         Insert: {
+          archived_at?: string | null
           category: Database["public"]["Enums"]["inventory_category"]
           cost_per_unit?: number
+          count_instructions?: string | null
           created_at?: string
           current_qty?: number
           estimated_cost?: number
           id?: string
+          image_url?: string | null
           last_ordered_at?: string | null
           last_received_at?: string | null
           low_threshold?: number
@@ -836,6 +926,7 @@ export type Database = {
           pack_size?: string | null
           par_level?: number
           preferred_order_qty?: number
+          storage_location?: string | null
           store_id: string
           trailer_id?: string | null
           unit?: string
@@ -843,12 +934,15 @@ export type Database = {
           vendor?: string | null
         }
         Update: {
+          archived_at?: string | null
           category?: Database["public"]["Enums"]["inventory_category"]
           cost_per_unit?: number
+          count_instructions?: string | null
           created_at?: string
           current_qty?: number
           estimated_cost?: number
           id?: string
+          image_url?: string | null
           last_ordered_at?: string | null
           last_received_at?: string | null
           low_threshold?: number
@@ -857,6 +951,7 @@ export type Database = {
           pack_size?: string | null
           par_level?: number
           preferred_order_qty?: number
+          storage_location?: string | null
           store_id?: string
           trailer_id?: string | null
           unit?: string
@@ -1074,6 +1169,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      location_access_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          code_expires_at: string | null
+          code_hash: string | null
+          created_at: string
+          current_trailer_id: string | null
+          decision_note: string | null
+          duration_minutes: number
+          id: string
+          reason: string | null
+          requested_by: string
+          requested_trailer_id: string
+          status: Database["public"]["Enums"]["location_request_status"]
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          code_expires_at?: string | null
+          code_hash?: string | null
+          created_at?: string
+          current_trailer_id?: string | null
+          decision_note?: string | null
+          duration_minutes?: number
+          id?: string
+          reason?: string | null
+          requested_by: string
+          requested_trailer_id: string
+          status?: Database["public"]["Enums"]["location_request_status"]
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          code_expires_at?: string | null
+          code_hash?: string | null
+          created_at?: string
+          current_trailer_id?: string | null
+          decision_note?: string | null
+          duration_minutes?: number
+          id?: string
+          reason?: string | null
+          requested_by?: string
+          requested_trailer_id?: string
+          status?: Database["public"]["Enums"]["location_request_status"]
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: []
       }
       notification_preferences: {
         Row: {
@@ -2218,6 +2367,8 @@ export type Database = {
         | "sauce"
         | "packaging"
         | "supplies"
+      inventory_change_action: "create" | "update" | "delete" | "archive"
+      inventory_change_status: "pending" | "approved" | "declined" | "cancelled"
       inventory_order_status:
         | "draft"
         | "submitted"
@@ -2233,6 +2384,13 @@ export type Database = {
         | "needed_soon"
         | "critical"
         | "emergency"
+      location_request_status:
+        | "pending"
+        | "approved"
+        | "declined"
+        | "cancelled"
+        | "used"
+        | "expired"
       punch_status: "open" | "closed" | "edited" | "voided" | "auto_closed"
       recap_status: "draft" | "submitted" | "reviewed" | "archived"
       request_status: "pending" | "approved" | "declined" | "info_requested"
@@ -2446,6 +2604,8 @@ export const Constants = {
         "packaging",
         "supplies",
       ],
+      inventory_change_action: ["create", "update", "delete", "archive"],
+      inventory_change_status: ["pending", "approved", "declined", "cancelled"],
       inventory_order_status: [
         "draft",
         "submitted",
@@ -2462,6 +2622,14 @@ export const Constants = {
         "needed_soon",
         "critical",
         "emergency",
+      ],
+      location_request_status: [
+        "pending",
+        "approved",
+        "declined",
+        "cancelled",
+        "used",
+        "expired",
       ],
       punch_status: ["open", "closed", "edited", "voided", "auto_closed"],
       recap_status: ["draft", "submitted", "reviewed", "archived"],

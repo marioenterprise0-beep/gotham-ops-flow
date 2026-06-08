@@ -3,6 +3,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const ok = (data ?? []).some((r: any) => r.role === "owner");
+  if (!ok) throw new Error("Owner role required for inventory structure changes");
+  await requireTabAccess(supabase, userId, "inventory", "edit");
+}
+// Kept for receive/waste/count (crew-legitimate quantity flows). Not used for structural writes.
 async function assertManager(supabase: any, userId: string) {
   await requireManager(supabase, userId);
   await requireTabAccess(supabase, userId, "inventory", "edit");
@@ -63,10 +70,14 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     minimumQty: z.number().nonnegative().optional(),
     preferredOrderQty: z.number().nonnegative().optional(),
     estimatedCost: z.number().nonnegative().optional(),
+    imageUrl: z.string().max(1000).nullable().optional(),
+    countInstructions: z.string().max(2000).nullable().optional(),
+    storageLocation: z.string().max(200).nullable().optional(),
+    archived: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
     if (!store) throw new Error("No store configured");
     const trailerId = await resolveTrailer(supabase, userId, data.trailerId);
@@ -84,6 +95,10 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     if (data.minimumQty !== undefined) payload.minimum_qty = data.minimumQty;
     if (data.preferredOrderQty !== undefined) payload.preferred_order_qty = data.preferredOrderQty;
     if (data.estimatedCost !== undefined) payload.estimated_cost = data.estimatedCost;
+    if (data.imageUrl !== undefined) payload.image_url = data.imageUrl;
+    if (data.countInstructions !== undefined) payload.count_instructions = data.countInstructions;
+    if (data.storageLocation !== undefined) payload.storage_location = data.storageLocation;
+    if (data.archived !== undefined) payload.archived_at = data.archived ? new Date().toISOString() : null;
     if (data.id) {
       const { error } = await supabase.from("inventory_items").update(payload).eq("id", data.id);
       if (error) throw error;
@@ -118,7 +133,7 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
     const { error } = await supabase.from("inventory_items").update(patch).eq("id", data.id);
     if (error) throw error;
@@ -134,7 +149,7 @@ export const deleteInventoryItem = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("inventory_items").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({

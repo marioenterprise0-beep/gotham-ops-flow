@@ -24,11 +24,12 @@ const ALL_TABS: Tab[] = [
   { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
   { to: "/labor",       key: "labor",       label: "Labor",       icon: Timer,       gate: "manager" },
   { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },
+  { to: "/inventory-guide", key: "inventory-guide", label: "Inventory Guide", icon: BookOpen },
   { to: "/order-guide", key: "order-guide", label: "Order Guide", icon: BookOpen,    gate: "manager" },
   { to: "/sops",        key: "sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
   { to: "/health",      key: "health",      label: "Health Score",icon: Activity,    gate: "manager" },
-  { to: "/alerts",      key: "alerts",      label: "Alerts",      icon: Bell,        gate: "manager" },
+  { to: "/alerts",      key: "alerts",      label: "Alerts",      icon: Bell },
   { to: "/manager",     key: "manager",     label: "Manager",     icon: Shield,      gate: "manager" },
   { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
   { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
@@ -212,14 +213,17 @@ function isActive(pathname: string, to: string) {
 
 function TrailerSwitcher() {
   const { roleId, trailers, trailerScope, setTrailerScope, homeTrailerId } = useRole();
-  const isManager = roleId === "owner" || roleId === "manager";
+  const isOwner = roleId === "owner";
+  const isManager = roleId === "manager";
   if (trailers.length === 0) return null;
   const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
-  if (!isManager) {
+  // Employees and managers are LOCKED to their home trailer. Only owners may switch freely.
+  // Managers can request temporary access via /alerts (location request flow).
+  if (!isOwner) {
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title={isManager ? "Locked — request temporary access from the owner" : "Locked to your assigned trailer"}>
         <span className="label-caps text-white/50">Trailer</span>
-        <span className="text-xs font-medium text-[var(--color-gold)]">{homeName}</span>
+        <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {homeName}</span>
       </div>
     );
   }

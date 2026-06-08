@@ -22,6 +22,7 @@ import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LaborRouteImport } from './routes/labor'
+import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IntegrityRouteImport } from './routes/integrity'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
@@ -109,6 +110,11 @@ const ManagerRoute = ManagerRouteImport.update({
 const LaborRoute = LaborRouteImport.update({
   id: '/labor',
   path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryGuideRoute = InventoryGuideRouteImport.update({
+  id: '/inventory-guide',
+  path: '/inventory-guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryRoute = InventoryRouteImport.update({
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
@@ -324,6 +332,7 @@ export interface FileRoutesById {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-guide'
     | '/labor'
     | '/manager'
     | '/my-tasks'
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-guide'
     | '/labor'
     | '/manager'
     | '/my-tasks'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-guide'
     | '/labor'
     | '/manager'
     | '/my-tasks'
@@ -479,6 +491,7 @@ export interface RootRouteChildren {
   HospitalityRoute: typeof HospitalityRoute
   IntegrityRoute: typeof IntegrityRoute
   InventoryRoute: typeof InventoryRoute
+  InventoryGuideRoute: typeof InventoryGuideRoute
   LaborRoute: typeof LaborRoute
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
@@ -596,6 +609,13 @@ declare module '@tanstack/react-router' {
       path: '/labor'
       fullPath: '/labor'
       preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory-guide': {
+      id: '/inventory-guide'
+      path: '/inventory-guide'
+      fullPath: '/inventory-guide'
+      preLoaderRoute: typeof InventoryGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory': {
@@ -775,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   HospitalityRoute: HospitalityRoute,
   IntegrityRoute: IntegrityRoute,
   InventoryRoute: InventoryRoute,
+  InventoryGuideRoute: InventoryGuideRoute,
   LaborRoute: LaborRoute,
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
@@ -803,13 +824,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
