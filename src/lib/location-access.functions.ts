@@ -189,3 +189,39 @@ export const getActiveLocationGrant = createServerFn({ method: "GET" })
       .limit(1).maybeSingle();
     return data ?? null;
   });
+
+export const listActiveLocationGrants = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
+    if (!isOwner) throw new Error("Owner only");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("active_location_grants")
+      .select("id, user_id, trailer_id, expires_at, created_at, request_id")
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(100);
+    if (error) throw error;
+    const userIds = Array.from(new Set((data ?? []).map((g: any) => g.user_id)));
+    let profiles: Record<string, string> = {};
+    if (userIds.length) {
+      const { data: profs } = await supabase.from("profiles")
+        .select("id, display_name").in("id", userIds);
+      profiles = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.display_name]));
+    }
+    return (data ?? []).map((g: any) => ({ ...g, user_name: profiles[g.user_id] ?? "Crew" }));
+  });
+
+export const revokeLocationGrant = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
+    if (!isOwner) throw new Error("Owner only");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("active_location_grants").delete().eq("id", data.id);
+    return { ok: true };
+  });
