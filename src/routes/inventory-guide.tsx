@@ -46,7 +46,8 @@ function InventoryGuide() {
 
   return (
     <AppShell>
-      <SectionHeader title="Inventory Guide" subtitle="How to count and store every item." icon={Boxes} />
+      <SectionHeader eyebrow="Inventory" title="Inventory Guide" />
+      <p className="text-sm text-muted-foreground -mt-2 mb-4">How to count and store every item.</p>
       <Card className="mb-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
