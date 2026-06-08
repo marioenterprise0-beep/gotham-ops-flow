@@ -150,16 +150,23 @@ function Inventory() {
       <SectionHeader
         eyebrow={CATEGORY_LABELS[cat] ?? cat}
         title="Live Counts"
-        action={isManager ? (
+        action={
           <div className="flex gap-2">
-            <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
-              <Truck className="h-3.5 w-3.5" /> Create order
-            </button>
-            <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
-              <Plus className="h-3.5 w-3.5" /> New item
-            </button>
+            {isManager && (
+              <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+                <Truck className="h-3.5 w-3.5" /> Create order
+              </button>
+            )}
+            {canPropose && (
+              <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+                <Plus className="h-3.5 w-3.5" /> {isOwner ? "New item" : "Request item"}
+              </button>
+            )}
+            <Link to="/inventory-changes" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+              Change requests
+            </Link>
           </div>
-        ) : <StatusPill tone="gold">On-hand vs Par</StatusPill>}
+        }
       />
 
 
