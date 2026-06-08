@@ -6,6 +6,7 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
 import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
 import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
+import { listTrailerGeofences, setTrailerGeofence } from "@/lib/timeclock.functions";
 import {
   getMyNotificationPreferences,
   updateMyNotificationPreferences,
