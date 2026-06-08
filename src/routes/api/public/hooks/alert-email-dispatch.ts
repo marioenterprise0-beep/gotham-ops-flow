@@ -7,6 +7,7 @@ import {
   getManagersForTrailer,
   getEmployee,
   getCrewForTrailer,
+  getLocationRecipientsForCategory,
   type Recipient,
   type Category,
 } from '@/lib/email/recipients.server'
@@ -445,7 +446,19 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
         const ctx = { trailer, creator }
 
         try {
-          const recipients = await mapping.recipients(alert, sb)
+          // Default fan-out: every active employee at the alert's trailer whose
+          // role is enabled for this category (plus owners). The per-mapping
+          // resolver above is still used as a safety floor (e.g. owners-only
+          // when there's no trailer attached). We union the two so owners
+          // narrowing role policy never *removes* the originally intended audience.
+          const [base, location] = await Promise.all([
+            mapping.recipients(alert, sb),
+            getLocationRecipientsForCategory(alert.trailer_id, mapping.category),
+          ])
+          const seen = new Set<string>()
+          const recipients = [...base, ...location].filter((r) =>
+            seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
+          )
           if (recipients.length === 0) {
             await sb
               .from('alerts')

@@ -6,9 +6,13 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
-import { listAllTabPermissions, setTabPermission, applyDefaultPresets } from "@/lib/permissions.functions";
+import {
+  listAllTabPermissions, setTabPermission, applyDefaultPresets,
+  listRoleEmailPolicies, setRoleEmailPolicy, applyEmailPolicyDefaults,
+  EMAIL_CATEGORIES, EMAIL_POLICY_DEFAULTS, type EmailCategory,
+} from "@/lib/permissions.functions";
 import { toast } from "sonner";
-import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2 } from "lucide-react";
+import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 
@@ -53,13 +57,16 @@ const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[]
 function PermissionsPage() {
   const { loading, session, roleId, refreshPermissions } = useRole();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<"role" | "user">("role");
+  const [mode, setMode] = useState<"role" | "user" | "emails">("role");
   const authReady = !loading;
   const canLoadPermissions = authReady && !!session?.access_token && roleId === "owner";
 
   const listFn = useServerFn(listAllTabPermissions);
   const setFn = useServerFn(setTabPermission);
   const applyPresetsFn = useServerFn(applyDefaultPresets);
+  const listEmailPoliciesFn = useServerFn(listRoleEmailPolicies);
+  const setEmailPolicyFn = useServerFn(setRoleEmailPolicy);
+  const applyEmailDefaultsFn = useServerFn(applyEmailPolicyDefaults);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["all-tab-permissions", session?.user?.id ?? null],
@@ -84,6 +91,29 @@ function PermissionsPage() {
       toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
       syncDomains(qc, "permissions", "users");
       await refreshPermissions();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const { data: emailData } = useQuery({
+    queryKey: ["role-email-policies", session?.user?.id ?? null],
+    queryFn: () => listEmailPoliciesFn() as Promise<{ policies: { role: string; category: string; enabled: boolean }[] }>,
+    enabled: canLoadPermissions,
+    retry: false,
+  });
+
+  const emailM = useMutation({
+    mutationFn: (v: { role: string; category: EmailCategory; enabled: boolean }) =>
+      setEmailPolicyFn({ data: v as any }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["role-email-policies"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const emailDefaultsM = useMutation({
+    mutationFn: (overwrite: boolean) => applyEmailDefaultsFn({ data: { overwrite } }),
+    onSuccess: (res: any) => {
+      toast.success(`Email defaults applied · ${res?.applied ?? 0} rules updated`);
+      qc.invalidateQueries({ queryKey: ["role-email-policies"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -150,36 +180,56 @@ function PermissionsPage() {
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
-            {(["role", "user"] as const).map((m) => (
+            {(["role", "user", "emails"] as const).map((m) => (
               <button key={m} onClick={() => setMode(m)}
                 className={cn(
                   "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded",
                   mode === m ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/70 hover:text-white"
                 )}>
-                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>) : (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)}
+                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>)
+                  : m === "user" ? (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)
+                  : (<><Mail className="inline h-3 w-3 mr-1" />Emails</>)}
               </button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => presetM.mutate(false)}
-              disabled={presetM.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
-              title="Seed defaults for any role/tab not yet configured"
-            >
-              <Wand2 className="h-3 w-3" /> Apply defaults
-            </button>
-            <button
-              onClick={() => {
-                if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) {
-                  presetM.mutate(true);
-                }
-              }}
-              disabled={presetM.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
-            >
-              Reset to defaults
-            </button>
+            {mode === "emails" ? (
+              <>
+                <button
+                  onClick={() => emailDefaultsM.mutate(false)}
+                  disabled={emailDefaultsM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
+                  title="Seed email defaults for any role/category not yet configured"
+                >
+                  <Wand2 className="h-3 w-3" /> Apply defaults
+                </button>
+                <button
+                  onClick={() => { if (confirm("Reset ALL role email rules to defaults?")) emailDefaultsM.mutate(true); }}
+                  disabled={emailDefaultsM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
+                >
+                  Reset to defaults
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => presetM.mutate(false)}
+                  disabled={presetM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
+                  title="Seed defaults for any role/tab not yet configured"
+                >
+                  <Wand2 className="h-3 w-3" /> Apply defaults
+                </button>
+                <button
+                  onClick={() => { if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) presetM.mutate(true); }}
+                  disabled={presetM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
+                >
+                  Reset to defaults
+                </button>
+              </>
+            )}
           </div>
         </div>
         <p className="mt-3 text-xs text-white/50">
@@ -224,6 +274,25 @@ function PermissionsPage() {
             accessFor={(rowId, tabKey) => accessFor("user", rowId, tabKey)}
             onSet={(rowId, tabKey, lvl) => setAccess("user", rowId, tabKey, lvl)}
             disabled={setM.isPending}
+          />
+        </>
+      )}
+
+      {mode === "emails" && (
+        <>
+          <SectionHeader
+            eyebrow="Email routing"
+            title="Which alert emails each role receives"
+          />
+          <p className="text-sm text-muted-foreground -mt-2 mb-3">
+            Owners always receive every email. For every other role, alerts go out to the
+            employees assigned to the alert's location whose role is enabled below
+            (subject to each user's personal notification preferences and quiet hours).
+          </p>
+          <EmailPolicyMatrix
+            policies={emailData?.policies ?? []}
+            onToggle={(role, category, enabled) => emailM.mutate({ role, category, enabled })}
+            disabled={emailM.isPending}
           />
         </>
       )}
@@ -293,6 +362,93 @@ function PermMatrix({
               })}
             </tr>
           ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Owner", manager: "Manager", shift_lead: "Shift Lead",
+  grill: "Grill", prep: "Prep", cashier: "Cashier",
+};
+const CATEGORY_LABEL: Record<EmailCategory, string> = {
+  critical: "Critical",
+  operations: "Operations",
+  schedule: "Schedule",
+  time_clock: "Time Clock",
+  inventory: "Inventory",
+  cash: "Cash",
+  training: "Training",
+  announcements: "Announcements",
+};
+
+function EmailPolicyMatrix({
+  policies, onToggle, disabled,
+}: {
+  policies: { role: string; category: string; enabled: boolean }[];
+  onToggle: (role: string, category: EmailCategory, enabled: boolean) => void;
+  disabled?: boolean;
+}) {
+  const lookup = new Map<string, boolean>();
+  for (const p of policies) lookup.set(`${p.role}|${p.category}`, p.enabled);
+  const enabledFor = (role: string, category: EmailCategory) => {
+    const k = `${role}|${category}`;
+    if (lookup.has(k)) return lookup.get(k)!;
+    return EMAIL_POLICY_DEFAULTS[role]?.[category] ?? true;
+  };
+
+  return (
+    <Card className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left">
+            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">Role</th>
+            {EMAIL_CATEGORIES.map((c) => (
+              <th key={c} className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap">
+                {CATEGORY_LABEL[c]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.keys(EMAIL_POLICY_DEFAULTS).map((role) => {
+            const locked = role === "owner";
+            return (
+              <tr key={role} className="border-t border-border">
+                <td className="py-2 pr-3 font-medium sticky left-0 bg-card whitespace-nowrap">
+                  {ROLE_LABEL[role] ?? role}
+                  {locked && <span className="ml-1 text-[10px] text-[var(--color-gold)]">always on</span>}
+                </td>
+                {EMAIL_CATEGORIES.map((c) => {
+                  const on = locked ? true : enabledFor(role, c);
+                  return (
+                    <td key={c} className="text-center px-2 py-2">
+                      <button
+                        type="button"
+                        disabled={disabled || locked}
+                        onClick={() => onToggle(role, c, !on)}
+                        aria-pressed={on}
+                        title={on ? "Email enabled" : "Email disabled"}
+                        className={cn(
+                          "relative inline-flex h-5 w-9 items-center rounded-full transition",
+                          on ? "bg-[var(--color-success,#16a34a)]" : "bg-[#3a3a3a]",
+                          (disabled || locked) && "opacity-60 cursor-not-allowed",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 rounded-full bg-white shadow transition",
+                            on ? "translate-x-[18px]" : "translate-x-[2px]",
+                          )}
+                        />
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </Card>
