@@ -393,6 +393,9 @@ function GeofenceRow({ trailer, onSave, pending }: {
   const [lng, setLng] = useState<string>(trailer.geofence_lng?.toString() ?? "");
   const [radius, setRadius] = useState<number>(trailer.geofence_radius_m ?? 25);
   const [locating, setLocating] = useState(false);
+  const [address, setAddress] = useState("");
+  const [geocoding, setGeocoding] = useState(false);
+  const geocodeFn = useServerFn(geocodeAddress);
 
   function useHere() {
     if (!navigator.geolocation) { toast.error("Geolocation not supported on this device."); return; }
@@ -409,6 +412,21 @@ function GeofenceRow({ trailer, onSave, pending }: {
     );
   }
 
+  async function useAddress() {
+    if (!address.trim()) { toast.error("Enter a street address."); return; }
+    setGeocoding(true);
+    try {
+      const r = await geocodeFn({ data: { address: address.trim() } });
+      setLat(r.lat.toFixed(6));
+      setLng(r.lng.toFixed(6));
+      toast.success(`Found: ${r.label.slice(0, 70)}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   const latNum = lat.trim() === "" ? null : Number(lat);
   const lngNum = lng.trim() === "" ? null : Number(lng);
   const invalid = (latNum !== null && !Number.isFinite(latNum)) || (lngNum !== null && !Number.isFinite(lngNum)) ||
@@ -423,6 +441,16 @@ function GeofenceRow({ trailer, onSave, pending }: {
           {locating ? "Locating…" : "Use current location"}
         </button>
       </div>
+      <div className="mb-2 flex gap-2">
+        <input value={address} onChange={(e) => setAddress(e.target.value)}
+          placeholder="Street address, city, state ZIP"
+          className="flex-1 h-9 rounded-md border border-border bg-card px-2 text-sm" />
+        <button onClick={useAddress} disabled={geocoding || !address.trim()}
+          className="h-9 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] disabled:opacity-50">
+          {geocoding ? "Looking up…" : "Look up address"}
+        </button>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <div>
           <div className="label-caps text-muted-foreground mb-1">Latitude</div>
