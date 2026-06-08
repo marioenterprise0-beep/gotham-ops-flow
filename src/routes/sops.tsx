@@ -654,3 +654,115 @@ function ImportBuiltinsButton({ existing }: { existing: any[] }) {
     </button>
   );
 }
+
+// ───────── Owner-only acknowledgement rollup ─────────
+
+function SopAckRollup() {
+  const fn = useServerFn(getSopAckRollup);
+  const { data: rows = [], isLoading } = useQuery<any[]>({
+    queryKey: ["sop-ack-rollup"],
+    queryFn: () => fn() as any,
+    refetchInterval: 30000,
+  });
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const totals = useMemo(() => {
+    const totalUsers = rows[0]?.total_users ?? 0;
+    const slots = rows.length * totalUsers;
+    const ack = rows.reduce((n, r) => n + (r.ack_current ?? 0), 0);
+    const stale = rows.reduce((n, r) => n + (r.ack_stale ?? 0), 0);
+    return { totalUsers, slots, ack, stale };
+  }, [rows]);
+
+  return (
+    <div className="mt-5">
+      <SectionHeader eyebrow="Acknowledgements" title="SOP sign-off rollup" />
+      <Card>
+        {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
+        {!isLoading && rows.length === 0 && (
+          <div className="text-sm text-muted-foreground">No SOPs yet.</div>
+        )}
+        {!isLoading && rows.length > 0 && (
+          <>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <Stat label="Crew tracked" value={totals.totalUsers} />
+              <Stat label="Current sign-offs" value={`${totals.ack}/${totals.slots}`} accent="success" />
+              <Stat label="Stale (re-ack needed)" value={totals.stale} accent={totals.stale > 0 ? "warn" : undefined} />
+            </div>
+            <div className="space-y-2">
+              {rows.map((r) => {
+                const pct = r.total_users > 0 ? Math.round((r.ack_current / r.total_users) * 100) : 0;
+                const isOpen = openId === r.sop_id;
+                return (
+                  <div key={r.sop_id} className="rounded-md border border-border">
+                    <button
+                      onClick={() => setOpenId(isOpen ? null : r.sop_id)}
+                      className="w-full text-left p-2.5 flex items-center gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold truncate">{r.title}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          v{r.version} · {r.category} · viewed by {r.viewed_count}/{r.total_users}
+                        </div>
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className="h-full"
+                            style={{ width: `${pct}%`, background: pct >= 80 ? "var(--color-success)" : pct >= 40 ? "var(--color-warning, #C9973A)" : "var(--color-danger)" }}
+                          />
+                        </div>
+                        <div className="mt-1 text-[10px] text-right text-muted-foreground">{pct}% ack</div>
+                      </div>
+                      <StatusPill tone={r.ack_stale > 0 ? "warn" : "success"}>
+                        {r.ack_current}/{r.total_users}
+                      </StatusPill>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t border-border p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <div className="label-caps text-muted-foreground mb-1">Pending ({r.pending.length})</div>
+                          {r.pending.length === 0 && <div className="text-xs text-muted-foreground">All caught up</div>}
+                          <ul className="space-y-1">
+                            {r.pending.map((p: any) => (
+                              <li key={p.id} className="text-xs">· {p.name}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <div className="label-caps text-muted-foreground mb-1">Acknowledged ({r.acknowledged.length})</div>
+                          {r.acknowledged.length === 0 && <div className="text-xs text-muted-foreground">None yet</div>}
+                          <ul className="space-y-1">
+                            {r.acknowledged.map((a: any) => (
+                              <li key={a.id} className="text-xs flex justify-between gap-2">
+                                <span>· {a.name} <span className="text-muted-foreground">v{a.version}</span></span>
+                                <span className="text-[10px] text-muted-foreground">{new Date(a.at).toLocaleDateString()}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: any; accent?: "success" | "warn" }) {
+  const color =
+    accent === "success" ? "text-[var(--color-success)]"
+    : accent === "warn" ? "text-[var(--color-warning,#C9973A)]"
+    : "text-foreground";
+  return (
+    <div className="rounded-md border border-border p-2">
+      <div className="label-caps text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 font-display text-xl", color)}>{value}</div>
+    </div>
+  );
+}
