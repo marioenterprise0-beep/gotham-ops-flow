@@ -16,6 +16,7 @@ import {
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
+import { GeofencePanel } from "@/components/gotham/GeofencePanel";
 
 export const Route = createFileRoute("/location-requests")({
   ssr: false,
