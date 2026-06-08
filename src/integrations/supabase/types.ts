@@ -1168,6 +1168,13 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invite_codes_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
+            referencedColumns: ["id"]
+          },
         ]
       }
       location_access_requests: {
@@ -1315,6 +1322,13 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
+            referencedColumns: ["id"]
+          },
         ]
       }
       role_email_policies: {
@@ -1450,6 +1464,13 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "schedule_shifts_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
+            referencedColumns: ["id"]
+          },
         ]
       }
       schedules: {
@@ -1522,6 +1543,13 @@ export type Database = {
             columns: ["trailer_id"]
             isOneToOne: false
             referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
             referencedColumns: ["id"]
           },
         ]
@@ -1608,6 +1636,13 @@ export type Database = {
             columns: ["trailer_id"]
             isOneToOne: false
             referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_templates_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
             referencedColumns: ["id"]
           },
         ]
@@ -2321,7 +2356,106 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_with_email: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          display_name: string | null
+          email: string | null
+          id: string | null
+          last_login_at: string | null
+          sop_accepted_at: string | null
+          store_id: string | null
+          trailer_id: string | null
+          training_completed_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string | null
+          last_login_at?: string | null
+          sop_accepted_at?: string | null
+          store_id?: string | null
+          trailer_id?: string | null
+          training_completed_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
+          id?: string | null
+          last_login_at?: string | null
+          sop_accepted_at?: string | null
+          store_id?: string | null
+          trailer_id?: string | null
+          training_completed_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers_with_geofence"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trailers_with_geofence: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          geofence_lat: number | null
+          geofence_lng: number | null
+          geofence_radius_m: number | null
+          id: string | null
+          location: string | null
+          name: string | null
+          timezone: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number | null
+          id?: string | null
+          location?: string | null
+          name?: string | null
+          timezone?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number | null
+          id?: string | null
+          location?: string | null
+          name?: string | null
+          timezone?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _has_open_alert: {
@@ -2369,6 +2503,7 @@ export type Database = {
         }
         Returns: number
       }
+      my_email: { Args: never; Returns: string }
       payroll_week_start: { Args: { _d: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
