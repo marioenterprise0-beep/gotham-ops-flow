@@ -6,9 +6,13 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
-import { listAllTabPermissions, setTabPermission, applyDefaultPresets } from "@/lib/permissions.functions";
+import {
+  listAllTabPermissions, setTabPermission, applyDefaultPresets,
+  listRoleEmailPolicies, setRoleEmailPolicy, applyEmailPolicyDefaults,
+  EMAIL_CATEGORIES, EMAIL_POLICY_DEFAULTS, type EmailCategory,
+} from "@/lib/permissions.functions";
 import { toast } from "sonner";
-import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2 } from "lucide-react";
+import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 
