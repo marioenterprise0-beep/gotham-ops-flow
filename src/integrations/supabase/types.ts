@@ -2198,6 +2198,9 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          geofence_lat: number | null
+          geofence_lng: number | null
+          geofence_radius_m: number
           id: string
           location: string | null
           name: string
@@ -2206,6 +2209,9 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number
           id?: string
           location?: string | null
           name: string
@@ -2214,6 +2220,9 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          geofence_lat?: number | null
+          geofence_lng?: number | null
+          geofence_radius_m?: number
           id?: string
           location?: string | null
           name?: string
