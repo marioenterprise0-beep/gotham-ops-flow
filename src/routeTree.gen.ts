@@ -23,6 +23,7 @@ import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
+import { Route as InventoryChangesRouteImport } from './routes/inventory-changes'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IntegrityRouteImport } from './routes/integrity'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
@@ -115,6 +116,11 @@ const LaborRoute = LaborRouteImport.update({
 const InventoryGuideRoute = InventoryGuideRouteImport.update({
   id: '/inventory-guide',
   path: '/inventory-guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryChangesRoute = InventoryChangesRouteImport.update({
+  id: '/inventory-changes',
+  path: '/inventory-changes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryRoute = InventoryRouteImport.update({
@@ -253,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -292,6 +299,7 @@ export interface FileRoutesByTo {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
+  '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/manager': typeof ManagerRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
     | '/manager'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
     | '/manager'
@@ -451,6 +462,7 @@ export interface FileRouteTypes {
     | '/hospitality'
     | '/integrity'
     | '/inventory'
+    | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
     | '/manager'
@@ -491,6 +503,7 @@ export interface RootRouteChildren {
   HospitalityRoute: typeof HospitalityRoute
   IntegrityRoute: typeof IntegrityRoute
   InventoryRoute: typeof InventoryRoute
+  InventoryChangesRoute: typeof InventoryChangesRoute
   InventoryGuideRoute: typeof InventoryGuideRoute
   LaborRoute: typeof LaborRoute
   ManagerRoute: typeof ManagerRoute
@@ -616,6 +629,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory-guide'
       fullPath: '/inventory-guide'
       preLoaderRoute: typeof InventoryGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory-changes': {
+      id: '/inventory-changes'
+      path: '/inventory-changes'
+      fullPath: '/inventory-changes'
+      preLoaderRoute: typeof InventoryChangesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory': {
@@ -795,6 +815,7 @@ const rootRouteChildren: RootRouteChildren = {
   HospitalityRoute: HospitalityRoute,
   IntegrityRoute: IntegrityRoute,
   InventoryRoute: InventoryRoute,
+  InventoryChangesRoute: InventoryChangesRoute,
   InventoryGuideRoute: InventoryGuideRoute,
   LaborRoute: LaborRoute,
   ManagerRoute: ManagerRoute,

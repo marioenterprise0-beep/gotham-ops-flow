@@ -8,6 +8,8 @@ import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Do
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
+import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
+import { Link } from "@tanstack/react-router";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -47,7 +49,9 @@ function statusTone(s: Status) {
 function Inventory() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers, session, loading } = useRole();
+  const isOwner = roleId === "owner";
   const isManager = roleId === "owner" || roleId === "manager";
+  const canPropose = !!session?.access_token;
   const list = useServerFn(listInventory);
   const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory", trailerScope ?? "company"],
@@ -85,6 +89,16 @@ function Inventory() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
     onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const requestFn = useServerFn(submitInventoryChangeRequest);
+  const requestMut = useMutation({
+    mutationFn: (vars: { item: Item; reason: string }) => requestFn({ data: {
+      action: "archive", targetItemId: vars.item.id, trailerId: trailerScope,
+      payload: { name: vars.item.name }, reason: vars.reason,
+    } }),
+    onSuccess: () => { toast.success("Archive request sent to owner"); syncDomains(qc, "alerts"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -136,16 +150,23 @@ function Inventory() {
       <SectionHeader
         eyebrow={CATEGORY_LABELS[cat] ?? cat}
         title="Live Counts"
-        action={isManager ? (
+        action={
           <div className="flex gap-2">
-            <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
-              <Truck className="h-3.5 w-3.5" /> Create order
-            </button>
-            <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
-              <Plus className="h-3.5 w-3.5" /> New item
-            </button>
+            {isManager && (
+              <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+                <Truck className="h-3.5 w-3.5" /> Create order
+              </button>
+            )}
+            {canPropose && (
+              <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+                <Plus className="h-3.5 w-3.5" /> {isOwner ? "New item" : "Request item"}
+              </button>
+            )}
+            <Link to="/inventory-changes" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+              Change requests
+            </Link>
           </div>
-        ) : <StatusPill tone="gold">On-hand vs Par</StatusPill>}
+        }
       />
 
 
@@ -163,12 +184,19 @@ function Inventory() {
                   <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
-                {isManager && (
+                {canPropose && (
                   <div className="flex gap-1">
-                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title="Edit">
+                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => { if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title="Delete">
+                    <button onClick={() => {
+                      if (isOwner) {
+                        if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id);
+                      } else {
+                        const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
+                        if (reason !== null) requestMut.mutate({ item: it, reason });
+                      }
+                    }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title={isOwner ? "Delete" : "Request archive"}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -198,7 +226,7 @@ function Inventory() {
 
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
-      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
+      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} isOwner={isOwner} trailerId={trailerScope} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory", "alerts")} />}
       {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
       {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
       {isManager && (
@@ -312,25 +340,46 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
   );
 }
 
-function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item | null; defaultCategory: string; onClose: () => void; onDone: () => void }) {
+function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
+  const requestFn = useServerFn(submitInventoryChangeRequest);
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
   const [unit, setUnit] = useState(item?.unit ?? "unit");
   const [par, setPar] = useState(String(item?.par_level ?? ""));
   const [low, setLow] = useState(String(item?.low_threshold ?? ""));
   const [qty, setQty] = useState(item ? String(item.current_qty) : "");
+  const [reason, setReason] = useState("");
   const m = useMutation({
-    mutationFn: () => upsert({ data: {
-      id: item?.id, name: name.trim(), category: category as any, unit: unit.trim() || "unit",
-      parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
-      currentQty: qty === "" ? undefined : Number(qty),
-    } }),
-    onSuccess: () => { toast.success(item ? "Item updated" : "Item added"); onDone(); onClose(); },
+    mutationFn: async () => {
+      const payload = {
+        name: name.trim(), category, unit: unit.trim() || "unit",
+        parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
+        currentQty: qty === "" ? undefined : Number(qty),
+      };
+      if (isOwner) {
+        await upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
+        return;
+      }
+      await requestFn({ data: {
+        action: item ? "update" : "create",
+        targetItemId: item?.id ?? null,
+        trailerId,
+        payload,
+        reason: reason || undefined,
+      } });
+    },
+    onSuccess: () => {
+      toast.success(isOwner ? (item ? "Item updated" : "Item added") : "Request sent to owner");
+      onDone(); onClose();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+  const title = isOwner
+    ? (item ? `Edit: ${item.name}` : "New inventory item")
+    : (item ? `Request edit: ${item.name}` : "Request new item");
   return (
-    <Modal title={item ? `Edit: ${item.name}` : "New inventory item"} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <div className="space-y-3">
         <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         <div className="grid grid-cols-2 gap-3">
@@ -346,8 +395,13 @@ function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item 
           <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         </div>
         <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        {!isOwner && (
+          <Field label="Reason for request">
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why this change is needed" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          </Field>
+        )}
       </div>
-      <ModalActions onClose={onClose} primary={item ? "Save changes" : "Create item"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
+      <ModalActions onClose={onClose} primary={isOwner ? (item ? "Save changes" : "Create item") : "Submit request"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
     </Modal>
   );
 }
