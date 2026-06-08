@@ -151,7 +151,7 @@ export async function getLocationRecipientsForCategory(
           display_name: p.display_name as string,
           role: (roleMap.get(p.id) as Recipient['role']) ?? 'crew',
         }))
-        .filter((r) => !disabledRoles.has(r.role as string))
+        .filter((r: Recipient) => !disabledRoles.has(r.role as string))
     }
   }
 
