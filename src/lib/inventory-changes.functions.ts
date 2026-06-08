@@ -96,8 +96,24 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
           storage_location: p.storageLocation ?? null,
         });
       } else if (req.action === "update" && req.target_item_id) {
+        const camelToSnake: Record<string, string> = {
+          parLevel: "par_level", lowThreshold: "low_threshold",
+          costPerUnit: "cost_per_unit", storageLocation: "storage_location",
+          countInstructions: "count_instructions", packSize: "pack_size",
+          minimumQty: "minimum_qty", preferredOrderQty: "preferred_order_qty",
+          estimatedCost: "estimated_cost", imageUrl: "image_url",
+        };
+        const ALLOWED_UPDATE_FIELDS = new Set([
+          "name","category","unit","par_level","low_threshold","cost_per_unit",
+          "storage_location","count_instructions","pack_size","vendor",
+          "minimum_qty","preferred_order_qty","estimated_cost","image_url",
+        ]);
         const patch: any = { updated_at: new Date().toISOString() };
-        for (const [k, v] of Object.entries(p)) patch[k] = v;
+        for (const [k, v] of Object.entries(p)) {
+          const col = camelToSnake[k] ?? k;
+          if (!ALLOWED_UPDATE_FIELDS.has(col)) continue;
+          patch[col] = v;
+        }
         await supabaseAdmin.from("inventory_items").update(patch).eq("id", req.target_item_id);
       } else if (req.action === "archive" && req.target_item_id) {
         await supabaseAdmin.from("inventory_items").update({ archived_at: new Date().toISOString() }).eq("id", req.target_item_id);

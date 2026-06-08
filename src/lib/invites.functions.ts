@@ -37,6 +37,10 @@ export const createInvite = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    if (data.role === "owner") {
+      const { isOwner } = await import("./auth-guards");
+      if (!(await isOwner(supabase, userId))) throw new Error("Only owners can issue owner invites");
+    }
     const code = randomCode();
     const { data: row, error } = await supabase
       .from("invite_codes")
