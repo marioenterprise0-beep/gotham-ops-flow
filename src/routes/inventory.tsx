@@ -184,12 +184,19 @@ function Inventory() {
                   <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
-                {isManager && (
+                {canPropose && (
                   <div className="flex gap-1">
-                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title="Edit">
+                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => { if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id); }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title="Delete">
+                    <button onClick={() => {
+                      if (isOwner) {
+                        if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id);
+                      } else {
+                        const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
+                        if (reason !== null) requestMut.mutate({ item: it, reason });
+                      }
+                    }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title={isOwner ? "Delete" : "Request archive"}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
