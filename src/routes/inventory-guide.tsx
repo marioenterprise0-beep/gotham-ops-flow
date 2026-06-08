@@ -8,15 +8,14 @@ import { deleteInventoryItem, listInventory, submitCount } from "@/lib/inventory
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
 import {
-  Beef, Boxes, Carrot, Check, Croissant, MapPin, Package, Pencil,
-  Plus, Search, Soup, Sparkles, Trash2, X,
+  Beef, Boxes, Carrot, Croissant, Package, Plus, Search, Soup, Sparkles, X,
 } from "lucide-react";
-import { SignedImage } from "@/components/gotham/SignedImage";
 import { EditItemModal, type Item } from "@/routes/inventory";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { InventoryItemCard, statusOf } from "@/components/gotham/InventoryItemCard";
 
 export const Route = createFileRoute("/inventory-guide")({
   ssr: false,
