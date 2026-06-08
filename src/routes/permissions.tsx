@@ -291,7 +291,9 @@ function PermissionsPage() {
           </p>
           <EmailPolicyMatrix
             policies={emailData?.policies ?? []}
-            onToggle={(role, category, enabled) => emailM.mutate({ role, category, enabled })}
+            onToggle={(role: string, category: EmailCategory, enabled: boolean) =>
+              emailM.mutate({ role, category, enabled })
+            }
             disabled={emailM.isPending}
           />
         </>
