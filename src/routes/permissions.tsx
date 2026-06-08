@@ -95,6 +95,29 @@ function PermissionsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const { data: emailData } = useQuery({
+    queryKey: ["role-email-policies", session?.user?.id ?? null],
+    queryFn: () => listEmailPoliciesFn() as Promise<{ policies: { role: string; category: string; enabled: boolean }[] }>,
+    enabled: canLoadPermissions,
+    retry: false,
+  });
+
+  const emailM = useMutation({
+    mutationFn: (v: { role: string; category: EmailCategory; enabled: boolean }) =>
+      setEmailPolicyFn({ data: v as any }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["role-email-policies"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const emailDefaultsM = useMutation({
+    mutationFn: (overwrite: boolean) => applyEmailDefaultsFn({ data: { overwrite } }),
+    onSuccess: (res: any) => {
+      toast.success(`Email defaults applied · ${res?.applied ?? 0} rules updated`);
+      qc.invalidateQueries({ queryKey: ["role-email-policies"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const perms: any[] = data?.perms ?? [];
   const profiles: any[] = data?.profiles ?? [];
   const userRoles: any[] = data?.roles ?? [];
