@@ -35,6 +35,7 @@ const ALL_TABS: Tab[] = [
   { to: "/manager",     key: "manager",     label: "Manager",     icon: Shield,      gate: "manager" },
   { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
   { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
+  { to: "/location-requests", key: "location-requests", label: "Location Access", icon: MapPin,   gate: "owner" },
   { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
   { to: "/change-log",  key: "change-log",  label: "Change Log",  icon: ScrollText,  gate: "manager" },
   { to: "/integrity",   key: "integrity",   label: "Data Integrity", icon: Shield,   gate: "owner" },
