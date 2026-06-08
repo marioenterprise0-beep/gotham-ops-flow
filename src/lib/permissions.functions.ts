@@ -146,3 +146,93 @@ export const applyDefaultPresets = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true, applied: rows.length };
   });
+
+// ---------------------------------------------------------------------------
+// Email routing policy: which alert categories get emailed to each role
+// ---------------------------------------------------------------------------
+
+export const EMAIL_CATEGORIES = [
+  "critical",
+  "operations",
+  "schedule",
+  "time_clock",
+  "inventory",
+  "cash",
+  "training",
+  "announcements",
+] as const;
+export type EmailCategory = (typeof EMAIL_CATEGORIES)[number];
+
+// Defaults mirror the migration seed so "Apply defaults" stays consistent.
+export const EMAIL_POLICY_DEFAULTS: Record<string, Record<EmailCategory, boolean>> = {
+  owner:      { critical: true,  operations: true,  schedule: true,  time_clock: true,  inventory: true,  cash: true,  training: true,  announcements: true  },
+  manager:    { critical: true,  operations: true,  schedule: true,  time_clock: true,  inventory: true,  cash: true,  training: true,  announcements: true  },
+  shift_lead: { critical: true,  operations: true,  schedule: true,  time_clock: true,  inventory: true,  cash: true,  training: true,  announcements: true  },
+  grill:      { critical: true,  operations: true,  schedule: true,  time_clock: true,  inventory: true,  cash: false, training: true,  announcements: true  },
+  prep:       { critical: true,  operations: true,  schedule: true,  time_clock: true,  inventory: true,  cash: false, training: true,  announcements: true  },
+  cashier:    { critical: true,  operations: false, schedule: true,  time_clock: true,  inventory: false, cash: true,  training: true,  announcements: true  },
+};
+
+export const listRoleEmailPolicies = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("role_email_policies" as any)
+      .select("role, category, enabled");
+    if (error) throw error;
+    return { policies: (data ?? []) as { role: string; category: string; enabled: boolean }[] };
+  });
+
+export const setRoleEmailPolicy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    role: z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]),
+    category: z.enum(EMAIL_CATEGORIES),
+    enabled: z.boolean(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.supabase, context.userId);
+    const { error } = await context.supabase
+      .from("role_email_policies" as any)
+      .upsert({
+        role: data.role,
+        category: data.category,
+        enabled: data.enabled,
+        updated_by: context.userId,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "role,category" });
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const applyEmailPolicyDefaults = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    await assertOwner(context.supabase, context.userId);
+    let existing: { role: string; category: string }[] = [];
+    if (!data.overwrite) {
+      const { data: rows } = await context.supabase
+        .from("role_email_policies" as any)
+        .select("role, category");
+      existing = (rows ?? []) as any[];
+    }
+    const has = new Set(existing.map((r) => `${r.role}|${r.category}`));
+    const upserts: any[] = [];
+    for (const [role, cats] of Object.entries(EMAIL_POLICY_DEFAULTS)) {
+      for (const [category, enabled] of Object.entries(cats)) {
+        if (!data.overwrite && has.has(`${role}|${category}`)) continue;
+        upserts.push({
+          role, category, enabled,
+          updated_by: context.userId,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+    if (upserts.length === 0) return { ok: true, applied: 0 };
+    const { error } = await context.supabase
+      .from("role_email_policies" as any)
+      .upsert(upserts, { onConflict: "role,category" });
+    if (error) throw error;
+    return { ok: true, applied: upserts.length };
+  });
