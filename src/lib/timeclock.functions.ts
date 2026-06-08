@@ -131,7 +131,7 @@ export const listTrailerGeofences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data, error } = await supabase.from("trailers")
+    const { data, error } = await supabase.from("trailers_with_geofence")
       .select("id, name, geofence_lat, geofence_lng, geofence_radius_m, active")
       .order("name");
     if (error) throw new Error(error.message);
