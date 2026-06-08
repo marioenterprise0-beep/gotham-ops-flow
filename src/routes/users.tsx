@@ -188,10 +188,12 @@ function UsersTab() {
                   {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
                 <div><StatusPill tone={u.active ? "success" : "danger"}>{u.active ? "Active" : "Disabled"}</StatusPill></div>
-                <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
-                  {u.active ? "Disable" : "Restore"}
-                </button>
+                {isSuperAdmin ? (
+                  <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
+                    {u.active ? "Disable" : "Restore"}
+                  </button>
+                ) : <div />}
                 {isOwner ? (
                   <button onClick={() => setOpenId(open ? null : u.id)}
                     className={cn(
