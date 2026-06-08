@@ -3,6 +3,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const ok = (data ?? []).some((r: any) => r.role === "owner");
+  if (!ok) throw new Error("Owner role required for inventory structure changes");
+  await requireTabAccess(supabase, userId, "inventory", "edit");
+}
+// Kept for receive/waste/count (crew-legitimate quantity flows). Not used for structural writes.
 async function assertManager(supabase: any, userId: string) {
   await requireManager(supabase, userId);
   await requireTabAccess(supabase, userId, "inventory", "edit");
