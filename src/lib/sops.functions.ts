@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { requireManager, requireTabAccess } from "./auth-guards";
+import { requireTabAccess } from "./auth-guards";
 
-async function assertManager(supabase: any, userId: string) {
-  await requireManager(supabase, userId);
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  const ok = (data ?? []).some((r: any) => r.role === "owner");
+  if (!ok) throw new Error("Owner role required to modify SOPs");
   await requireTabAccess(supabase, userId, "sops", "edit");
 }
 
@@ -33,7 +35,7 @@ export const upsertSop = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
 
     const now = new Date().toISOString();
 
@@ -74,7 +76,7 @@ export const deleteSop = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("sops").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
@@ -126,7 +128,7 @@ export const addSopAttachment = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("sop_attachments").insert({
       sop_id: data.sopId, storage_path: data.storagePath,
       label: data.label ?? null, content_type: data.contentType ?? null,
@@ -141,7 +143,7 @@ export const deleteSopAttachment = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { data: row } = await supabase.from("sop_attachments").select("storage_path").eq("id", data.id).maybeSingle();
     if (row?.storage_path) {
       await supabase.storage.from("gotham-photos").remove([row.storage_path]);
