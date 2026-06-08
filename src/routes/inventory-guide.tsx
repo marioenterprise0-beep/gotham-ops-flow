@@ -372,13 +372,17 @@ function ItemCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="font-semibold text-[15px] leading-tight truncate">{item.name}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                Unit <span className="text-foreground font-medium">{item.unit}</span>
-                {" · "}PAR <span className="text-foreground font-medium">{Number(item.par_level)}</span>
-                {" · "}Low ≤ <span className="text-foreground font-medium">{Number(item.low_threshold)}</span>
+              <div className="font-semibold text-[15px] leading-tight line-clamp-2">{item.name}</div>
+              <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                <span>PAR <span className="text-foreground font-medium">{Number(item.par_level)} {item.unit}</span></span>
+                <span>Low ≤ <span className="text-foreground font-medium">{Number(item.low_threshold)}</span></span>
               </div>
             </div>
+            <span className={cn("label-caps shrink-0 rounded-full px-2 py-0.5 text-[10px]", style.bg, style.fg)}>
+              {style.label}
+            </span>
+          </div>
+
             <span className={cn("label-caps shrink-0 rounded-full px-2 py-0.5 text-[10px]", style.bg, style.fg)}>
               {style.label}
             </span>
