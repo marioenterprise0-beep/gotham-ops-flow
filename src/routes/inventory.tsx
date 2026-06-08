@@ -31,7 +31,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   produce: "Produce", packaging: "Packaging", supplies: "Supplies",
 };
 
-type Item = {
+export type Item = {
   id: string; name: string; category: string; unit: string;
   par_level: number; low_threshold: number; current_qty: number;
 };
