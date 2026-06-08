@@ -57,13 +57,16 @@ const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[]
 function PermissionsPage() {
   const { loading, session, roleId, refreshPermissions } = useRole();
   const qc = useQueryClient();
-  const [mode, setMode] = useState<"role" | "user">("role");
+  const [mode, setMode] = useState<"role" | "user" | "emails">("role");
   const authReady = !loading;
   const canLoadPermissions = authReady && !!session?.access_token && roleId === "owner";
 
   const listFn = useServerFn(listAllTabPermissions);
   const setFn = useServerFn(setTabPermission);
   const applyPresetsFn = useServerFn(applyDefaultPresets);
+  const listEmailPoliciesFn = useServerFn(listRoleEmailPolicies);
+  const setEmailPolicyFn = useServerFn(setRoleEmailPolicy);
+  const applyEmailDefaultsFn = useServerFn(applyEmailPolicyDefaults);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["all-tab-permissions", session?.user?.id ?? null],
