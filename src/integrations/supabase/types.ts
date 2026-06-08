@@ -1168,13 +1168,6 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "invite_codes_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
-            referencedColumns: ["id"]
-          },
         ]
       }
       location_access_requests: {
@@ -1322,13 +1315,6 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profiles_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
-            referencedColumns: ["id"]
-          },
         ]
       }
       role_email_policies: {
@@ -1464,13 +1450,6 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "schedule_shifts_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
-            referencedColumns: ["id"]
-          },
         ]
       }
       schedules: {
@@ -1543,13 +1522,6 @@ export type Database = {
             columns: ["trailer_id"]
             isOneToOne: false
             referencedRelation: "trailers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "schedules_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
             referencedColumns: ["id"]
           },
         ]
@@ -1636,13 +1608,6 @@ export type Database = {
             columns: ["trailer_id"]
             isOneToOne: false
             referencedRelation: "trailers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shift_templates_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
             referencedColumns: ["id"]
           },
         ]
@@ -2411,50 +2376,7 @@ export type Database = {
             referencedRelation: "trailers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "profiles_trailer_id_fkey"
-            columns: ["trailer_id"]
-            isOneToOne: false
-            referencedRelation: "trailers_with_geofence"
-            referencedColumns: ["id"]
-          },
         ]
-      }
-      trailers_with_geofence: {
-        Row: {
-          active: boolean | null
-          created_at: string | null
-          geofence_lat: number | null
-          geofence_lng: number | null
-          geofence_radius_m: number | null
-          id: string | null
-          location: string | null
-          name: string | null
-          timezone: string | null
-        }
-        Insert: {
-          active?: boolean | null
-          created_at?: string | null
-          geofence_lat?: number | null
-          geofence_lng?: number | null
-          geofence_radius_m?: number | null
-          id?: string | null
-          location?: string | null
-          name?: string | null
-          timezone?: string | null
-        }
-        Update: {
-          active?: boolean | null
-          created_at?: string | null
-          geofence_lat?: number | null
-          geofence_lng?: number | null
-          geofence_radius_m?: number | null
-          id?: string | null
-          location?: string | null
-          name?: string | null
-          timezone?: string | null
-        }
-        Relationships: []
       }
     }
     Functions: {
@@ -2486,6 +2408,16 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_trailer_geofence: {
+        Args: { _trailer_id: string }
+        Returns: {
+          geofence_lat: number
+          geofence_lng: number
+          geofence_radius_m: number
+          id: string
+          name: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2495,6 +2427,17 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      list_trailer_geofences: {
+        Args: never
+        Returns: {
+          active: boolean
+          geofence_lat: number
+          geofence_lng: number
+          geofence_radius_m: number
+          id: string
+          name: string
+        }[]
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
