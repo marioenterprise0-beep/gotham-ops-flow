@@ -108,6 +108,7 @@ function Settings() {
       <NotificationsPanel />
 
       {roleId === "owner" && <AutomationPanel />}
+      {roleId === "owner" && <GeofencePanel />}
 
       <SectionHeader eyebrow="Session" title="Sign out" />
       <Card>
