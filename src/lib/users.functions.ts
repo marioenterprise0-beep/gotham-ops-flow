@@ -38,6 +38,10 @@ export const generateInvite = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    if (data.role === "owner") {
+      const { isOwner } = await import("./auth-guards");
+      if (!(await isOwner(supabase, userId))) throw new Error("Only owners can issue owner invites");
+    }
     const code = newCode();
     const expires_at = new Date(Date.now() + data.expiresHours * 3600 * 1000).toISOString();
     const { data: row, error } = await supabase
