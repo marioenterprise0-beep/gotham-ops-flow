@@ -37,7 +37,7 @@ type Row = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   protein: "Proteins", bun: "Buns & Bread", sauce: "Sauces",
-  produce: "Produce", packaging: "Packaging", supplies: "Supplies",
+  produce: "Produce", dairy: "Dairy", packaging: "Packaging", supplies: "Supplies",
 };
 
 function OrderGuide() {

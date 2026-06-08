@@ -8,7 +8,7 @@ import { deleteInventoryItem, listInventory, submitCount } from "@/lib/inventory
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
 import {
-  Beef, Boxes, Carrot, Croissant, Package, Plus, Search, Soup, Sparkles, X,
+  Beef, Boxes, Carrot, Croissant, Milk, Package, Plus, Search, Soup, Sparkles, X,
 } from "lucide-react";
 import { EditItemModal, type Item } from "@/routes/inventory";
 import { useRole } from "@/lib/role";
@@ -27,10 +27,10 @@ export const Route = createFileRoute("/inventory-guide")({
 const CATEGORY_ORDER = ["protein", "bun", "produce", "sauce", "packaging", "supplies", "other"] as const;
 const CATEGORY_LABELS: Record<string, string> = {
   protein: "Proteins", bun: "Buns & Bread", sauce: "Sauces",
-  produce: "Produce", packaging: "Packaging", supplies: "Supplies", other: "Other",
+  produce: "Produce", dairy: "Dairy", packaging: "Packaging", supplies: "Supplies", other: "Other",
 };
 const CATEGORY_ICON: Record<string, typeof Beef> = {
-  protein: Beef, bun: Croissant, sauce: Soup, produce: Carrot,
+  protein: Beef, bun: Croissant, sauce: Soup, produce: Carrot, dairy: Milk,
   packaging: Package, supplies: Sparkles, other: Boxes,
 };
 
