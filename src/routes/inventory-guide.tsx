@@ -284,7 +284,7 @@ function InventoryGuide() {
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3">
                   {list.map((it) => (
-                    <ItemCard
+                    <InventoryItemCard
                       key={it.id}
                       item={it}
                       isOwner={isOwner}
