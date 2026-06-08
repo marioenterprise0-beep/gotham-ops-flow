@@ -107,6 +107,61 @@ export async function getCrewForTrailer(trailerId: string): Promise<Recipient[]>
     }))
 }
 
+// Location-aware fan-out: returns every active employee at the alert's trailer
+// whose role is enabled for `category` in role_email_policies, plus all owners.
+// Personal notification_preferences are applied later via filterByPreferences().
+export async function getLocationRecipientsForCategory(
+  trailerId: string | null,
+  category: Category,
+): Promise<Recipient[]> {
+  const sb = admin()
+
+  // 1) Role policy: which roles are allowed for this category? (default = enabled)
+  const { data: policies } = await sb
+    .from('role_email_policies')
+    .select('role, enabled')
+    .eq('category', category)
+  const disabledRoles = new Set(
+    (policies ?? []).filter((p: any) => p.enabled === false).map((p: any) => p.role),
+  )
+
+  // 2) Owners always receive (regardless of trailer)
+  const owners = await fetchProfilesByRole('owner')
+
+  // 3) Active employees at the trailer (if any) with role enabled for category
+  let local: Recipient[] = []
+  if (trailerId) {
+    const { data: profiles } = await sb
+      .from('profiles')
+      .select('id, display_name, email, active')
+      .eq('trailer_id', trailerId)
+      .eq('active', true)
+    const ids = (profiles ?? []).map((p: any) => p.id)
+    if (ids.length > 0) {
+      const { data: roles } = await sb
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', ids)
+      const roleMap = new Map<string, string>((roles ?? []).map((r: any) => [r.user_id, r.role]))
+      local = (profiles ?? [])
+        .filter((p: any) => p.email)
+        .map((p: any) => ({
+          user_id: p.id as string,
+          email: p.email as string,
+          display_name: p.display_name as string,
+          role: (roleMap.get(p.id) as Recipient['role']) ?? 'crew',
+        }))
+        .filter((r) => !disabledRoles.has(r.role as string))
+    }
+  }
+
+  // 4) Merge + dedupe (owners win on conflict)
+  const seen = new Set<string>()
+  return [...owners, ...local].filter((r) =>
+    seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
+  )
+}
+
 export async function getEmployee(userId: string): Promise<Recipient | null> {
   const sb = admin()
   const { data } = await sb
