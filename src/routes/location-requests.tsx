@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { Check, X, MapPin } from "lucide-react";
+import { Check, X, MapPin, Clock, Ban } from "lucide-react";
 import { toast } from "sonner";
 import {
   listLocationRequests,
   approveLocationRequest,
   declineLocationRequest,
+  listActiveLocationGrants,
+  revokeLocationGrant,
 } from "@/lib/location-access.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -174,7 +176,62 @@ function LocationRequests() {
         ))}
       </div>
 
+      {isOwner && <ActiveGrantsSection trailerName={trailerName} />}
+
       <div className="h-6" />
     </AppShell>
+  );
+}
+
+function ActiveGrantsSection({ trailerName }: { trailerName: (id?: string | null) => string }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listActiveLocationGrants);
+  const revokeFn = useServerFn(revokeLocationGrant);
+  const { data: grants = [], isLoading } = useQuery<Array<{ id: string; user_id: string; user_name: string; trailer_id: string; expires_at: string }>>({
+    queryKey: ["active-location-grants"],
+    queryFn: () => listFn() as any,
+    refetchInterval: 15000,
+  });
+  const revoke = useMutation({
+    mutationFn: (id: string) => revokeFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Grant revoked");
+      qc.invalidateQueries({ queryKey: ["active-location-grants"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <div className="mt-6">
+      <SectionHeader eyebrow="Live" title="Active temporary grants" />
+      {isLoading && <Card>Loading…</Card>}
+      {!isLoading && grants.length === 0 && (
+        <Card className="p-6 text-center text-sm text-muted-foreground">
+          <Clock className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
+          No active grants.
+        </Card>
+      )}
+      <div className="space-y-2">
+        {grants.map((g) => {
+          const minsLeft = Math.max(0, Math.round((new Date(g.expires_at).getTime() - Date.now()) / 60000));
+          return (
+            <Card key={g.id} className="p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">{g.user_name} · {trailerName(g.trailer_id)}</div>
+                <div className="label-caps text-muted-foreground mt-1">
+                  Expires {new Date(g.expires_at).toLocaleTimeString()} · {minsLeft} min left
+                </div>
+              </div>
+              <button
+                disabled={revoke.isPending}
+                onClick={() => revoke.mutate(g.id)}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-[var(--color-danger)] inline-flex items-center gap-1"
+              >
+                <Ban className="h-3.5 w-3.5" /> Revoke
+              </button>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }
