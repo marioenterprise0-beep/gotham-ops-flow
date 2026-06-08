@@ -124,20 +124,16 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
       geofence_radius_m: data.radiusM,
     }).eq("id", data.trailerId);
     if (error) throw new Error(error.message);
-    const { data: row, error: readErr } = await supabase.from("trailers_with_geofence")
-      .select("id, name, geofence_lat, geofence_lng, geofence_radius_m")
-      .eq("id", data.trailerId).single();
+    const { data: rows, error: readErr } = await supabase.rpc("get_trailer_geofence", { _trailer_id: data.trailerId });
     if (readErr) throw new Error(readErr.message);
-    return row;
+    return rows?.[0] ?? null;
   });
 
 export const listTrailerGeofences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data, error } = await supabase.from("trailers_with_geofence")
-      .select("id, name, geofence_lat, geofence_lng, geofence_radius_m, active")
-      .order("name");
+    const { data, error } = await supabase.rpc("list_trailer_geofences");
     if (error) throw new Error(error.message);
     return data ?? [];
   });
