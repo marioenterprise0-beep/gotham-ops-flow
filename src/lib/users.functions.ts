@@ -145,6 +145,13 @@ export const setUserRole = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    // Only owners can grant the owner role (prevent manager → owner escalation).
+    if (data.role === "owner") {
+      const { isOwner } = await import("./auth-guards");
+      if (!(await isOwner(supabase, userId))) {
+        throw new Error("Only owners can assign the owner role");
+      }
+    }
     // Use admin client for the privileged write — manager check already passed.
     // (Avoids RLS edge case where actor delete+insert can flip is_manager mid-transaction.)
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
