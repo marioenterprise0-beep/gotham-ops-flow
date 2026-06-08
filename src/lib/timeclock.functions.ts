@@ -138,6 +138,28 @@ export const listTrailerGeofences = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+// Owner-only: geocode a street address to lat/lng using OpenStreetMap Nominatim.
+// Free, no API key. The owner reviews the returned coords before saving.
+export const geocodeAddress = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ address: z.string().min(5).max(300) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    if (!isOwner) throw new Error("Only owners can geocode addresses.");
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.address)}&format=json&limit=1&addressdetails=1`;
+    const res = await fetch(url, { headers: { "User-Agent": "gotham-os/1.0 (timeclock-geofence)" } });
+    if (!res.ok) throw new Error(`Geocoding failed (${res.status}).`);
+    const arr = (await res.json()) as Array<{ lat: string; lon: string; display_name: string }>;
+    if (!arr || arr.length === 0) throw new Error("Address not found. Try adding city/state/ZIP.");
+    const hit = arr[0];
+    return {
+      lat: Number(hit.lat),
+      lng: Number(hit.lon),
+      label: hit.display_name,
+    };
+  });
+
 export const clockOut = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
