@@ -8,6 +8,7 @@ import { listInventory } from "@/lib/inventory.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
 import { Boxes, Search } from "lucide-react";
+import { SignedImage } from "@/components/gotham/SignedImage";
 
 export const Route = createFileRoute("/inventory-guide")({
   ssr: false,
@@ -71,7 +72,7 @@ function InventoryGuide() {
                 <Card key={it.id} className="flex gap-3">
                   <div className="h-20 w-20 shrink-0 rounded-md bg-secondary overflow-hidden grid place-items-center">
                     {it.image_url ? (
-                      <img src={it.image_url} alt={it.name} className="h-full w-full object-cover" />
+                      <SignedImage path={it.image_url} alt={it.name} className="h-full w-full object-cover" />
                     ) : (
                       <Boxes className="h-6 w-6 text-muted-foreground" />
                     )}

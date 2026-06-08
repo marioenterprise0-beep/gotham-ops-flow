@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
+import { supabase } from "@/integrations/supabase/client";
+import { SignedImage } from "@/components/gotham/SignedImage";
 
 
 export const Route = createFileRoute("/inventory")({
@@ -343,6 +345,7 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
 function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
   const requestFn = useServerFn(submitInventoryChangeRequest);
+  const it = item as any;
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
   const [unit, setUnit] = useState(item?.unit ?? "unit");
@@ -350,12 +353,38 @@ function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onD
   const [low, setLow] = useState(String(item?.low_threshold ?? ""));
   const [qty, setQty] = useState(item ? String(item.current_qty) : "");
   const [reason, setReason] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>(it?.image_url ?? "");
+  const [countInstructions, setCountInstructions] = useState<string>(it?.count_instructions ?? "");
+  const [storageLocation, setStorageLocation] = useState<string>(it?.storage_location ?? "");
+  const [uploading, setUploading] = useState(false);
+
+  const onPickImage = async (file: File) => {
+    if (!isOwner) return;
+    if (file.size > 8 * 1024 * 1024) { toast.error("Image must be ≤ 8 MB"); return; }
+    setUploading(true);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `inventory/${item?.id ?? "new"}/${Date.now()}-${safe}`;
+      const { error } = await supabase.storage.from("gotham-photos").upload(path, file, {
+        cacheControl: "3600", upsert: false, contentType: file.type,
+      });
+      if (error) throw error;
+      setImageUrl(path);
+      toast.success("Image uploaded");
+    } catch (e: any) {
+      toast.error(e.message ?? "Upload failed");
+    } finally { setUploading(false); }
+  };
+
   const m = useMutation({
     mutationFn: async () => {
       const payload = {
         name: name.trim(), category, unit: unit.trim() || "unit",
         parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
         currentQty: qty === "" ? undefined : Number(qty),
+        imageUrl: imageUrl || null,
+        countInstructions: countInstructions || null,
+        storageLocation: storageLocation || null,
       };
       if (isOwner) {
         await upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
@@ -395,13 +424,65 @@ function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onD
           <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         </div>
         <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+
+        <div className="border-t border-border pt-3">
+          <div className="label-caps text-muted-foreground mb-2">Inventory Guide {isOwner ? "" : "(owner-only)"}</div>
+          <Field label="Storage location">
+            <input
+              value={storageLocation}
+              onChange={(e) => setStorageLocation(e.target.value)}
+              placeholder="e.g. Walk-in shelf 2, top bin"
+              disabled={!isOwner}
+              className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-60"
+            />
+          </Field>
+          <div className="mt-3">
+            <Field label="Count instructions">
+              <textarea
+                value={countInstructions}
+                onChange={(e) => setCountInstructions(e.target.value.slice(0, 2000))}
+                rows={3}
+                placeholder="Describe how to count (e.g. case = 24 ea, count opened sleeves too)"
+                disabled={!isOwner}
+                className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm disabled:opacity-60"
+              />
+            </Field>
+          </div>
+          <div className="mt-3">
+            <div className="label-caps text-muted-foreground mb-1">Reference image</div>
+            <div className="flex items-start gap-3">
+              <div className="h-20 w-20 shrink-0 rounded-md bg-secondary overflow-hidden grid place-items-center border border-border">
+                {imageUrl
+                  ? <SignedImage path={imageUrl} alt="item" className="h-full w-full object-cover" />
+                  : <span className="text-[10px] text-muted-foreground">no image</span>}
+              </div>
+              {isOwner && (
+                <div className="flex flex-col gap-2">
+                  <label className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold cursor-pointer inline-flex items-center justify-center w-fit">
+                    {uploading ? "Uploading…" : (imageUrl ? "Replace image" : "Upload image")}
+                    <input
+                      type="file" accept="image/*" className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) onPickImage(f); e.target.value = ""; }}
+                    />
+                  </label>
+                  {imageUrl && (
+                    <button type="button" onClick={() => setImageUrl("")} className="text-xs text-muted-foreground underline w-fit">
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {!isOwner && (
           <Field label="Reason for request">
             <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why this change is needed" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
           </Field>
         )}
       </div>
-      <ModalActions onClose={onClose} primary={isOwner ? (item ? "Save changes" : "Create item") : "Submit request"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
+      <ModalActions onClose={onClose} primary={isOwner ? (item ? "Save changes" : "Create item") : "Submit request"} disabled={!name.trim() || m.isPending || uploading} onSubmit={() => m.mutate()} />
     </Modal>
   );
 }
