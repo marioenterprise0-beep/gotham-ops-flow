@@ -92,6 +92,16 @@ function Inventory() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const requestFn = useServerFn(submitInventoryChangeRequest);
+  const requestMut = useMutation({
+    mutationFn: (vars: { item: Item; reason: string }) => requestFn({ data: {
+      action: "archive", targetItemId: vars.item.id, trailerId: trailerScope,
+      payload: { name: vars.item.name }, reason: vars.reason,
+    } }),
+    onSuccess: () => { toast.success("Archive request sent to owner"); syncDomains(qc, "alerts"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   return (
     <AppShell>
