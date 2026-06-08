@@ -300,7 +300,7 @@ function InventoryGuide() {
                   </h2>
                   <span className="label-caps text-muted-foreground">{list.length} items</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3">
                   {list.map((it) => (
                     <ItemCard
                       key={it.id}
