@@ -122,7 +122,6 @@ function SOPs() {
   const isManager = roleId === "owner" || roleId === "manager";
   const [cat, setCat] = useState<Cat>("All");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
 
@@ -143,19 +142,15 @@ function SOPs() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const delM = useMutation({
+  void useMutation({
     mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { syncDomains(qc, "sops"); },
   });
 
   const customList = useMemo(() => customSops.filter((s: any) =>
     (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
   ), [customSops, cat, q]);
-  const active: SOP | null = null;
 
-
-  if (active) return <SOPDetail sop={active} onBack={() => setOpenId(null)} />;
 
 
   return (
