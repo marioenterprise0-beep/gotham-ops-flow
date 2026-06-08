@@ -278,6 +278,25 @@ function PermissionsPage() {
         </>
       )}
 
+      {mode === "emails" && (
+        <>
+          <SectionHeader
+            eyebrow="Email routing"
+            title="Which alert emails each role receives"
+          />
+          <p className="text-sm text-muted-foreground -mt-2 mb-3">
+            Owners always receive every email. For every other role, alerts go out to the
+            employees assigned to the alert's location whose role is enabled below
+            (subject to each user's personal notification preferences and quiet hours).
+          </p>
+          <EmailPolicyMatrix
+            policies={emailData?.policies ?? []}
+            onToggle={(role, category, enabled) => emailM.mutate({ role, category, enabled })}
+            disabled={emailM.isPending}
+          />
+        </>
+      )}
+
       <div className="h-6" />
     </AppShell>
   );
