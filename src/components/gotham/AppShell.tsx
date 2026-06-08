@@ -26,6 +26,7 @@ const ALL_TABS: Tab[] = [
   { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },
   { to: "/inventory-guide", key: "inventory-guide", label: "Inventory Guide", icon: BookOpen },
   { to: "/order-guide", key: "order-guide", label: "Order Guide", icon: BookOpen,    gate: "manager" },
+  { to: "/inventory-changes", key: "inventory-changes", label: "Inventory Requests", icon: ClipboardCheck },
   { to: "/sops",        key: "sops",        label: "SOPs",        icon: BookOpen },
   { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
   { to: "/health",      key: "health",      label: "Health Score",icon: Activity,    gate: "manager" },
