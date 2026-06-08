@@ -8,7 +8,7 @@ import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
-  listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs,
+  listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
 import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
