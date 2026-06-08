@@ -714,7 +714,7 @@ function SopAckRollup() {
                         </div>
                         <div className="mt-1 text-[10px] text-right text-muted-foreground">{pct}% ack</div>
                       </div>
-                      <StatusPill tone={r.ack_stale > 0 ? "warn" : "success"}>
+                      <StatusPill tone={r.ack_stale > 0 ? "warning" : "success"}>
                         {r.ack_current}/{r.total_users}
                       </StatusPill>
                     </button>
