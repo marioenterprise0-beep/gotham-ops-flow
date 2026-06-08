@@ -8,7 +8,7 @@ import { deleteInventoryItem, listInventory, submitCount } from "@/lib/inventory
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
 import {
-  Beef, Boxes, Carrot, Croissant, Package, Plus, Search, Soup, Sparkles, X,
+  Beef, Boxes, Carrot, Croissant, Milk, Package, Plus, Search, Soup, Sparkles, X,
 } from "lucide-react";
 import { EditItemModal, type Item } from "@/routes/inventory";
 import { useRole } from "@/lib/role";
