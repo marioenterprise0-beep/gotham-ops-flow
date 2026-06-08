@@ -39,7 +39,7 @@ async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: st
   }
 }
 
-const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "packaging", "supplies"] as const;
+const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "dairy", "packaging", "supplies"] as const;
 
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
