@@ -389,11 +389,22 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // No shared-secret guard here: this endpoint is called by the
-        // notify_alert_email DB trigger via pg_net, which cannot easily
-        // share the env secret. Security boundary = unguessable alert UUIDs
-        // + idempotency (email_status short-circuit) + recipients are
-        // predetermined per alert type (see security memory).
+        // Shared-secret guard. The notify_alert_email DB trigger reads the
+        // dispatch key from public.email_dispatch_config (service-role-only)
+        // and sends it as the x-dispatch-key header. Any external caller
+        // without the key is rejected.
+        const sbAuth = admin();
+        const { data: cfg } = await sbAuth
+          .from('email_dispatch_config')
+          .select('dispatch_key')
+          .eq('id', 1)
+          .maybeSingle();
+        const expected = (cfg as any)?.dispatch_key as string | undefined;
+        const provided = request.headers.get('x-dispatch-key');
+        if (!expected || !provided || provided !== expected) {
+          return new Response('Unauthorized', { status: 401 });
+        }
+
 
 
         let body: any

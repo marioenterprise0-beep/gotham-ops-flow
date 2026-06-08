@@ -106,19 +106,23 @@ export const approveLocationRequest = createServerFn({ method: "POST" })
       status: "approved", resolved_by: userId, resolved_at: new Date().toISOString(),
     }).eq("source_id", data.id).eq("source_module", "location");
 
-    // Notify manager (employee-tier alert, with code in payload)
+    // Notify the requesting manager only. The one-time code is intentionally
+    // NOT stored on the alert (description/payload) to avoid exposing it to any
+    // other authenticated user via shared alert visibility. The code is delivered
+    // back to the approving owner as the function return value; the owner shares
+    // it with the requester out-of-band (verbally or via secure channel).
     await supabase.from("alerts").insert({
       type: "manager_note",
       title: "Location access approved",
-      description: `Your one-time code is ${code} (expires in 30 min)`,
+      description: "Your temporary location access was approved. Ask the owner for your 6-digit code (expires in 30 min).",
       source_module: "location",
       source_id: req.id,
       created_by: userId,
       assigned_user_id: req.requested_by,
-      assigned_role: "all",
+      assigned_role: "owner",
       priority: "high",
       status: "pending",
-      payload: { location_request_id: req.id, code, expires_at: expiresAt },
+      payload: { location_request_id: req.id, expires_at: expiresAt },
     } as any);
 
     return { ok: true, code, expiresAt };
