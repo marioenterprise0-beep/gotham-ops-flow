@@ -180,36 +180,56 @@ function PermissionsPage() {
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
-            {(["role", "user"] as const).map((m) => (
+            {(["role", "user", "emails"] as const).map((m) => (
               <button key={m} onClick={() => setMode(m)}
                 className={cn(
                   "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded",
                   mode === m ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/70 hover:text-white"
                 )}>
-                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>) : (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)}
+                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>)
+                  : m === "user" ? (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)
+                  : (<><Mail className="inline h-3 w-3 mr-1" />Emails</>)}
               </button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => presetM.mutate(false)}
-              disabled={presetM.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
-              title="Seed defaults for any role/tab not yet configured"
-            >
-              <Wand2 className="h-3 w-3" /> Apply defaults
-            </button>
-            <button
-              onClick={() => {
-                if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) {
-                  presetM.mutate(true);
-                }
-              }}
-              disabled={presetM.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
-            >
-              Reset to defaults
-            </button>
+            {mode === "emails" ? (
+              <>
+                <button
+                  onClick={() => emailDefaultsM.mutate(false)}
+                  disabled={emailDefaultsM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
+                  title="Seed email defaults for any role/category not yet configured"
+                >
+                  <Wand2 className="h-3 w-3" /> Apply defaults
+                </button>
+                <button
+                  onClick={() => { if (confirm("Reset ALL role email rules to defaults?")) emailDefaultsM.mutate(true); }}
+                  disabled={emailDefaultsM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
+                >
+                  Reset to defaults
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => presetM.mutate(false)}
+                  disabled={presetM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/80 hover:text-white hover:border-[var(--color-gold)] disabled:opacity-50"
+                  title="Seed defaults for any role/tab not yet configured"
+                >
+                  <Wand2 className="h-3 w-3" /> Apply defaults
+                </button>
+                <button
+                  onClick={() => { if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) presetM.mutate(true); }}
+                  disabled={presetM.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
+                >
+                  Reset to defaults
+                </button>
+              </>
+            )}
           </div>
         </div>
         <p className="mt-3 text-xs text-white/50">
