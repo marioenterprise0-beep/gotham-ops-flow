@@ -27,10 +27,10 @@ export const Route = createFileRoute("/inventory-guide")({
 const CATEGORY_ORDER = ["protein", "bun", "produce", "sauce", "packaging", "supplies", "other"] as const;
 const CATEGORY_LABELS: Record<string, string> = {
   protein: "Proteins", bun: "Buns & Bread", sauce: "Sauces",
-  produce: "Produce", packaging: "Packaging", supplies: "Supplies", other: "Other",
+  produce: "Produce", dairy: "Dairy", packaging: "Packaging", supplies: "Supplies", other: "Other",
 };
 const CATEGORY_ICON: Record<string, typeof Beef> = {
-  protein: Beef, bun: Croissant, sauce: Soup, produce: Carrot,
+  protein: Beef, bun: Croissant, sauce: Soup, produce: Carrot, dairy: Milk,
   packaging: Package, supplies: Sparkles, other: Boxes,
 };
 
