@@ -152,3 +152,99 @@ export const deleteSopAttachment = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// ───── View + acknowledgement tracking ─────
+
+export const recordSopView = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ sopId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await supabase.from("sop_views").insert({ sop_id: data.sopId, user_id: userId });
+    return { ok: true };
+  });
+
+export const acknowledgeSop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ sopId: z.string().uuid(), version: z.number().int().min(1) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("sop_acknowledgements").upsert(
+      { sop_id: data.sopId, user_id: userId, version: data.version },
+      { onConflict: "sop_id,user_id,version" },
+    );
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const getMySopAcks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("sop_acknowledgements")
+      .select("sop_id, version, acknowledged_at")
+      .eq("user_id", userId);
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const getSopAckRollup = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+
+    const [{ data: sops }, { data: profiles }, { data: acks }, { data: views }] = await Promise.all([
+      supabase.from("sops").select("id, title, category, version, updated_at"),
+      supabase.from("profiles").select("id, display_name, active").eq("active", true),
+      supabase.from("sop_acknowledgements").select("sop_id, user_id, version, acknowledged_at"),
+      supabase.from("sop_views").select("sop_id, user_id, viewed_at"),
+    ]);
+
+    const profileList = (profiles ?? []) as any[];
+    const totalUsers = profileList.length;
+
+    const latestView = new Map<string, string>();
+    for (const v of (views ?? []) as any[]) {
+      const k = `${v.sop_id}|${v.user_id}`;
+      const prev = latestView.get(k);
+      if (!prev || prev < v.viewed_at) latestView.set(k, v.viewed_at);
+    }
+    const latestAck = new Map<string, { version: number; at: string }>();
+    for (const a of (acks ?? []) as any[]) {
+      const k = `${a.sop_id}|${a.user_id}`;
+      const prev = latestAck.get(k);
+      if (!prev || prev.at < a.acknowledged_at) latestAck.set(k, { version: a.version, at: a.acknowledged_at });
+    }
+
+    return ((sops ?? []) as any[]).map((s) => {
+      let viewedCount = 0;
+      let ackCurrent = 0;
+      let ackStale = 0;
+      const pending: { id: string; name: string }[] = [];
+      const acknowledged: { id: string; name: string; version: number; at: string }[] = [];
+      for (const p of profileList) {
+        if (latestView.get(`${s.id}|${p.id}`)) viewedCount++;
+        const ak = latestAck.get(`${s.id}|${p.id}`);
+        if (ak) {
+          if (ak.version >= s.version) {
+            ackCurrent++;
+            acknowledged.push({ id: p.id, name: p.display_name, version: ak.version, at: ak.at });
+          } else {
+            ackStale++;
+            pending.push({ id: p.id, name: p.display_name });
+          }
+        } else {
+          pending.push({ id: p.id, name: p.display_name });
+        }
+      }
+      return {
+        sop_id: s.id, title: s.title, category: s.category, version: s.version,
+        updated_at: s.updated_at,
+        total_users: totalUsers, viewed_count: viewedCount,
+        ack_current: ackCurrent, ack_stale: ackStale,
+        pending, acknowledged,
+      };
+    });
+  });
