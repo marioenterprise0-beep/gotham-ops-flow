@@ -109,9 +109,12 @@ function UsersTab() {
   const setActiveFn = useServerFn(setUserActive);
   const fetchPerms = useServerFn(listAllTabPermissions);
   const setPermFn = useServerFn(setTabPermission);
+  const fetchSuper = useServerFn(amISuperAdmin);
 
   const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
+  const { data: superData } = useQuery({ queryKey: ["am-i-super-admin"], queryFn: () => fetchSuper() });
+  const isSuperAdmin = !!superData?.isSuperAdmin;
   const { data: permData } = useQuery({
     queryKey: ["all-tab-permissions"],
     queryFn: () => fetchPerms() as Promise<any>,
