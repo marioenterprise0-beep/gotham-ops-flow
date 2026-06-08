@@ -367,3 +367,90 @@ function PermMatrix({
     </Card>
   );
 }
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Owner", manager: "Manager", shift_lead: "Shift Lead",
+  grill: "Grill", prep: "Prep", cashier: "Cashier",
+};
+const CATEGORY_LABEL: Record<EmailCategory, string> = {
+  critical: "Critical",
+  operations: "Operations",
+  schedule: "Schedule",
+  time_clock: "Time Clock",
+  inventory: "Inventory",
+  cash: "Cash",
+  training: "Training",
+  announcements: "Announcements",
+};
+
+function EmailPolicyMatrix({
+  policies, onToggle, disabled,
+}: {
+  policies: { role: string; category: string; enabled: boolean }[];
+  onToggle: (role: string, category: EmailCategory, enabled: boolean) => void;
+  disabled?: boolean;
+}) {
+  const lookup = new Map<string, boolean>();
+  for (const p of policies) lookup.set(`${p.role}|${p.category}`, p.enabled);
+  const enabledFor = (role: string, category: EmailCategory) => {
+    const k = `${role}|${category}`;
+    if (lookup.has(k)) return lookup.get(k)!;
+    return EMAIL_POLICY_DEFAULTS[role]?.[category] ?? true;
+  };
+
+  return (
+    <Card className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left">
+            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">Role</th>
+            {EMAIL_CATEGORIES.map((c) => (
+              <th key={c} className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap">
+                {CATEGORY_LABEL[c]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Object.keys(EMAIL_POLICY_DEFAULTS).map((role) => {
+            const locked = role === "owner";
+            return (
+              <tr key={role} className="border-t border-border">
+                <td className="py-2 pr-3 font-medium sticky left-0 bg-card whitespace-nowrap">
+                  {ROLE_LABEL[role] ?? role}
+                  {locked && <span className="ml-1 text-[10px] text-[var(--color-gold)]">always on</span>}
+                </td>
+                {EMAIL_CATEGORIES.map((c) => {
+                  const on = locked ? true : enabledFor(role, c);
+                  return (
+                    <td key={c} className="text-center px-2 py-2">
+                      <button
+                        type="button"
+                        disabled={disabled || locked}
+                        onClick={() => onToggle(role, c, !on)}
+                        aria-pressed={on}
+                        title={on ? "Email enabled" : "Email disabled"}
+                        className={cn(
+                          "relative inline-flex h-5 w-9 items-center rounded-full transition",
+                          on ? "bg-[var(--color-success,#16a34a)]" : "bg-[#3a3a3a]",
+                          (disabled || locked) && "opacity-60 cursor-not-allowed",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 rounded-full bg-white shadow transition",
+                            on ? "translate-x-[18px]" : "translate-x-[2px]",
+                          )}
+                        />
+                      </button>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
