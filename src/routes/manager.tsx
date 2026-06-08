@@ -12,6 +12,7 @@ import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
 import { getManagerOverview, createActionTask, acknowledgeAlert, reorderItem, listCrewRoster, updateCrewRole } from "@/lib/manager.functions";
+import { amISuperAdmin, setUserActive } from "@/lib/users.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -363,7 +364,11 @@ function CrewRosterPanel() {
   const qc = useQueryClient();
   const fetchRoster = useServerFn(listCrewRoster);
   const updateRole = useServerFn(updateCrewRole);
+  const fetchSuper = useServerFn(amISuperAdmin);
+  const kickUser = useServerFn(setUserActive);
   const { data: roster = [] } = useQuery({ queryKey: ["crew-roster"], queryFn: () => fetchRoster() });
+  const { data: superData } = useQuery({ queryKey: ["am-super-admin"], queryFn: () => fetchSuper() });
+  const isSuper = !!superData?.isSuperAdmin;
 
   const roleMut = useMutation({
     mutationFn: (vars: { userId: string; role: RoleId }) => updateRole({ data: vars }),
@@ -371,11 +376,17 @@ function CrewRosterPanel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const kickMut = useMutation({
+    mutationFn: (vars: { userId: string }) => kickUser({ data: { userId: vars.userId, active: false } }),
+    onSuccess: () => { toast.success("User kicked"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); syncDomains(qc, "users"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <Card className="p-0 overflow-hidden">
       {roster.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No crew yet. Share an invite code to onboard.</div>}
       {roster.map((m: any, i: number) => (
-        <div key={m.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_auto] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
+        <div key={m.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_1fr_auto] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
           <div className="font-medium truncate">{m.name}</div>
           <div><RoleBadge role={ROLES[m.role as RoleId]?.name ?? m.role} /></div>
           <select
@@ -387,6 +398,20 @@ function CrewRosterPanel() {
             {(Object.keys(ROLES) as RoleId[]).map((r) => <option key={r} value={r}>{ROLES[r].name}</option>)}
           </select>
           <div className="text-xs text-muted-foreground">Joined {new Date(m.joined).toLocaleDateString()}</div>
+          {isSuper ? (
+            <button
+              type="button"
+              disabled={kickMut.isPending}
+              onClick={() => {
+                if (confirm(`Kick ${m.name}? They will lose access immediately.`)) {
+                  kickMut.mutate({ userId: m.id });
+                }
+              }}
+              className="h-9 px-3 rounded-md border border-destructive/40 text-destructive text-xs font-medium hover:bg-destructive/10 disabled:opacity-50"
+            >
+              Kick
+            </button>
+          ) : null}
         </div>
       ))}
     </Card>
