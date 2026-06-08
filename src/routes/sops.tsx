@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2, Pencil, History, Paperclip, X, Upload, Download } from "lucide-react";
+import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2, Pencil, History, Paperclip, X, Upload, Download, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
