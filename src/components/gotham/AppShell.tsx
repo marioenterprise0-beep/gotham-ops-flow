@@ -214,15 +214,33 @@ function isActive(pathname: string, to: string) {
 
 function TrailerSwitcher() {
   const { roleId, trailers, trailerScope, setTrailerScope, homeTrailerId } = useRole();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const isOwner = roleId === "owner";
   const isManager = roleId === "manager";
   if (trailers.length === 0) return null;
   const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
+  const scopeName = trailerScope ? (trailers.find((t) => t.id === trailerScope)?.name ?? homeName) : homeName;
   // Employees and managers are LOCKED to their home trailer. Only owners may switch freely.
-  // Managers can request temporary access via /alerts (location request flow).
   if (!isOwner) {
+    if (isManager) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            title="Request temporary access to another trailer"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] hover:border-[var(--color-gold)] transition"
+          >
+            <span className="label-caps text-white/50">Trailer</span>
+            <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {scopeName}</span>
+            <span className="text-[10px] text-white/40">Request</span>
+          </button>
+          {dialogOpen && <LocationRequestDialog onClose={() => setDialogOpen(false)} />}
+        </>
+      );
+    }
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title={isManager ? "Locked — request temporary access from the owner" : "Locked to your assigned trailer"}>
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title="Locked to your assigned trailer">
         <span className="label-caps text-white/50">Trailer</span>
         <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {homeName}</span>
       </div>
