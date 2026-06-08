@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2, Pencil, History, Paperclip, X, Upload, Download } from "lucide-react";
+import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus, Trash2, Pencil, History, Paperclip, X, Upload, Download, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -233,7 +233,28 @@ function SOPs() {
           </div>
         </>
       ) : (
-        <div className="mt-6 text-center text-sm text-muted-foreground py-12">No SOPs yet. {isManager ? "Tap “New SOP” to create one." : ""}</div>
+        <Card className="mt-6">
+          <div className="flex flex-col items-center text-center py-10 px-4">
+            <div className="h-14 w-14 rounded-full bg-secondary border border-border grid place-items-center mb-4">
+              <BookOpen className="h-6 w-6 text-[var(--color-gold)]" />
+            </div>
+            <div className="label-caps text-muted-foreground">SOP Library</div>
+            <h2 className="font-display text-2xl mt-1">No procedures yet</h2>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
+              {isManager
+                ? "Your SOP library is empty. Document a procedure so your crew has a single source of truth for how this trailer operates — kitchen, front, cleaning, and more."
+                : "There are no SOPs published yet. Check back once a manager adds the first procedure."}
+            </p>
+            {isManager && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2.5 text-sm font-semibold hover:opacity-90">
+                <Plus className="h-4 w-4" /> Create your first SOP
+              </button>
+            )}
+          </div>
+        </Card>
+
       )}
 
 
