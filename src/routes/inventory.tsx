@@ -226,7 +226,7 @@ function Inventory() {
 
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
-      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
+      {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} isOwner={isOwner} trailerId={trailerScope} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory", "alerts")} />}
       {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
       {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
       {isManager && (
