@@ -274,6 +274,8 @@ function SOPs() {
         </div>
       )}
 
+      {roleId === "owner" && <SopAckRollup />}
+
       {customList.length > 0 && (
         <>
           <SectionHeader eyebrow="Editable library" title={`${customList.length} procedures`} />
