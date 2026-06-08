@@ -6,6 +6,7 @@ import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
 import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
 import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
+import { listTrailerGeofences, setTrailerGeofence } from "@/lib/timeclock.functions";
 import {
   getMyNotificationPreferences,
   updateMyNotificationPreferences,
@@ -108,6 +109,7 @@ function Settings() {
       <NotificationsPanel />
 
       {roleId === "owner" && <AutomationPanel />}
+      {roleId === "owner" && <GeofencePanel />}
 
       <SectionHeader eyebrow="Session" title="Sign out" />
       <Card>
@@ -344,5 +346,120 @@ function NotificationsPanel() {
         </div>
       </Card>
     </>
+  );
+}
+
+function GeofencePanel() {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listTrailerGeofences);
+  const saveFn = useServerFn(setTrailerGeofence);
+  const { data: trailers = [] } = useQuery<any[]>({
+    queryKey: ["trailer-geofences"],
+    queryFn: () => listFn() as any,
+  });
+  const save = useMutation({
+    mutationFn: (v: { trailerId: string; lat: number | null; lng: number | null; radiusM: number }) =>
+      saveFn({ data: v }),
+    onSuccess: () => { toast.success("Geofence saved"); qc.invalidateQueries({ queryKey: ["trailer-geofences"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <>
+      <SectionHeader eyebrow="Clock-in Geofence" title="Trailer Locations" />
+      <Card>
+        <div className="text-xs text-muted-foreground mb-3">
+          Employees can only clock in within the radius of their trailer. Stand at the trailer and tap "Use current location" to set it.
+        </div>
+        <div className="space-y-4">
+          {trailers.length === 0 && (
+            <div className="text-sm text-muted-foreground">No trailers yet.</div>
+          )}
+          {trailers.map((t) => (
+            <GeofenceRow key={t.id} trailer={t} onSave={(v) => save.mutate({ trailerId: t.id, ...v })} pending={save.isPending} />
+          ))}
+        </div>
+      </Card>
+    </>
+  );
+}
+
+function GeofenceRow({ trailer, onSave, pending }: {
+  trailer: { id: string; name: string; geofence_lat: number | null; geofence_lng: number | null; geofence_radius_m: number | null };
+  onSave: (v: { lat: number | null; lng: number | null; radiusM: number }) => void;
+  pending: boolean;
+}) {
+  const [lat, setLat] = useState<string>(trailer.geofence_lat?.toString() ?? "");
+  const [lng, setLng] = useState<string>(trailer.geofence_lng?.toString() ?? "");
+  const [radius, setRadius] = useState<number>(trailer.geofence_radius_m ?? 25);
+  const [locating, setLocating] = useState(false);
+
+  function useHere() {
+    if (!navigator.geolocation) { toast.error("Geolocation not supported on this device."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(pos.coords.latitude.toFixed(6));
+        setLng(pos.coords.longitude.toFixed(6));
+        setLocating(false);
+        toast.success(`Captured (±${Math.round(pos.coords.accuracy)} m)`);
+      },
+      (err) => { setLocating(false); toast.error(err.message || "Could not get location"); },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
+  const latNum = lat.trim() === "" ? null : Number(lat);
+  const lngNum = lng.trim() === "" ? null : Number(lng);
+  const invalid = (latNum !== null && !Number.isFinite(latNum)) || (lngNum !== null && !Number.isFinite(lngNum)) ||
+    (latNum === null) !== (lngNum === null);
+
+  return (
+    <div className="rounded-lg border border-border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="font-semibold text-sm">{trailer.name}</div>
+        <button onClick={useHere} disabled={locating}
+          className="h-8 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] disabled:opacity-50">
+          {locating ? "Locating…" : "Use current location"}
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Latitude</div>
+          <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="40.7128"
+            className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+        </div>
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Longitude</div>
+          <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="-74.0060"
+            className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+        </div>
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Radius (m)</div>
+          <input type="number" min={10} max={2000} value={radius}
+            onChange={(e) => setRadius(Math.max(10, Math.min(2000, Number(e.target.value) || 25)))}
+            className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {trailer.geofence_lat == null ? "Not set — geofence disabled for this trailer." : "Geofence active."}
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onSave({ lat: null, lng: null, radiusM: radius })}
+            disabled={pending || trailer.geofence_lat == null}
+            className="h-8 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] disabled:opacity-50">
+            Disable
+          </button>
+          <button
+            onClick={() => onSave({ lat: latNum, lng: lngNum, radiusM: radius })}
+            disabled={pending || invalid || latNum === null || lngNum === null}
+            className="h-8 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 text-xs font-semibold uppercase tracking-[1px] disabled:opacity-50">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
