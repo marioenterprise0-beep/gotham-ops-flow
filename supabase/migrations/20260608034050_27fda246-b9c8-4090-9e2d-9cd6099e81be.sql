@@ -1,0 +1,1 @@
+ALTER TYPE inventory_category ADD VALUE IF NOT EXISTS 'dairy';

@@ -2467,6 +2467,7 @@ export type Database = {
         | "sauce"
         | "packaging"
         | "supplies"
+        | "dairy"
       inventory_change_action: "create" | "update" | "delete" | "archive"
       inventory_change_status: "pending" | "approved" | "declined" | "cancelled"
       inventory_order_status:
@@ -2703,6 +2704,7 @@ export const Constants = {
         "sauce",
         "packaging",
         "supplies",
+        "dairy",
       ],
       inventory_change_action: ["create", "update", "delete", "archive"],
       inventory_change_status: ["pending", "approved", "declined", "cancelled"],
