@@ -10,12 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
 } from "@/lib/timeclock.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
-import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare } from "lucide-react";
+import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
@@ -64,10 +68,12 @@ function TimeClockPage() {
     });
   }
 
+  const [geoBlock, setGeoBlock] = useState<string | null>(null);
+
   const inM = useMutation({
     mutationFn: async () => {
       const geo = await getGeo();
-      if (!geo) throw new Error("Location is required to clock in. Please enable location access in your browser settings.");
+      if (!geo) throw new Error("LOCATION_OFF");
       return inFn({ data: {
         deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" },
         lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
@@ -75,13 +81,19 @@ function TimeClockPage() {
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        toast.error(result.message);
+        setGeoBlock(result.message);
         return;
       }
       toast.success("Clocked in");
       syncDomains(qc, "timeclock", "labor", "operations");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (e.message === "LOCATION_OFF") {
+        setGeoBlock("Location access is required to clock in. Please enable location in your browser settings and try again at the trailer.");
+        return;
+      }
+      toast.error(e.message);
+    },
   });
   const outM = useMutation({
     mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
@@ -147,6 +159,26 @@ function TimeClockPage() {
 
       <MyHistory />
       <div className="h-6" />
+
+      <AlertDialog open={!!geoBlock} onOpenChange={(o) => !o && setGeoBlock(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-[var(--color-gold)]" />
+              You're not at the trailer
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {geoBlock ?? ""}
+              <br />
+              <br />
+              You must be on-site within the trailer's geofence to clock in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setGeoBlock(null)}>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
