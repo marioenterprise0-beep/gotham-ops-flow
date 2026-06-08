@@ -159,6 +159,26 @@ function TimeClockPage() {
 
       <MyHistory />
       <div className="h-6" />
+
+      <AlertDialog open={!!geoBlock} onOpenChange={(o) => !o && setGeoBlock(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-[var(--color-gold)]" />
+              You're not at the trailer
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {geoBlock ?? ""}
+              <br />
+              <br />
+              You must be on-site within the trailer's geofence to clock in.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setGeoBlock(null)}>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
