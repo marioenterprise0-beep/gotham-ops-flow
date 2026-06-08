@@ -70,6 +70,10 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     minimumQty: z.number().nonnegative().optional(),
     preferredOrderQty: z.number().nonnegative().optional(),
     estimatedCost: z.number().nonnegative().optional(),
+    imageUrl: z.string().max(1000).nullable().optional(),
+    countInstructions: z.string().max(2000).nullable().optional(),
+    storageLocation: z.string().max(200).nullable().optional(),
+    archived: z.boolean().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -91,6 +95,10 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     if (data.minimumQty !== undefined) payload.minimum_qty = data.minimumQty;
     if (data.preferredOrderQty !== undefined) payload.preferred_order_qty = data.preferredOrderQty;
     if (data.estimatedCost !== undefined) payload.estimated_cost = data.estimatedCost;
+    if (data.imageUrl !== undefined) payload.image_url = data.imageUrl;
+    if (data.countInstructions !== undefined) payload.count_instructions = data.countInstructions;
+    if (data.storageLocation !== undefined) payload.storage_location = data.storageLocation;
+    if (data.archived !== undefined) payload.archived_at = data.archived ? new Date().toISOString() : null;
     if (data.id) {
       const { error } = await supabase.from("inventory_items").update(payload).eq("id", data.id);
       if (error) throw error;
