@@ -12,6 +12,7 @@ import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
 import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
 import { getManagerOverview, createActionTask, acknowledgeAlert, reorderItem, listCrewRoster, updateCrewRole } from "@/lib/manager.functions";
+import { amISuperAdmin, setUserActive } from "@/lib/users.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
