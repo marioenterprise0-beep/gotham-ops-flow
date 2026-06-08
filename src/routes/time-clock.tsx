@@ -73,7 +73,14 @@ function TimeClockPage() {
         lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
       } });
     },
-    onSuccess: () => { toast.success("Clocked in"); syncDomains(qc, "timeclock", "labor", "operations"); },
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success("Clocked in");
+      syncDomains(qc, "timeclock", "labor", "operations");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const outM = useMutation({

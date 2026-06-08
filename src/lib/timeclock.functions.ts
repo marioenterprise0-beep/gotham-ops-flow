@@ -53,7 +53,12 @@ export const clockIn = createServerFn({ method: "POST" })
     // Block double clock-in
     const { data: open } = await supabase.from("time_punches")
       .select("id").eq("employee_id", userId).eq("status", "open").limit(1).maybeSingle();
-    if (open) throw new Error("You are already clocked in.");
+    if (open) {
+      return {
+        ok: false as const,
+        message: "You are already clocked in.",
+      };
+    }
 
     // Geofence: when the trailer has coordinates configured, require the
     // caller to be within geofence_radius_m of the trailer. The server
@@ -65,16 +70,20 @@ export const clockIn = createServerFn({ method: "POST" })
         .eq("id", trailerId).maybeSingle();
       if (trailer?.geofence_lat != null && trailer?.geofence_lng != null) {
         if (data.lat == null || data.lng == null) {
-          throw new Error("Location required to clock in. Enable location access and try again.");
+          return {
+            ok: false as const,
+            message: "Location required to clock in. Enable location access and try again.",
+          };
         }
         const radius = trailer.geofence_radius_m ?? 25;
         const dist = distanceMeters(data.lat, data.lng, trailer.geofence_lat, trailer.geofence_lng);
         // Allow GPS accuracy (capped) as edge tolerance so a good reading near the boundary isn't rejected.
         const tolerance = Math.min(50, data.accuracy ?? 0);
         if (dist - tolerance > radius) {
-          throw new Error(
-            `You are too far from ${trailer.name ?? "the trailer"} (${Math.round(dist)} m away, must be within ${radius} m). Clock in once you arrive.`
-          );
+          return {
+            ok: false as const,
+            message: `You are too far from ${trailer.name ?? "the trailer"} (${Math.round(dist)} m away, must be within ${radius} m). Clock in once you arrive.`,
+          };
         }
       }
     }
@@ -102,7 +111,10 @@ export const clockIn = createServerFn({ method: "POST" })
       device_info: Object.keys(deviceInfo).length ? deviceInfo : null,
     }).select("*").single();
     if (error) throw new Error(error.message);
-    return row;
+    return {
+      ok: true as const,
+      punch: row,
+    };
   });
 
 // Owner-only: configure geofence coordinates / radius for a trailer.
