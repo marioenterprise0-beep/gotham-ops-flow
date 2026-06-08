@@ -455,6 +455,27 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
     );
   }
 
+  const recordViewFn = useServerFn(recordSopView);
+  const ackFn = useServerFn(acknowledgeSop);
+  const myAcksFn = useServerFn(getMySopAcks);
+  const { data: myAcks = [] } = useQuery<any[]>({
+    queryKey: ["my-sop-acks"],
+    queryFn: () => myAcksFn() as any,
+  });
+  const myAck = (myAcks as any[]).find((a) => a.sop_id === sop.id);
+  const ackCurrent = !!myAck && myAck.version >= sop.version;
+  const viewedRef = useRef(false);
+  useEffect(() => {
+    if (viewedRef.current) return;
+    viewedRef.current = true;
+    void recordViewFn({ data: { sopId: sop.id } }).catch(() => {});
+  }, [sop.id]);
+  const ackM = useMutation({
+    mutationFn: () => ackFn({ data: { sopId: sop.id, version: sop.version } }),
+    onSuccess: () => { toast.success("Acknowledged"); qc.invalidateQueries({ queryKey: ["my-sop-acks"] }); qc.invalidateQueries({ queryKey: ["sop-ack-rollup"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <Card className="h-full">
       <div className="flex items-center justify-between mb-2">
@@ -472,6 +493,24 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
       <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-5">{sop.body}</div>
       {sop.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {sop.pass_standard}</div>}
       <div className="mt-2 text-[10px] text-muted-foreground">v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}</div>
+      <button
+        onClick={() => ackM.mutate()}
+        disabled={ackCurrent || ackM.isPending}
+        className={cn(
+          "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold",
+          ackCurrent
+            ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+            : myAck
+              ? "bg-[var(--color-warning-bg,#3a2f12)] text-[var(--color-warning,#C9973A)] border border-[var(--color-warning,#C9973A)]/40"
+              : "bg-[var(--color-gold)] text-[#0A0A0A]",
+        )}
+      >
+        {ackCurrent
+          ? <><Check className="h-3.5 w-3.5" /> Acknowledged v{myAck.version}</>
+          : myAck
+            ? <>Re-acknowledge — updated to v{sop.version}</>
+            : "I've read this SOP"}
+      </button>
     </Card>
   );
 }
