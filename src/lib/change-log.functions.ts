@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
 export type ChangeLogRow = {
@@ -21,7 +22,8 @@ export const listChangeLog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { search?: string; entity?: string; actorId?: string; days?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     let q = supabase.from("change_log").select("*").order("created_at", { ascending: false }).limit(500);
     const days = data.days ?? 30;
     if (days > 0) {
@@ -53,6 +55,7 @@ export const recordChange = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
     const { error } = await supabase.from("change_log").insert({
       actor_id: userId,
