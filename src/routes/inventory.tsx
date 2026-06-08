@@ -342,7 +342,7 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
   );
 }
 
-function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
+export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
   const requestFn = useServerFn(submitInventoryChangeRequest);
   const it = item as any;
