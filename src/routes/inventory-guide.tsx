@@ -34,23 +34,6 @@ const CATEGORY_ICON: Record<string, typeof Beef> = {
   packaging: Package, supplies: Sparkles, other: Boxes,
 };
 
-type Status = "CRITICAL" | "LOW" | "OK" | "OVER";
-function statusOf(it: any): Status {
-  const par = Number(it.par_level) || 0;
-  const qty = Number(it.current_qty) || 0;
-  const low = Number(it.low_threshold) || 0;
-  if (qty <= low) return "CRITICAL";
-  const r = par === 0 ? 1 : qty / par;
-  if (r < 0.5) return "LOW";
-  if (r > 1.1) return "OVER";
-  return "OK";
-}
-const STATUS_STYLE: Record<Status, { bg: string; fg: string; bar: string; label: string }> = {
-  CRITICAL: { bg: "bg-[var(--color-danger-bg)]", fg: "text-[var(--color-danger)]", bar: "bg-[var(--color-danger)]", label: "Critical" },
-  LOW:      { bg: "bg-[var(--color-warning-bg)]", fg: "text-[var(--color-warning)]", bar: "bg-[var(--color-warning)]", label: "Low" },
-  OK:       { bg: "bg-[var(--color-success-bg)]", fg: "text-[var(--color-success)]", bar: "bg-[var(--color-success)]", label: "On par" },
-  OVER:     { bg: "bg-secondary", fg: "text-muted-foreground", bar: "bg-muted-foreground/60", label: "Overstocked" },
-};
 
 function InventoryGuide() {
   const qc = useQueryClient();
