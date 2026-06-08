@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw, Activity, Banknote, Keyboard } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw, Activity, Banknote, Keyboard, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { CommandPalette } from "@/components/gotham/CommandPalette";
 import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
 import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
+import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
 
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
@@ -34,6 +35,7 @@ const ALL_TABS: Tab[] = [
   { to: "/manager",     key: "manager",     label: "Manager",     icon: Shield,      gate: "manager" },
   { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
   { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
+  { to: "/location-requests", key: "location-requests", label: "Location Access", icon: MapPin,   gate: "owner" },
   { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
   { to: "/change-log",  key: "change-log",  label: "Change Log",  icon: ScrollText,  gate: "manager" },
   { to: "/integrity",   key: "integrity",   label: "Data Integrity", icon: Shield,   gate: "owner" },
@@ -214,15 +216,33 @@ function isActive(pathname: string, to: string) {
 
 function TrailerSwitcher() {
   const { roleId, trailers, trailerScope, setTrailerScope, homeTrailerId } = useRole();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const isOwner = roleId === "owner";
   const isManager = roleId === "manager";
   if (trailers.length === 0) return null;
   const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
+  const scopeName = trailerScope ? (trailers.find((t) => t.id === trailerScope)?.name ?? homeName) : homeName;
   // Employees and managers are LOCKED to their home trailer. Only owners may switch freely.
-  // Managers can request temporary access via /alerts (location request flow).
   if (!isOwner) {
+    if (isManager) {
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            title="Request temporary access to another trailer"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] hover:border-[var(--color-gold)] transition"
+          >
+            <span className="label-caps text-white/50">Trailer</span>
+            <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {scopeName}</span>
+            <span className="text-[10px] text-white/40">Request</span>
+          </button>
+          {dialogOpen && <LocationRequestDialog onClose={() => setDialogOpen(false)} />}
+        </>
+      );
+    }
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title={isManager ? "Locked — request temporary access from the owner" : "Locked to your assigned trailer"}>
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title="Locked to your assigned trailer">
         <span className="label-caps text-white/50">Trailer</span>
         <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {homeName}</span>
       </div>

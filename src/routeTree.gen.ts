@@ -21,6 +21,7 @@ import { Route as OrderGuideRouteImport } from './routes/order-guide'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
+import { Route as LocationRequestsRouteImport } from './routes/location-requests'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
 import { Route as InventoryChangesRouteImport } from './routes/inventory-changes'
@@ -106,6 +107,11 @@ const MyTasksRoute = MyTasksRouteImport.update({
 const ManagerRoute = ManagerRouteImport.update({
   id: '/manager',
   path: '/manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocationRequestsRoute = LocationRequestsRouteImport.update({
+  id: '/location-requests',
+  path: '/location-requests',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LaborRoute = LaborRouteImport.update({
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
+  '/location-requests': typeof LocationRequestsRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
+  '/location-requests': typeof LocationRequestsRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
+  '/location-requests': typeof LocationRequestsRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
     | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
+    | '/location-requests'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
     | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
+    | '/location-requests'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -465,6 +476,7 @@ export interface FileRouteTypes {
     | '/inventory-changes'
     | '/inventory-guide'
     | '/labor'
+    | '/location-requests'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -506,6 +518,7 @@ export interface RootRouteChildren {
   InventoryChangesRoute: typeof InventoryChangesRoute
   InventoryGuideRoute: typeof InventoryGuideRoute
   LaborRoute: typeof LaborRoute
+  LocationRequestsRoute: typeof LocationRequestsRoute
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
@@ -615,6 +628,13 @@ declare module '@tanstack/react-router' {
       path: '/manager'
       fullPath: '/manager'
       preLoaderRoute: typeof ManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/location-requests': {
+      id: '/location-requests'
+      path: '/location-requests'
+      fullPath: '/location-requests'
+      preLoaderRoute: typeof LocationRequestsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/labor': {
@@ -818,6 +838,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryChangesRoute: InventoryChangesRoute,
   InventoryGuideRoute: InventoryGuideRoute,
   LaborRoute: LaborRoute,
+  LocationRequestsRoute: LocationRequestsRoute,
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
