@@ -55,7 +55,8 @@ function InventoryGuide() {
 
   const delM = useMutation({
     mutationFn: (id: string) => removeFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory"); },
+    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to remove item"),
     onError: (e: Error) => toast.error(e.message),
   });
 
