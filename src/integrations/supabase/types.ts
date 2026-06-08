@@ -634,6 +634,27 @@ export type Database = {
         }
         Relationships: []
       }
+      email_dispatch_config: {
+        Row: {
+          created_at: string
+          dispatch_key: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dispatch_key: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dispatch_key?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           alert_id: string | null
