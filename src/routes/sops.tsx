@@ -122,7 +122,6 @@ function SOPs() {
   const isManager = roleId === "owner" || roleId === "manager";
   const [cat, setCat] = useState<Cat>("All");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
 
@@ -143,59 +142,13 @@ function SOPs() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  const delM = useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  void deleteFn;
 
-  // Auto-seed built-in SOPs into the editable library on first manager visit.
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (!isManager || seededRef.current) return;
-    const titles = new Set(customSops.map((s: any) => s.title));
-    const pending = SOPS.filter((s) => !titles.has(s.title));
-    if (pending.length === 0) return;
-    seededRef.current = true;
-    const ROLE_MAP: Record<string, string> = {
-      "Grill Master": "grill", "Prep": "prep", "Cashier": "cashier",
-      "Shift Lead": "shift_lead", "Manager": "manager",
-    };
-    (async () => {
-      for (const s of pending) {
-        const body = [
-          `## Objective`, s.objective, "",
-          `## Steps`, ...s.steps.map((st, i) => `${i + 1}. ${st}`), "",
-          `## Pass standard`, s.standard, "",
-          `## Common errors`, ...s.errors.map((e) => `- ${e}`),
-        ].join("\n");
-        try {
-          await upsertFn({ data: {
-            title: s.title, category: s.cat, role: (ROLE_MAP[s.role] ?? "cashier") as any,
-            body, passStandard: s.standard,
-          } });
-        } catch { /* ignore */ }
-      }
-      toast.success(`Made ${pending.length} built-in SOPs editable`);
-      syncDomains(qc, "sops");
-    })();
-  }, [isManager, customSops.length]);
 
-  const importedTitles = useMemo(() => new Set(customSops.map((s: any) => s.title)), [customSops]);
-  const list = useMemo(
-    () => SOPS.filter((s) =>
-      !importedTitles.has(s.title) &&
-      (cat === "All" || s.cat === cat) &&
-      s.title.toLowerCase().includes(q.toLowerCase())
-    ),
-    [cat, q, importedTitles]
-  );
-  const customList = useMemo(() => customSops.filter((s) =>
+  const customList = useMemo(() => customSops.filter((s: any) =>
     (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
   ), [customSops, cat, q]);
-  const active = openId ? SOPS.find((s) => s.id === openId) : null;
 
-  if (active) return <SOPDetail sop={active} onBack={() => setOpenId(null)} />;
 
 
   return (
@@ -268,52 +221,21 @@ function SOPs() {
         </div>
       )}
 
-      {isManager && (
-        <div className="mt-3">
-          <ImportBuiltinsButton existing={customSops} />
-        </div>
-      )}
-
       {roleId === "owner" && <SopAckRollup />}
 
-      {customList.length > 0 && (
+      {customList.length > 0 ? (
         <>
-          <SectionHeader eyebrow="Editable library" title={`${customList.length} procedures`} />
+          <SectionHeader eyebrow={cat} title={`${customList.length} procedures`} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {customList.map((s: any) => (
               <CustomSopCard key={s.id} sop={s} canEdit={isManager} />
             ))}
           </div>
         </>
+      ) : (
+        <div className="mt-6 text-center text-sm text-muted-foreground py-12">No SOPs yet. {isManager ? "Tap “New SOP” to create one." : ""}</div>
       )}
 
-      <SectionHeader eyebrow={cat} title={`${list.length} procedures`} />
-
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {list.map((s) => {
-          const Icon = CAT_ICON[s.cat]; const color = CAT_COLOR[s.cat];
-          return (
-            <button key={s.id} onClick={() => setOpenId(s.id)} className="text-left">
-              <Card className="h-full hover:border-[var(--color-gold)] transition">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-                  <span className="label-caps" style={{ color }}>{s.cat}</span>
-                </div>
-                <div className="font-semibold text-[15px] leading-snug">{s.title}</div>
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Icon className="h-3.5 w-3.5" /> {s.role}
-                  </div>
-                  <div className="label-caps text-muted-foreground">{s.readMin} min</div>
-                </div>
-                <div className="mt-2 text-[10px] text-muted-foreground">Updated {s.updated}</div>
-              </Card>
-            </button>
-          );
-        })}
-        {list.length === 0 && <div className="col-span-full text-center text-sm text-muted-foreground py-12">No matching SOPs.</div>}
-      </div>
 
       <div className="h-6" />
     </AppShell>
