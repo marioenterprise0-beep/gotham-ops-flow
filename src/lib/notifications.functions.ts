@@ -253,9 +253,20 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
         .update({ email_status: "none" })
         .eq("id", row.alert_id);
 
+      const { data: dispatchCfg, error: dispatchCfgError } = await sb
+        .from("email_dispatch_config")
+        .select("dispatch_key")
+        .eq("id", 1)
+        .maybeSingle();
+      if (dispatchCfgError) throw dispatchCfgError;
+      if (!dispatchCfg?.dispatch_key) throw new Error("dispatch_key_missing");
+
       const res = await fetch(`${SITE_URL}/api/public/hooks/alert-email-dispatch`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-dispatch-key": dispatchCfg.dispatch_key,
+        },
         body: JSON.stringify({ alert_id: row.alert_id }),
       });
       if (!res.ok) throw new Error(`dispatch_failed_${res.status}`);

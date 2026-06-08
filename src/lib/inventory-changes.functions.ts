@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
 async function isOwner(supabase: any, userId: string) {
@@ -55,7 +56,9 @@ export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
 export const listInventoryChangeRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { data, error } = await supabase
       .from("inventory_change_requests")
       .select("*")
       .order("created_at", { ascending: false })

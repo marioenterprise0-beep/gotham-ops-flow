@@ -64,11 +64,17 @@ export const submitLocationRequest = createServerFn({ method: "POST" })
 export const listLocationRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    const { supabase, userId } = context;
+    const { isManager } = await getRoles(supabase, userId);
+    let query = supabase
       .from("location_access_requests")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100);
+    if (!isManager) {
+      query = query.eq("requested_by", userId);
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
   });
@@ -153,6 +159,8 @@ export const redeemLocationCode = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { isManager } = await getRoles(supabase, userId);
+    if (!isManager) throw new Error("Managers only");
     const { data: req, error } = await supabase
       .from("location_access_requests").select("*").eq("id", data.requestId).single();
     if (error) throw error;
