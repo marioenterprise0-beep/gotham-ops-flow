@@ -340,25 +340,45 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
   );
 }
 
-function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item | null; defaultCategory: string; onClose: () => void; onDone: () => void }) {
+function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
+  const requestFn = useServerFn(submitInventoryChangeRequest);
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
   const [unit, setUnit] = useState(item?.unit ?? "unit");
   const [par, setPar] = useState(String(item?.par_level ?? ""));
   const [low, setLow] = useState(String(item?.low_threshold ?? ""));
   const [qty, setQty] = useState(item ? String(item.current_qty) : "");
+  const [reason, setReason] = useState("");
   const m = useMutation({
-    mutationFn: () => upsert({ data: {
-      id: item?.id, name: name.trim(), category: category as any, unit: unit.trim() || "unit",
-      parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
-      currentQty: qty === "" ? undefined : Number(qty),
-    } }),
-    onSuccess: () => { toast.success(item ? "Item updated" : "Item added"); onDone(); onClose(); },
+    mutationFn: () => {
+      const payload = {
+        name: name.trim(), category, unit: unit.trim() || "unit",
+        parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
+        currentQty: qty === "" ? undefined : Number(qty),
+      };
+      if (isOwner) {
+        return upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
+      }
+      return requestFn({ data: {
+        action: item ? "update" : "create",
+        targetItemId: item?.id ?? null,
+        trailerId,
+        payload,
+        reason: reason || undefined,
+      } });
+    },
+    onSuccess: () => {
+      toast.success(isOwner ? (item ? "Item updated" : "Item added") : "Request sent to owner");
+      onDone(); onClose();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+  const title = isOwner
+    ? (item ? `Edit: ${item.name}` : "New inventory item")
+    : (item ? `Request edit: ${item.name}` : "Request new item");
   return (
-    <Modal title={item ? `Edit: ${item.name}` : "New inventory item"} onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <div className="space-y-3">
         <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         <div className="grid grid-cols-2 gap-3">
@@ -374,8 +394,13 @@ function EditItemModal({ item, defaultCategory, onClose, onDone }: { item: Item 
           <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         </div>
         <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        {!isOwner && (
+          <Field label="Reason for request">
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why this change is needed" className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+          </Field>
+        )}
       </div>
-      <ModalActions onClose={onClose} primary={item ? "Save changes" : "Create item"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
+      <ModalActions onClose={onClose} primary={isOwner ? (item ? "Save changes" : "Create item") : "Submit request"} disabled={!name.trim() || m.isPending} onSubmit={() => m.mutate()} />
     </Modal>
   );
 }
