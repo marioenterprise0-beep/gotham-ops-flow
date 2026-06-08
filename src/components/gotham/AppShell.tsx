@@ -10,6 +10,7 @@ import { CommandPalette } from "@/components/gotham/CommandPalette";
 import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
 import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
+import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
 
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
