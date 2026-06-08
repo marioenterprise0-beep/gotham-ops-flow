@@ -118,12 +118,16 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can configure trailer geofences.");
-    const { data: row, error } = await supabase.from("trailers").update({
+    const { error } = await supabase.from("trailers").update({
       geofence_lat: data.lat,
       geofence_lng: data.lng,
       geofence_radius_m: data.radiusM,
-    }).eq("id", data.trailerId).select("id, name, geofence_lat, geofence_lng, geofence_radius_m").single();
+    }).eq("id", data.trailerId);
     if (error) throw new Error(error.message);
+    const { data: row, error: readErr } = await supabase.from("trailers_with_geofence")
+      .select("id, name, geofence_lat, geofence_lng, geofence_radius_m")
+      .eq("id", data.trailerId).single();
+    if (readErr) throw new Error(readErr.message);
     return row;
   });
 
@@ -131,7 +135,7 @@ export const listTrailerGeofences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data, error } = await supabase.from("trailers")
+    const { data, error } = await supabase.from("trailers_with_geofence")
       .select("id, name, geofence_lat, geofence_lng, geofence_radius_m, active")
       .order("name");
     if (error) throw new Error(error.message);
