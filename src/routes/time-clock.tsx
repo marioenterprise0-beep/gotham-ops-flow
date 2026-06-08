@@ -68,10 +68,12 @@ function TimeClockPage() {
     });
   }
 
+  const [geoBlock, setGeoBlock] = useState<string | null>(null);
+
   const inM = useMutation({
     mutationFn: async () => {
       const geo = await getGeo();
-      if (!geo) throw new Error("Location is required to clock in. Please enable location access in your browser settings.");
+      if (!geo) throw new Error("LOCATION_OFF");
       return inFn({ data: {
         deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" },
         lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
@@ -79,13 +81,19 @@ function TimeClockPage() {
     },
     onSuccess: (result) => {
       if (!result.ok) {
-        toast.error(result.message);
+        setGeoBlock(result.message);
         return;
       }
       toast.success("Clocked in");
       syncDomains(qc, "timeclock", "labor", "operations");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (e.message === "LOCATION_OFF") {
+        setGeoBlock("Location access is required to clock in. Please enable location in your browser settings and try again at the trailer.");
+        return;
+      }
+      toast.error(e.message);
+    },
   });
   const outM = useMutation({
     mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
