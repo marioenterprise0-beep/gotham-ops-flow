@@ -186,6 +186,31 @@ export const setUserTrailer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const SUPER_ADMIN_EMAILS = new Set([
+  "mario.enterprise0@gmail.com",
+  "mario@gothamhalal.com",
+]);
+
+async function requireSuperAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from("profiles").select("email").eq("id", userId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const email = String(data?.email ?? "").toLowerCase();
+  if (!SUPER_ADMIN_EMAILS.has(email)) {
+    throw new Error("Only the super-admin accounts can disable or restore user access.");
+  }
+}
+
+export const amISuperAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data } = await supabase
+      .from("profiles").select("email").eq("id", userId).maybeSingle();
+    const email = String(data?.email ?? "").toLowerCase();
+    return { isSuperAdmin: SUPER_ADMIN_EMAILS.has(email) };
+  });
+
 export const setUserActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -193,7 +218,7 @@ export const setUserActive = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireSuperAdmin(supabase, userId);
     const { error } = await supabase.from("profiles").update({ active: data.active }).eq("id", data.userId);
     if (error) throw new Error(error.message);
     await supabase.from("access_log").insert({
