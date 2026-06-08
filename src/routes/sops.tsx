@@ -8,7 +8,7 @@ import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plu
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listSops, upsertSop, deleteSop, listSopVersions, listSopAttachments, addSopAttachment, deleteSopAttachment } from "@/lib/sops.functions";
+import { listSops, upsertSop, deleteSop, listSopVersions, listSopAttachments, addSopAttachment, deleteSopAttachment, recordSopView, acknowledgeSop, getMySopAcks, getSopAckRollup } from "@/lib/sops.functions";
 import { useRole } from "@/lib/role";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
