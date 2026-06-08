@@ -383,10 +383,7 @@ function ItemCard({
             </span>
           </div>
 
-            <span className={cn("label-caps shrink-0 rounded-full px-2 py-0.5 text-[10px]", style.bg, style.fg)}>
-              {style.label}
-            </span>
-          </div>
+
 
           {/* Stock bar */}
           <div className="mt-2">
