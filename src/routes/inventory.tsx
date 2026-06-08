@@ -351,16 +351,17 @@ function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onD
   const [qty, setQty] = useState(item ? String(item.current_qty) : "");
   const [reason, setReason] = useState("");
   const m = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payload = {
         name: name.trim(), category, unit: unit.trim() || "unit",
         parLevel: Number(par) || 0, lowThreshold: Number(low) || 0,
         currentQty: qty === "" ? undefined : Number(qty),
       };
       if (isOwner) {
-        return upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
+        await upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
+        return;
       }
-      return requestFn({ data: {
+      await requestFn({ data: {
         action: item ? "update" : "create",
         targetItemId: item?.id ?? null,
         trailerId,
