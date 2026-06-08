@@ -192,10 +192,9 @@ const SUPER_ADMIN_EMAILS = new Set([
 ]);
 
 async function requireSuperAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase
-    .from("profiles").select("email").eq("id", userId).maybeSingle();
+  const { data, error } = await supabase.rpc("my_email");
   if (error) throw new Error(error.message);
-  const email = String(data?.email ?? "").toLowerCase();
+  const email = String(data ?? "").toLowerCase();
   if (!SUPER_ADMIN_EMAILS.has(email)) {
     throw new Error("Only the super-admin accounts can disable or restore user access.");
   }
@@ -204,10 +203,9 @@ async function requireSuperAdmin(supabase: any, userId: string) {
 export const amISuperAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data } = await supabase
-      .from("profiles").select("email").eq("id", userId).maybeSingle();
-    const email = String(data?.email ?? "").toLowerCase();
+    const { supabase } = context;
+    const { data } = await supabase.rpc("my_email");
+    const email = String(data ?? "").toLowerCase();
     return { isSuperAdmin: SUPER_ADMIN_EMAILS.has(email) };
   });
 
