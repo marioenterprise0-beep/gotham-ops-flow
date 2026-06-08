@@ -85,11 +85,12 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
       const p: any = req.payload ?? {};
       if (req.action === "create") {
         const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
+        if (!store?.id) throw new Error("No store configured");
         await supabaseAdmin.from("inventory_items").insert({
           name: p.name, category: p.category, unit: p.unit ?? "unit",
           par_level: p.parLevel ?? 0, low_threshold: p.lowThreshold ?? 0,
           cost_per_unit: p.costPerUnit ?? 0, current_qty: p.currentQty ?? 0,
-          store_id: store?.id, trailer_id: req.trailer_id,
+          store_id: store.id, trailer_id: req.trailer_id,
           image_url: p.imageUrl ?? null,
           count_instructions: p.countInstructions ?? null,
           storage_location: p.storageLocation ?? null,
