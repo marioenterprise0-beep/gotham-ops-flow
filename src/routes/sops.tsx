@@ -142,10 +142,8 @@ function SOPs() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-  void useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { syncDomains(qc, "sops"); },
-  });
+  void deleteFn;
+
 
   const customList = useMemo(() => customSops.filter((s: any) =>
     (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
