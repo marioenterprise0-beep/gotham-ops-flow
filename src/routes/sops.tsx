@@ -149,51 +149,11 @@ function SOPs() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Auto-seed built-in SOPs into the editable library on first manager visit.
-  const seededRef = useRef(false);
-  useEffect(() => {
-    if (!isManager || seededRef.current) return;
-    const titles = new Set(customSops.map((s: any) => s.title));
-    const pending = SOPS.filter((s) => !titles.has(s.title));
-    if (pending.length === 0) return;
-    seededRef.current = true;
-    const ROLE_MAP: Record<string, string> = {
-      "Grill Master": "grill", "Prep": "prep", "Cashier": "cashier",
-      "Shift Lead": "shift_lead", "Manager": "manager",
-    };
-    (async () => {
-      for (const s of pending) {
-        const body = [
-          `## Objective`, s.objective, "",
-          `## Steps`, ...s.steps.map((st, i) => `${i + 1}. ${st}`), "",
-          `## Pass standard`, s.standard, "",
-          `## Common errors`, ...s.errors.map((e) => `- ${e}`),
-        ].join("\n");
-        try {
-          await upsertFn({ data: {
-            title: s.title, category: s.cat, role: (ROLE_MAP[s.role] ?? "cashier") as any,
-            body, passStandard: s.standard,
-          } });
-        } catch { /* ignore */ }
-      }
-      toast.success(`Made ${pending.length} built-in SOPs editable`);
-      syncDomains(qc, "sops");
-    })();
-  }, [isManager, customSops.length]);
-
-  const importedTitles = useMemo(() => new Set(customSops.map((s: any) => s.title)), [customSops]);
-  const list = useMemo(
-    () => SOPS.filter((s) =>
-      !importedTitles.has(s.title) &&
-      (cat === "All" || s.cat === cat) &&
-      s.title.toLowerCase().includes(q.toLowerCase())
-    ),
-    [cat, q, importedTitles]
-  );
-  const customList = useMemo(() => customSops.filter((s) =>
+  const customList = useMemo(() => customSops.filter((s: any) =>
     (cat === "All" || s.category === cat) && (s.title ?? "").toLowerCase().includes(q.toLowerCase())
   ), [customSops, cat, q]);
-  const active = openId ? SOPS.find((s) => s.id === openId) : null;
+  const active: SOP | null = null;
+
 
   if (active) return <SOPDetail sop={active} onBack={() => setOpenId(null)} />;
 
