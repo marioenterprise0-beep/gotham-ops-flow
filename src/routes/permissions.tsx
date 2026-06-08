@@ -88,6 +88,20 @@ function PermissionsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const perms: any[] = data?.perms ?? [];
+  const profiles: any[] = data?.profiles ?? [];
+  const userRoles: any[] = data?.roles ?? [];
+
+  const roleByUser = useMemo(() => {
+    const m = new Map<string, RoleId[]>();
+    for (const r of userRoles) {
+      const arr = m.get(r.user_id) ?? [];
+      arr.push(r.role);
+      m.set(r.user_id, arr);
+    }
+    return m;
+  }, [userRoles]);
+
   if (!authReady) {
     return (
       <AppShell>
@@ -111,10 +125,6 @@ function PermissionsPage() {
     return <Navigate to="/auth" />;
   }
 
-  const perms: any[] = data?.perms ?? [];
-  const profiles: any[] = data?.profiles ?? [];
-  const userRoles: any[] = data?.roles ?? [];
-
   const accessFor = (scopeType: "role" | "user", scopeId: string, tabKey: string): TabAccess => {
     const found = perms.find((p) => p.scope_type === scopeType && p.scope_id === scopeId && p.tab_key === tabKey);
     if (!found) return "edit";
@@ -125,15 +135,6 @@ function PermissionsPage() {
     setM.mutate({ scopeType, scopeId, tabKey, accessLevel });
   };
 
-  const roleByUser = useMemo(() => {
-    const m = new Map<string, RoleId[]>();
-    for (const r of userRoles) {
-      const arr = m.get(r.user_id) ?? [];
-      arr.push(r.role);
-      m.set(r.user_id, arr);
-    }
-    return m;
-  }, [userRoles]);
 
   return (
     <AppShell>
