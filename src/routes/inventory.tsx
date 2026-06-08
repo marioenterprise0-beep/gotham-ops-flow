@@ -8,6 +8,8 @@ import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Do
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
+import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
+import { Link } from "@tanstack/react-router";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
