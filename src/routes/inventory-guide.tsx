@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
-import { listInventory } from "@/lib/inventory.functions";
+import { deleteInventoryItem, listInventory } from "@/lib/inventory.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
-import { Boxes, Search } from "lucide-react";
+import { Boxes, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { SignedImage } from "@/components/gotham/SignedImage";
+import { EditItemModal, type Item } from "@/routes/inventory";
+import { useRole } from "@/lib/role";
+import { syncDomains } from "@/lib/sync-bus";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/inventory-guide")({
   ssr: false,
@@ -23,11 +27,23 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 function InventoryGuide() {
+  const qc = useQueryClient();
+  const { roleId, trailerScope } = useRole();
+  const isOwner = roleId === "owner";
   const fetchInv = useServerFn(listInventory);
+  const removeFn = useServerFn(deleteInventoryItem);
   const [q, setQ] = useState("");
-  const { data: items = [], isLoading } = useQuery({
+  const [editItem, setEditItem] = useState<Item | "new" | null>(null);
+
+  const { data: items = [], isLoading } = useQuery<Item[]>({
     queryKey: ["inventory-guide"],
-    queryFn: () => fetchInv({ data: {} }),
+    queryFn: () => fetchInv({ data: {} }) as Promise<Item[]>,
+  });
+
+  const delM = useMutation({
+    mutationFn: (id: string) => removeFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory"); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const filtered = useMemo(() => {
@@ -47,8 +63,20 @@ function InventoryGuide() {
 
   return (
     <AppShell>
-      <SectionHeader eyebrow="Inventory" title="Inventory Guide" />
-      <p className="text-sm text-muted-foreground -mt-2 mb-4">How to count and store every item.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <SectionHeader eyebrow="Inventory" title="Inventory Guide" />
+          <p className="text-sm text-muted-foreground -mt-2 mb-4">How to count and store every item.</p>
+        </div>
+        {isOwner && (
+          <button
+            onClick={() => setEditItem("new")}
+            className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add item
+          </button>
+        )}
+      </div>
       <Card className="mb-4">
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-muted-foreground" />
@@ -78,7 +106,28 @@ function InventoryGuide() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold truncate">{it.name}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-semibold truncate">{it.name}</div>
+                      {isOwner && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => setEditItem(it)}
+                            className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
+                            title="Edit"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            disabled={delM.isPending}
+                            onClick={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) delM.mutate(it.id); }}
+                            className="rounded-md border border-border p-1 text-muted-foreground hover:text-destructive hover:border-destructive disabled:opacity-40"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       Unit: <span className="font-medium text-foreground">{it.unit}</span>
                       {" · "}
@@ -97,6 +146,17 @@ function InventoryGuide() {
           </section>
         ))}
       </div>
+
+      {editItem && (
+        <EditItemModal
+          item={editItem === "new" ? null : editItem}
+          defaultCategory={editItem !== "new" ? (editItem as any).category : "supplies"}
+          isOwner={isOwner}
+          trailerId={trailerScope}
+          onClose={() => setEditItem(null)}
+          onDone={() => syncDomains(qc, "inventory")}
+        />
+      )}
     </AppShell>
   );
 }
