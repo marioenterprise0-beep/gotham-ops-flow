@@ -20,11 +20,18 @@ export type ChangeLogRow = {
 
 export const listChangeLog = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string; entity?: string; actorId?: string; days?: number } | undefined) => d ?? {})
+  .inputValidator(
+    (d: { search?: string; entity?: string; actorId?: string; days?: number } | undefined) =>
+      d ?? {},
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    let q = supabase.from("change_log").select("*").order("created_at", { ascending: false }).limit(500);
+    let q = supabase
+      .from("change_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
     const days = data.days ?? 30;
     if (days > 0) {
       const since = new Date(Date.now() - days * 86_400_000).toISOString();
@@ -34,7 +41,9 @@ export const listChangeLog = createServerFn({ method: "GET" })
     if (data.actorId) q = q.eq("actor_id", data.actorId);
     if (data.search && data.search.trim()) {
       const s = `%${data.search.trim()}%`;
-      q = q.or(`summary.ilike.${s},reason.ilike.${s},actor_name.ilike.${s},action.ilike.${s},entity.ilike.${s}`);
+      q = q.or(
+        `summary.ilike.${s},reason.ilike.${s},actor_name.ilike.${s},action.ilike.${s},entity.ilike.${s}`,
+      );
     }
     const { data: rows, error } = await q;
     if (error) throw error;
@@ -43,20 +52,36 @@ export const listChangeLog = createServerFn({ method: "GET" })
 
 export const recordChange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: z.string().min(1).max(80).regex(/^[a-zA-Z0-9_-]+$/),
-    action: z.string().min(1).max(80).regex(/^[a-zA-Z0-9_.-]+$/),
-    entity_id: z.string().uuid().nullable().optional(),
-    summary: z.string().max(2000).nullable().optional(),
-    before: z.any().optional(),
-    after: z.any().optional(),
-    reason: z.string().max(2000).nullable().optional(),
-    trailer_id: z.string().uuid().nullable().optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: z
+          .string()
+          .min(1)
+          .max(80)
+          .regex(/^[a-zA-Z0-9_-]+$/),
+        action: z
+          .string()
+          .min(1)
+          .max(80)
+          .regex(/^[a-zA-Z0-9_.-]+$/),
+        entity_id: z.string().uuid().nullable().optional(),
+        summary: z.string().max(2000).nullable().optional(),
+        before: z.any().optional(),
+        after: z.any().optional(),
+        reason: z.string().max(2000).nullable().optional(),
+        trailer_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", userId)
+      .maybeSingle();
     const { error } = await supabase.from("change_log").insert({
       actor_id: userId,
       actor_name: prof?.display_name ?? "Unknown",

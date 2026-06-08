@@ -68,8 +68,16 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
         emailEnabled: z.boolean().optional(),
         frequency: z.enum(["immediate", "daily_digest", "critical_only"]).optional(),
         categories: z.record(z.string(), z.boolean()).optional(),
-        quietHoursStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
-        quietHoursEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/).nullable().optional(),
+        quietHoursStart: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/)
+          .nullable()
+          .optional(),
+        quietHoursEnd: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/)
+          .nullable()
+          .optional(),
         quietHoursTimezone: z.string().min(1).max(64).optional(),
       })
       .parse(d),
@@ -84,10 +92,8 @@ export const updateMyNotificationPreferences = createServerFn({ method: "POST" }
 
     const next: any = {
       user_id: userId,
-      email_enabled:
-        data.emailEnabled ?? (existing?.email_enabled ?? true),
-      frequency:
-        data.frequency ?? (existing?.frequency ?? "immediate"),
+      email_enabled: data.emailEnabled ?? existing?.email_enabled ?? true,
+      frequency: data.frequency ?? existing?.frequency ?? "immediate",
       categories: {
         ...DEFAULT_CATEGORIES,
         ...((existing?.categories as any) ?? {}),
@@ -139,17 +145,19 @@ export const listEmailDeliveryLog = createServerFn({ method: "POST" })
         limit: z.number().int().min(1).max(200).default(100),
         template: z.string().optional(),
         status: z.string().optional(),
-        sinceHours: z.number().int().min(1).max(24 * 90).default(24 * 7),
+        sinceHours: z
+          .number()
+          .int()
+          .min(1)
+          .max(24 * 90)
+          .default(24 * 7),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     // Owner-only
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
     if (!isOwner) throw new Error("forbidden");
 
@@ -182,14 +190,20 @@ export const listEmailDeliveryLog = createServerFn({ method: "POST" })
 export const emailDeliveryStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ sinceHours: z.number().int().min(1).max(24 * 90).default(24 * 7) }).parse(d ?? {}),
+    z
+      .object({
+        sinceHours: z
+          .number()
+          .int()
+          .min(1)
+          .max(24 * 90)
+          .default(24 * 7),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
     if (!isOwner) throw new Error("forbidden");
 
@@ -203,7 +217,10 @@ export const emailDeliveryStats = createServerFn({ method: "POST" })
     if (error) throw error;
 
     const seen = new Set<string>();
-    const counts = { total: 0, sent: 0, queued: 0, failed: 0, suppressed: 0, dlq: 0 } as Record<string, number>;
+    const counts = { total: 0, sent: 0, queued: 0, failed: 0, suppressed: 0, dlq: 0 } as Record<
+      string,
+      number
+    >;
     for (const r of (rows ?? []) as any[]) {
       const key = r.message_id ?? r.id;
       if (seen.has(key)) continue;
@@ -214,8 +231,7 @@ export const emailDeliveryStats = createServerFn({ method: "POST" })
     return counts;
   });
 
-const SITE_URL =
-  "https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app";
+const SITE_URL = "https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app";
 
 function adminClient() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -228,10 +244,7 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ logId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isOwner = (roles ?? []).some((r: any) => r.role === "owner");
     if (!isOwner) throw new Error("forbidden");
 
@@ -248,10 +261,7 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
     if (row.alert_id) {
       // Drop the prior failed log row so the dispatcher's idempotency check passes
       await sb.from("email_send_log").delete().eq("id", row.id);
-      await sb
-        .from("alerts")
-        .update({ email_status: "none" })
-        .eq("id", row.alert_id);
+      await sb.from("alerts").update({ email_status: "none" }).eq("id", row.alert_id);
 
       const { data: dispatchCfg, error: dispatchCfgError } = await sb
         .from("email_dispatch_config")

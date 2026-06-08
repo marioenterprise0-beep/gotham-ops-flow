@@ -47,8 +47,10 @@ export const updateAutomationSettings = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = { updated_by: userId };
     if (data.rolloverEnabled !== undefined) patch.rollover_enabled = data.rolloverEnabled;
     if (data.rolloverHour !== undefined) patch.rollover_hour = data.rolloverHour;
-    if (data.autoClockOutEnabled !== undefined) patch.auto_clock_out_enabled = data.autoClockOutEnabled;
-    if (data.managerSelfApproval !== undefined) patch.manager_self_approval = data.managerSelfApproval;
+    if (data.autoClockOutEnabled !== undefined)
+      patch.auto_clock_out_enabled = data.autoClockOutEnabled;
+    if (data.managerSelfApproval !== undefined)
+      patch.manager_self_approval = data.managerSelfApproval;
     if (data.emailEnabled !== undefined) patch.email_enabled = data.emailEnabled;
     const { data: row, error } = await supabase
       .from("automation_settings")
@@ -58,7 +60,11 @@ export const updateAutomationSettings = createServerFn({ method: "POST" })
       .single();
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "update_automation_settings", entity: "automation_settings", entity_id: row.id, payload: data as any,
+      actor_id: userId,
+      action: "update_automation_settings",
+      entity: "automation_settings",
+      entity_id: row.id,
+      payload: data as any,
     });
     return row as AutomationSettings;
   });
