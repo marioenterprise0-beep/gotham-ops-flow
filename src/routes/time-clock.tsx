@@ -53,8 +53,26 @@ function TimeClockPage() {
     ? Math.max(0, (now.getTime() - new Date(active.clock_in_at).getTime()) / 60000)
     : 0;
 
+  async function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return null;
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+      );
+    });
+  }
+
   const inM = useMutation({
-    mutationFn: () => inFn({ data: { deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" } } }),
+    mutationFn: async () => {
+      const geo = await getGeo();
+      if (!geo) throw new Error("Location is required to clock in. Please enable location access in your browser settings.");
+      return inFn({ data: {
+        deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" },
+        lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
+      } });
+    },
     onSuccess: () => { toast.success("Clocked in"); syncDomains(qc, "timeclock", "labor", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
