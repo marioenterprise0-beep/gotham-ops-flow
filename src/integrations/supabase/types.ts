@@ -1632,6 +1632,38 @@ export type Database = {
           },
         ]
       }
+      sop_acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          id: string
+          sop_id: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          acknowledged_at?: string
+          id?: string
+          sop_id: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          acknowledged_at?: string
+          id?: string
+          sop_id?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sop_acknowledgements_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sop_attachments: {
         Row: {
           content_type: string | null
@@ -1710,6 +1742,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sop_versions_sop_id_fkey"
+            columns: ["sop_id"]
+            isOneToOne: false
+            referencedRelation: "sops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sop_views: {
+        Row: {
+          id: string
+          sop_id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          id?: string
+          sop_id: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          id?: string
+          sop_id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sop_views_sop_id_fkey"
             columns: ["sop_id"]
             isOneToOne: false
             referencedRelation: "sops"
