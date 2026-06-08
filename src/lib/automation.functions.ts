@@ -67,7 +67,8 @@ export const listRolloverRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { limit?: number } | undefined) => d ?? {})
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
     const { data: rows, error } = await supabase
       .from("rollover_runs")
       .select("*")
