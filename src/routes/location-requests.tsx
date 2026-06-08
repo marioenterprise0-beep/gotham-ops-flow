@@ -179,6 +179,8 @@ function LocationRequests() {
 
       {isOwner && <ActiveGrantsSection trailerName={trailerName} />}
 
+      {isOwner && <GeofencePanel />}
+
       <div className="h-6" />
     </AppShell>
   );
