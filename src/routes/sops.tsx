@@ -229,7 +229,20 @@ function SOPs() {
 
       {customList.length > 0 ? (
         <>
-          <SectionHeader eyebrow={cat} title={`${customList.length} procedures`} />
+          <SectionHeader
+            eyebrow={cat}
+            title={`${customList.length} procedures`}
+            action={isManager ? (
+              <button
+                onClick={() => setShowArchived((v) => !v)}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-xs font-semibold",
+                  showArchived ? "border-[var(--color-gold)] text-[var(--color-gold)]" : "border-border hover:border-[var(--color-gold)]",
+                )}>
+                {showArchived ? "Hide archived" : "Show archived"}
+              </button>
+            ) : null}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {customList.map((s: any) => (
               <CustomSopCard key={s.id} sop={s} canEdit={isManager} />
