@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Plus, Save, Trash2, Truck, X } from "lucide-react";
-import { deleteInventoryItem, listInventory, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
+import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
