@@ -1284,6 +1284,9 @@ export type Database = {
       profiles: {
         Row: {
           active: boolean
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           display_name: string
           email: string | null
@@ -1297,6 +1300,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           display_name?: string
           email?: string | null
@@ -1310,6 +1316,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           display_name?: string
           email?: string | null
