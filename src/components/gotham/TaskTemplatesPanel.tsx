@@ -249,3 +249,106 @@ function TemplateModal({
     </div>
   );
 }
+
+const FIELD_LABEL: Record<string, string> = {
+  trailer_id: "Trailer",
+  role: "Role",
+  phase: "Phase",
+  title: "Title",
+  description: "Description",
+  requires_signoff: "Sign-off required",
+  position: "Position",
+  active: "Active",
+};
+
+type VersionRow = {
+  id: string;
+  version: number;
+  action: "create" | "update" | "delete";
+  actor_id: string | null;
+  actor_name: string;
+  changed_at: string;
+  before: Record<string, any> | null;
+  after: Record<string, any> | null;
+  changed_fields: string[];
+};
+
+function formatValue(field: string, value: any): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
+
+function HistoryModal({ template, onClose }: { template: Template; onClose: () => void }) {
+  const fetchVersions = useServerFn(listTemplateVersions);
+  const { data: versions = [], isLoading } = useQuery({
+    queryKey: ["template-versions", template.id],
+    queryFn: () => fetchVersions({ data: { templateId: template.id } }) as Promise<VersionRow[]>,
+  });
+
+  const actionTone = (a: VersionRow["action"]) =>
+    a === "create" ? "bg-[var(--color-success-bg)] text-[var(--color-success)]"
+    : a === "delete" ? "bg-[var(--color-danger-bg)] text-[var(--color-danger)]"
+    : "bg-[var(--color-warning-bg)] text-[#7C3A00]";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col card-shadow" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h3 className="font-display text-xl">VERSION HISTORY</h3>
+            <div className="text-xs text-muted-foreground mt-0.5">{template.title}</div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-4">
+          {isLoading && <div className="text-center text-sm text-muted-foreground py-6">Loading history…</div>}
+          {!isLoading && versions.length === 0 && (
+            <div className="text-center text-sm text-muted-foreground py-6">No history recorded.</div>
+          )}
+          {versions.map((v) => {
+            const ts = new Date(v.changed_at);
+            return (
+              <div key={v.id} className="rounded-md border border-border overflow-hidden">
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-[#FAFAF5] border-b border-border">
+                  <span className={cn("inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded", actionTone(v.action))}>
+                    v{v.version} · {v.action}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{ts.toLocaleString()}</span>
+                  <span className="text-xs text-muted-foreground ml-auto">by {v.actor_name}</span>
+                </div>
+                <div className="text-xs text-muted-foreground px-3 pt-2">
+                  Applied to shifts opened after {ts.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </div>
+                <div className="p-3 space-y-1.5">
+                  {v.action === "create" && (
+                    <div className="text-xs">
+                      Created with title <span className="font-semibold">{v.after?.title}</span>, role <span className="font-semibold">{v.after?.role}</span>, phase <span className="font-semibold">{v.after?.phase}</span>.
+                    </div>
+                  )}
+                  {v.action === "delete" && (
+                    <div className="text-xs">Template deleted. Stopped auto-assigning at the time above.</div>
+                  )}
+                  {v.action === "update" && v.changed_fields.map((f) => (
+                    <div key={f} className="grid grid-cols-[120px_1fr] gap-2 text-xs items-start">
+                      <div className="font-semibold text-muted-foreground">{FIELD_LABEL[f] ?? f}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="line-through text-[var(--color-danger)] bg-[var(--color-danger-bg)] px-1.5 py-0.5 rounded">
+                          {formatValue(f, v.before?.[f])}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="text-[var(--color-success)] bg-[var(--color-success-bg)] px-1.5 py-0.5 rounded font-medium">
+                          {formatValue(f, v.after?.[f])}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
