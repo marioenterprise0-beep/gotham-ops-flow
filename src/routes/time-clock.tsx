@@ -17,9 +17,11 @@ import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
 } from "@/lib/timeclock.functions";
+import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
-import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin } from "lucide-react";
+import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin, AlertTriangle } from "lucide-react";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
