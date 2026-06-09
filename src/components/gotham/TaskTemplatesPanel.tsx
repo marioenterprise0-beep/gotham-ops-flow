@@ -43,6 +43,7 @@ export function TaskTemplatesPanel() {
   const deleteFn = useServerFn(deleteTaskTemplate);
 
   const [editing, setEditing] = useState<DraftTemplate | null>(null);
+  const [historyFor, setHistoryFor] = useState<Template | null>(null);
   const [filterPhase, setFilterPhase] = useState<Phase | "all">("all");
   const [filterRole, setFilterRole] = useState<Role | "all">("all");
 
