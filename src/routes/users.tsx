@@ -9,9 +9,10 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
+  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
-import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { syncDomains } from "@/lib/sync-bus";
