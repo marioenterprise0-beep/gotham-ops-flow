@@ -134,6 +134,7 @@ export function TaskTemplatesPanel() {
           <div className="text-xs text-muted-foreground truncate">{trailerName(t.trailer_id)}</div>
           <div className="text-xs">{t.requires_signoff ? "Required" : "—"}</div>
           <div className="flex gap-2 md:justify-end">
+            <button onClick={() => setHistoryFor(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><History className="h-3 w-3" /> History</button>
             <button onClick={() => setEditing(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
             <button
               onClick={() => { if (confirm(`Delete "${t.title}"? This stops auto-assigning it.`)) deleteMut.mutate(t.id); }}
@@ -152,6 +153,10 @@ export function TaskTemplatesPanel() {
           onClose={() => setEditing(null)}
           onSave={(d) => upsertMut.mutate(d)}
         />
+      )}
+
+      {historyFor && (
+        <HistoryModal template={historyFor} onClose={() => setHistoryFor(null)} />
       )}
     </Card>
   );
