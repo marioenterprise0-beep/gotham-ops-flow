@@ -70,3 +70,26 @@ export const deleteTaskTemplate = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true as const };
   });
+
+export const listTemplateVersions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ templateId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { data: rows, error } = await supabase
+      .from("task_template_versions")
+      .select("id, version, action, actor_id, changed_at, before, after, changed_fields")
+      .eq("template_id", data.templateId)
+      .order("version", { ascending: false });
+    if (error) throw error;
+    const actorIds = Array.from(new Set((rows ?? []).map((r: any) => r.actor_id).filter(Boolean)));
+    let actors: Record<string, string> = {};
+    if (actorIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles").select("id, display_name, email").in("id", actorIds);
+      actors = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.display_name || p.email || "—"]));
+    }
+    return (rows ?? []).map((r: any) => ({ ...r, actor_name: r.actor_id ? actors[r.actor_id] ?? "—" : "System" }));
+  });
+
