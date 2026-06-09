@@ -202,6 +202,9 @@ function ManagerPage() {
         ))}
       </Card>
 
+      <SectionHeader eyebrow="Automation" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
+      <TaskTemplatesPanel />
+
       <SectionHeader eyebrow="People" title="Crew Roster" />
       <CrewRosterPanel />
 
