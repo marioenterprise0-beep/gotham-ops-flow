@@ -248,7 +248,7 @@ function OrderGuide() {
                     </button>
                     <button
                       disabled={deleteMut.isPending}
-                      onClick={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) deleteMut.mutate(it.id); }}
+                      onClick={() => handleRemove(it)}
                       className="inline-flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive h-7 w-7 disabled:opacity-40"
                       aria-label="Delete item"
                     >
