@@ -125,8 +125,12 @@ function SOPs() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
 
+  const [showArchived, setShowArchived] = useState(false);
   const listFn = useServerFn(listSops);
-  const { data: customSops = [] } = useQuery<any[]>({ queryKey: ["sops"], queryFn: () => listFn() as Promise<any[]> });
+  const { data: customSops = [] } = useQuery<any[]>({
+    queryKey: ["sops", { showArchived }],
+    queryFn: () => listFn({ data: { includeArchived: showArchived } }) as Promise<any[]>,
+  });
 
   const upsertFn = useServerFn(upsertSop);
   const deleteFn = useServerFn(deleteSop);
