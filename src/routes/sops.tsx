@@ -8,7 +8,7 @@ import { ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plu
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listSops, upsertSop, deleteSop, listSopVersions, listSopAttachments, addSopAttachment, deleteSopAttachment, recordSopView, acknowledgeSop, getMySopAcks, getSopAckRollup } from "@/lib/sops.functions";
+import { listSops, upsertSop, deleteSop, listSopVersions, listSopAttachments, addSopAttachment, deleteSopAttachment, recordSopView, acknowledgeSop, getMySopAcks, getSopAckRollup, scanSopDependencies, archiveSop, restoreSop } from "@/lib/sops.functions";
 import { useRole } from "@/lib/role";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -125,8 +125,12 @@ function SOPs() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ title: "", category: "Kitchen", role: "", body: "", passStandard: "" });
 
+  const [showArchived, setShowArchived] = useState(false);
   const listFn = useServerFn(listSops);
-  const { data: customSops = [] } = useQuery<any[]>({ queryKey: ["sops"], queryFn: () => listFn() as Promise<any[]> });
+  const { data: customSops = [] } = useQuery<any[]>({
+    queryKey: ["sops", { showArchived }],
+    queryFn: () => listFn({ data: { includeArchived: showArchived } }) as Promise<any[]>,
+  });
 
   const upsertFn = useServerFn(upsertSop);
   const deleteFn = useServerFn(deleteSop);
@@ -225,7 +229,20 @@ function SOPs() {
 
       {customList.length > 0 ? (
         <>
-          <SectionHeader eyebrow={cat} title={`${customList.length} procedures`} />
+          <SectionHeader
+            eyebrow={cat}
+            title={`${customList.length} procedures`}
+            action={isManager ? (
+              <button
+                onClick={() => setShowArchived((v) => !v)}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-xs font-semibold",
+                  showArchived ? "border-[var(--color-gold)] text-[var(--color-gold)]" : "border-border hover:border-[var(--color-gold)]",
+                )}>
+                {showArchived ? "Hide archived" : "Show archived"}
+              </button>
+            ) : null}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {customList.map((s: any) => (
               <CustomSopCard key={s.id} sop={s} canEdit={isManager} />
@@ -341,6 +358,15 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
 
   const upsertFn = useServerFn(upsertSop);
   const deleteFn = useServerFn(deleteSop);
+  const scanFn = useServerFn(scanSopDependencies);
+  const archiveFnSrv = useServerFn(archiveSop);
+  const restoreFnSrv = useServerFn(restoreSop);
+
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [depReport, setDepReport] = useState<{ counts: Record<string, { label: string; count: number }>; totalRefs: number } | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+
+  const refreshSops = () => syncDomains(qc, "sops");
 
   const saveM = useMutation({
     mutationFn: () => upsertFn({ data: {
@@ -348,14 +374,39 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
       role: (form.role || undefined) as any, body: form.body.trim(),
       passStandard: form.passStandard.trim() || undefined,
     } }),
-    onSuccess: () => { toast.success("SOP updated"); setMode("view"); syncDomains(qc, "sops"); },
+    onSuccess: () => { toast.success("SOP updated"); setMode("view"); refreshSops(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const archiveM = useMutation({
+    mutationFn: () => archiveFnSrv({ data: { id: sop.id, reason: archiveReason || undefined } }),
+    onSuccess: () => { toast.success("SOP archived"); setRemoveOpen(false); setDepReport(null); setArchiveReason(""); refreshSops(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const restoreM = useMutation({
+    mutationFn: () => restoreFnSrv({ data: { id: sop.id } }),
+    onSuccess: () => { toast.success("SOP restored"); refreshSops(); },
     onError: (e: Error) => toast.error(e.message),
   });
   const delM = useMutation({
     mutationFn: () => deleteFn({ data: { id: sop.id } }),
-    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
+    onSuccess: () => { toast.success("Removed"); setRemoveOpen(false); refreshSops(); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const startRemove = async () => {
+    setRemoveOpen(true);
+    setDepReport(null);
+    setArchiveReason("");
+    try {
+      const r = await scanFn({ data: { id: sop.id } });
+      setDepReport(r);
+    } catch (e: any) {
+      toast.error(e.message ?? "Scan failed");
+      setRemoveOpen(false);
+    }
+  };
+
+  const isArchived = !!sop.archived_at;
 
   if (mode === "history") return <SopHistoryDrawer sop={sop} onClose={() => setMode("view")} />;
   if (mode === "attach")  return <SopAttachDrawer  sop={sop} canEdit={canEdit} onClose={() => setMode("view")} />;
@@ -420,40 +471,100 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
   });
 
   return (
-    <Card className="h-full">
+    <Card className={cn("h-full", isArchived && "opacity-60")}>
       <div className="flex items-center justify-between mb-2">
-        <span className="label-caps text-[var(--color-gold)]">{sop.category}{sop.role ? ` · ${sop.role}` : ""}</span>
+        <span className="label-caps text-[var(--color-gold)]">
+          {sop.category}{sop.role ? ` · ${sop.role}` : ""}
+          {isArchived && <span className="ml-2 inline-flex items-center gap-1 rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Archived</span>}
+        </span>
         {canEdit && (
           <div className="flex items-center gap-1">
             <button onClick={() => setMode("history")} title="History" className="text-muted-foreground hover:text-foreground p-1"><History className="h-3.5 w-3.5" /></button>
             <button onClick={() => setMode("attach")}  title="Attachments" className="text-muted-foreground hover:text-foreground p-1"><Paperclip className="h-3.5 w-3.5" /></button>
-            <button onClick={() => setMode("edit")}    title="Edit" className="text-muted-foreground hover:text-foreground p-1"><Pencil className="h-3.5 w-3.5" /></button>
-            <button onClick={() => { if (confirm(`Delete "${sop.title}"?`)) delM.mutate(); }} title="Delete" className="text-muted-foreground hover:text-[var(--color-danger)] p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+            {!isArchived && <button onClick={() => setMode("edit")}    title="Edit" className="text-muted-foreground hover:text-foreground p-1"><Pencil className="h-3.5 w-3.5" /></button>}
+            {isArchived ? (
+              <button onClick={() => restoreM.mutate()} disabled={restoreM.isPending} title="Restore" className="text-muted-foreground hover:text-[var(--color-success)] p-1 text-[10px] font-semibold uppercase">Restore</button>
+            ) : (
+              <button onClick={startRemove} title="Remove" className="text-muted-foreground hover:text-[var(--color-danger)] p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+            )}
           </div>
         )}
       </div>
       <div className="font-semibold text-[15px] leading-snug">{sop.title}</div>
       <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-5">{sop.body}</div>
       {sop.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {sop.pass_standard}</div>}
-      <div className="mt-2 text-[10px] text-muted-foreground">v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}</div>
-      <button
-        onClick={() => ackM.mutate()}
-        disabled={ackCurrent || ackM.isPending}
-        className={cn(
-          "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold",
-          ackCurrent
-            ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+      <div className="mt-2 text-[10px] text-muted-foreground">
+        v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}
+        {isArchived && sop.archive_reason ? ` · ${sop.archive_reason}` : ""}
+      </div>
+      {!isArchived && (
+        <button
+          onClick={() => ackM.mutate()}
+          disabled={ackCurrent || ackM.isPending}
+          className={cn(
+            "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold",
+            ackCurrent
+              ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+              : myAck
+                ? "bg-[var(--color-warning-bg,#3a2f12)] text-[var(--color-warning,#C9973A)] border border-[var(--color-warning,#C9973A)]/40"
+                : "bg-[var(--color-gold)] text-[#0A0A0A]",
+          )}
+        >
+          {ackCurrent
+            ? <><Check className="h-3.5 w-3.5" /> Acknowledged v{myAck.version}</>
             : myAck
-              ? "bg-[var(--color-warning-bg,#3a2f12)] text-[var(--color-warning,#C9973A)] border border-[var(--color-warning,#C9973A)]/40"
-              : "bg-[var(--color-gold)] text-[#0A0A0A]",
-        )}
-      >
-        {ackCurrent
-          ? <><Check className="h-3.5 w-3.5" /> Acknowledged v{myAck.version}</>
-          : myAck
-            ? <>Re-acknowledge — updated to v{sop.version}</>
-            : "I've read this SOP"}
-      </button>
+              ? <>Re-acknowledge — updated to v{sop.version}</>
+              : "I've read this SOP"}
+        </button>
+      )}
+
+      {removeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !archiveM.isPending && !delM.isPending && setRemoveOpen(false)}>
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="label-caps text-muted-foreground">Remove SOP</div>
+            <h3 className="font-display text-xl mt-1">{sop.title}</h3>
+            {!depReport ? (
+              <div className="mt-4 text-sm text-muted-foreground">Scanning historical references…</div>
+            ) : depReport.totalRefs === 0 ? (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">No acknowledgements, views, versions, or attachments reference this SOP. Safe to delete permanently.</p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveOpen(false)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button onClick={() => delM.mutate()} disabled={delM.isPending}
+                    className="rounded-md bg-[var(--color-danger)] text-white px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                    {delM.isPending ? "Deleting…" : "Delete permanently"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm">
+                  This SOP has <span className="font-semibold">{depReport.totalRefs}</span> historical reference{depReport.totalRefs === 1 ? "" : "s"}. Archiving preserves them and removes the SOP from every live list.
+                </p>
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground max-h-48 overflow-auto">
+                  {Object.entries(depReport.counts).map(([k, v]) => (
+                    <li key={k} className="flex justify-between border-b border-border/50 py-1">
+                      <span>{v.label}</span><span className="font-mono">{v.count}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3">
+                  <div className="label-caps text-muted-foreground mb-1">Reason (optional)</div>
+                  <input value={archiveReason} onChange={(e) => setArchiveReason(e.target.value)} placeholder="Procedure retired"
+                    className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveOpen(false)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button onClick={() => archiveM.mutate()} disabled={archiveM.isPending}
+                    className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                    {archiveM.isPending ? "Archiving…" : "Archive SOP"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

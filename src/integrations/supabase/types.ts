@@ -1840,6 +1840,9 @@ export type Database = {
       }
       sops: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           body: string
           category: string
           created_at: string
@@ -1851,6 +1854,9 @@ export type Database = {
           version: number
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           body: string
           category: string
           created_at?: string
@@ -1862,6 +1868,9 @@ export type Database = {
           version?: number
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           body?: string
           category?: string
           created_at?: string
