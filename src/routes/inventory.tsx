@@ -175,7 +175,7 @@ function Inventory() {
       </div>
 
       <div className="mt-4 -mx-4 px-4 overflow-x-auto">
-        <div className="flex gap-2 min-w-max">
+        <div className="flex gap-2 min-w-max items-center">
           {cats.map((c) => (
             <button key={c} onClick={() => setCat(c)}
               className={cn(
@@ -183,6 +183,12 @@ function Inventory() {
                 c === cat ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
               )}>{CATEGORY_LABELS[c] ?? c}</button>
           ))}
+          {isOwner && (
+            <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
+              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+              Show archived
+            </label>
+          )}
         </div>
       </div>
 
