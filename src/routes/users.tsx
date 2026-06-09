@@ -524,7 +524,7 @@ function LogsTab() {
   const fetchLogs = useServerFn(listAccessLogs);
   const { data: logs = [] } = useQuery({ queryKey: ["access-logs"], queryFn: () => fetchLogs(), refetchInterval: 30_000 });
   const fetchUsers = useServerFn(listUsers);
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
+  const { data: users = [] } = useQuery({ queryKey: ["users", { showArchived: true }], queryFn: () => fetchUsers({ data: { includeArchived: true } }) });
   const nameOf = (id: string | null) => users.find((u: any) => u.id === id)?.display_name ?? (id ? id.slice(0, 8) : "system");
 
   return (
