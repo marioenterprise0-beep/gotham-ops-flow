@@ -14,16 +14,82 @@ async function requireOwner(supabase: any, userId: string) {
   await requireOwnerRole(supabase, userId);
 }
 
-export const listSchedules = createServerFn({ method: "GET" })
+export const listSchedules = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().default(false) }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase
       .from("schedules")
-      .select("id, name, trailer_id, start_date, end_date, status, notes, locked_at, locked_by, lock_reason, published_at, approved_at, submitted_at, created_at")
+      .select("id, name, trailer_id, start_date, end_date, status, notes, locked_at, locked_by, lock_reason, published_at, approved_at, submitted_at, created_at, archived_at, archived_by, archive_reason")
       .order("start_date", { ascending: false })
       .limit(50);
+    if (!data.includeArchived) q = q.is("archived_at", null);
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return rows ?? [];
+  });
+
+// Scan downstream dependencies before archiving/deleting a schedule.
+export const scanScheduleDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const [shifts, sched] = await Promise.all([
+      supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id),
+      supabase.from("schedules").select("trailer_id, start_date, end_date, status").eq("id", data.id).maybeSingle(),
+    ]);
+    let punchCount = 0;
+    if (sched.data?.start_date && sched.data?.end_date) {
+      const { count } = await supabase
+        .from("time_punches")
+        .select("id", { count: "exact", head: true })
+        .gte("clock_in_at", `${sched.data.start_date}T00:00:00`)
+        .lte("clock_in_at", `${sched.data.end_date}T23:59:59`);
+      punchCount = count ?? 0;
+    }
+    const shiftCount = shifts.data?.length ?? 0;
+    return {
+      shifts: shiftCount,
+      punches: punchCount,
+      total: shiftCount + punchCount,
+      hasDependencies: shiftCount > 0 || punchCount > 0,
+      status: sched.data?.status ?? null,
+    };
+  });
+
+export const archiveSchedule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { error } = await supabase.from("schedules").update({
+      archived_at: new Date().toISOString(),
+      archived_by: userId,
+      archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "schedule_archived", entity: "schedule", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreSchedule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
+    const { error } = await supabase.from("schedules").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "schedule_restored", entity: "schedule", entity_id: data.id, payload: {},
+    });
+    return { ok: true };
   });
 
 export const createSchedule = createServerFn({ method: "POST" })
