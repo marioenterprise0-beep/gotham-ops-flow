@@ -413,3 +413,120 @@ export const listMyRequests = createServerFn({ method: "GET" })
     ]);
     return { corrections: corrections ?? [], timeOff: timeOff ?? [], notes: notes ?? [] };
   });
+
+// ---------------------------------------------------------------------------
+// Phase 5 — canonical archive/restore + dependency scan for time records
+// ---------------------------------------------------------------------------
+
+async function assertManager(supabase: any, userId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+  if (!data) throw new Error("Manager access required");
+}
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  if (!data) throw new Error("Owner access required");
+}
+
+export const scanPunchDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const [corr, audit] = await Promise.all([
+      supabase.from("time_corrections").select("id").eq("punch_id", data.id),
+      supabase.from("time_audit").select("id").eq("entity", "time_punch").eq("entity_id", data.id),
+    ]);
+    const c = corr.data?.length ?? 0;
+    const a = audit.data?.length ?? 0;
+    return { corrections: c, auditEntries: a, total: c + a, hasDependencies: c > 0 || a > 0 };
+  });
+
+export const archivePunch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { error } = await supabase.from("time_punches").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "punch_archived", entity: "time_punch", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restorePunch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("time_punches").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "punch_restored", entity: "time_punch", entity_id: data.id, payload: {},
+    });
+    return { ok: true };
+  });
+
+export const archiveCorrection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { error } = await supabase.from("time_corrections").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "correction_archived", entity: "time_correction", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreCorrection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("time_corrections").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const archiveTimeOff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { error } = await supabase.from("time_off_requests").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "time_off_archived", entity: "time_off_request", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreTimeOff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("time_off_requests").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
