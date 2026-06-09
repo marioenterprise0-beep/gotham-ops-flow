@@ -43,11 +43,15 @@ const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "dairy", "packagi
 
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .inputValidator((d) => z.object({
+    trailerId: z.string().uuid().nullable().optional(),
+    includeArchived: z.boolean().optional(),
+  }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const tid = data?.trailerId;
     let q = context.supabase.from("inventory_items").select("*").order("category").order("name");
     if (tid) q = q.eq("trailer_id", tid);
+    if (!data?.includeArchived) q = q.is("archived_at", null);
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
