@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card } from "@/components/gotham/primitives";
-import { deleteInventoryItem, listInventory, submitCount } from "@/lib/inventory.functions";
+import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, submitCount } from "@/lib/inventory.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
 import {
