@@ -202,7 +202,7 @@ export const scanUserDependencies = createServerFn({ method: "POST" })
     const counts: Record<string, { label: string; count: number }> = {};
     let total = 0;
     for (const t of targets) {
-      const { count, error } = await supabase
+      const { count, error } = await (supabase as any)
         .from(t.table)
         .select("id", { count: "exact", head: true })
         .eq(t.column, data.userId);
