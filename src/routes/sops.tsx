@@ -471,40 +471,100 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
   });
 
   return (
-    <Card className="h-full">
+    <Card className={cn("h-full", isArchived && "opacity-60")}>
       <div className="flex items-center justify-between mb-2">
-        <span className="label-caps text-[var(--color-gold)]">{sop.category}{sop.role ? ` · ${sop.role}` : ""}</span>
+        <span className="label-caps text-[var(--color-gold)]">
+          {sop.category}{sop.role ? ` · ${sop.role}` : ""}
+          {isArchived && <span className="ml-2 inline-flex items-center gap-1 rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Archived</span>}
+        </span>
         {canEdit && (
           <div className="flex items-center gap-1">
             <button onClick={() => setMode("history")} title="History" className="text-muted-foreground hover:text-foreground p-1"><History className="h-3.5 w-3.5" /></button>
             <button onClick={() => setMode("attach")}  title="Attachments" className="text-muted-foreground hover:text-foreground p-1"><Paperclip className="h-3.5 w-3.5" /></button>
-            <button onClick={() => setMode("edit")}    title="Edit" className="text-muted-foreground hover:text-foreground p-1"><Pencil className="h-3.5 w-3.5" /></button>
-            <button onClick={() => { if (confirm(`Delete "${sop.title}"?`)) delM.mutate(); }} title="Delete" className="text-muted-foreground hover:text-[var(--color-danger)] p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+            {!isArchived && <button onClick={() => setMode("edit")}    title="Edit" className="text-muted-foreground hover:text-foreground p-1"><Pencil className="h-3.5 w-3.5" /></button>}
+            {isArchived ? (
+              <button onClick={() => restoreM.mutate()} disabled={restoreM.isPending} title="Restore" className="text-muted-foreground hover:text-[var(--color-success)] p-1 text-[10px] font-semibold uppercase">Restore</button>
+            ) : (
+              <button onClick={startRemove} title="Remove" className="text-muted-foreground hover:text-[var(--color-danger)] p-1"><Trash2 className="h-3.5 w-3.5" /></button>
+            )}
           </div>
         )}
       </div>
       <div className="font-semibold text-[15px] leading-snug">{sop.title}</div>
       <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap line-clamp-5">{sop.body}</div>
       {sop.pass_standard && <div className="mt-2 text-[11px] text-[var(--color-success)]">Pass: {sop.pass_standard}</div>}
-      <div className="mt-2 text-[10px] text-muted-foreground">v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}</div>
-      <button
-        onClick={() => ackM.mutate()}
-        disabled={ackCurrent || ackM.isPending}
-        className={cn(
-          "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold",
-          ackCurrent
-            ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+      <div className="mt-2 text-[10px] text-muted-foreground">
+        v{sop.version} · updated {new Date(sop.updated_at).toLocaleDateString()}
+        {isArchived && sop.archive_reason ? ` · ${sop.archive_reason}` : ""}
+      </div>
+      {!isArchived && (
+        <button
+          onClick={() => ackM.mutate()}
+          disabled={ackCurrent || ackM.isPending}
+          className={cn(
+            "mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold",
+            ackCurrent
+              ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+              : myAck
+                ? "bg-[var(--color-warning-bg,#3a2f12)] text-[var(--color-warning,#C9973A)] border border-[var(--color-warning,#C9973A)]/40"
+                : "bg-[var(--color-gold)] text-[#0A0A0A]",
+          )}
+        >
+          {ackCurrent
+            ? <><Check className="h-3.5 w-3.5" /> Acknowledged v{myAck.version}</>
             : myAck
-              ? "bg-[var(--color-warning-bg,#3a2f12)] text-[var(--color-warning,#C9973A)] border border-[var(--color-warning,#C9973A)]/40"
-              : "bg-[var(--color-gold)] text-[#0A0A0A]",
-        )}
-      >
-        {ackCurrent
-          ? <><Check className="h-3.5 w-3.5" /> Acknowledged v{myAck.version}</>
-          : myAck
-            ? <>Re-acknowledge — updated to v{sop.version}</>
-            : "I've read this SOP"}
-      </button>
+              ? <>Re-acknowledge — updated to v{sop.version}</>
+              : "I've read this SOP"}
+        </button>
+      )}
+
+      {removeOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !archiveM.isPending && !delM.isPending && setRemoveOpen(false)}>
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="label-caps text-muted-foreground">Remove SOP</div>
+            <h3 className="font-display text-xl mt-1">{sop.title}</h3>
+            {!depReport ? (
+              <div className="mt-4 text-sm text-muted-foreground">Scanning historical references…</div>
+            ) : depReport.totalRefs === 0 ? (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">No acknowledgements, views, versions, or attachments reference this SOP. Safe to delete permanently.</p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveOpen(false)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button onClick={() => delM.mutate()} disabled={delM.isPending}
+                    className="rounded-md bg-[var(--color-danger)] text-white px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                    {delM.isPending ? "Deleting…" : "Delete permanently"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm">
+                  This SOP has <span className="font-semibold">{depReport.totalRefs}</span> historical reference{depReport.totalRefs === 1 ? "" : "s"}. Archiving preserves them and removes the SOP from every live list.
+                </p>
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground max-h-48 overflow-auto">
+                  {Object.entries(depReport.counts).map(([k, v]) => (
+                    <li key={k} className="flex justify-between border-b border-border/50 py-1">
+                      <span>{v.label}</span><span className="font-mono">{v.count}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3">
+                  <div className="label-caps text-muted-foreground mb-1">Reason (optional)</div>
+                  <input value={archiveReason} onChange={(e) => setArchiveReason(e.target.value)} placeholder="Procedure retired"
+                    className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveOpen(false)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button onClick={() => archiveM.mutate()} disabled={archiveM.isPending}
+                    className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold disabled:opacity-60">
+                    {archiveM.isPending ? "Archiving…" : "Archive SOP"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
