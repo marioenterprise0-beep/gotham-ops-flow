@@ -249,7 +249,7 @@ function CrewView({ stats, role, roleId, userName }: { stats: any; role: any; ro
       <SectionHeader eyebrow="Execute" title="Quick Actions" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {quickActionsForRole(roleId, clockedIn).map((a) => (
-          <ActionBtn key={a.label} to={a.to} label={a.label} icon={a.icon} primary={a.primary} />
+          <ActionBtn key={a.label} to={a.to} label={a.label} icon={a.icon} primary={(a as any).primary} />
         ))}
       </div>
     </>
