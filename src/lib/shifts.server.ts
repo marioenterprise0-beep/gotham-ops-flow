@@ -27,7 +27,7 @@ export async function seedPhaseIfMissing(
     .eq("shift_id", shiftId)
     .eq("phase", phase);
   if ((count ?? 0) > 0) return 0;
-  const rows = TEMPLATES[phase].map((t) => ({
+  const rows = TEMPLATES[phase].map((t: any) => ({
     shift_id: shiftId,
     phase,
     title: t.title,
