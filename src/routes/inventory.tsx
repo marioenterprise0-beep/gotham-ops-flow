@@ -216,28 +216,38 @@ function Inventory() {
           const s = statusOf(it);
           const pct = Math.min(150, Math.round((Number(it.current_qty) / Math.max(1, Number(it.par_level))) * 100));
           return (
-            <Card key={it.id} className="p-3">
+            <Card key={it.id} className={cn("p-3", it.archived_at && "opacity-60")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm">{it.name}</div>
+                  <div className="font-semibold text-sm">{it.name} {it.archived_at && <span className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground">· archived</span>}</div>
                   <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
                 {canPropose && (
                   <div className="flex gap-1">
-                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => {
-                      if (isOwner) {
-                        if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id);
-                      } else {
-                        const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
-                        if (reason !== null) requestMut.mutate({ item: it, reason });
-                      }
-                    }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title={isOwner ? "Delete" : "Request archive"}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {it.archived_at ? (
+                      isOwner && (
+                        <button onClick={() => restoreMut.mutate(it.id)} disabled={restoreMut.isPending} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-success)] disabled:opacity-50" title="Restore">
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                        </button>
+                      )
+                    ) : (
+                      <>
+                        <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => {
+                          if (isOwner) {
+                            handleOwnerRemove(it);
+                          } else {
+                            const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
+                            if (reason !== null) requestMut.mutate({ item: it, reason });
+                          }
+                        }} disabled={deleteMut.isPending || archiveMut.isPending} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)] disabled:opacity-50" title={isOwner ? "Archive or delete" : "Request archive"}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
