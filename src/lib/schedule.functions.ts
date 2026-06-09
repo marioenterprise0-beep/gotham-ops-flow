@@ -121,14 +121,34 @@ export const createSchedule = createServerFn({ method: "POST" })
 
 export const deleteSchedule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireOwner(supabase, userId);
+    if (!data.force) {
+      const [{ data: shifts }, { data: sched }] = await Promise.all([
+        supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).limit(1),
+        supabase.from("schedules").select("start_date, end_date").eq("id", data.id).maybeSingle(),
+      ]);
+      let punches = 0;
+      if (sched?.start_date && sched?.end_date) {
+        const { count } = await supabase
+          .from("time_punches").select("id", { count: "exact", head: true })
+          .gte("clock_in_at", `${sched.start_date}T00:00:00`)
+          .lte("clock_in_at", `${sched.end_date}T23:59:59`);
+        punches = count ?? 0;
+      }
+      if ((shifts?.length ?? 0) > 0 || punches > 0) {
+        const err: any = new Error("HAS_DEPENDENCIES");
+        err.code = "HAS_DEPENDENCIES";
+        err.dependencies = { shifts: shifts?.length ?? 0, punches };
+        throw err;
+      }
+    }
     const { error } = await supabase.from("schedules").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "schedule_deleted", entity: "schedule", entity_id: data.id, payload: {},
+      actor_id: userId, action: "schedule_deleted", entity: "schedule", entity_id: data.id, payload: { force: data.force },
     });
     return { ok: true };
   });
