@@ -34,6 +34,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export type Item = {
   id: string; name: string; category: string; unit: string;
   par_level: number; low_threshold: number; current_qty: number;
+  archived_at?: string | null;
 };
 
 type Status = "CRITICAL" | "LOW" | "OK" | "OVERSTOCKED";
