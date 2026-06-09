@@ -1486,6 +1486,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string | null
           end_date: string
@@ -1507,6 +1510,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           end_date: string
@@ -1528,6 +1534,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           end_date?: string
@@ -1597,6 +1606,9 @@ export type Database = {
       }
       shift_templates: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           break_minutes: number
           created_at: string
           created_by: string | null
@@ -1609,6 +1621,9 @@ export type Database = {
           trailer_id: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           created_at?: string
           created_by?: string | null
@@ -1621,6 +1636,9 @@ export type Database = {
           trailer_id?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           created_at?: string
           created_by?: string | null

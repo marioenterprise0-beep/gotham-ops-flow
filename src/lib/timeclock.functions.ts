@@ -99,7 +99,8 @@ export const clockIn = createServerFn({ method: "POST" })
     if (!scheduleShiftId) {
       const today = new Date().toISOString().slice(0, 10);
       const { data: todaysShift } = await supabase.from("schedule_shifts")
-        .select("id").eq("employee_id", userId).eq("shift_date", today)
+        .select("id, schedules!inner(archived_at)").is("schedules.archived_at", null)
+        .eq("employee_id", userId).eq("shift_date", today)
         .order("start_time").limit(1).maybeSingle();
       if (todaysShift) scheduleShiftId = todaysShift.id;
     }
@@ -279,7 +280,8 @@ export const getMyWeek = createServerFn({ method: "POST" })
         .gte("clock_in_at", start.toISOString())
         .lt("clock_in_at", end.toISOString())
         .order("clock_in_at"),
-      supabase.from("schedule_shifts").select("*")
+      supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
+        .is("schedules.archived_at", null)
         .eq("employee_id", userId)
         .gte("shift_date", ws)
         .lt("shift_date", end.toISOString().slice(0, 10))

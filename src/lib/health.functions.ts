@@ -73,7 +73,7 @@ export const getHealthScore = createServerFn({ method: "GET" })
     // LABOR — scheduled vs actual hours today
     const todayDate = today.toISOString().slice(0, 10);
     const { data: shifts } = await trailerFilter(
-      supabase.from("schedule_shifts").select("start_time, end_time, break_minutes").eq("shift_date", todayDate),
+      supabase.from("schedule_shifts").select("start_time, end_time, break_minutes, schedules!inner(archived_at)").is("schedules.archived_at", null).eq("shift_date", todayDate),
     );
     const schedHours = (shifts ?? []).reduce((sum: number, s: any) => {
       const [sh, sm] = String(s.start_time).split(":").map(Number);

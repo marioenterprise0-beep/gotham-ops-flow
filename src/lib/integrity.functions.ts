@@ -50,10 +50,10 @@ export const runIntegritySweep = createServerFn({ method: "GET" })
       punchesRes,
       profilesRes,
     ] = await Promise.all([
-      supabase.from("schedule_shifts").select("id, schedule_id, employee_id, shift_date, start_time, end_time, trailer_id"),
-      supabase.from("schedules").select("id, status"),
+      supabase.from("schedule_shifts").select("id, schedule_id, employee_id, shift_date, start_time, end_time, trailer_id, schedules!inner(archived_at)").is("schedules.archived_at", null),
+      supabase.from("schedules").select("id, status").is("archived_at", null),
       supabase.from("time_punches").select("id, employee_id, clock_in_at, clock_out_at, trailer_id").gte("clock_in_at", new Date(Date.now() - 30 * 86400000).toISOString()),
-      supabase.from("profiles").select("id, active, trailer_id"),
+      supabase.from("profiles").select("id, active, trailer_id").is("archived_at", null),
     ]);
 
     const shifts = shiftsRes.data ?? [];
