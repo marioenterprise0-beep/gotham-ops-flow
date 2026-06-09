@@ -16,6 +16,7 @@ import { amISuperAdmin, setUserActive } from "@/lib/users.functions";
 import { toast } from "sonner";
 import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { TaskTemplatesPanel } from "@/components/gotham/TaskTemplatesPanel";
 
 export const Route = createFileRoute("/manager")({
   ssr: false,
@@ -200,6 +201,9 @@ function ManagerPage() {
           </div>
         ))}
       </Card>
+
+      <SectionHeader eyebrow="Automation" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
+      <TaskTemplatesPanel />
 
       <SectionHeader eyebrow="People" title="Crew Roster" />
       <CrewRosterPanel />
