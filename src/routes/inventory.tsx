@@ -89,12 +89,47 @@ function Inventory() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+
+  const scanFn = useServerFn(scanInventoryDependencies);
   const deleteFn = useServerFn(deleteInventoryItem);
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
+  const archiveFn = useServerFn(archiveInventoryItem);
+  const restoreFn = useServerFn(restoreInventoryItem);
+
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => archiveFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item archived · all dependent screens refreshed"); syncDomains(qc, ...FANOUT); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const restoreMut = useMutation({
+    mutationFn: (id: string) => restoreFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item restored"); syncDomains(qc, ...FANOUT); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item deleted"); syncDomains(qc, ...FANOUT); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function handleOwnerRemove(it: Item) {
+    try {
+      const { counts, total } = await scanFn({ data: { id: it.id } }) as { counts: Record<string, number>; total: number };
+      if (total === 0) {
+        if (confirm(`Permanently delete ${it.name}? No references found.`)) deleteMut.mutate(it.id);
+        return;
+      }
+      const summary = Object.entries(counts).filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${k}`).join(" · ");
+      const choice = window.confirm(
+        `"${it.name}" is referenced in ${total} place(s): ${summary}.\n\n` +
+        `OK = Archive (keeps history, removes from active lists)\nCancel = Keep as-is`
+      );
+      if (choice) archiveMut.mutate(it.id);
+    } catch (e: any) {
+      toast.error(e.message ?? "Dependency check failed");
+    }
+  }
 
   const requestFn = useServerFn(submitInventoryChangeRequest);
   const requestMut = useMutation({
