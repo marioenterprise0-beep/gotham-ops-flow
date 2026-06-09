@@ -97,7 +97,7 @@ export const getHealthScore = createServerFn({ method: "GET" })
 
     // TRAINING — % active employees trained in last 90 days
     const ninety = new Date(Date.now() - 90 * 86_400_000).toISOString();
-    const { data: profs } = await supabase.from("profiles").select("training_completed_at, active");
+    const { data: profs } = await supabase.from("profiles").select("training_completed_at, active").is("archived_at", null);
     const active = (profs ?? []).filter((p: any) => p.active);
     const trained = active.filter((p: any) => p.training_completed_at && p.training_completed_at >= ninety).length;
     const trainingScore = active.length === 0 ? 100 : clamp((trained / active.length) * 100);
