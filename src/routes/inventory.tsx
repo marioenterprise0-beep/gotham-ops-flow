@@ -56,9 +56,10 @@ function Inventory() {
   const isManager = roleId === "owner" || roleId === "manager";
   const canPropose = !!session?.access_token;
   const list = useServerFn(listInventory);
+  const [showArchived, setShowArchived] = useState(false);
   const { data: items = [], isLoading } = useQuery<Item[]>({
-    queryKey: ["inventory", trailerScope ?? "company"],
-    queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
+    queryKey: ["inventory", trailerScope ?? "company", showArchived ? "all" : "active"],
+    queryFn: () => list({ data: { trailerId: trailerScope, includeArchived: showArchived } }) as Promise<Item[]>,
     enabled: !loading && !!session?.access_token,
   });
   const trailerLabel = trailerScope
