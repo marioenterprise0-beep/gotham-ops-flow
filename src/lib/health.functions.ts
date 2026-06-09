@@ -82,7 +82,7 @@ export const getHealthScore = createServerFn({ method: "GET" })
       return sum + Math.max(0, mins) / 60;
     }, 0);
     const { data: punches } = await trailerFilter(
-      supabase.from("time_punches").select("clock_in_at, clock_out_at, break_minutes").gte("clock_in_at", todayISO),
+      supabase.from("time_punches").select("clock_in_at, clock_out_at, break_minutes").is("archived_at", null).gte("clock_in_at", todayISO),
     );
     const actualHours = (punches ?? []).reduce((sum: number, p: any) => {
       const start = new Date(p.clock_in_at).getTime();

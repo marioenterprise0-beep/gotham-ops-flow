@@ -2187,6 +2187,9 @@ export type Database = {
       }
       time_corrections: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -2205,6 +2208,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -2223,6 +2229,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -2244,6 +2253,9 @@ export type Database = {
       }
       time_off_requests: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -2262,6 +2274,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -2280,6 +2295,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -2301,6 +2319,9 @@ export type Database = {
       }
       time_punches: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           break_minutes: number
           clock_in_at: string
           clock_out_at: string | null
@@ -2317,6 +2338,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           clock_in_at?: string
           clock_out_at?: string | null
@@ -2333,6 +2357,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           clock_in_at?: string
           clock_out_at?: string | null

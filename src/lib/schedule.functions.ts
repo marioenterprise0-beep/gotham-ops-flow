@@ -43,7 +43,7 @@ export const scanScheduleDependencies = createServerFn({ method: "POST" })
     if (sched.data?.start_date && sched.data?.end_date) {
       const { count } = await supabase
         .from("time_punches")
-        .select("id", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true }).is("archived_at", null)
         .gte("clock_in_at", `${sched.data.start_date}T00:00:00`)
         .lte("clock_in_at", `${sched.data.end_date}T23:59:59`);
       punchCount = count ?? 0;
@@ -133,7 +133,7 @@ export const deleteSchedule = createServerFn({ method: "POST" })
       let punches = 0;
       if (sched?.start_date && sched?.end_date) {
         const { count } = await supabase
-          .from("time_punches").select("id", { count: "exact", head: true })
+          .from("time_punches").select("id", { count: "exact", head: true }).is("archived_at", null)
           .gte("clock_in_at", `${sched.start_date}T00:00:00`)
           .lte("clock_in_at", `${sched.end_date}T23:59:59`);
         punches = count ?? 0;
