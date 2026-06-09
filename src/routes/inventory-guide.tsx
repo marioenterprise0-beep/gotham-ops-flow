@@ -42,6 +42,8 @@ function InventoryGuide() {
   const isManager = roleId === "owner" || roleId === "manager";
   const fetchInv = useServerFn(listInventory);
   const removeFn = useServerFn(deleteInventoryItem);
+  const archiveFn = useServerFn(archiveInventoryItem);
+  const scanFn = useServerFn(scanInventoryDependencies);
   const countFn = useServerFn(submitCount);
   const [q, setQ] = useState("");
   const [editItem, setEditItem] = useState<Item | "new" | null>(null);
@@ -53,11 +55,32 @@ function InventoryGuide() {
     queryFn: () => fetchInv({ data: {} }) as Promise<Item[]>,
   });
 
+  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+  const archiveM = useMutation({
+    mutationFn: (id: string) => archiveFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item archived"); syncDomains(qc, ...FANOUT); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
   const delM = useMutation({
     mutationFn: (id: string) => removeFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
+    onSuccess: () => { toast.success("Item deleted"); syncDomains(qc, ...FANOUT); },
     onError: (e: any) => toast.error(e?.message ?? "Failed to remove item"),
   });
+  async function handleRemove(item: Item) {
+    try {
+      const { counts, total } = await scanFn({ data: { id: item.id } }) as { counts: Record<string, number>; total: number };
+      if (total === 0) {
+        if (confirm(`Permanently delete ${item.name}? No references found.`)) delM.mutate(item.id);
+        return;
+      }
+      const summary = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" · ");
+      if (confirm(`"${item.name}" is referenced in ${total} place(s): ${summary}.\n\nOK = Archive (keeps history)\nCancel = Keep`)) {
+        archiveM.mutate(item.id);
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Dependency check failed");
+    }
+  }
 
   const countM = useMutation({
     mutationFn: ({ itemId, countQty }: { itemId: string; countQty: number }) =>
