@@ -48,6 +48,8 @@ function OrderGuide() {
   const update = useServerFn(updateOrderGuide);
   const create = useServerFn(upsertInventoryItem);
   const remove = useServerFn(deleteInventoryItem);
+  const archiveFn = useServerFn(archiveInventoryItem);
+  const scanFn = useServerFn(scanInventoryDependencies);
 
   const { data: items = [], isLoading } = useQuery<Row[]>({
     queryKey: ["order-guide", trailerScope ?? "company"],
