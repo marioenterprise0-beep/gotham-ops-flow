@@ -111,8 +111,20 @@ function UsersTab() {
   const fetchPerms = useServerFn(listAllTabPermissions);
   const setPermFn = useServerFn(setTabPermission);
   const fetchSuper = useServerFn(amISuperAdmin);
+  const scanFn = useServerFn(scanUserDependencies);
+  const archiveFn = useServerFn(archiveUser);
+  const restoreFn = useServerFn(restoreUser);
+  const hardDeleteFn = useServerFn(hardDeleteUser);
 
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
+  const [showArchived, setShowArchived] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [depReport, setDepReport] = useState<{ counts: Record<string, { label: string; count: number }>; totalRefs: number } | null>(null);
+  const [removeReason, setRemoveReason] = useState("");
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["users", { showArchived }],
+    queryFn: () => fetchUsers({ data: { includeArchived: showArchived } }),
+  });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
   const { data: superData } = useQuery({ queryKey: ["am-i-super-admin"], queryFn: () => fetchSuper() });
   const isSuperAdmin = !!superData?.isSuperAdmin;
@@ -125,7 +137,7 @@ function UsersTab() {
 
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const refresh = () => syncDomains(qc, "users", "roles", "permissions");
+  const refresh = () => syncDomains(qc, "users", "roles", "permissions", "profiles", "schedule", "timeclock", "labor", "operations", "dashboard", "history");
   const refreshPerms = () => syncDomains(qc, "permissions", "users");
 
   const roleMut = useMutation({
@@ -143,12 +155,43 @@ function UsersTab() {
     onSuccess: (_d, v) => { toast.success(v.active ? "Access restored" : "Access disabled"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const archiveMut = useMutation({
+    mutationFn: (v: { userId: string; reason?: string }) => archiveFn({ data: v }),
+    onSuccess: () => { toast.success("User archived"); setRemoveTarget(null); setDepReport(null); setRemoveReason(""); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const restoreMut = useMutation({
+    mutationFn: (userId: string) => restoreFn({ data: { userId } }),
+    onSuccess: () => { toast.success("User restored"); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const hardDeleteMut = useMutation({
+    mutationFn: (v: { userId: string; force?: boolean }) => hardDeleteFn({ data: v }),
+    onSuccess: () => { toast.success("User deleted"); setRemoveTarget(null); setDepReport(null); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const permMut = useMutation({
     mutationFn: (v: { userId: string; tabKey: string; enabled: boolean }) =>
       setPermFn({ data: { scopeType: "user", scopeId: v.userId, tabKey: v.tabKey, enabled: v.enabled } }),
     onSuccess: () => refreshPerms(),
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const startRemove = async (u: any) => {
+    setRemoveTarget({ id: u.id, name: u.display_name });
+    setDepReport(null);
+    setRemoveReason("");
+    try {
+      const report = await scanFn({ data: { userId: u.id } });
+      setDepReport(report);
+      if (report.totalRefs === 0) {
+        // No history → safe to hard delete directly via the modal CTA.
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Scan failed");
+      setRemoveTarget(null);
+    }
+  };
 
   const isEnabled = (userId: string, tabKey: string) => {
     const found = allPerms.find((p) => p.scope_type === "user" && p.scope_id === userId && p.tab_key === tabKey);
