@@ -1943,6 +1943,59 @@ export type Database = {
         }
         Relationships: []
       }
+      task_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          phase: Database["public"]["Enums"]["shift_phase"]
+          position: number
+          requires_signoff: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          title: string
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          phase: Database["public"]["Enums"]["shift_phase"]
+          position?: number
+          requires_signoff?: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          title: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          phase?: Database["public"]["Enums"]["shift_phase"]
+          position?: number
+          requires_signoff?: boolean
+          role?: Database["public"]["Enums"]["app_role"]
+          title?: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_role: Database["public"]["Enums"]["app_role"] | null
@@ -1960,6 +2013,7 @@ export type Database = {
           signed_off_at: string | null
           signed_off_by: string | null
           status: Database["public"]["Enums"]["task_status"]
+          template_id: string | null
           text_value: string | null
           title: string
           trailer_id: string | null
@@ -1980,6 +2034,7 @@ export type Database = {
           signed_off_at?: string | null
           signed_off_by?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          template_id?: string | null
           text_value?: string | null
           title: string
           trailer_id?: string | null
@@ -2000,6 +2055,7 @@ export type Database = {
           signed_off_at?: string | null
           signed_off_by?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          template_id?: string | null
           text_value?: string | null
           title?: string
           trailer_id?: string | null
@@ -2010,6 +2066,13 @@ export type Database = {
             columns: ["shift_id"]
             isOneToOne: false
             referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "task_templates"
             referencedColumns: ["id"]
           },
         ]

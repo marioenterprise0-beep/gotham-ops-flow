@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import {
+  ensureActiveShiftForTrailer,
+  instantiatePersonalTasks,
+  closeUserIncompleteTasks,
+  phaseFromHour,
+} from "./shifts.server";
+
 
 // Saturday-anchored payroll week
 function weekStart(d: Date): string {
@@ -122,11 +129,36 @@ export const clockIn = createServerFn({ method: "POST" })
       }
       throw new Error(error.message);
     }
+
+    // Auto-open the trailer's shift if there isn't one yet, then materialize
+    // this employee's personal tasks from the task_templates catalog matching
+    // their roles + the shift's phase. Both steps are best-effort: a failure
+    // here never blocks the clock-in itself.
+    let assignedTaskCount = 0;
+    let shiftId: string | null = null;
+    if (trailerId) {
+      try {
+        const ensured = await ensureActiveShiftForTrailer(supabase, trailerId, userId);
+        if (ensured) {
+          shiftId = ensured.shift.id;
+          const phase = ensured.shift.phase ?? phaseFromHour();
+          const { data: roleRows } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+          const roles = (roleRows ?? []).map((r: any) => r.role as string);
+          assignedTaskCount = await instantiatePersonalTasks(supabase, ensured.shift.id, trailerId, userId, roles, phase);
+        }
+      } catch {
+        // swallow — punch already saved, automation is non-critical
+      }
+    }
+
     return {
       ok: true as const,
       punch: row,
+      shiftId,
+      assignedTaskCount,
     };
   });
+
 
 // Owner-only: configure geofence coordinates / radius for a trailer.
 export const setTrailerGeofence = createServerFn({ method: "POST" })
@@ -212,8 +244,25 @@ export const clockOut = createServerFn({ method: "POST" })
       .eq("employee_id", userId)
       .select("*").single();
     if (error) throw new Error(error.message);
-    return row;
+
+    // Auto-close this employee's still-open personal tasks on the punch's shift.
+    let missedTaskCount = 0;
+    if (row?.trailer_id) {
+      const { data: activeShift } = await supabase
+        .from("shifts").select("id")
+        .eq("trailer_id", row.trailer_id).eq("status", "active")
+        .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+      if (activeShift?.id) {
+        try {
+          missedTaskCount = await closeUserIncompleteTasks(supabase, activeShift.id, userId);
+        } catch {
+          // best effort
+        }
+      }
+    }
+    return { ...row, missedTaskCount };
   });
+
 
 export const getMyWeek = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

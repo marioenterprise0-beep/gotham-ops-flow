@@ -17,9 +17,11 @@ import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
 } from "@/lib/timeclock.functions";
+import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
-import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin } from "lucide-react";
+import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin, AlertTriangle } from "lucide-react";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
@@ -84,8 +86,10 @@ function TimeClockPage() {
         setGeoBlock(result.message);
         return;
       }
-      toast.success("Clocked in");
-      syncDomains(qc, "timeclock", "labor", "operations");
+      const assigned = (result as any).assignedTaskCount ?? 0;
+      toast.success(assigned > 0 ? `Clocked in · ${assigned} task${assigned === 1 ? "" : "s"} assigned` : "Clocked in");
+      qc.invalidateQueries({ queryKey: ["my-tasks"] });
+      syncDomains(qc, "timeclock", "labor", "operations", "tasks");
     },
     onError: (e: Error) => {
       if (e.message === "LOCATION_OFF") {
@@ -95,11 +99,32 @@ function TimeClockPage() {
       toast.error(e.message);
     },
   });
+  const tasksFn = useServerFn(listMyTasks);
+  const { data: myTasks = [] } = useQuery<any[]>({
+    queryKey: ["my-tasks"],
+    queryFn: () => tasksFn() as Promise<any[]>,
+    refetchInterval: 30_000,
+  });
+  const incompleteTasks = myTasks.filter((t: any) => t.status !== "done" && t.status !== "signed_off" && t.status !== "missed");
+  const [confirmOut, setConfirmOut] = useState(false);
+
   const outM = useMutation({
     mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
-    onSuccess: () => { toast.success("Clocked out"); syncDomains(qc, "timeclock", "labor", "operations"); },
+    onSuccess: (result: any) => {
+      const missed = result?.missedTaskCount ?? 0;
+      toast.success(missed > 0 ? `Clocked out · ${missed} task${missed === 1 ? "" : "s"} marked missed` : "Clocked out");
+      setConfirmOut(false);
+      qc.invalidateQueries({ queryKey: ["my-tasks"] });
+      syncDomains(qc, "timeclock", "labor", "operations", "tasks");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleClockOut = () => {
+    if (incompleteTasks.length > 0) setConfirmOut(true);
+    else outM.mutate();
+  };
+
 
   return (
     <AppShell>
@@ -122,10 +147,11 @@ function TimeClockPage() {
               <LogIn className="h-5 w-5" /> Clock In
             </Button>
           ) : (
-            <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={() => outM.mutate()} disabled={outM.isPending}>
+            <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={handleClockOut} disabled={outM.isPending}>
               <LogOut className="h-5 w-5" /> Clock Out
             </Button>
           )}
+
         </div>
       </Card>
 
@@ -179,6 +205,31 @@ function TimeClockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-[var(--color-warning,#C0392B)]" />
+              {incompleteTasks.length} task{incompleteTasks.length === 1 ? "" : "s"} still open
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <div className="mb-2">If you clock out now, these will be marked missed:</div>
+                <ul className="list-disc pl-5 space-y-1 max-h-48 overflow-auto text-sm">
+                  {incompleteTasks.slice(0, 10).map((t: any) => <li key={t.id}>{t.title}</li>)}
+                  {incompleteTasks.length > 10 && <li className="text-muted-foreground">+ {incompleteTasks.length - 10} more</li>}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOut(false)}>Keep working</Button>
+            <AlertDialogAction onClick={() => outM.mutate()} disabled={outM.isPending}>Clock out anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </AppShell>
   );
 }
