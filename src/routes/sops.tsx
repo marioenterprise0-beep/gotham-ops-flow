@@ -358,6 +358,15 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
 
   const upsertFn = useServerFn(upsertSop);
   const deleteFn = useServerFn(deleteSop);
+  const scanFn = useServerFn(scanSopDependencies);
+  const archiveFnSrv = useServerFn(archiveSop);
+  const restoreFnSrv = useServerFn(restoreSop);
+
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [depReport, setDepReport] = useState<{ counts: Record<string, { label: string; count: number }>; totalRefs: number } | null>(null);
+  const [archiveReason, setArchiveReason] = useState("");
+
+  const refreshSops = () => syncDomains(qc, "sops");
 
   const saveM = useMutation({
     mutationFn: () => upsertFn({ data: {
@@ -365,14 +374,39 @@ function CustomSopCard({ sop, canEdit }: { sop: any; canEdit: boolean }) {
       role: (form.role || undefined) as any, body: form.body.trim(),
       passStandard: form.passStandard.trim() || undefined,
     } }),
-    onSuccess: () => { toast.success("SOP updated"); setMode("view"); syncDomains(qc, "sops"); },
+    onSuccess: () => { toast.success("SOP updated"); setMode("view"); refreshSops(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const archiveM = useMutation({
+    mutationFn: () => archiveFnSrv({ data: { id: sop.id, reason: archiveReason || undefined } }),
+    onSuccess: () => { toast.success("SOP archived"); setRemoveOpen(false); setDepReport(null); setArchiveReason(""); refreshSops(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const restoreM = useMutation({
+    mutationFn: () => restoreFnSrv({ data: { id: sop.id } }),
+    onSuccess: () => { toast.success("SOP restored"); refreshSops(); },
     onError: (e: Error) => toast.error(e.message),
   });
   const delM = useMutation({
     mutationFn: () => deleteFn({ data: { id: sop.id } }),
-    onSuccess: () => { toast.success("Removed"); syncDomains(qc, "sops"); },
+    onSuccess: () => { toast.success("Removed"); setRemoveOpen(false); refreshSops(); },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const startRemove = async () => {
+    setRemoveOpen(true);
+    setDepReport(null);
+    setArchiveReason("");
+    try {
+      const r = await scanFn({ data: { id: sop.id } });
+      setDepReport(r);
+    } catch (e: any) {
+      toast.error(e.message ?? "Scan failed");
+      setRemoveOpen(false);
+    }
+  };
+
+  const isArchived = !!sop.archived_at;
 
   if (mode === "history") return <SopHistoryDrawer sop={sop} onClose={() => setMode("view")} />;
   if (mode === "attach")  return <SopAttachDrawer  sop={sop} canEdit={canEdit} onClose={() => setMode("view")} />;
