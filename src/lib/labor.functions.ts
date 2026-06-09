@@ -34,7 +34,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const start = new Date(ws + "T00:00:00");
     const end = new Date(start); end.setDate(end.getDate() + 7);
 
-    let profilesQ = supabase.from("profiles").select("id, display_name, trailer_id, active").eq("active", true);
+    let profilesQ = supabase.from("profiles").select("id, display_name, trailer_id, active").eq("active", true).is("archived_at", null);
     if (data.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
     const { data: profiles } = await profilesQ;
     const empIds = (profiles ?? []).map((p: any) => p.id);

@@ -9,9 +9,10 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
+  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
-import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown } from "lucide-react";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { syncDomains } from "@/lib/sync-bus";
@@ -110,8 +111,20 @@ function UsersTab() {
   const fetchPerms = useServerFn(listAllTabPermissions);
   const setPermFn = useServerFn(setTabPermission);
   const fetchSuper = useServerFn(amISuperAdmin);
+  const scanFn = useServerFn(scanUserDependencies);
+  const archiveFn = useServerFn(archiveUser);
+  const restoreFn = useServerFn(restoreUser);
+  const hardDeleteFn = useServerFn(hardDeleteUser);
 
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
+  const [showArchived, setShowArchived] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [depReport, setDepReport] = useState<{ counts: Record<string, { label: string; count: number }>; totalRefs: number } | null>(null);
+  const [removeReason, setRemoveReason] = useState("");
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["users", { showArchived }],
+    queryFn: () => fetchUsers({ data: { includeArchived: showArchived } }),
+  });
   const { data: trailers = [] } = useQuery({ queryKey: ["trailers"], queryFn: () => fetchTrailers() });
   const { data: superData } = useQuery({ queryKey: ["am-i-super-admin"], queryFn: () => fetchSuper() });
   const isSuperAdmin = !!superData?.isSuperAdmin;
@@ -124,7 +137,7 @@ function UsersTab() {
 
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const refresh = () => syncDomains(qc, "users", "roles", "permissions");
+  const refresh = () => syncDomains(qc, "users", "roles", "permissions", "profiles", "schedule", "timeclock", "labor", "operations", "dashboard", "history");
   const refreshPerms = () => syncDomains(qc, "permissions", "users");
 
   const roleMut = useMutation({
@@ -142,12 +155,43 @@ function UsersTab() {
     onSuccess: (_d, v) => { toast.success(v.active ? "Access restored" : "Access disabled"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const archiveMut = useMutation({
+    mutationFn: (v: { userId: string; reason?: string }) => archiveFn({ data: v }),
+    onSuccess: () => { toast.success("User archived"); setRemoveTarget(null); setDepReport(null); setRemoveReason(""); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const restoreMut = useMutation({
+    mutationFn: (userId: string) => restoreFn({ data: { userId } }),
+    onSuccess: () => { toast.success("User restored"); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const hardDeleteMut = useMutation({
+    mutationFn: (v: { userId: string; force?: boolean }) => hardDeleteFn({ data: v }),
+    onSuccess: () => { toast.success("User deleted"); setRemoveTarget(null); setDepReport(null); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const permMut = useMutation({
     mutationFn: (v: { userId: string; tabKey: string; enabled: boolean }) =>
       setPermFn({ data: { scopeType: "user", scopeId: v.userId, tabKey: v.tabKey, enabled: v.enabled } }),
     onSuccess: () => refreshPerms(),
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const startRemove = async (u: any) => {
+    setRemoveTarget({ id: u.id, name: u.display_name });
+    setDepReport(null);
+    setRemoveReason("");
+    try {
+      const report = await scanFn({ data: { userId: u.id } });
+      setDepReport(report);
+      if (report.totalRefs === 0) {
+        // No history → safe to hard delete directly via the modal CTA.
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? "Scan failed");
+      setRemoveTarget(null);
+    }
+  };
 
   const isEnabled = (userId: string, tabKey: string) => {
     const found = allPerms.find((p) => p.scope_type === "user" && p.scope_id === userId && p.tab_key === tabKey);
@@ -164,35 +208,76 @@ function UsersTab() {
 
   return (
     <>
-      <SectionHeader eyebrow="Crew" title="All Users" action={<StatusPill tone="neutral">{users.length} total</StatusPill>} />
+      <SectionHeader
+        eyebrow="Crew"
+        title="All Users"
+        action={
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <button
+                onClick={() => setShowArchived((v) => !v)}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-xs font-semibold",
+                  showArchived ? "border-[var(--color-gold)] text-[var(--color-gold)]" : "border-border hover:border-[var(--color-gold)]",
+                )}
+              >
+                {showArchived ? "Hide archived" : "Show archived"}
+              </button>
+            )}
+            <StatusPill tone="neutral">{users.length} total</StatusPill>
+          </div>
+        }
+      />
       <Card className="p-0 overflow-hidden">
         {users.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No users yet.</div>}
         {users.map((u: any, i: number) => {
           const role = (u.roles[0] as RoleId | undefined) ?? "cashier";
           const isUserOwner = u.roles.includes("owner");
           const open = openId === u.id;
+          const isArchived = !!u.archived_at;
           return (
-            <div key={u.id} className={cn(i && "border-t border-border")}>
-              <div className="grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_120px_auto_auto] gap-3 px-4 py-3 items-center text-sm">
+            <div key={u.id} className={cn(i && "border-t border-border", isArchived && "opacity-60")}>
+              <div className="grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_120px_auto_auto_auto] gap-3 px-4 py-3 items-center text-sm">
                 <div>
-                  <div className="font-semibold truncate">{u.display_name}</div>
-                  <div className="text-xs text-muted-foreground">Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "never"}</div>
+                  <div className="font-semibold truncate inline-flex items-center gap-2">
+                    {u.display_name}
+                    {isArchived && <span className="inline-flex items-center gap-1 rounded bg-[var(--color-muted)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"><Archive className="h-3 w-3" /> Archived</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {isArchived
+                      ? `Archived ${new Date(u.archived_at).toLocaleDateString()}${u.archive_reason ? ` · ${u.archive_reason}` : ""}`
+                      : `Last login: ${u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "never"}`}
+                  </div>
                 </div>
-                <select value={role} onChange={(e) => roleMut.mutate({ userId: u.id, role: e.target.value as RoleId })}
-                  className="h-9 rounded-md border border-border bg-card px-2 text-xs">
+                <select disabled={isArchived} value={role} onChange={(e) => roleMut.mutate({ userId: u.id, role: e.target.value as RoleId })}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-xs disabled:opacity-50">
                   {ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                 </select>
-                <select value={u.trailer_id ?? ""} onChange={(e) => trailerMut.mutate({ userId: u.id, trailerId: e.target.value || null })}
-                  className="h-9 rounded-md border border-border bg-card px-2 text-xs">
+                <select disabled={isArchived} value={u.trailer_id ?? ""} onChange={(e) => trailerMut.mutate({ userId: u.id, trailerId: e.target.value || null })}
+                  className="h-9 rounded-md border border-border bg-card px-2 text-xs disabled:opacity-50">
                   <option value="">No trailer</option>
                   {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
-                <div><StatusPill tone={u.active ? "success" : "danger"}>{u.active ? "Active" : "Disabled"}</StatusPill></div>
-                {isSuperAdmin ? (
+                <div><StatusPill tone={isArchived ? "neutral" : u.active ? "success" : "danger"}>{isArchived ? "Archived" : u.active ? "Active" : "Disabled"}</StatusPill></div>
+                {isSuperAdmin && !isArchived ? (
                   <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
                     className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
-                    {u.active ? "Disable" : "Restore"}
+                    {u.active ? "Disable" : "Restore access"}
                   </button>
+                ) : <div />}
+                {isSuperAdmin ? (
+                  isArchived ? (
+                    <button onClick={() => restoreMut.mutate(u.id)} disabled={restoreMut.isPending}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--color-success)] hover:text-[var(--color-success)] disabled:opacity-60">
+                      <RotateCcw className="h-3 w-3" /> Restore
+                    </button>
+                  ) : (
+                    <button onClick={() => startRemove(u)} disabled={isUserOwner}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] disabled:opacity-40"
+                      title={isUserOwner ? "Owners cannot be archived or deleted" : "Archive or delete"}>
+                      <Trash2 className="h-3 w-3" /> Remove
+                    </button>
+                  )
                 ) : <div />}
                 {isOwner ? (
                   <button onClick={() => setOpenId(open ? null : u.id)}
@@ -260,9 +345,64 @@ function UsersTab() {
           Only owners can edit per-user tab permissions. Managers can change roles and trailer assignments.
         </div>
       )}
+
+      {removeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => !archiveMut.isPending && !hardDeleteMut.isPending && setRemoveTarget(null)}>
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="label-caps text-muted-foreground">Remove user</div>
+            <h3 className="font-display text-xl mt-1">{removeTarget.name}</h3>
+            {!depReport ? (
+              <div className="mt-4 text-sm text-muted-foreground">Scanning historical references…</div>
+            ) : depReport.totalRefs === 0 ? (
+              <>
+                <p className="mt-3 text-sm text-muted-foreground">No historical records reference this user. They can be deleted permanently.</p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveTarget(null)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button
+                    onClick={() => hardDeleteMut.mutate({ userId: removeTarget.id })}
+                    disabled={hardDeleteMut.isPending}
+                    className="rounded-md bg-[var(--color-danger)] text-white px-3 py-2 text-xs font-semibold disabled:opacity-60"
+                  >
+                    {hardDeleteMut.isPending ? "Deleting…" : "Delete permanently"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-sm">
+                  This user is referenced in <span className="font-semibold">{depReport.totalRefs}</span> historical record{depReport.totalRefs === 1 ? "" : "s"}. Archiving preserves audit history and removes them from every live list.
+                </p>
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground max-h-48 overflow-auto">
+                  {Object.entries(depReport.counts).map(([k, v]) => (
+                    <li key={k} className="flex justify-between border-b border-border/50 py-1">
+                      <span>{v.label}</span><span className="font-mono">{v.count}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-3">
+                  <div className="label-caps text-muted-foreground mb-1">Reason (optional)</div>
+                  <input value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} placeholder="Left the team"
+                    className="w-full h-9 rounded-md border border-border bg-card px-2 text-sm" />
+                </div>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button onClick={() => setRemoveTarget(null)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Cancel</button>
+                  <button
+                    onClick={() => archiveMut.mutate({ userId: removeTarget.id, reason: removeReason || undefined })}
+                    disabled={archiveMut.isPending}
+                    className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    <Archive className="h-3.5 w-3.5" /> {archiveMut.isPending ? "Archiving…" : "Archive user"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
+
 
 function InvitesTab() {
   const qc = useQueryClient();
@@ -384,7 +524,7 @@ function LogsTab() {
   const fetchLogs = useServerFn(listAccessLogs);
   const { data: logs = [] } = useQuery({ queryKey: ["access-logs"], queryFn: () => fetchLogs(), refetchInterval: 30_000 });
   const fetchUsers = useServerFn(listUsers);
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => fetchUsers() });
+  const { data: users = [] } = useQuery({ queryKey: ["users", { showArchived: true }], queryFn: () => fetchUsers({ data: { includeArchived: true } }) });
   const nameOf = (id: string | null) => users.find((u: any) => u.id === id)?.display_name ?? (id ? id.slice(0, 8) : "system");
 
   return (

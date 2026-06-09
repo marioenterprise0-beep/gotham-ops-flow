@@ -27,8 +27,8 @@ export const getManagerOverview = createServerFn({ method: "GET" })
     const { data: shift } = await shiftQ.maybeSingle();
 
     const profilesQ = trailerId
-      ? supabase.from("profiles").select("id, display_name, trailer_id").eq("trailer_id", trailerId).limit(200)
-      : supabase.from("profiles").select("id, display_name, trailer_id").limit(200);
+      ? supabase.from("profiles").select("id, display_name, trailer_id").eq("trailer_id", trailerId).is("archived_at", null).limit(200)
+      : supabase.from("profiles").select("id, display_name, trailer_id").is("archived_at", null).limit(200);
     const itemsQ = trailerId
       ? supabase.from("inventory_items").select("current_qty, low_threshold, par_level").eq("trailer_id", trailerId).is("archived_at", null)
       : supabase.from("inventory_items").select("current_qty, low_threshold, par_level").is("archived_at", null);
@@ -272,8 +272,8 @@ export const listCrewRoster = createServerFn({ method: "GET" })
     await assertManager(supabase, userId);
     const trailerId = data?.trailerId ?? null;
     const profQ = trailerId
-      ? supabase.from("profiles").select("id, display_name, created_at, trailer_id").eq("trailer_id", trailerId).order("display_name")
-      : supabase.from("profiles").select("id, display_name, created_at, trailer_id").order("display_name");
+      ? supabase.from("profiles").select("id, display_name, created_at, trailer_id").eq("trailer_id", trailerId).is("archived_at", null).order("display_name")
+      : supabase.from("profiles").select("id, display_name, created_at, trailer_id").is("archived_at", null).order("display_name");
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profQ, supabase.from("user_roles").select("user_id, role"),
     ]);

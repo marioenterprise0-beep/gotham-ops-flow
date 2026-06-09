@@ -143,18 +143,22 @@ export const deleteInvite = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listUsers = createServerFn({ method: "GET" })
+export const listUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    const includeArchived = !!data?.includeArchived;
+    let q = supabase
+      .from("profiles")
+      .select(
+        "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at",
+      );
+    if (!includeArchived) q = q.is("archived_at", null);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }, { data: trailers }] =
       await Promise.all([
-        supabase
-          .from("profiles")
-          .select(
-            "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, created_at",
-          ),
+        q,
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("trailers").select("id, name"),
       ]);
@@ -172,6 +176,124 @@ export const listUsers = createServerFn({ method: "GET" })
       roles: roleMap.get(p.id) ?? [],
       trailer_name: p.trailer_id ? (trailerMap.get(p.trailer_id) ?? null) : null,
     }));
+  });
+
+export const scanUserDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const targets: Array<{ key: string; label: string; table: string; column: string }> = [
+      { key: "schedule_shifts", label: "Scheduled shifts", table: "schedule_shifts", column: "employee_id" },
+      { key: "time_punches", label: "Time punches", table: "time_punches", column: "employee_id" },
+      { key: "tasks_assigned", label: "Tasks assigned", table: "tasks", column: "assignee_id" },
+      { key: "cash_sessions", label: "Cash drawer sessions", table: "cash_drawer_sessions", column: "opened_by" },
+      { key: "cash_drops", label: "Cash drops", table: "cash_drops", column: "submitted_by" },
+      { key: "daily_recaps", label: "Daily recaps", table: "daily_recaps", column: "manager_id" },
+      { key: "hospitality", label: "Hospitality logs", table: "hospitality_incidents", column: "logged_by" },
+      { key: "waste_log", label: "Waste log entries", table: "waste_log", column: "logged_by" },
+      { key: "inventory_counts", label: "Inventory counts", table: "inventory_counts", column: "counted_by" },
+      { key: "inventory_orders", label: "Inventory orders", table: "inventory_orders", column: "created_by" },
+      { key: "time_off", label: "Time-off requests", table: "time_off_requests", column: "employee_id" },
+      { key: "time_corrections", label: "Time corrections", table: "time_corrections", column: "employee_id" },
+      { key: "shift_notes", label: "Shift notes", table: "shift_notes", column: "author_id" },
+    ];
+    const counts: Record<string, { label: string; count: number }> = {};
+    let total = 0;
+    for (const t of targets) {
+      const { count, error } = await (supabase as any)
+        .from(t.table)
+        .select("id", { count: "exact", head: true })
+        .eq(t.column, data.userId);
+      if (error) continue;
+      const c = count ?? 0;
+      if (c > 0) {
+        counts[t.key] = { label: t.label, count: c };
+        total += c;
+      }
+    }
+    return { counts, totalRefs: total };
+  });
+
+export const archiveUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ userId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireSuperAdmin(supabase, userId);
+    if (data.userId === userId) throw new Error("You cannot archive your own account.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const now = new Date().toISOString();
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ archived_at: now, archived_by: userId, archive_reason: data.reason ?? null, active: false })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("access_log").insert({
+      user_id: data.userId,
+      event: "archived",
+      payload: { by: userId, reason: data.reason ?? null },
+    });
+    return { ok: true, archived: true };
+  });
+
+export const restoreUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireSuperAdmin(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ archived_at: null, archived_by: null, archive_reason: null, active: true })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    await supabaseAdmin.from("access_log").insert({
+      user_id: data.userId,
+      event: "restored",
+      payload: { by: userId },
+    });
+    return { ok: true, restored: true };
+  });
+
+export const hardDeleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid(), force: z.boolean().optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireSuperAdmin(supabase, userId);
+    if (data.userId === userId) throw new Error("You cannot delete your own account.");
+    const tables: Array<[string, string]> = [
+      ["schedule_shifts", "employee_id"], ["time_punches", "employee_id"], ["tasks", "assignee_id"],
+      ["cash_drawer_sessions", "opened_by"], ["cash_drops", "submitted_by"], ["daily_recaps", "manager_id"],
+      ["hospitality_incidents", "logged_by"], ["waste_log", "logged_by"], ["inventory_counts", "counted_by"],
+      ["inventory_orders", "created_by"], ["time_off_requests", "employee_id"],
+      ["time_corrections", "employee_id"], ["shift_notes", "author_id"],
+    ];
+    let total = 0;
+    for (const [tbl, col] of tables) {
+      const { count } = await (supabase as any)
+        .from(tbl)
+        .select("id", { count: "exact", head: true })
+        .eq(col, data.userId);
+      total += count ?? 0;
+    }
+    if (total > 0 && !data.force) {
+      const err: any = new Error(
+        `User has ${total} historical reference(s). Archive instead, or pass force=true.`,
+      );
+      err.code = "HAS_DEPENDENCIES";
+      err.totalRefs = total;
+      throw err;
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: aErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (aErr) throw new Error(aErr.message);
+    return { ok: true, deleted: true };
   });
 
 export const setUserRole = createServerFn({ method: "POST" })

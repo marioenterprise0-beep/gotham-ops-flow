@@ -43,7 +43,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       .limit(20);
 
     const { data: crew } = await supabase
-      .from("profiles").select("id, display_name").limit(20);
+      .from("profiles").select("id, display_name").is("archived_at", null).limit(20);
 
     return {
       store, shift,

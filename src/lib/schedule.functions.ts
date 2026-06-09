@@ -252,7 +252,7 @@ export const listEmployees = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    let profilesQ = supabase.from("profiles").select("id, display_name, active, trailer_id").eq("active", true);
+    let profilesQ = supabase.from("profiles").select("id, display_name, active, trailer_id").eq("active", true).is("archived_at", null);
     if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
