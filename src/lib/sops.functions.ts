@@ -275,8 +275,8 @@ export const getSopAckRollup = createServerFn({ method: "GET" })
     await assertOwner(supabase, userId);
 
     const [{ data: sops }, { data: profiles }, { data: acks }, { data: views }] = await Promise.all([
-      supabase.from("sops").select("id, title, category, version, updated_at"),
-      supabase.from("profiles").select("id, display_name, active").eq("active", true),
+      supabase.from("sops").select("id, title, category, version, updated_at").is("archived_at", null),
+      supabase.from("profiles").select("id, display_name, active").eq("active", true).is("archived_at", null),
       supabase.from("sop_acknowledgements").select("sop_id, user_id, version, acknowledged_at"),
       supabase.from("sop_views").select("sop_id, user_id, viewed_at"),
     ]);
