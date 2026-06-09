@@ -244,8 +244,25 @@ export const clockOut = createServerFn({ method: "POST" })
       .eq("employee_id", userId)
       .select("*").single();
     if (error) throw new Error(error.message);
-    return row;
+
+    // Auto-close this employee's still-open personal tasks on the punch's shift.
+    let missedTaskCount = 0;
+    if (row?.trailer_id) {
+      const { data: activeShift } = await supabase
+        .from("shifts").select("id")
+        .eq("trailer_id", row.trailer_id).eq("status", "active")
+        .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+      if (activeShift?.id) {
+        try {
+          missedTaskCount = await closeUserIncompleteTasks(supabase, activeShift.id, userId);
+        } catch {
+          // best effort
+        }
+      }
+    }
+    return { ...row, missedTaskCount };
   });
+
 
 export const getMyWeek = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
