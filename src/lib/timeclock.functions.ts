@@ -28,6 +28,7 @@ export const getMyActivePunch = createServerFn({ method: "GET" })
       .select("*")
       .eq("employee_id", userId)
       .eq("status", "open")
+      .is("archived_at", null)
       .order("clock_in_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -227,7 +228,7 @@ export const clockOut = createServerFn({ method: "POST" })
     let punchId = data.punchId;
     if (!punchId) {
       const { data: open } = await supabase.from("time_punches")
-        .select("id").eq("employee_id", userId).eq("status", "open")
+        .select("id").eq("employee_id", userId).eq("status", "open").is("archived_at", null)
         .order("clock_in_at", { ascending: false }).limit(1).maybeSingle();
       if (!open) throw new Error("No open punch found.");
       punchId = open.id;
@@ -275,7 +276,7 @@ export const getMyWeek = createServerFn({ method: "POST" })
     const end = new Date(start); end.setDate(end.getDate() + 7);
 
     const [{ data: punches }, { data: shifts }] = await Promise.all([
-      supabase.from("time_punches").select("*")
+      supabase.from("time_punches").select("*").is("archived_at", null)
         .eq("employee_id", userId)
         .gte("clock_in_at", start.toISOString())
         .lt("clock_in_at", end.toISOString())
@@ -406,8 +407,8 @@ export const listMyRequests = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [{ data: corrections }, { data: timeOff }, { data: notes }] = await Promise.all([
-      supabase.from("time_corrections").select("*").eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("time_off_requests").select("*").eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("time_corrections").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("time_off_requests").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("shift_notes").select("*").eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
     ]);
     return { corrections: corrections ?? [], timeOff: timeOff ?? [], notes: notes ?? [] };

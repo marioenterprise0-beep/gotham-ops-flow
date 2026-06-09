@@ -39,15 +39,15 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const { data: profiles } = await profilesQ;
     const empIds = (profiles ?? []).map((p: any) => p.id);
 
-    let punchesQ = supabase.from("time_punches").select("*")
+    let punchesQ = supabase.from("time_punches").select("*").is("archived_at", null)
       .gte("clock_in_at", start.toISOString())
       .lt("clock_in_at", end.toISOString());
     let shiftsQ = supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
       .is("schedules.archived_at", null)
       .gte("shift_date", ws)
       .lt("shift_date", end.toISOString().slice(0, 10));
-    let corrQ = supabase.from("time_corrections").select("*").eq("status", "pending");
-    let timeoffQ = supabase.from("time_off_requests").select("*").eq("status", "pending");
+    let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
+    let timeoffQ = supabase.from("time_off_requests").select("*").is("archived_at", null).eq("status", "pending");
 
     if (data.trailerId) {
       punchesQ = punchesQ.eq("trailer_id", data.trailerId);
@@ -134,7 +134,7 @@ export const getEmployeeWeek = createServerFn({ method: "POST" })
     const start = new Date(ws + "T00:00:00");
     const end = new Date(start); end.setDate(end.getDate() + 7);
     const [{ data: punches }, { data: shifts }, { data: notes }] = await Promise.all([
-      supabase.from("time_punches").select("*")
+      supabase.from("time_punches").select("*").is("archived_at", null)
         .eq("employee_id", data.userId)
         .gte("clock_in_at", start.toISOString())
         .lt("clock_in_at", end.toISOString())
@@ -258,8 +258,8 @@ export const listAllRequests = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
 
-    let corrQ = supabase.from("time_corrections").select("*").order("created_at", { ascending: false }).limit(100);
-    let toQ = supabase.from("time_off_requests").select("*").order("created_at", { ascending: false }).limit(100);
+    let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
+    let toQ = supabase.from("time_off_requests").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
     let notesQ = supabase.from("shift_notes").select("*").order("created_at", { ascending: false }).limit(100);
     if (data.trailerId) {
       corrQ = corrQ.eq("trailer_id", data.trailerId);
