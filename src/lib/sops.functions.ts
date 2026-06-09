@@ -12,15 +12,19 @@ async function assertOwner(supabase: any, userId: string) {
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 
-export const listSops = createServerFn({ method: "GET" })
+export const listSops = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    const includeArchived = !!data?.includeArchived;
+    let q = context.supabase
       .from("sops")
-      .select("id, title, category, role, body, pass_standard, version, updated_at")
+      .select("id, title, category, role, body, pass_standard, version, archived_at, archive_reason, updated_at")
       .order("updated_at", { ascending: false });
+    if (!includeArchived) q = q.is("archived_at", null);
+    const { data: rows, error } = await q;
     if (error) throw error;
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const upsertSop = createServerFn({ method: "POST" })
@@ -71,18 +75,93 @@ export const upsertSop = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const deleteSop = createServerFn({ method: "POST" })
+export const scanSopDependencies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
+    const targets: Array<{ key: string; label: string; table: string; column: string }> = [
+      { key: "acks", label: "Acknowledgements", table: "sop_acknowledgements", column: "sop_id" },
+      { key: "views", label: "View records", table: "sop_views", column: "sop_id" },
+      { key: "versions", label: "Prior versions", table: "sop_versions", column: "sop_id" },
+      { key: "attachments", label: "Attachments", table: "sop_attachments", column: "sop_id" },
+    ];
+    const counts: Record<string, { label: string; count: number }> = {};
+    let total = 0;
+    for (const t of targets) {
+      const { count } = await (supabase as any)
+        .from(t.table)
+        .select("id", { count: "exact", head: true })
+        .eq(t.column, data.id);
+      const c = count ?? 0;
+      if (c > 0) { counts[t.key] = { label: t.label, count: c }; total += c; }
+    }
+    return { counts, totalRefs: total };
+  });
+
+export const archiveSop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("sops").update({
+      archived_at: new Date().toISOString(),
+      archived_by: userId,
+      archive_reason: data.reason ?? null,
+    }).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "archive_sop", entity: "sop", entity_id: data.id,
+      payload: { reason: data.reason ?? null },
+    });
+    return { ok: true, archived: true };
+  });
+
+export const restoreSop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("sops").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    }).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "restore_sop", entity: "sop", entity_id: data.id, payload: {},
+    });
+    return { ok: true, restored: true };
+  });
+
+export const deleteSop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const tables: Array<[string, string]> = [
+      ["sop_acknowledgements", "sop_id"], ["sop_views", "sop_id"],
+      ["sop_versions", "sop_id"], ["sop_attachments", "sop_id"],
+    ];
+    let total = 0;
+    for (const [tbl, col] of tables) {
+      const { count } = await (supabase as any).from(tbl).select("id", { count: "exact", head: true }).eq(col, data.id);
+      total += count ?? 0;
+    }
+    if (total > 0 && !data.force) {
+      const err: any = new Error(`SOP has ${total} historical reference(s). Archive instead, or pass force=true.`);
+      err.code = "HAS_DEPENDENCIES";
+      err.totalRefs = total;
+      throw err;
+    }
     const { error } = await supabase.from("sops").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "delete_sop", entity: "sop", entity_id: data.id, payload: {},
+      actor_id: userId, action: "delete_sop", entity: "sop", entity_id: data.id, payload: { force: !!data.force },
     });
-    return { ok: true };
+    return { ok: true, deleted: true };
   });
 
 export const listSopVersions = createServerFn({ method: "GET" })
