@@ -60,7 +60,7 @@ export const clockIn = createServerFn({ method: "POST" })
     const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
     // Block double clock-in
     const { data: open } = await supabase.from("time_punches")
-      .select("id").eq("employee_id", userId).eq("status", "open").limit(1).maybeSingle();
+      .select("id").eq("employee_id", userId).eq("status", "open").is("archived_at", null).limit(1).maybeSingle();
     if (open) {
       return {
         ok: false as const,
