@@ -276,7 +276,7 @@ export const hardDeleteUser = createServerFn({ method: "POST" })
     ];
     let total = 0;
     for (const [tbl, col] of tables) {
-      const { count } = await supabase
+      const { count } = await (supabase as any)
         .from(tbl)
         .select("id", { count: "exact", head: true })
         .eq(col, data.userId);
