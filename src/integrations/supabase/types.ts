@@ -1943,6 +1943,42 @@ export type Database = {
         }
         Relationships: []
       }
+      task_template_versions: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
+          changed_at: string
+          changed_fields: string[]
+          id: string
+          template_id: string
+          version: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_fields?: string[]
+          id?: string
+          template_id: string
+          version: number
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_fields?: string[]
+          id?: string
+          template_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       task_templates: {
         Row: {
           active: boolean
