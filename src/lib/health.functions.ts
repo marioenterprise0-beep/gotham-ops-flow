@@ -34,7 +34,7 @@ export const getHealthScore = createServerFn({ method: "GET" })
     const trailerFilter = (q: any) => (data.trailerId ? q.eq("trailer_id", data.trailerId) : q);
 
     // INVENTORY — % of items at/above low_threshold
-    const { data: items } = await trailerFilter(supabase.from("inventory_items").select("current_qty, low_threshold"));
+    const { data: items } = await trailerFilter(supabase.from("inventory_items").select("current_qty, low_threshold").is("archived_at", null));
     const invTotal = items?.length ?? 0;
     const invOk = (items ?? []).filter((i: any) => Number(i.current_qty) >= Number(i.low_threshold)).length;
     const invScore = invTotal === 0 ? 100 : clamp((invOk / invTotal) * 100);

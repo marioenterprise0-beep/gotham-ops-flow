@@ -86,7 +86,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
       .gte("shift_date", startDate).lte("shift_date", endDate);
     if (trailerFilter) shiftsQ = shiftsQ.eq("trailer_id", trailerFilter);
 
-    const itemsQ = supabase.from("inventory_items").select("id, category, cost_per_unit");
+    const itemsQ = supabase.from("inventory_items").select("id, category, cost_per_unit").is("archived_at", null);
 
     const [
       { data: tasks },

@@ -24,7 +24,8 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     }
 
     const { data: items } = await supabase.from("inventory_items")
-      .select("id, name, category, current_qty, par_level, low_threshold");
+      .select("id, name, category, current_qty, par_level, low_threshold")
+      .is("archived_at", null);
     const lowItems = (items ?? [])
       .filter((i) => Number(i.low_threshold) > 0 && Number(i.current_qty) <= Number(i.low_threshold))
       .map((i) => ({

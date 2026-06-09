@@ -43,11 +43,15 @@ const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "dairy", "packagi
 
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .inputValidator((d) => z.object({
+    trailerId: z.string().uuid().nullable().optional(),
+    includeArchived: z.boolean().optional(),
+  }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const tid = data?.trailerId;
     let q = context.supabase.from("inventory_items").select("*").order("category").order("name");
     if (tid) q = q.eq("trailer_id", tid);
+    if (!data?.includeArchived) q = q.is("archived_at", null);
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
@@ -144,19 +148,92 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---------- Lifecycle: scan / archive / restore / hard delete ----------
+
+async function countItemRefs(supabase: any, itemId: string) {
+  const tables: Array<{ table: string; col: string; label: string }> = [
+    { table: "inventory_order_items",      col: "item_id",        label: "orders" },
+    { table: "inventory_counts",           col: "item_id",        label: "counts" },
+    { table: "inventory_receipts",         col: "item_id",        label: "receipts" },
+    { table: "waste_log",                  col: "item_id",        label: "waste" },
+    { table: "inventory_change_requests",  col: "target_item_id", label: "requests" },
+    { table: "alerts",                     col: "source_id",      label: "alerts" },
+  ];
+  const counts: Record<string, number> = {};
+  let total = 0;
+  for (const t of tables) {
+    const { count } = await supabase.from(t.table)
+      .select("*", { head: true, count: "exact" })
+      .eq(t.col, itemId);
+    counts[t.label] = count ?? 0;
+    total += count ?? 0;
+  }
+  return { counts, total };
+}
+
+export const scanInventoryDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { counts, total } = await countItemRefs(context.supabase, data.id);
+    return { counts, total };
+  });
+
+export const archiveInventoryItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("inventory_items")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "archive_item", entity: "inventory_item",
+      entity_id: data.id, payload: {},
+    });
+    return { ok: true, archived: true as const };
+  });
+
+export const restoreInventoryItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase.from("inventory_items")
+      .update({ archived_at: null })
+      .eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "restore_item", entity: "inventory_item",
+      entity_id: data.id, payload: {},
+    });
+    return { ok: true, restored: true as const };
+  });
+
+/** Hard delete — only when there are zero references. Otherwise throw HAS_DEPENDENCIES. */
 export const deleteInventoryItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
+    const { counts, total } = await countItemRefs(supabase, data.id);
+    if (total > 0) {
+      const summary = Object.entries(counts).filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${k}`).join(" · ");
+      throw new Error(`HAS_DEPENDENCIES:${total}:${summary}`);
+    }
     const { error } = await supabase.from("inventory_items").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "delete_item", entity: "inventory_item", entity_id: data.id, payload: {},
     });
-    return { ok: true };
+    return { ok: true, deleted: true as const };
   });
+
 
 export const receiveStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

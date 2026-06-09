@@ -30,8 +30,8 @@ export const getManagerOverview = createServerFn({ method: "GET" })
       ? supabase.from("profiles").select("id, display_name, trailer_id").eq("trailer_id", trailerId).limit(200)
       : supabase.from("profiles").select("id, display_name, trailer_id").limit(200);
     const itemsQ = trailerId
-      ? supabase.from("inventory_items").select("current_qty, low_threshold, par_level").eq("trailer_id", trailerId)
-      : supabase.from("inventory_items").select("current_qty, low_threshold, par_level");
+      ? supabase.from("inventory_items").select("current_qty, low_threshold, par_level").eq("trailer_id", trailerId).is("archived_at", null)
+      : supabase.from("inventory_items").select("current_qty, low_threshold, par_level").is("archived_at", null);
 
     const [{ data: profiles }, { data: roleRows }, { data: items }] = await Promise.all([
       profilesQ, supabase.from("user_roles").select("user_id, role"), itemsQ,

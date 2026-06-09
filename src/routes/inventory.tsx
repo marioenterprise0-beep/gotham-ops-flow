@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
-import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem } from "@/lib/inventory.functions";
+import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
 import { Link } from "@tanstack/react-router";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
@@ -34,6 +34,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export type Item = {
   id: string; name: string; category: string; unit: string;
   par_level: number; low_threshold: number; current_qty: number;
+  archived_at?: string | null;
 };
 
 type Status = "CRITICAL" | "LOW" | "OK" | "OVERSTOCKED";
@@ -55,9 +56,10 @@ function Inventory() {
   const isManager = roleId === "owner" || roleId === "manager";
   const canPropose = !!session?.access_token;
   const list = useServerFn(listInventory);
+  const [showArchived, setShowArchived] = useState(false);
   const { data: items = [], isLoading } = useQuery<Item[]>({
-    queryKey: ["inventory", trailerScope ?? "company"],
-    queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
+    queryKey: ["inventory", trailerScope ?? "company", showArchived ? "all" : "active"],
+    queryFn: () => list({ data: { trailerId: trailerScope, includeArchived: showArchived } }) as Promise<Item[]>,
     enabled: !loading && !!session?.access_token,
   });
   const trailerLabel = trailerScope
@@ -87,12 +89,47 @@ function Inventory() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+
+  const scanFn = useServerFn(scanInventoryDependencies);
   const deleteFn = useServerFn(deleteInventoryItem);
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item removed"); syncDomains(qc, "inventory", "orders"); },
+  const archiveFn = useServerFn(archiveInventoryItem);
+  const restoreFn = useServerFn(restoreInventoryItem);
+
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => archiveFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item archived · all dependent screens refreshed"); syncDomains(qc, ...FANOUT); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const restoreMut = useMutation({
+    mutationFn: (id: string) => restoreFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item restored"); syncDomains(qc, ...FANOUT); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item deleted"); syncDomains(qc, ...FANOUT); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  async function handleOwnerRemove(it: Item) {
+    try {
+      const { counts, total } = await scanFn({ data: { id: it.id } }) as { counts: Record<string, number>; total: number };
+      if (total === 0) {
+        if (confirm(`Permanently delete ${it.name}? No references found.`)) deleteMut.mutate(it.id);
+        return;
+      }
+      const summary = Object.entries(counts).filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${k}`).join(" · ");
+      const choice = window.confirm(
+        `"${it.name}" is referenced in ${total} place(s): ${summary}.\n\n` +
+        `OK = Archive (keeps history, removes from active lists)\nCancel = Keep as-is`
+      );
+      if (choice) archiveMut.mutate(it.id);
+    } catch (e: any) {
+      toast.error(e.message ?? "Dependency check failed");
+    }
+  }
 
   const requestFn = useServerFn(submitInventoryChangeRequest);
   const requestMut = useMutation({
@@ -138,7 +175,7 @@ function Inventory() {
       </div>
 
       <div className="mt-4 -mx-4 px-4 overflow-x-auto">
-        <div className="flex gap-2 min-w-max">
+        <div className="flex gap-2 min-w-max items-center">
           {cats.map((c) => (
             <button key={c} onClick={() => setCat(c)}
               className={cn(
@@ -146,6 +183,12 @@ function Inventory() {
                 c === cat ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
               )}>{CATEGORY_LABELS[c] ?? c}</button>
           ))}
+          {isOwner && (
+            <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
+              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+              Show archived
+            </label>
+          )}
         </div>
       </div>
 
@@ -179,28 +222,38 @@ function Inventory() {
           const s = statusOf(it);
           const pct = Math.min(150, Math.round((Number(it.current_qty) / Math.max(1, Number(it.par_level))) * 100));
           return (
-            <Card key={it.id} className="p-3">
+            <Card key={it.id} className={cn("p-3", it.archived_at && "opacity-60")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm">{it.name}</div>
+                  <div className="font-semibold text-sm">{it.name} {it.archived_at && <span className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground">· archived</span>}</div>
                   <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
                 </div>
                 <StatusPill tone={statusTone(s)}>{s}</StatusPill>
                 {canPropose && (
                   <div className="flex gap-1">
-                    <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => {
-                      if (isOwner) {
-                        if (confirm(`Delete ${it.name}?`)) deleteMut.mutate(it.id);
-                      } else {
-                        const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
-                        if (reason !== null) requestMut.mutate({ item: it, reason });
-                      }
-                    }} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)]" title={isOwner ? "Delete" : "Request archive"}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {it.archived_at ? (
+                      isOwner && (
+                        <button onClick={() => restoreMut.mutate(it.id)} disabled={restoreMut.isPending} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-success)] disabled:opacity-50" title="Restore">
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                        </button>
+                      )
+                    ) : (
+                      <>
+                        <button onClick={() => setEditItem(it)} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground" title={isOwner ? "Edit" : "Request edit"}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => {
+                          if (isOwner) {
+                            handleOwnerRemove(it);
+                          } else {
+                            const reason = window.prompt(`Request to archive ${it.name}. Reason?`);
+                            if (reason !== null) requestMut.mutate({ item: it, reason });
+                          }
+                        }} disabled={deleteMut.isPending || archiveMut.isPending} className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-[var(--color-danger)] disabled:opacity-50" title={isOwner ? "Archive or delete" : "Request archive"}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

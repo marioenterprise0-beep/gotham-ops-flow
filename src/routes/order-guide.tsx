@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Plus, Save, Trash2, Truck, X } from "lucide-react";
-import { deleteInventoryItem, listInventory, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
+import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -48,6 +48,8 @@ function OrderGuide() {
   const update = useServerFn(updateOrderGuide);
   const create = useServerFn(upsertInventoryItem);
   const remove = useServerFn(deleteInventoryItem);
+  const archiveFn = useServerFn(archiveInventoryItem);
+  const scanFn = useServerFn(scanInventoryDependencies);
 
   const { data: items = [], isLoading } = useQuery<Row[]>({
     queryKey: ["order-guide", trailerScope ?? "company"],
@@ -72,12 +74,14 @@ function OrderGuide() {
   const cats = useMemo(() => ["all", ...Array.from(new Set(items.map((i) => i.category)))], [items]);
   const visible = filter === "all" ? items : items.filter((i) => i.category === filter);
 
+  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+
   const saveMut = useMutation({
     mutationFn: (vars: { id: string; patch: any }) => update({ data: vars }),
     onSuccess: (_d, vars) => {
       toast.success("Saved");
       setDrafts((prev) => { const n = { ...prev }; delete n[vars.id]; return n; });
-      syncDomains(qc, "inventory", "orders");
+      syncDomains(qc, ...FANOUT);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -88,19 +92,34 @@ function OrderGuide() {
       toast.success("Item added");
       setShowAdd(false);
       setNewItem({ name: "", category: "supplies", unit: "unit", vendor: "", pack_size: "", par_level: 0, low_threshold: 0, minimum_qty: 0, preferred_order_qty: 0, estimated_cost: 0 });
-      syncDomains(qc, "inventory", "orders");
+      syncDomains(qc, ...FANOUT);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Item removed");
-      syncDomains(qc, "inventory", "orders");
-    },
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => archiveFn({ data: { id } }),
+    onSuccess: () => { toast.success("Item archived"); syncDomains(qc, ...FANOUT); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => remove({ data: { id } }),
+    onSuccess: () => { toast.success("Item deleted"); syncDomains(qc, ...FANOUT); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  async function handleRemove(it: Row) {
+    try {
+      const { counts, total } = await scanFn({ data: { id: it.id } }) as { counts: Record<string, number>; total: number };
+      if (total === 0) {
+        if (confirm(`Permanently delete ${it.name}? No references found.`)) deleteMut.mutate(it.id);
+        return;
+      }
+      const summary = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" · ");
+      if (confirm(`"${it.name}" is referenced in ${total} place(s): ${summary}.\n\nOK = Archive (keeps history)\nCancel = Keep`)) {
+        archiveMut.mutate(it.id);
+      }
+    } catch (e: any) { toast.error(e.message ?? "Dependency check failed"); }
+  }
 
   function submitNew() {
     if (!newItem.name.trim()) { toast.error("Name required"); return; }
@@ -229,7 +248,7 @@ function OrderGuide() {
                     </button>
                     <button
                       disabled={deleteMut.isPending}
-                      onClick={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) deleteMut.mutate(it.id); }}
+                      onClick={() => handleRemove(it)}
                       className="inline-flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-destructive hover:border-destructive h-7 w-7 disabled:opacity-40"
                       aria-label="Delete item"
                     >

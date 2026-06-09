@@ -30,7 +30,7 @@ export const listAlerts = createServerFn({ method: "POST" })
     if (error) throw error;
 
     // Compute low/critical stock dynamically (not stored)
-    const { data: items } = await supabase.from("inventory_items").select("id,name,current_qty,low_threshold,par_level,trailer_id");
+    const { data: items } = await supabase.from("inventory_items").select("id,name,current_qty,low_threshold,par_level,trailer_id").is("archived_at", null);
     const synthetic: any[] = [];
     for (const it of items ?? []) {
       const cur = Number(it.current_qty), low = Number(it.low_threshold), par = Number(it.par_level || 0);
