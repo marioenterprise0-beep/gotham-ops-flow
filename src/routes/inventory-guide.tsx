@@ -313,7 +313,7 @@ function InventoryGuide() {
                       isOwner={isOwner}
                       isManager={isManager}
                       onEdit={() => setEditItem(it)}
-                      onDelete={() => { if (confirm(`Delete "${it.name}"? This cannot be undone.`)) delM.mutate(it.id); }}
+                      onDelete={() => handleRemove(it)}
                       onCount={(qty) => countM.mutate({ itemId: it.id, countQty: qty })}
                       counting={countM.isPending}
                       deleting={delM.isPending}
