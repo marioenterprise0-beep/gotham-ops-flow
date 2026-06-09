@@ -1,55 +1,58 @@
+# Canonical Sync Rollout — Phases 4–10
 
-# Single Source of Truth — Phase 1: Inventory (then propagate)
+Same pattern as Inventory / Users / SOPs:
+1. Add `archived_at`, `archived_by`, `archive_reason` to canonical table.
+2. `list*` filters archived by default + `includeArchived` (owner-only).
+3. `scan*Dependencies` checks all FK-referencing tables.
+4. `archive*` / `restore*` soft toggle; `delete*` blocks on deps unless `force` (Super Admin).
+5. Update every dependent reader (dashboard/health/analytics/etc.) to filter archived.
+6. Add domain to `sync-bus.ts` fan-out with all related cache keys.
+7. UI: Show Archived toggle, dependency-aware remove flow, Archived badge, Restore button.
+8. Audit log entry on every mutation.
 
-The codebase already has the bones (sync-bus, `archived_at` column, audit log).
-The failure you're seeing is in three places:
+## Grouping (one phase = one migration + one PR-sized batch)
 
-1. `deleteInventoryItem` hard-deletes — breaks references in orders/recaps/counts.
-2. Read queries (`listInventory`, dashboard, guide, order builder) don't filter by `archived_at IS NULL`.
-3. The UI mutation hooks don't all call `syncDomains("inventory","orders","alerts","dashboard")`, so caches stay stale.
+**Phase 4 — Schedules domain**
+- `schedules`, `schedule_shifts`, `shift_templates`
+- Dependents: time_punches, labor reports, dashboard, manager view
 
-I'll tackle inventory end-to-end first (your stated failing example), then apply the identical pattern to the other domains. Doing all domains in one pass = unreviewable change + high regression risk.
+**Phase 5 — Time & Labor**
+- `time_punches`, `time_corrections`, `time_off_requests`
+- Weekly Hours / Labor are derived views — update readers only, no archive column
+- Dependents: payroll rollup, labor.functions, dashboard, manager
 
-## Phase 1 — Inventory becomes canonical (this turn)
+**Phase 6 — Cash domain**
+- `cash_drawers`, `cash_drawer_sessions`, `cash_drops`
+- Dependents: dashboard cash widgets, reports, alerts
 
-### 1. Server: archive-not-delete + dependency scan
-- New `scanInventoryDependencies({ id })` server fn — counts references in:
-  `inventory_order_items`, `inventory_counts`, `inventory_receipts`, `waste_log`, `inventory_change_requests`, `alerts` (source_id), `tasks` (description match optional, skip).
-- Replace `deleteInventoryItem` with `archiveInventoryItem({ id, force? })`:
-  - If dependencies exist and `force !== true` → throw a structured error `{ code: "HAS_DEPENDENCIES", counts, totalRefs }`.
-  - Otherwise set `archived_at = now()`, write audit row, return `{ archived: true }`.
-- Add `restoreInventoryItem({ id })` — clears `archived_at`.
-- Add `hardDeleteInventoryItem({ id })` owner-only, only succeeds when dependency count is 0. (Kept for items created in error with zero history.)
+**Phase 7 — Operations**
+- `daily_recaps`, `shifts`, `shift_notes`, `tasks`, `task_templates`, `checklist_sessions`, `hospitality_incidents`, `waste_log`
+- Dependents: dashboard, performance, history
 
-### 2. Server: every read filters archived by default
-- `listInventory({ includeArchived? })` adds `.is("archived_at", null)` unless flag set.
-- `dashboard.functions.ts`, `health.functions.ts`, `manager.functions.ts`, `alerts.functions.ts`, `analytics.functions.ts`, `inventory-orders.functions.ts` — same filter on `inventory_items` queries.
-- Order guide / inventory guide pages call `listInventory()` → they pick up the filter automatically.
+**Phase 8 — Inventory Orders / Order Guide**
+- `inventory_orders`, `inventory_order_items`, `inventory_receipts`, `inventory_change_requests`
+- Order Guide is a derived view from inventory_items — readers only
+- Dependents: alerts, dashboard
 
-### 3. UI: dependency-aware delete flow
-- Inventory page "Delete" button → calls `scanInventoryDependencies` first.
-  - 0 refs → confirm "Permanently delete" → `hardDeleteInventoryItem`.
-  - >0 refs → modal: "Referenced in N places: 4 orders · 2 counts · 1 alert". Options: **Archive** / **Cancel**. (Replace is out of scope this phase.)
-- Archived items: surfaced via "Show archived" toggle on the inventory page with a Restore action.
+**Phase 9 — Locations & Access**
+- `trailers`, `stores`, `active_location_grants`, `location_access_requests`, `tab_permissions`, `invite_codes`
+- Dependents: nearly every module (trailer_id is ubiquitous)
 
-### 4. Cross-module fan-out
-- Every inventory mutation hook calls
-  `syncDomains(qc, "inventory","orders","alerts","operations","dashboard","history")`.
-- Audit each call site in `src/routes/inventory.tsx`, `inventory-guide.tsx`, `order-guide.tsx`, `inventory-changes.tsx`, manager reorder action.
+**Phase 10 — Communication / Derived**
+- `alerts`, `alert_actions`, `notification_preferences`, `email_send_log`
+- Announcements, Knowledge Hub, Performance, Reports, Dashboards, History, Training, Notifications, Emails — these are **derived views**, not canonical tables. They get reader-filter + fan-out updates only.
 
-### 5. Reconciliation check
-- Extend the existing integrity sweep (`integrity-sweep` query) with an "Orphaned references" row: count of order items / counts / alerts pointing at a missing inventory item. Owner sees it on `/integrity`.
+## Per-phase deliverables
+- 1 migration (archive columns + indexes for canonical tables only)
+- Updates to `src/lib/<domain>.functions.ts` (scan/archive/restore/delete)
+- Reader updates in dependent `*.functions.ts`
+- `sync-bus.ts` fan-out additions
+- UI updates on the primary route(s)
+- Verify build passes between phases
 
-## Phase 2 (separate turns, after you confirm Phase 1 looks right)
+## Scope clarifications I need before starting
 
-Apply the same archive-not-delete + dependency-scan + read-filter + sync fan-out pattern to: Users, Schedules, SOPs, Cash drawers, Trailers, Training. Each domain = its own focused PR-sized change so you can verify and roll back if needed.
-
-## Out of scope (call out so you know)
-
-- Realtime postgres_changes subscriptions for live multi-tab sync — the React Query invalidation pattern already covers a single user across tabs via window-focus refetch. True realtime is a separate decision (cost, RLS on broadcast channels).
-- "Replace item X with item Y" merge tool — useful but a distinct workflow.
-- A nightly cron reconciliation job — Phase 2 once read-filters land everywhere.
-
-## Confirm one thing before I start
-
-The plan above assumes **archive** is the right default and hard-delete is reserved for items with zero history. If you actually want a one-click destructive purge that nukes history too, say so — but it will erase your audit trail for that item.
+1. **Pace**: Should I ship all 7 phases in this single turn (very long — 7 migrations, ~40 file edits, multiple build waits), or one phase per turn so you can review each?
+2. **Derived modules** (Weekly Hours, Labor, Performance, Reports, Dashboards, History, Training, Announcements, Knowledge Hub, Notifications, Emails) have no canonical table of their own — confirm "reader-filter + fan-out only" is acceptable rather than inventing new tables.
+3. **Locations (trailers)**: archiving a trailer cascades to virtually everything. Confirm you want full archive support (vs. just `active=false` which already exists).
+4. **Alerts**: already have `status='archived'`. Should I add the formal `archived_at` columns too, or treat the existing status as the archive mechanism?
