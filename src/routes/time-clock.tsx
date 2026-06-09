@@ -86,8 +86,10 @@ function TimeClockPage() {
         setGeoBlock(result.message);
         return;
       }
-      toast.success("Clocked in");
-      syncDomains(qc, "timeclock", "labor", "operations");
+      const assigned = (result as any).assignedTaskCount ?? 0;
+      toast.success(assigned > 0 ? `Clocked in · ${assigned} task${assigned === 1 ? "" : "s"} assigned` : "Clocked in");
+      qc.invalidateQueries({ queryKey: ["my-tasks"] });
+      syncDomains(qc, "timeclock", "labor", "operations", "tasks");
     },
     onError: (e: Error) => {
       if (e.message === "LOCATION_OFF") {
@@ -97,11 +99,32 @@ function TimeClockPage() {
       toast.error(e.message);
     },
   });
+  const tasksFn = useServerFn(listMyTasks);
+  const { data: myTasks = [] } = useQuery<any[]>({
+    queryKey: ["my-tasks"],
+    queryFn: () => tasksFn() as Promise<any[]>,
+    refetchInterval: 30_000,
+  });
+  const incompleteTasks = myTasks.filter((t: any) => t.status !== "done" && t.status !== "signed_off" && t.status !== "missed");
+  const [confirmOut, setConfirmOut] = useState(false);
+
   const outM = useMutation({
     mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
-    onSuccess: () => { toast.success("Clocked out"); syncDomains(qc, "timeclock", "labor", "operations"); },
+    onSuccess: (result: any) => {
+      const missed = result?.missedTaskCount ?? 0;
+      toast.success(missed > 0 ? `Clocked out · ${missed} task${missed === 1 ? "" : "s"} marked missed` : "Clocked out");
+      setConfirmOut(false);
+      qc.invalidateQueries({ queryKey: ["my-tasks"] });
+      syncDomains(qc, "timeclock", "labor", "operations", "tasks");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const handleClockOut = () => {
+    if (incompleteTasks.length > 0) setConfirmOut(true);
+    else outM.mutate();
+  };
+
 
   return (
     <AppShell>
