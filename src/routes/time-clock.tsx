@@ -147,10 +147,11 @@ function TimeClockPage() {
               <LogIn className="h-5 w-5" /> Clock In
             </Button>
           ) : (
-            <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={() => outM.mutate()} disabled={outM.isPending}>
+            <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={handleClockOut} disabled={outM.isPending}>
               <LogOut className="h-5 w-5" /> Clock Out
             </Button>
           )}
+
         </div>
       </Card>
 
@@ -204,6 +205,31 @@ function TimeClockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmOut} onOpenChange={setConfirmOut}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-[var(--color-warning,#C0392B)]" />
+              {incompleteTasks.length} task{incompleteTasks.length === 1 ? "" : "s"} still open
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <div className="mb-2">If you clock out now, these will be marked missed:</div>
+                <ul className="list-disc pl-5 space-y-1 max-h-48 overflow-auto text-sm">
+                  {incompleteTasks.slice(0, 10).map((t: any) => <li key={t.id}>{t.title}</li>)}
+                  {incompleteTasks.length > 10 && <li className="text-muted-foreground">+ {incompleteTasks.length - 10} more</li>}
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOut(false)}>Keep working</Button>
+            <AlertDialogAction onClick={() => outM.mutate()} disabled={outM.isPending}>Clock out anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </AppShell>
   );
 }
