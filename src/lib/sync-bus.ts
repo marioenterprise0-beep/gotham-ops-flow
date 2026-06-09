@@ -47,7 +47,7 @@ const MAP: Record<SyncDomain, string[][]> = {
   alerts:       [["alerts"], ["dashboard-stats"]],
   operations:   [["shift"], ["roster"], ["tasks"], ["dashboard-stats"], ["change-log"]],
   tasks:        [["tasks"], ["operations"], ["dashboard-stats"]],
-  sops:         [["sops"], ["sop-versions"], ["sop-attachments"], ["change-log"]],
+  sops:         [["sops"], ["sop-versions"], ["sop-attachments"], ["sop-ack-rollup"], ["my-sop-acks"], ["dashboard-stats"], ["change-log"]],
   recaps:       [["recaps"], ["recap"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   hospitality:  [["hospitality"], ["dashboard-stats"]],
   history:      [["change-log"], ["audit-log"], ["access-logs"]],
