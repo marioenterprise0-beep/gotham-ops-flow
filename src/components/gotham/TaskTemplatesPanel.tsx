@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X, History } from "lucide-react";
 import { Card } from "@/components/gotham/primitives";
 import { cn } from "@/lib/utils";
-import { listTaskTemplates, upsertTaskTemplate, deleteTaskTemplate } from "@/lib/task-templates.functions";
+import { listTaskTemplates, upsertTaskTemplate, deleteTaskTemplate, listTemplateVersions } from "@/lib/task-templates.functions";
 import { listTrailers } from "@/lib/users.functions";
 
 type Role = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
