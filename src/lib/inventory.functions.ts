@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
+import { photoUrlSchema } from "@/lib/validators/photo-url";
 
 async function assertOwner(supabase: any, userId: string) {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
