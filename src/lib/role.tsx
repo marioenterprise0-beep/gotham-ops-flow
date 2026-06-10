@@ -58,6 +58,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
   const [disabledTabs, setDisabledTabs] = useState<Set<string>>(new Set());
   const [tabAccess, setTabAccess] = useState<Record<string, TabAccess>>({});
+  const qc = useQueryClient();
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
