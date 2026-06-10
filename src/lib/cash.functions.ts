@@ -503,3 +503,137 @@ export const getDrawerClosePdfUrl = createServerFn({ method: "POST" })
     return { url: signed?.signedUrl ?? null };
   });
 
+// ---------------- Drawer-close email (Resend, with PDF attachment) ----------------
+
+const RESEND_GATEWAY = "https://connector-gateway.lovable.dev/resend/emails";
+
+function _money(n: number | null | undefined) {
+  const v = Number(n ?? 0);
+  return `$${v.toFixed(2)}`;
+}
+function _esc(s: string) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    sessionId: z.string().uuid(),
+    extraRecipients: z.array(z.string().email()).max(10).optional(),
+  }).parse(d))
+  .handler(async ({ data }) => {
+    const lovableKey = process.env.LOVABLE_API_KEY;
+    const resendKey = process.env.RESEND_API_KEY;
+    if (!lovableKey || !resendKey) {
+      throw new Error("Email gateway not configured (missing LOVABLE_API_KEY or RESEND_API_KEY)");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: sess, error: sErr } = await supabaseAdmin
+      .from("cash_drawer_sessions")
+      .select("id, trailer_id, drawer_id, counted_amount, expected_amount, variance, variance_reason, variance_notes, closed_at, closed_by, pdf_path")
+      .eq("id", data.sessionId)
+      .single();
+    if (sErr || !sess) throw sErr ?? new Error("Session not found");
+
+    const [{ data: drawer }, { data: trailer }, { data: submitter }] = await Promise.all([
+      supabaseAdmin.from("cash_drawers").select("name").eq("id", sess.drawer_id).maybeSingle(),
+      supabaseAdmin.from("trailers").select("name").eq("id", sess.trailer_id).maybeSingle(),
+      sess.closed_by
+        ? supabaseAdmin.from("profiles").select("display_name, email").eq("id", sess.closed_by).maybeSingle()
+        : Promise.resolve({ data: null } as any),
+    ]);
+
+    // Recipients = owners + managers with email_enabled + categories.cash on, scoped to trailer (or unassigned).
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles").select("user_id, role").in("role", ["owner", "manager"] as any);
+    const uids = (roleRows ?? []).map((r: any) => r.user_id);
+    let recipients: string[] = [];
+    if (uids.length) {
+      const { data: profs } = await supabaseAdmin
+        .from("profiles").select("id, email, trailer_id").in("id", uids);
+      const allowed = (profs ?? []).filter((p: any) => p.email && (p.trailer_id == null || p.trailer_id === sess.trailer_id));
+      const allowedIds = allowed.map((p: any) => p.id);
+      const emailById = new Map(allowed.map((p: any) => [p.id, p.email]));
+      const { data: prefs } = await supabaseAdmin
+        .from("notification_preferences").select("user_id, email_enabled, categories").in("user_id", allowedIds);
+      for (const id of allowedIds) {
+        const pref = (prefs ?? []).find((p: any) => p.user_id === id);
+        const enabled = pref ? pref.email_enabled !== false : true;
+        const cats = (pref?.categories ?? {}) as Record<string, boolean>;
+        const cashOn = cats.cash !== false;
+        if (enabled && cashOn) recipients.push(emailById.get(id) as string);
+      }
+    }
+    for (const r of data.extraRecipients ?? []) recipients.push(r);
+    recipients = Array.from(new Set(recipients.map((r) => r.toLowerCase())));
+    if (recipients.length === 0) {
+      return { ok: true, sent: 0, skipped: "no_recipients" as const };
+    }
+
+    // Pull PDF bytes from storage and base64-encode for the Resend attachment.
+    let attachment: { filename: string; content: string } | null = null;
+    if (sess.pdf_path) {
+      const { data: file, error: dlErr } = await supabaseAdmin.storage
+        .from("gotham-photos").download(sess.pdf_path);
+      if (!dlErr && file) {
+        const buf = Buffer.from(await file.arrayBuffer());
+        const filename = sess.pdf_path.split("/").pop() || "drawer-close.pdf";
+        attachment = { filename, content: buf.toString("base64") };
+      }
+    }
+
+    const variance = Number(sess.variance ?? 0);
+    const absVar = Math.abs(variance);
+    const severity = absVar >= 50 ? "CRITICAL" : absVar >= 20 ? "HIGH" : absVar >= 5 ? "REVIEW" : "OK";
+    const trailerName = trailer?.name ?? "Trailer";
+    const drawerName = drawer?.name ?? "Drawer";
+    const subject = `[${severity}] Drawer Closed — ${trailerName} · ${drawerName} · Variance ${variance >= 0 ? "+" : ""}${_money(variance)}`;
+    const varColor = absVar >= 20 ? "#b91c1c" : absVar >= 5 ? "#b45309" : "#047857";
+
+    const html = `
+      <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#ffffff;color:#0b0d10;padding:24px;">
+        <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+          <div style="padding:18px 22px;background:#0b0d10;color:#ffffff;">
+            <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;">Gotham Halal · Cash Activity</div>
+            <div style="font-size:18px;font-weight:700;margin-top:4px;">Drawer Closed — ${_esc(trailerName)}</div>
+          </div>
+          <div style="padding:18px 22px;">
+            <table style="width:100%;border-collapse:collapse;font-size:14px;">
+              <tr><td style="padding:6px 0;color:#6b7280;">Drawer</td><td style="text-align:right;font-weight:600;">${_esc(drawerName)}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Closed by</td><td style="text-align:right;">${_esc(submitter?.display_name ?? "—")}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Counted</td><td style="text-align:right;">${_money(sess.counted_amount as any)}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Expected</td><td style="text-align:right;">${_money(sess.expected_amount as any)}</td></tr>
+              <tr><td style="padding:6px 0;color:#6b7280;">Variance</td><td style="text-align:right;font-weight:700;color:${varColor};">${variance >= 0 ? "+" : ""}${_money(variance)}</td></tr>
+              ${sess.variance_reason ? `<tr><td style="padding:6px 0;color:#6b7280;">Reason</td><td style="text-align:right;">${_esc(String(sess.variance_reason))}</td></tr>` : ""}
+            </table>
+            ${sess.variance_notes ? `<div style="margin-top:12px;padding:10px 12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#374151;">${_esc(String(sess.variance_notes))}</div>` : ""}
+            <div style="margin-top:16px;font-size:12px;color:#6b7280;">
+              ${attachment ? "Drawer Close PDF attached." : "PDF not yet available — see Cash Activity in the app."}
+              ${absVar > 50 ? "<br/><b>Owner approval required</b> (variance &gt; $50)." : ""}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const from = process.env.CASH_EMAIL_FROM || "Gotham Halal <onboarding@resend.dev>";
+    const body: Record<string, unknown> = { from, to: recipients, subject, html };
+    if (attachment) body.attachments = [attachment];
+
+    const res = await fetch(RESEND_GATEWAY, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": resendKey,
+      },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Resend failed (${res.status}): ${text.slice(0, 400)}`);
+    return { ok: true, sent: recipients.length, attached: !!attachment };
+  });
+
+
