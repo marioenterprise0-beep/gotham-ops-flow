@@ -74,9 +74,13 @@ export const saveRecap = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { isManager } = await getRoles(supabase, userId);
-    if (!isManager) throw new Error("Manager role required");
-    await requireTabAccess(supabase, userId, "recaps", "edit");
+    // Any authenticated employee can save their own recap.
+    // tab access check applies to manager-grade recaps; crew recaps are always allowed.
+    if ((data.kind ?? "manager") === "manager") {
+      const { isManager } = await getRoles(supabase, userId);
+      if (isManager) await requireTabAccess(supabase, userId, "recaps", "edit");
+    }
+
 
     const row = toRow(data, userId);
 
