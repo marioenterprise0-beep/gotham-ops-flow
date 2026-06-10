@@ -154,19 +154,57 @@ function AnnouncementComposer({ onPosted }: { onPosted: () => void }) {
   );
 }
 
+type QueueKey = "critical" | "approvals" | "mine" | "announcements" | "resolved";
+
+const QUEUES: { key: QueueKey; label: string; icon: any; tone: string; blurb: string }[] = [
+  { key: "critical", label: "Critical", icon: AlertTriangle, tone: "text-red-600", blurb: "Highest priority, act now" },
+  { key: "approvals", label: "Approvals", icon: Clock, tone: "text-amber-600", blurb: "Waiting on owner / manager" },
+  { key: "mine", label: "Assigned to me", icon: Inbox, tone: "text-[var(--color-gold)]", blurb: "Your queue" },
+  { key: "announcements", label: "Announcements", icon: Megaphone, tone: "text-[var(--color-gold)]", blurb: "Company broadcasts" },
+  { key: "resolved", label: "Resolved", icon: CheckCircle2, tone: "text-emerald-600", blurb: "Last 7 days" },
+];
+
+function actionLabelFor(a: Alert): string {
+  if (a.type === "announcement") return "Read";
+  if (a.type === "inventory_order") return a.status === "pending" ? "Approve order" : "Review order";
+  if (a.type === "low_stock" || a.type === "critical_stock") return "Place order";
+  if (a.type === "missed_clock_in" || a.type === "missed_clock_out") return "Correct punch";
+  if (a.type === "time_adjustment" || a.type === "time_off") return "Approve request";
+  if (a.type === "schedule_approval") return "Approve schedule";
+  if (a.type === "checklist_failure") return "Resolve checklist";
+  if (a.type === "maintenance") return "Schedule fix";
+  if (a.type === "manager_note") return "Acknowledge";
+  return "Review";
+}
+
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
 function AlertsPage() {
   const qc = useQueryClient();
   const { roleId, session, loading } = useRole();
   const isOwner = roleId === "owner";
-  const [category, setCategory] = useState("");
-  const [status, setStatus] = useState<typeof STATUSES[number]>("open");
+  const [queue, setQueue] = useState<QueueKey>("critical");
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
 
   const list = useServerFn(listAlerts);
-  const { data: alerts = [], isLoading } = useQuery<Alert[]>({
-    queryKey: ["alerts", category, status],
-    queryFn: () => list({ data: { category: category || undefined, status } }) as any,
+  const { data: openAlerts = [], isLoading } = useQuery<Alert[]>({
+    queryKey: ["alerts", "open"],
+    queryFn: () => list({ data: { status: "open" } }) as any,
     enabled: !loading && !!session?.access_token,
+  });
+  const { data: resolvedAlerts = [], isLoading: loadingResolved } = useQuery<Alert[]>({
+    queryKey: ["alerts", "resolved"],
+    queryFn: () => list({ data: { status: "resolved" } }) as any,
+    enabled: !loading && !!session?.access_token && queue === "resolved",
   });
 
   useEffect(() => {
@@ -180,82 +218,13 @@ function AlertsPage() {
     return () => { supabase.removeChannel(channel); };
   }, [loading, session?.access_token, qc]);
 
-  const fetchReads = useServerFn(listCategoryReads);
-  const { data: reads = [] } = useQuery<{ category: string; last_seen_at: string }[]>({
-    queryKey: ["alert-category-reads"],
-    enabled: !loading && !!session?.access_token,
-    queryFn: () => fetchReads() as any,
-  });
-
-  const seenByCat = useMemo(() => {
-    const m: Record<string, string> = {};
-    for (const r of reads) m[r.category] = r.last_seen_at;
-    return m;
-  }, [reads]);
-
-  const { data: unreadAll = [] } = useQuery<{ type: string; source_module: string | null; created_at: string }[]>({
-    queryKey: ["alerts", "unread-by-cat"],
-    enabled: !loading && !!session?.access_token,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("alerts")
-        .select("type, source_module, created_at")
-        .neq("status", "resolved")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      return (data as any) ?? [];
-    },
-  });
-
-  const unreadByCat = useMemo(() => {
-    const counts: Record<string, number> = {};
-    const allSeen = seenByCat["all"] ?? new Date(0).toISOString();
-    for (const a of unreadAll) {
-      const cats = categoryOf(a as any);
-      // "all" chip counts alerts newer than the user's last "all" mark
-      if (a.created_at > allSeen) counts[""] = (counts[""] ?? 0) + 1;
-      for (const k of cats) {
-        const seen = seenByCat[k] ?? new Date(0).toISOString();
-        if (a.created_at > seen) counts[k] = (counts[k] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [unreadAll, seenByCat]);
-
   const markRead = useServerFn(markCategoryRead);
-  const readsKey = ["alert-category-reads"] as const;
-  const markMut = useMutation({
-    mutationFn: (cat: string) => markRead({ data: { category: (cat || "all") as any } }) as any,
-    onMutate: async (cat: string) => {
-      await qc.cancelQueries({ queryKey: readsKey });
-      const previous = qc.getQueryData<{ category: string; last_seen_at: string }[]>(readsKey);
-      const key = cat || "all";
-      const nowIso = new Date().toISOString();
-      qc.setQueryData<{ category: string; last_seen_at: string }[]>(readsKey, (old) => {
-        const list = old ? [...old] : [];
-        const idx = list.findIndex((r) => r.category === key);
-        if (idx >= 0) list[idx] = { ...list[idx], last_seen_at: nowIso };
-        else list.push({ category: key, last_seen_at: nowIso });
-        return list;
-      });
-      if (!cat) markAlertsSeen(); // optimistic global bell clear
-      return { previous };
-    },
-    onSuccess: (_d, cat) => {
-      qc.invalidateQueries({ queryKey: readsKey });
-      toast.success(`Marked ${cat || "all"} as read`);
-    },
-    onError: (e: any, cat, ctx) => {
-      if (ctx?.previous) qc.setQueryData(readsKey, ctx.previous);
-      toast.error(e?.message ?? "Failed to mark read", {
-        action: { label: "Retry", onClick: () => markMut.mutate(cat) },
-      });
-    },
-  });
-  const pendingCat = markMut.isPending ? (markMut.variables as string | undefined) : undefined;
+  useEffect(() => {
+    if (loading || !session?.access_token) return;
+    markRead({ data: { category: "all" } }).catch(() => {});
+    markAlertsSeen();
+  }, [loading, session?.access_token, queue]); // eslint-disable-line react-hooks/exhaustive-deps
 
-
-  // Keep realtime in sync — refresh reads on any alert_category_reads change too
   useEffect(() => {
     if (loading || !session?.access_token) return;
     const ch = supabase
@@ -267,14 +236,31 @@ function AlertsPage() {
     return () => { supabase.removeChannel(ch); };
   }, [loading, session?.access_token, qc]);
 
-  const stats = useMemo(() => {
-    const open = alerts.filter((a) => a.status === "open" || a.status === "pending").length;
-    const critical = alerts.filter((a) => a.priority === "critical" && a.status !== "resolved").length;
-    const pending = alerts.filter((a) => a.status === "pending").length;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const resolvedToday = alerts.filter((a) => a.status === "resolved" && new Date(a.created_at) >= today).length;
-    return { open, critical, pending, resolvedToday };
-  }, [alerts]);
+  const myRole = roleId ?? "all";
+  const buckets = useMemo(() => {
+    const critical: Alert[] = [];
+    const approvals: Alert[] = [];
+    const mine: Alert[] = [];
+    const announcements: Alert[] = [];
+    for (const a of openAlerts) {
+      const isAnn = a.source_module === "announcements" || a.type === "announcement";
+      if (isAnn) { announcements.push(a); continue; }
+      if (a.priority === "critical") critical.push(a);
+      if (a.status === "pending" || a.type === "inventory_order" || a.type === "schedule_approval" || a.type === "time_off" || a.type === "time_adjustment") approvals.push(a);
+      if (a.assigned_role === myRole || a.assigned_role === "all" || (isOwner && a.assigned_role === "owner")) mine.push(a);
+    }
+    return { critical, approvals, mine, announcements };
+  }, [openAlerts, myRole, isOwner]);
+
+  const visible: Alert[] = queue === "resolved" ? resolvedAlerts : (buckets as any)[queue];
+  const queueLoading = queue === "resolved" ? loadingResolved : isLoading;
+
+  const stats = {
+    critical: buckets.critical.length,
+    approvals: buckets.approvals.length,
+    mine: buckets.mine.length,
+    announcements: buckets.announcements.length,
+  };
 
   if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
 
@@ -282,88 +268,47 @@ function AlertsPage() {
     <AppShell>
       <SectionHeader eyebrow="Action Center" title="Alerts" />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatCard label="Open" value={stats.open} icon={Bell} tone="info" />
-        <StatCard label="Critical" value={stats.critical} icon={AlertTriangle} tone="danger" />
-        <StatCard label="Pending Approval" value={stats.pending} icon={Clock} tone="warning" />
-        <StatCard label="Resolved Today" value={stats.resolvedToday} icon={CheckCircle2} tone="success" />
-      </div>
-
       {isOwner && <AnnouncementComposer onPosted={() => syncDomains(qc, "alerts")} />}
 
-      <Card className="mb-4">
-
-        <div className="flex flex-wrap gap-2 mb-3">
-          {CATEGORIES.map((c) => {
-            const n = unreadByCat[c.key] ?? 0;
-            const isActive = category === c.key;
-            return (
-              <div key={c.key} className={cn("inline-flex items-stretch rounded-full border transition-colors overflow-hidden",
-                isActive ? "bg-foreground border-foreground" : "bg-background border-border")}>
-                <button onClick={() => setCategory(c.key)}
-                  className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium",
-                    isActive ? "text-background" : "text-foreground/70 hover:bg-secondary")}>
-                  {c.label}
-                  {n > 0 && (
-                    <span className={cn("min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center",
-                      isActive ? "bg-background text-foreground" : "bg-red-600 text-white")}>
-                      {n > 99 ? "99+" : n}
-                    </span>
-                  )}
-                </button>
-                {n > 0 && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); markMut.mutate(c.key); }}
-                    disabled={pendingCat === c.key}
-                    aria-busy={pendingCat === c.key}
-                    title={`Mark ${c.label} as read`}
-                    className={cn("px-2 border-l text-xs inline-flex items-center justify-center disabled:opacity-60",
-                      isActive ? "border-background/30 text-background/80 hover:bg-background/10" : "border-border text-foreground/50 hover:bg-secondary hover:text-foreground")}>
-                    {pendingCat === c.key
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Check className="h-3.5 w-3.5" />}
-                  </button>
-                )}
-
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
+        {QUEUES.map((q) => {
+          const count = q.key === "resolved" ? resolvedAlerts.length : (stats as any)[q.key] ?? 0;
+          const Icon = q.icon;
+          const active = queue === q.key;
+          return (
+            <button key={q.key} onClick={() => setQueue(q.key)}
+              className={cn("text-left rounded-xl border p-3 transition-colors",
+                active ? "border-[var(--color-gold)] bg-card" : "border-border bg-card hover:border-foreground/30")}>
+              <div className="flex items-center justify-between">
+                <Icon className={cn("h-4 w-4", q.tone)} />
+                <span className={cn("text-xl font-bold", active && "text-[var(--color-gold)]")}>{count}</span>
               </div>
-            );
-          })}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {STATUSES.map((s) => (
-            <button key={s} onClick={() => setStatus(s)}
-              className={cn("px-3 py-1 rounded text-xs font-medium uppercase tracking-wide",
-                status === s ? "bg-[var(--color-gold)] text-black" : "bg-secondary text-foreground/60 hover:text-foreground")}>
-              {s}
+              <div className="mt-2 text-xs font-semibold uppercase tracking-wide">{q.label}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{q.blurb}</div>
             </button>
-          ))}
-        </div>
-      </Card>
+          );
+        })}
+      </div>
 
       <div className="flex flex-col gap-2">
-        {isLoading ? <Card>Loading alerts…</Card>
-          : alerts.length === 0 ? <Card><div className="text-center py-8 text-muted-foreground">No alerts in this view</div></Card>
-          : alerts.map((a) => (
-            <button key={a.id} onClick={() => !a.synthetic && setOpenAlertId(a.id)}
-              className="text-left w-full">
-              <Card className={cn("transition-colors", !a.synthetic && "hover:bg-secondary cursor-pointer")}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <StatusPill tone={priorityTone(a.priority)}>{a.priority}</StatusPill>
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">{a.type.replace(/_/g, " ")}</span>
-                      <span className="text-xs text-muted-foreground">· {a.assigned_role}</span>
-                    </div>
-                    <div className="font-medium text-sm">{a.title}</div>
-                    {a.description && <div className="text-xs text-muted-foreground mt-0.5">{a.description}</div>}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <StatusPill tone={a.status === "resolved" ? "success" : a.status === "declined" ? "danger" : "neutral"}>{a.status}</StatusPill>
-                    <div className="text-[10px] text-muted-foreground mt-1">{new Date(a.created_at).toLocaleString()}</div>
-                  </div>
-                </div>
-              </Card>
-            </button>
+        {queueLoading ? <Card>Loading alerts…</Card>
+          : visible.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title={queue === "critical" ? "No critical alerts" :
+                     queue === "approvals" ? "Nothing waiting for approval" :
+                     queue === "mine" ? "Inbox zero" :
+                     queue === "announcements" ? "No announcements" :
+                     "No resolved alerts yet"}
+              hint={queue === "critical" ? "All clear — urgent items will surface here first."
+                  : queue === "approvals" ? "Approval requests from the team will land here."
+                  : queue === "mine" ? "When something needs you, it shows up here."
+                  : queue === "announcements" ? (isOwner ? "Post one with the New announcement button above." : "Owner posts will appear here.")
+                  : "Resolve an alert to see it in the history."}
+            />
+          )
+          : visible.map((a) => (
+            <AlertRow key={a.id} alert={a} isOwner={isOwner} onOpen={() => !a.synthetic && setOpenAlertId(a.id)} />
           ))}
       </div>
 
@@ -376,6 +321,57 @@ function AlertsPage() {
         />
       )}
     </AppShell>
+  );
+}
+
+function AlertRow({ alert: a, isOwner, onOpen }: { alert: Alert; isOwner: boolean; onOpen: () => void }) {
+  const qc = useQueryClient();
+  const act = useServerFn(actOnAlert);
+  const mut = useMutation({
+    mutationFn: (action: "resolve" | "escalate") => act({ data: { alertId: a.id, action } }) as any,
+    onSuccess: (_d, action) => {
+      toast.success(action === "resolve" ? "Marked resolved" : "Escalated to owner");
+      syncDomains(qc, "alerts");
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+  const owner = a.source_module ? a.source_module.replace(/_/g, " ") : "system";
+  return (
+    <Card className={cn("transition-colors", !a.synthetic && "hover:bg-secondary")}>
+      <div className="flex items-start justify-between gap-3">
+        <button onClick={onOpen} className="text-left flex-1 min-w-0" disabled={a.synthetic}>
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <StatusPill tone={priorityTone(a.priority)}>{a.priority}</StatusPill>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{a.type.replace(/_/g, " ")}</span>
+          </div>
+          <div className="font-medium text-sm">{a.title}</div>
+          {a.description && <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{a.description}</div>}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <span><span className="uppercase tracking-wide opacity-70">Owner</span> · {owner} ({a.assigned_role})</span>
+            <span><span className="uppercase tracking-wide opacity-70">Time</span> · {timeAgo(a.created_at)}</span>
+            <span><span className="uppercase tracking-wide opacity-70">Action</span> · {actionLabelFor(a)}</span>
+          </div>
+        </button>
+        {!a.synthetic && a.status !== "resolved" && (
+          <div className="flex flex-col gap-1 shrink-0">
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => mut.mutate("resolve")} disabled={mut.isPending}>
+              <Check className="h-3 w-3 mr-1" />Resolve
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onOpen}>
+              <UserPlus className="h-3 w-3 mr-1" />Assign
+            </Button>
+            {!isOwner && (
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => mut.mutate("escalate")} disabled={mut.isPending}>
+                <ArrowUp className="h-3 w-3 mr-1" />Escalate
+              </Button>
+            )}
+          </div>
+        )}
+        {a.status === "resolved" && (
+          <StatusPill tone="success">resolved</StatusPill>
+        )}
+      </div>
+    </Card>
   );
 }
 
