@@ -46,6 +46,8 @@ function toRow(d: any, managerId: string) {
     location: d.location ?? null,
     shift_score: d.shiftScore ?? null,
     crew: d.crew ?? [],
+    kind: d.kind ?? "manager",
+    crew_summary: d.crewSummary ?? null,
     ops_went_well: d.opsWentWell ?? null,
     ops_slowed: d.opsSlowed ?? null,
     ops_attention: d.opsAttention ?? null,
@@ -61,6 +63,7 @@ function toRow(d: any, managerId: string) {
     next_shift_notes: d.nextShiftNotes ?? null,
   };
 }
+
 
 export const saveRecap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
