@@ -161,7 +161,7 @@ export const listUsers = createServerFn({ method: "POST" })
       await Promise.all([
         q,
         supabase.from("user_roles").select("user_id, role"),
-        supabase.from("trailers").select("id, name"),
+        supabase.from("trailers").select("id, name").is("archived_at", null),
       ]);
     if (pErr) throw new Error(pErr.message);
     if (rErr) throw new Error(rErr.message);
