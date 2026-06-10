@@ -411,7 +411,7 @@ export const listMyRequests = createServerFn({ method: "GET" })
     const [{ data: corrections }, { data: timeOff }, { data: notes }] = await Promise.all([
       supabase.from("time_corrections").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("time_off_requests").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("shift_notes").select("*").eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("shift_notes").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
     ]);
     return { corrections: corrections ?? [], timeOff: timeOff ?? [], notes: notes ?? [] };
   });
