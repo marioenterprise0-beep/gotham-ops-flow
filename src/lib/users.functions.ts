@@ -389,7 +389,18 @@ async function requireSuperAdmin(supabase: any, userId: string) {
   if (error) throw new Error(error.message);
   const email = String(data ?? "").toLowerCase();
   if (!SUPER_ADMIN_EMAILS.has(email)) {
-    throw new Error("Only the super-admin accounts can disable or restore user access.");
+    throw new Error("Only the super-admin accounts can perform this action.");
+  }
+}
+
+// Owners can act on anyone except other super-admins (only super-admins can act on super-admins).
+async function assertCanActOnTarget(supabase: any, actorId: string, targetId: string) {
+  const { data: targetIsSuper } = await supabase.rpc("is_super_admin", { _user_id: targetId });
+  if (!targetIsSuper) return;
+  const { data: email } = await supabase.rpc("my_email");
+  const e = String(email ?? "").toLowerCase();
+  if (!SUPER_ADMIN_EMAILS.has(e)) {
+    throw new Error("Only super-admins can modify another super-admin account.");
   }
 }
 
@@ -414,7 +425,9 @@ export const setUserActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireSuperAdmin(supabase, userId);
+    await requireOwner(supabase, userId);
+    if (data.userId === userId) throw new Error("You cannot change your own access.");
+    await assertCanActOnTarget(supabase, userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("profiles")
