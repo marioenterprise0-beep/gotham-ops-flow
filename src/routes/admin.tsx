@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
-import { canSee, useRole, type RoleId } from "@/lib/role";
+import { useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { EmbeddedProvider } from "@/components/gotham/EmbedShell";
