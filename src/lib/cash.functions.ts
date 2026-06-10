@@ -479,7 +479,8 @@ export const attachDrawerClosePdf = createServerFn({ method: "POST" })
       .eq("source_module", "cash")
       .eq("source_id", data.sessionId);
     for (const a of alerts ?? []) {
-      const payload = { ...(a.payload ?? {}), pdf_path: data.path };
+      const prev = (a.payload && typeof a.payload === "object" && !Array.isArray(a.payload)) ? a.payload as Record<string, unknown> : {};
+      const payload = { ...prev, pdf_path: data.path };
       await supabase.from("alerts").update({ payload } as any).eq("id", a.id);
     }
 
