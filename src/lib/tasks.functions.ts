@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { photoUrlSchema } from "@/lib/validators/photo-url";
 
 export const listTasks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
