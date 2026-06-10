@@ -12,6 +12,7 @@ import {
   Image as ImageIcon, FileText, Siren, Wrench, ClipboardList, Award, CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/gotham/EmptyState";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
