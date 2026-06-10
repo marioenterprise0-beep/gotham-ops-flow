@@ -429,7 +429,7 @@ export const logWaste = createServerFn({ method: "POST" })
     itemId: z.string().uuid(),
     qty: z.number().positive(),
     reason: z.string().min(1).max(200),
-    photoUrl: z.string().optional(),
+    photoUrl: photoUrlSchema,
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
