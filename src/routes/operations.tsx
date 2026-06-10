@@ -8,13 +8,13 @@ import { Check, Play, ShieldCheck, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { getActiveShift, openShift, closeShift, ensureShiftPhase } from "@/lib/shifts.functions";
-import { listTasks, completeTask, signOffTask } from "@/lib/tasks.functions";
+import { listTasks, completeTask, signOffTask, deleteTask } from "@/lib/tasks.functions";
 import { createActionTask, listCrewRoster } from "@/lib/manager.functions";
 import { getChecklistSession, upsertChecklistSession } from "@/lib/checklist-sessions.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 
 export const Route = createFileRoute("/operations")({
@@ -100,6 +100,12 @@ function Operations() {
   const signOffM = useMutation({
     mutationFn: (vars: { taskId: string; approve: boolean }) => signOffFn({ data: vars }),
     onSuccess: () => { toast.success("Signed off"); syncDomains(qc, "tasks", "operations"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const deleteFn = useServerFn(deleteTask);
+  const deleteM = useMutation({
+    mutationFn: (taskId: string) => deleteFn({ data: { taskId } }),
+    onSuccess: () => { toast.success("Task deleted"); syncDomains(qc, "tasks", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -268,6 +274,19 @@ function Operations() {
                       <button onClick={() => signOffM.mutate({ taskId: t.id, approve: true })}
                         className="rounded-md bg-[var(--color-success)] text-white px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1">
                         <ShieldCheck className="h-3.5 w-3.5" /> Approve
+                      </button>
+                    )}
+                    {isManager && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete task "${t.title}"? This cannot be undone from the checklist.`)) {
+                            deleteM.mutate(t.id);
+                          }
+                        }}
+                        disabled={deleteM.isPending}
+                        title="Delete task"
+                        className="h-8 w-8 grid place-items-center rounded-md border border-border text-muted-foreground hover:text-[var(--color-danger)] hover:border-[var(--color-danger)] disabled:opacity-50">
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
