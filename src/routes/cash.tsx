@@ -594,11 +594,16 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold">Cash Drops ({drops.length})</h4>
               {s.status !== "open" && (
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => printDrawerClose({
-                  session: s, drawer, trailer, drops, names, totalDrops,
-                })}>
-                  <FileText className="h-4 w-4" /> Drawer Close PDF
-                </Button>
+                <div className="flex gap-2">
+                  {s.pdf_path && (
+                    <StoredPdfButton sessionId={s.id} />
+                  )}
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => printDrawerClose({
+                    session: s, drawer, trailer, drops, names, totalDrops,
+                  })}>
+                    <FileText className="h-4 w-4" /> Drawer Close PDF
+                  </Button>
+                </div>
               )}
             </div>
             {drops.length === 0 ? (
