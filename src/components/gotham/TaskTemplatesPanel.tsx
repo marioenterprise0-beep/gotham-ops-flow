@@ -39,10 +39,13 @@ type DraftTemplate = Omit<Template, "id"> & { id?: string };
 
 export function TaskTemplatesPanel() {
   const qc = useQueryClient();
+  const { roleId } = useRole();
+  const canEdit = roleId === "owner";
   const fetchTemplates = useServerFn(listTaskTemplates);
   const fetchTrailers = useServerFn(listTrailers);
   const upsertFn = useServerFn(upsertTaskTemplate);
   const deleteFn = useServerFn(deleteTaskTemplate);
+
 
   const [editing, setEditing] = useState<DraftTemplate | null>(null);
   const [historyFor, setHistoryFor] = useState<Template | null>(null);
