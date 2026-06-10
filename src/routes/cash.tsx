@@ -406,7 +406,6 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
     (!belowFloat || verification === "requested");
 
   const closeFn = useServerFn(closeDrawerSession);
-  const detailFn = useServerFn(getDrawerSession);
   const attachFn = useServerFn(attachDrawerClosePdf);
   const mu = useMutation({
     mutationFn: () => closeFn({ data: {
