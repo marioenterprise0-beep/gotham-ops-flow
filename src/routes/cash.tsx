@@ -16,8 +16,11 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
+  attachDrawerClosePdf, getDrawerClosePdfUrl,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML } from "@/lib/exports";
+import { buildDrawerClosePdf, uploadDrawerClosePdf } from "@/lib/cash-pdf";
+import { supabase } from "@/integrations/supabase/client";
 import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/cash")({
