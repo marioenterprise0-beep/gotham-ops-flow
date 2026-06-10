@@ -432,6 +432,10 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1500);
         toast.success("Drawer Close PDF attached");
+        // Fire-and-forget: email managers/owners with PDF attached via Resend.
+        emailFn({ data: { sessionId: session.id } })
+          .then((r: any) => { if (r?.sent) toast.success(`Alert email sent to ${r.sent} recipient(s)`); })
+          .catch((e: any) => toast.error(`Email failed: ${e?.message ?? "unknown"}`));
       } catch (e: any) {
         toast.error(`PDF attach failed: ${e?.message ?? "unknown"}`);
       }
