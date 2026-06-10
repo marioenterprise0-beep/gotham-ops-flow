@@ -185,11 +185,14 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     void qc.invalidateQueries();
   };
 
-  const isOwner = primary === "owner";
+  const isOwner = isOwnerRole;
   const getTabAccess = (tabKey: string): TabAccess => {
     if (isOwner) return "edit";
     return tabAccess[tabKey] ?? "edit";
   };
+
+  // Effective active location: owners follow their scope (null = All Locations); everyone else is locked to home.
+  const effectiveTrailer = isOwner ? trailerScope : homeTrailerId;
 
   return (
     <RoleCtx.Provider value={{
