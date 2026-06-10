@@ -166,10 +166,11 @@ const FIELD_TO_DB: Record<string, string> = {
   nextShiftNotes: "next_shift_notes",
 };
 
-function RecapEditor({ id, isOwner, defaultTrailerId, onClose, onSaved }: {
-  id: string | null; isOwner: boolean; defaultTrailerId: string | null;
+function RecapEditor({ id, isOwner, isCrew = false, defaultTrailerId, onClose, onSaved }: {
+  id: string | null; isOwner: boolean; isCrew?: boolean; defaultTrailerId: string | null;
   onClose: () => void; onSaved: () => void;
 }) {
+
   const { trailers, userId } = useRole();
   const get = useServerFn(getRecap);
   const save = useServerFn(saveRecap);
