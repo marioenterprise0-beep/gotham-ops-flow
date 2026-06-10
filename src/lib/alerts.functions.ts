@@ -20,10 +20,13 @@ export const listAlerts = createServerFn({ method: "POST" })
     status: z.enum(ALERT_STATUS).optional(),
     type: z.enum(ALERT_TYPES).optional(),
     category: z.string().optional(),
+    includeArchived: z.boolean().optional(),
   }).optional().parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
     let q = supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(500);
+    if (!(data?.includeArchived && isOwner)) q = q.is("archived_at", null);
     if (data?.status) q = q.eq("status", data.status);
     if (data?.type) q = q.eq("type", data.type);
     const { data: rows, error } = await q;
