@@ -548,9 +548,10 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 function StoreHealthCard() {
   const fetch = useServerFn(getHealthScore);
+  const { trailerScope } = useRole();
   const { data } = useQuery({
-    queryKey: ["health", null, 1],
-    queryFn: () => fetch({ data: { trailerId: null, days: 1 } }),
+    queryKey: ["health", trailerScope ?? "all", 1],
+    queryFn: () => fetch({ data: { trailerId: trailerScope ?? null, days: 1 } }),
     refetchInterval: 60_000,
   });
   const score = data?.overall ?? null;
