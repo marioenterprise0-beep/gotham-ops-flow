@@ -678,6 +678,25 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
   );
 }
 
+function StoredPdfButton({ sessionId }: { sessionId: string }) {
+  const getUrlFn = useServerFn(getDrawerClosePdfUrl);
+  const [loading, setLoading] = useState(false);
+  return (
+    <Button size="sm" variant="outline" className="gap-1" disabled={loading} onClick={async () => {
+      setLoading(true);
+      try {
+        const r = await getUrlFn({ data: { sessionId } }) as { url: string | null };
+        if (r?.url) window.open(r.url, "_blank", "noopener");
+        else toast.error("Stored PDF not found");
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed to load PDF");
+      } finally { setLoading(false); }
+    }}>
+      <Download className="h-4 w-4" /> Stored PDF
+    </Button>
+  );
+}
+
 function Field({ label, value }: { label: string; value: any }) {
   return (
     <div>
