@@ -264,7 +264,7 @@ function quickActionsForRole(role: RoleId | null, clockedIn: boolean) {
   const sops = { to: "/sops", label: "View SOPs", icon: BookOpen };
   const report = { to: "/hospitality", label: "Report Issue", icon: FileWarning };
   const inv = { to: "/inventory", label: "Inventory", icon: Boxes };
-  const inventoryChanges = { to: "/inventory-changes", label: "Flag Low Stock", icon: AlertTriangle };
+  const inventoryChanges = { to: "/inventory", label: "Flag Low Stock", icon: AlertTriangle };
   const cash = { to: "/cash", label: "Cash Drawer", icon: Wallet };
 
   if (role === "cashier") return [clock, tasks, cash, report];
