@@ -63,7 +63,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
   const [disabledTabs, setDisabledTabs] = useState<Set<string>>(new Set());
   const [tabAccess, setTabAccess] = useState<Record<string, TabAccess>>({});
+  const [actAsRole, setActAsRoleState] = useState<RoleId | null>(() => {
+    if (typeof window === "undefined") return null;
+    const v = localStorage.getItem(ACT_AS_KEY);
+    return (v && v in ROLES) ? (v as RoleId) : null;
+  });
   const qc = useQueryClient();
+
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
