@@ -65,13 +65,61 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
 
 export const deleteTaskTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    if (!data.force) {
+      const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true }).eq("template_id", data.id);
+      if ((count ?? 0) > 0) {
+        const err: any = new Error("HAS_DEPENDENCIES");
+        err.code = "HAS_DEPENDENCIES";
+        err.dependencies = { tasks: count };
+        throw err;
+      }
+    }
+    const { error } = await supabase.from("task_templates").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true as const };
+  });
+
+export const scanTaskTemplateDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { count: tasksCount } = await context.supabase.from("tasks").select("id", { count: "exact", head: true }).eq("template_id", data.id);
+    const { count: versionsCount } = await context.supabase.from("task_template_versions").select("id", { count: "exact", head: true }).eq("template_id", data.id);
+    const t = tasksCount ?? 0, v = versionsCount ?? 0;
+    return { tasks: t, versions: v, total: t + v, hasDependencies: t > 0 };
+  });
+
+export const archiveTaskTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    const { error } = await supabase.from("task_templates").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null, active: false,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "task_template_archived", entity: "task_template", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreTaskTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
-    const { error } = await supabase.from("task_templates").delete().eq("id", data.id);
+    const { error } = await supabase.from("task_templates").update({
+      archived_at: null, archived_by: null, archive_reason: null, active: true,
+    } as any).eq("id", data.id);
     if (error) throw error;
-    return { ok: true as const };
+    return { ok: true };
   });
 
 export const listTemplateVersions = createServerFn({ method: "GET" })
