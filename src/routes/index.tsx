@@ -21,6 +21,7 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { syncDomains } from "@/lib/sync-bus";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ShiftFlowTracker } from "@/components/gotham/ShiftFlowTracker";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -73,7 +74,7 @@ function Dashboard() {
       {isManagerView
         ? <ManagerView stats={stats} role={role} />
         : <CrewView stats={stats} role={role} roleId={roleId} userName={user} />}
-      <div className="h-6" />
+      <div className="h-4" />
     </AppShell>
   );
 }
@@ -136,39 +137,54 @@ function CrewView({ stats, role, roleId, userName }: { stats: any; role: any; ro
 
   return (
     <>
-      {/* Hero: greeting + shift status */}
-      <Card dark className="relative overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
+      {/* Hero: greeting + shift status (compressed) */}
+      <Card dark className="relative overflow-hidden !p-3">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
           <div>
             <div className="flex items-center gap-2 label-caps text-white/60">
               <span className={`h-1.5 w-1.5 rounded-full ${clockedIn ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
               {clockedIn ? "On shift" : "Off the clock"}
             </div>
-            <h1 className="font-display text-3xl md:text-4xl mt-1 text-white">
+            <h1 className="font-display text-2xl md:text-3xl mt-0.5 text-white leading-tight">
               {greeting.toUpperCase()}, {userName.toUpperCase()}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
-              <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-white/70">
+              <span className="flex items-center gap-1.5"><Timer className="h-3 w-3 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
               {role && <RoleBadge role={role.name} />}
             </div>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
               {clockedIn
-                ? <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md bg-white/10 text-white border border-white/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] hover:bg-white/15"><LogOut className="h-3 w-3" /> Clock out · {elapsedLabel}</Link>
-                : <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><LogIn className="h-3 w-3" /> Clock in</Link>}
-              <Link to="/my-tasks" className="inline-flex items-center gap-1.5 rounded-md bg-white/5 text-white border border-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] hover:bg-white/10">
+                ? <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md bg-white/10 text-white border border-white/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[1.2px] hover:bg-white/15"><LogOut className="h-3 w-3" /> Clock out · {elapsedLabel}</Link>
+                : <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[1.2px]"><LogIn className="h-3 w-3" /> Clock in</Link>}
+              <Link to="/my-tasks" className="inline-flex items-center gap-1.5 rounded-md bg-white/5 text-white border border-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[1.2px] hover:bg-white/10">
                 <ClipboardList className="h-3 w-3" /> All my tasks
               </Link>
             </div>
           </div>
-          <div className="flex justify-center md:justify-end">
-            <CircularProgress value={pct} size={120} stroke={10} label="My Tasks" />
+          <div className="hidden md:flex justify-end">
+            <CircularProgress value={pct} size={84} stroke={8} label="My Tasks" />
           </div>
         </div>
       </Card>
 
+      {/* Shift flow tracker — primary employee workflow */}
+      <div className="mt-3">
+        <ShiftFlowTracker
+          clockedIn={clockedIn}
+          hasClockedInToday={clockedIn}
+          tasksTotal={total}
+          tasksDone={done}
+          opsRunPct={total > 0 ? pct : 0}
+          inventoryCountedToday={false}
+          criticalAlertsOpen={(stats?.alerts?.pending ?? []).filter((a: any) => a.priority === "critical").length}
+          recapSubmittedToday={false}
+          isManagerView={false}
+        />
+      </div>
+
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
         <DarkStat label="My Tasks Done" value={`${done}/${total || 0}`} sub={total === 0 ? "no tasks yet" : `${total - done} remaining`} tone={done === total && total > 0 ? "gold" : undefined} />
         <DarkStat label="Time on Shift" value={elapsedLabel} sub={clockedIn ? "since clock-in" : "not clocked in"} />
         <DarkStat label="Announcements" value={String(announcements.length)} sub={announcements.length ? "new for you" : "all caught up"} tone={announcements.length ? "gold" : undefined} />
@@ -315,29 +331,45 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
 
   return (
     <>
-      {/* HERO — TODAY AT GOTHAM */}
-      <Card dark className="relative overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
+      {/* HERO — TODAY AT GOTHAM (compressed) */}
+      <Card dark className="relative overflow-hidden !p-3">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
           <div>
             <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]/80">
               <span className={`h-1.5 w-1.5 rounded-full ${shiftActive ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
               Today at Gotham
             </div>
-            <h1 className="font-display text-3xl md:text-4xl mt-1 text-white">{phaseLabel}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
-              <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
-              <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-[var(--color-gold)]" />Crew: {crew.length}</span>
+            <h1 className="font-display text-2xl md:text-3xl mt-0.5 text-white leading-tight">{phaseLabel}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-white/70">
+              <span className="flex items-center gap-1.5"><Timer className="h-3 w-3 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
+              <span className="flex items-center gap-1.5"><Users className="h-3 w-3 text-[var(--color-gold)]" />Crew: {crew.length}</span>
             </div>
           </div>
-          <div className="flex justify-center md:justify-end">
-            <CircularProgress value={completePct} size={120} stroke={10} label="Complete" />
+          <div className="hidden md:flex justify-end">
+            <CircularProgress value={completePct} size={84} stroke={8} label="Complete" />
           </div>
         </div>
       </Card>
 
+      {/* Shift flow tracker — primary workflow */}
+      <div className="mt-3">
+        <ShiftFlowTracker
+          clockedIn={clockedIn}
+          hasClockedInToday={clockedIn}
+          tasksTotal={myTasks.length}
+          tasksDone={myDone}
+          opsRunPct={completePct}
+          inventoryCountedToday={false}
+          criticalAlertsOpen={(pending ?? []).filter((a: any) => a.priority === "critical").length}
+          recapSubmittedToday={false}
+          isManagerView={true}
+        />
+      </div>
+
       {/* 1 · CURRENT SHIFT  +  2 · CLOCK STATUS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+
         <Card>
           <div className="flex items-start justify-between">
             <div>
