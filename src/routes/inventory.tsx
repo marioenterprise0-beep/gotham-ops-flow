@@ -7,7 +7,7 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { AlertTriangle, ArchiveRestore, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download, Boxes, BookOpen, Settings as SettingsIcon, History, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
-import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies } from "@/lib/inventory.functions";
+import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies, listInventoryCategories, createInventoryCategory, archiveInventoryCategory } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
@@ -177,12 +177,62 @@ function LiveCountsTab() {
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
     : "All trailers · Company";
 
-  const cats = Array.from(new Set(items.map((i) => i.category)));
+  const listCatsFn = useServerFn(listInventoryCategories);
+  const { data: categories = [] } = useQuery<Array<{ id: string; key: string; label: string; sort_order: number; archived_at: string | null }>>({
+    queryKey: ["inventory-categories"],
+    queryFn: () => listCatsFn({ data: {} }) as any,
+    enabled: !loading && !!session?.access_token,
+  });
+  const catLabelByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of categories) m.set(c.key, c.label);
+    for (const [k, v] of Object.entries(CATEGORY_LABELS)) if (!m.has(k)) m.set(k, v);
+    return m;
+  }, [categories]);
+  const cats = useMemo(() => {
+    const fromCats = categories.map((c) => c.key);
+    const fromItems = Array.from(new Set(items.map((i) => i.category)));
+    return Array.from(new Set([...fromCats, ...fromItems]));
+  }, [categories, items]);
   const [cat, setCat] = useState<string>("protein");
   useEffect(() => {
     if (cats.length && !cats.includes(cat)) setCat(cats[0]);
   }, [cats.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const visible = items.filter((i) => i.category === cat);
+
+  const createCatFn = useServerFn(createInventoryCategory);
+  const createCatMut = useMutation({
+    mutationFn: (vars: { key: string; label: string }) => createCatFn({ data: vars }),
+    onSuccess: (_d, vars) => {
+      toast.success(`Category "${vars.label}" added`);
+      qc.invalidateQueries({ queryKey: ["inventory-categories"] });
+      setCat(vars.key);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const archiveCatFn = useServerFn(archiveInventoryCategory);
+  const archiveCatMut = useMutation({
+    mutationFn: (id: string) => archiveCatFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Category removed");
+      qc.invalidateQueries({ queryKey: ["inventory-categories"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function handleAddCategory() {
+    const label = window.prompt("New category name (e.g. Packaging):")?.trim();
+    if (!label) return;
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+    if (!key) { toast.error("Invalid name"); return; }
+    createCatMut.mutate({ key, label });
+  }
+  function handleRemoveCategory() {
+    const current = categories.find((c) => c.key === cat);
+    if (!current) { toast.error("Pick a category tab first."); return; }
+    if (!confirm(`Remove category "${current.label}"? Items in this category must be moved or archived first.`)) return;
+    archiveCatMut.mutate(current.id);
+  }
 
   const counts = items.reduce((acc, it) => {
     const s = statusOf(it);
@@ -286,19 +336,37 @@ function LiveCountsTab() {
               className={cn(
                 "rounded-md px-3.5 py-2 text-xs font-semibold uppercase tracking-[1.2px] border transition",
                 c === cat ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
-              )}>{CATEGORY_LABELS[c] ?? c}</button>
+              )}>{catLabelByKey.get(c) ?? c}</button>
           ))}
           {isOwner && (
-            <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-              Show archived
-            </label>
+            <>
+              <button
+                onClick={handleAddCategory}
+                disabled={createCatMut.isPending}
+                title="Add category"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] disabled:opacity-50">
+                <Plus className="h-3.5 w-3.5" /> Category
+              </button>
+              {categories.some((c) => c.key === cat) && (
+                <button
+                  onClick={handleRemoveCategory}
+                  disabled={archiveCatMut.isPending}
+                  title="Remove current category"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:text-[var(--color-danger)] hover:border-[var(--color-danger)] disabled:opacity-50">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
+                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                Show archived
+              </label>
+            </>
           )}
         </div>
       </div>
 
       <SectionHeader
-        eyebrow={CATEGORY_LABELS[cat] ?? cat}
+        eyebrow={catLabelByKey.get(cat) ?? cat}
         title="Live Counts"
         action={
           canPropose ? (
@@ -650,6 +718,11 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
 export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
   const requestFn = useServerFn(submitInventoryChangeRequest);
+  const listCatsFn = useServerFn(listInventoryCategories);
+  const { data: liveCategories = [] } = useQuery<Array<{ key: string; label: string }>>({
+    queryKey: ["inventory-categories"],
+    queryFn: () => listCatsFn({ data: {} }) as any,
+  });
   const it = item as any;
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
@@ -719,7 +792,8 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {(liveCategories.length ? liveCategories : Object.entries(CATEGORY_LABELS).map(([key, label]) => ({ key, label })))
+                .map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </Field>
           <Field label="Unit"><input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lb, ea, case" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
