@@ -82,7 +82,7 @@ function CashPage() {
       </Card>
 
       <SectionHeader title="Drawers" action={
-        trailerId ? (
+        trailerId && isManager ? (
           <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1">
             <Plus className="h-4 w-4" /> Add Drawer
           </Button>
