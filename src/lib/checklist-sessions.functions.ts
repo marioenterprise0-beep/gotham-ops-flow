@@ -12,6 +12,7 @@ export const getChecklistSession = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("checklist_sessions")
       .select("*")
+      .is("archived_at", null)
       .eq("shift_id", data.shiftId)
       .eq("phase", data.phase)
       .maybeSingle();
