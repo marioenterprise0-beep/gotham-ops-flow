@@ -84,6 +84,9 @@ export type Database = {
           action: Database["public"]["Enums"]["alert_action_kind"]
           actor_id: string
           alert_id: string
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           id: string
           note: string | null
@@ -92,6 +95,9 @@ export type Database = {
           action: Database["public"]["Enums"]["alert_action_kind"]
           actor_id: string
           alert_id: string
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
           note?: string | null
@@ -100,6 +106,9 @@ export type Database = {
           action?: Database["public"]["Enums"]["alert_action_kind"]
           actor_id?: string
           alert_id?: string
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
           note?: string | null
@@ -134,6 +143,9 @@ export type Database = {
       }
       alerts: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           assigned_role: Database["public"]["Enums"]["alert_assigned_role"]
           assigned_user_id: string | null
           created_at: string
@@ -159,6 +171,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
           assigned_user_id?: string | null
           created_at?: string
@@ -184,6 +199,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assigned_role?: Database["public"]["Enums"]["alert_assigned_role"]
           assigned_user_id?: string | null
           created_at?: string

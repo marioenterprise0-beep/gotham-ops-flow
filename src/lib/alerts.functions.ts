@@ -20,10 +20,13 @@ export const listAlerts = createServerFn({ method: "POST" })
     status: z.enum(ALERT_STATUS).optional(),
     type: z.enum(ALERT_TYPES).optional(),
     category: z.string().optional(),
+    includeArchived: z.boolean().optional(),
   }).optional().parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
     let q = supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(500);
+    if (!(data?.includeArchived && isOwner)) q = q.is("archived_at", null);
     if (data?.status) q = q.eq("status", data.status);
     if (data?.type) q = q.eq("type", data.type);
     const { data: rows, error } = await q;
@@ -191,7 +194,12 @@ export const getAlertDetail = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: alert, error } = await context.supabase.from("alerts").select("*").eq("id", data.alertId).single();
     if (error) throw error;
-    const { data: actions } = await context.supabase.from("alert_actions").select("*").eq("alert_id", data.alertId).order("created_at");
+    const { data: actions } = await context.supabase
+      .from("alert_actions")
+      .select("*")
+      .eq("alert_id", data.alertId)
+      .is("archived_at", null)
+      .order("created_at");
     let order = null;
     if (alert.type === "inventory_order" && alert.source_id) {
       const { data: o } = await context.supabase.from("inventory_orders").select("*, items:inventory_order_items(*)").eq("id", alert.source_id).maybeSingle();
