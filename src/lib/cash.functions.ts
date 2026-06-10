@@ -521,7 +521,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
     sessionId: z.string().uuid(),
     extraRecipients: z.array(z.string().email()).max(10).optional(),
   }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const lovableKey = process.env.LOVABLE_API_KEY;
     const resendKey = process.env.RESEND_API_KEY;
     if (!lovableKey || !resendKey) {
@@ -530,12 +530,33 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Authorization: only owners/managers may trigger cash alert emails.
+    // Managers are additionally constrained to sessions for their own trailer.
+    const { userId } = context as any;
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", userId);
+    const roles = (callerRoles ?? []).map((r: any) => r.role as string);
+    const isOwner = roles.includes("owner");
+    const isManager = roles.includes("manager");
+    if (!isOwner && !isManager) {
+      throw new Error("Manager role required to send cash drawer alert emails");
+    }
+
     const { data: sess, error: sErr } = await supabaseAdmin
       .from("cash_drawer_sessions")
       .select("id, trailer_id, drawer_id, counted_amount, expected_amount, variance, variance_reason, closed_at, closed_by, pdf_path")
       .eq("id", data.sessionId)
       .single();
     if (sErr || !sess) throw sErr ?? new Error("Session not found");
+
+    if (!isOwner) {
+      const { data: callerProfile } = await supabaseAdmin
+        .from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+      const callerTrailer = (callerProfile as any)?.trailer_id ?? null;
+      if (callerTrailer && callerTrailer !== sess.trailer_id) {
+        throw new Error("Cannot send cash alert for a session outside your trailer");
+      }
+    }
 
     const [{ data: drawer }, { data: trailer }, { data: submitter }] = await Promise.all([
       supabaseAdmin.from("cash_drawers").select("name").eq("id", sess.drawer_id).maybeSingle(),
