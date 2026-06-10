@@ -62,7 +62,7 @@ export const auditLogFilterOptions = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
     const { data } = await (supabase as any).from("audit_log").select("action, entity").limit(2000);
-    const actions = Array.from(new Set((data ?? []).map((r: any) => r.action))).sort();
-    const entities = Array.from(new Set((data ?? []).map((r: any) => r.entity).filter(Boolean))).sort();
+    const actions = Array.from(new Set((data ?? []).map((r: any) => r.action as string))).sort() as string[];
+    const entities = Array.from(new Set((data ?? []).map((r: any) => r.entity as string).filter(Boolean))).sort() as string[];
     return { actions, entities };
   });
