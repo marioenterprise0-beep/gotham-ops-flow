@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { randomInt } from "crypto";
-import { requireManager as requireManagerRole, requireTabAccess } from "./auth-guards";
+import { requireOwner } from "./auth-guards";
 
 type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
@@ -13,9 +13,9 @@ function newCode() {
   return out;
 }
 
+// All user/access mutations are OWNER ONLY. Managers operate, owners govern.
 async function requireManager(supabase: any, userId: string) {
-  await requireManagerRole(supabase, userId);
-  await requireTabAccess(supabase, userId, "users", "edit");
+  await requireOwner(supabase, userId);
 }
 
 export const listTrailers = createServerFn({ method: "GET" })
