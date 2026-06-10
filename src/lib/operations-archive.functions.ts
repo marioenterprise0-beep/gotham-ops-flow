@@ -57,7 +57,7 @@ export const scanOperationsDependencies = createServerFn({ method: "POST" })
     let total = 0;
     let liveTotal = 0;
     for (const dep of DEPS[data.entity]) {
-      const { count } = await context.supabase
+      const { count } = await (context.supabase as any)
         .from(dep.table)
         .select("id", { count: "exact", head: true })
         .eq(dep.column, data.id);
@@ -65,7 +65,7 @@ export const scanOperationsDependencies = createServerFn({ method: "POST" })
       out.push({ table: dep.table, label: dep.label, count: c });
       total += c;
       // For block-on-delete, consider only non-archived children "live"
-      const { count: live } = await context.supabase
+      const { count: live } = await (context.supabase as any)
         .from(dep.table)
         .select("id", { count: "exact", head: true })
         .eq(dep.column, data.id)
@@ -92,7 +92,7 @@ export const archiveOperationsEntity = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
-    const { error } = await supabase.from(data.entity).update({
+    const { error } = await (supabase as any).from(data.entity).update({
       archived_at: new Date().toISOString(),
       archived_by: userId,
       archive_reason: data.reason ?? null,
@@ -114,7 +114,7 @@ export const restoreOperationsEntity = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from(data.entity).update({
+    const { error } = await (supabase as any).from(data.entity).update({
       archived_at: null, archived_by: null, archive_reason: null,
     } as any).eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -141,7 +141,7 @@ export const deleteOperationsEntity = createServerFn({ method: "POST" })
     if (!data.force) {
       let liveTotal = 0;
       for (const dep of DEPS[data.entity]) {
-        const { count } = await supabase
+        const { count } = await (supabase as any)
           .from(dep.table)
           .select("id", { count: "exact", head: true })
           .eq(dep.column, data.id)
@@ -155,7 +155,7 @@ export const deleteOperationsEntity = createServerFn({ method: "POST" })
         throw err;
       }
     }
-    const { error } = await supabase.from(data.entity).delete().eq("id", data.id);
+    const { error } = await (supabase as any).from(data.entity).delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
