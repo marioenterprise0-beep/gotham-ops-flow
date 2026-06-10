@@ -163,8 +163,8 @@ export const deleteTask = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    const ok = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
-    if (!ok) throw new Error("Manager role required to delete tasks");
+    const ok = (roles ?? []).some((r) => r.role === "owner");
+    if (!ok) throw new Error("Owner role required to delete tasks");
     const { error } = await supabase
       .from("tasks")
       .update({
