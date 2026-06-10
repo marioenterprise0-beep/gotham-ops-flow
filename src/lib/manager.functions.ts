@@ -22,7 +22,7 @@ export const getManagerOverview = createServerFn({ method: "GET" })
       .from("stores").select("id, name").order("created_at").limit(1).maybeSingle();
 
     const trailerId = data?.trailerId ?? null;
-    let shiftQ = supabase.from("shifts").select("*").eq("status", "active").order("opened_at", { ascending: false }).limit(1);
+    let shiftQ = supabase.from("shifts").select("*").is("archived_at", null).eq("status", "active").order("opened_at", { ascending: false }).limit(1);
     if (trailerId) shiftQ = shiftQ.eq("trailer_id", trailerId);
     const { data: shift } = await shiftQ.maybeSingle();
 
@@ -91,8 +91,8 @@ export const getManagerOverview = createServerFn({ method: "GET" })
 
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const incQ = trailerId
-      ? supabase.from("hospitality_incidents").select("severity").eq("trailer_id", trailerId).gte("logged_at", since)
-      : supabase.from("hospitality_incidents").select("severity").gte("logged_at", since);
+      ? supabase.from("hospitality_incidents").select("severity").is("archived_at", null).eq("trailer_id", trailerId).gte("logged_at", since)
+      : supabase.from("hospitality_incidents").select("severity").is("archived_at", null).gte("logged_at", since);
     const { data: incidents } = await incQ;
     const penalty = (incidents ?? []).reduce((acc, i) => acc + (i.severity === "high" ? 15 : i.severity === "medium" ? 7 : 3), 0);
     const hospitalityScore = Math.max(0, 100 - penalty);
@@ -103,7 +103,7 @@ export const getManagerOverview = createServerFn({ method: "GET" })
     let alertsQ = supabase.from("alerts").select("id", { count: "exact", head: true })
       .in("status", ["open", "pending"]);
     if (trailerId) alertsQ = alertsQ.eq("trailer_id", trailerId);
-    let recapsQ = supabase.from("daily_recaps").select("id", { count: "exact", head: true })
+    let recapsQ = supabase.from("daily_recaps").select("id", { count: "exact", head: true }).is("archived_at", null)
       .eq("status", "submitted");
     if (trailerId) recapsQ = recapsQ.eq("trailer_id", trailerId);
     const [{ count: pendingAlerts }, { count: pendingRecaps }] = await Promise.all([alertsQ, recapsQ]);

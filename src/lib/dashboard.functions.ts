@@ -10,7 +10,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       .from("stores").select("id, name").order("created_at").limit(1).maybeSingle();
 
     const { data: shift } = store
-      ? await supabase.from("shifts").select("*")
+      ? await supabase.from("shifts").select("*").is("archived_at", null)
           .eq("store_id", store.id).eq("status", "active")
           .order("opened_at", { ascending: false }).limit(1).maybeSingle()
       : { data: null };
@@ -18,7 +18,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     let totalTasks = 0, doneTasks = 0;
     if (shift) {
       const { data: tasks } = await supabase.from("tasks")
-        .select("status").eq("shift_id", shift.id);
+        .select("status").is("archived_at", null).eq("shift_id", shift.id);
       totalTasks = tasks?.length ?? 0;
       doneTasks = (tasks ?? []).filter((t) => t.status === "done" || t.status === "signed_off").length;
     }
