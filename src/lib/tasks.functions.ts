@@ -75,7 +75,7 @@ export const completeTask = createServerFn({ method: "POST" })
     taskId: z.string().uuid(),
     numericValue: z.number().optional(),
     textValue: z.string().optional(),
-    photoUrl: z.string().optional(),
+    photoUrl: photoUrlSchema,
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
