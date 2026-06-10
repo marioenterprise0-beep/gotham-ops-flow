@@ -37,6 +37,7 @@ function Operations() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
+  const isOwner = roleId === "owner";
   const [phase, setPhase] = useState<Phase>("opening");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
