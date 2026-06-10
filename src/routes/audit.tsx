@@ -65,7 +65,7 @@ function AuditPage() {
     refetchInterval: 60_000,
   });
 
-  const rows = data?.rows ?? [];
+  const rows: any[] = (data?.rows ?? []) as any[];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
