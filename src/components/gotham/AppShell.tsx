@@ -38,6 +38,8 @@ const ALL_TABS: Tab[] = [
   { to: "/location-requests", key: "location-requests", label: "Location Access", icon: MapPin,   gate: "owner" },
   { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
   { to: "/change-log",  key: "change-log",  label: "Change Log",  icon: ScrollText,  gate: "manager" },
+  { to: "/data-health", key: "data-health", label: "Data Health", icon: HeartPulse,  gate: "manager" },
+  { to: "/archive-center", key: "archive-center", label: "Archive Center", icon: Archive, gate: "manager" },
   { to: "/integrity",   key: "integrity",   label: "Data Integrity", icon: Shield,   gate: "owner" },
   { to: "/analytics",   key: "analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
   { to: "/settings",    key: "settings",    label: "Settings",    icon: SettingsIcon },
