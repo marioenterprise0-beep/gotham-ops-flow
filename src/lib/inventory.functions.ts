@@ -256,7 +256,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     }
     await supabase.from("audit_log").insert({
       actor_id: userId, action: data.id ? "update_item" : "create_item", entity: "inventory_item",
-      entity_id: data.id ?? null, payload: { name: data.name, category: data.category, trailer_id: trailerId, propagated: true },
+      entity_id: data.id ?? null, payload: { name: data.name, category, trailer_id: trailerId, propagated: true },
     });
     return { ok: true };
   });
