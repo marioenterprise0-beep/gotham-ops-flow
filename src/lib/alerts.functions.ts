@@ -194,7 +194,12 @@ export const getAlertDetail = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: alert, error } = await context.supabase.from("alerts").select("*").eq("id", data.alertId).single();
     if (error) throw error;
-    const { data: actions } = await context.supabase.from("alert_actions").select("*").eq("alert_id", data.alertId).order("created_at");
+    const { data: actions } = await context.supabase
+      .from("alert_actions")
+      .select("*")
+      .eq("alert_id", data.alertId)
+      .is("archived_at", null)
+      .order("created_at");
     let order = null;
     if (alert.type === "inventory_order" && alert.source_id) {
       const { data: o } = await context.supabase.from("inventory_orders").select("*, items:inventory_order_items(*)").eq("id", alert.source_id).maybeSingle();
