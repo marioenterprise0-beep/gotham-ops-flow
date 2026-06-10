@@ -226,9 +226,13 @@ function ManagerPage() {
         ))}
       </Card>
 
-      {/* ACTIONS */}
-      <SectionHeader eyebrow="Actions" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
-      <TaskTemplatesPanel />
+      {/* ACTIONS — Task templates are governance; owner-only globally */}
+      {roleId === "owner" && (
+        <>
+          <SectionHeader eyebrow="Actions" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
+          <TaskTemplatesPanel />
+        </>
+      )}
 
       <SectionHeader eyebrow="Today" title="Crew on Shift" />
       <CrewRosterPanel />

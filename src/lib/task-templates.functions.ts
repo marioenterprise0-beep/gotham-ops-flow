@@ -5,9 +5,9 @@ import { z } from "zod";
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const PHASE = z.enum(["opening", "mid", "closing", "emergency"]);
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
-  if (!data) throw new Error("Manager role required");
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "owner").maybeSingle();
+  if (!data) throw new Error("Owner role required");
 }
 
 export const listTaskTemplates = createServerFn({ method: "POST" })
@@ -40,7 +40,7 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const row = {
       trailer_id: data.trailer_id,
       role: data.role,
@@ -68,7 +68,7 @@ export const deleteTaskTemplate = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     if (!data.force) {
       const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true }).eq("template_id", data.id);
       if ((count ?? 0) > 0) {
@@ -98,7 +98,7 @@ export const archiveTaskTemplate = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("task_templates").update({
       archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null, active: false,
     } as any).eq("id", data.id);
@@ -114,7 +114,7 @@ export const restoreTaskTemplate = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { error } = await supabase.from("task_templates").update({
       archived_at: null, archived_by: null, archive_reason: null, active: true,
     } as any).eq("id", data.id);
@@ -127,7 +127,7 @@ export const listTemplateVersions = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ templateId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     const { data: rows, error } = await supabase
       .from("task_template_versions")
       .select("id, version, action, actor_id, changed_at, before, after, changed_fields")
