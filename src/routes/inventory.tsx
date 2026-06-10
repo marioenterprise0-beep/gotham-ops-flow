@@ -177,12 +177,62 @@ function LiveCountsTab() {
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
     : "All trailers · Company";
 
-  const cats = Array.from(new Set(items.map((i) => i.category)));
+  const listCatsFn = useServerFn(listInventoryCategories);
+  const { data: categories = [] } = useQuery<Array<{ id: string; key: string; label: string; sort_order: number; archived_at: string | null }>>({
+    queryKey: ["inventory-categories"],
+    queryFn: () => listCatsFn({ data: {} }) as any,
+    enabled: !loading && !!session?.access_token,
+  });
+  const catLabelByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of categories) m.set(c.key, c.label);
+    for (const [k, v] of Object.entries(CATEGORY_LABELS)) if (!m.has(k)) m.set(k, v);
+    return m;
+  }, [categories]);
+  const cats = useMemo(() => {
+    const fromCats = categories.map((c) => c.key);
+    const fromItems = Array.from(new Set(items.map((i) => i.category)));
+    return Array.from(new Set([...fromCats, ...fromItems]));
+  }, [categories, items]);
   const [cat, setCat] = useState<string>("protein");
   useEffect(() => {
     if (cats.length && !cats.includes(cat)) setCat(cats[0]);
   }, [cats.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const visible = items.filter((i) => i.category === cat);
+
+  const createCatFn = useServerFn(createInventoryCategory);
+  const createCatMut = useMutation({
+    mutationFn: (vars: { key: string; label: string }) => createCatFn({ data: vars }),
+    onSuccess: (_d, vars) => {
+      toast.success(`Category "${vars.label}" added`);
+      qc.invalidateQueries({ queryKey: ["inventory-categories"] });
+      setCat(vars.key);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const archiveCatFn = useServerFn(archiveInventoryCategory);
+  const archiveCatMut = useMutation({
+    mutationFn: (id: string) => archiveCatFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Category removed");
+      qc.invalidateQueries({ queryKey: ["inventory-categories"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function handleAddCategory() {
+    const label = window.prompt("New category name (e.g. Packaging):")?.trim();
+    if (!label) return;
+    const key = label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+    if (!key) { toast.error("Invalid name"); return; }
+    createCatMut.mutate({ key, label });
+  }
+  function handleRemoveCategory() {
+    const current = categories.find((c) => c.key === cat);
+    if (!current) { toast.error("Pick a category tab first."); return; }
+    if (!confirm(`Remove category "${current.label}"? Items in this category must be moved or archived first.`)) return;
+    archiveCatMut.mutate(current.id);
+  }
 
   const counts = items.reduce((acc, it) => {
     const s = statusOf(it);
