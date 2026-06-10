@@ -935,6 +935,9 @@ export type Database = {
       }
       inventory_counts: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           count_qty: number
           counted_at: string
           counted_by: string | null
@@ -946,6 +949,9 @@ export type Database = {
           variance: number | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           count_qty: number
           counted_at?: string
           counted_by?: string | null
@@ -957,6 +963,9 @@ export type Database = {
           variance?: number | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           count_qty?: number
           counted_at?: string
           counted_by?: string | null
@@ -2038,18 +2047,27 @@ export type Database = {
       }
       stores: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           id: string
           location: string | null
           name: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
           location?: string | null
           name: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           id?: string
           location?: string | null
@@ -2533,6 +2551,9 @@ export type Database = {
       trailers: {
         Row: {
           active: boolean
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           geofence_lat: number | null
           geofence_lng: number | null
@@ -2544,6 +2565,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           geofence_lat?: number | null
           geofence_lng?: number | null
@@ -2555,6 +2579,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           geofence_lat?: number | null
           geofence_lng?: number | null

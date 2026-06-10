@@ -72,7 +72,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
     if (trailerFilter) wasteQ = wasteQ.eq("trailer_id", trailerFilter);
 
     // Inventory counts (variance)
-    let countsQ = supabase.from("inventory_counts").select("variance, expected_qty, counted_at, trailer_id")
+    let countsQ = supabase.from("inventory_counts").select("variance, expected_qty, counted_at, trailer_id").is("archived_at", null)
       .gte("counted_at", startIso).lte("counted_at", endIso);
     if (trailerFilter) countsQ = countsQ.eq("trailer_id", trailerFilter);
 

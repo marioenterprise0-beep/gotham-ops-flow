@@ -24,6 +24,7 @@ export const listTrailers = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("trailers")
       .select("id, name, location, active")
+      .is("archived_at", null)
       .order("created_at");
     if (error) throw new Error(error.message);
     return data ?? [];
@@ -160,7 +161,7 @@ export const listUsers = createServerFn({ method: "POST" })
       await Promise.all([
         q,
         supabase.from("user_roles").select("user_id, role"),
-        supabase.from("trailers").select("id, name"),
+        supabase.from("trailers").select("id, name").is("archived_at", null),
       ]);
     if (pErr) throw new Error(pErr.message);
     if (rErr) throw new Error(rErr.message);
