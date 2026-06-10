@@ -53,7 +53,7 @@ export const runIntegritySweep = createServerFn({ method: "GET" })
       supabase.from("schedule_shifts").select("id, schedule_id, employee_id, shift_date, start_time, end_time, trailer_id, schedules!inner(archived_at)").is("schedules.archived_at", null).is("archived_at", null),
       supabase.from("schedules").select("id, status").is("archived_at", null),
       supabase.from("time_punches").select("id, employee_id, clock_in_at, clock_out_at, trailer_id").is("archived_at", null).gte("clock_in_at", new Date(Date.now() - 30 * 86400000).toISOString()),
-      supabase.from("profiles").select("id, active, trailer_id").is("archived_at", null),
+      supabase.from("profiles").select("id, active, trailer_id, archived_at"),
     ]);
 
     const shifts = shiftsRes.data ?? [];
@@ -62,8 +62,13 @@ export const runIntegritySweep = createServerFn({ method: "GET" })
     const profiles = profilesRes.data ?? [];
 
     const scheduleIds = new Set(schedules.map((s: any) => s.id));
+    // All known profiles (including archived) — used for FK existence checks so
+    // historical rows (punches, role rows) tied to archived users aren't flagged
+    // as "missing profile". Active/live sets are derived below for other checks.
     const profileIds = new Set(profiles.map((p: any) => p.id));
-    const activeProfileIds = new Set(profiles.filter((p: any) => p.active).map((p: any) => p.id));
+    const activeProfileIds = new Set(
+      profiles.filter((p: any) => p.active && !p.archived_at).map((p: any) => p.id),
+    );
 
     const orphanedShifts = shifts.filter((s: any) => !scheduleIds.has(s.schedule_id));
     pushIssue(issues, {
