@@ -142,11 +142,13 @@ export const getEmployeeWeek = createServerFn({ method: "POST" })
         .order("clock_in_at"),
       supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
         .is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", data.userId)
         .gte("shift_date", ws)
         .lt("shift_date", end.toISOString().slice(0, 10))
         .order("shift_date"),
       supabase.from("shift_notes").select("*")
+        .is("archived_at", null)
         .eq("employee_id", data.userId)
         .gte("created_at", start.toISOString())
         .lt("created_at", end.toISOString())
