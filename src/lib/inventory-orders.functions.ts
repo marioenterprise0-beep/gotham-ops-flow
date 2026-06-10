@@ -79,15 +79,24 @@ export const listInventoryOrders = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     scope: z.enum(["mine","all"]).default("all"),
     status: z.enum(STATUS).optional(),
+    includeArchived: z.boolean().optional(),
   }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    let q = supabase.from("inventory_orders").select("*, items:inventory_order_items(*)").order("created_at", { ascending: false });
+    const { isOwner } = await getRoles(supabase, userId);
+    let q = supabase.from("inventory_orders")
+      .select("*, items:inventory_order_items(*)")
+      .order("created_at", { ascending: false });
+    if (!(data?.includeArchived && isOwner)) q = q.is("archived_at", null);
     if (data?.scope === "mine") q = q.eq("created_by", userId);
     if (data?.status) q = q.eq("status", data.status);
     const { data: rows, error } = await q;
     if (error) throw error;
-    return rows ?? [];
+    // Filter out archived items in nested array (even when parent is live)
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      items: (r.items ?? []).filter((i: any) => i.archived_at == null),
+    }));
   });
 
 export const getInventoryOrder = createServerFn({ method: "POST" })
@@ -97,7 +106,10 @@ export const getInventoryOrder = createServerFn({ method: "POST" })
     const { data: order, error } = await context.supabase
       .from("inventory_orders").select("*, items:inventory_order_items(*)").eq("id", data.id).single();
     if (error) throw error;
-    return order;
+    return {
+      ...order,
+      items: (order.items ?? []).filter((i: any) => i.archived_at == null),
+    };
   });
 
 // Apply a received order to inventory: insert receipts + increment current_qty.
@@ -106,7 +118,8 @@ export async function applyOrderReceipt(supabase: any, userId: string, orderId: 
   const { data: items, error } = await supabase
     .from("inventory_order_items")
     .select("item_id, item_name, requested_qty")
-    .eq("order_id", orderId);
+    .eq("order_id", orderId)
+    .is("archived_at", null);
   if (error) throw error;
   for (const it of items ?? []) {
     if (!it.item_id) continue; // skip free-text items not linked to inventory

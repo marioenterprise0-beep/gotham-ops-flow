@@ -861,6 +861,9 @@ export type Database = {
       inventory_change_requests: {
         Row: {
           action: Database["public"]["Enums"]["inventory_change_action"]
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -876,6 +879,9 @@ export type Database = {
         }
         Insert: {
           action: Database["public"]["Enums"]["inventory_change_action"]
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -891,6 +897,9 @@ export type Database = {
         }
         Update: {
           action?: Database["public"]["Enums"]["inventory_change_action"]
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -1045,6 +1054,9 @@ export type Database = {
       }
       inventory_order_items: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           category: string | null
           created_at: string
           current_qty: number
@@ -1060,6 +1072,9 @@ export type Database = {
           urgency: Database["public"]["Enums"]["inventory_order_urgency"]
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           category?: string | null
           created_at?: string
           current_qty?: number
@@ -1075,6 +1090,9 @@ export type Database = {
           urgency?: Database["public"]["Enums"]["inventory_order_urgency"]
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           category?: string | null
           created_at?: string
           current_qty?: number
@@ -1108,6 +1126,9 @@ export type Database = {
       }
       inventory_orders: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string
           decided_at: string | null
@@ -1123,6 +1144,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by: string
           decided_at?: string | null
@@ -1138,6 +1162,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string
           decided_at?: string | null
@@ -1156,6 +1183,9 @@ export type Database = {
       }
       inventory_receipts: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           id: string
           item_id: string
           notes: string | null
@@ -1165,6 +1195,9 @@ export type Database = {
           supplier: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           item_id: string
           notes?: string | null
@@ -1174,6 +1207,9 @@ export type Database = {
           supplier?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           item_id?: string
           notes?: string | null
