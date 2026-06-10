@@ -312,7 +312,7 @@ function SOPsPage() {
             const a = myAckMap.get(s.id); return !a || a.version < s.version;
           }).length} to complete`} />
           {assigned.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Nothing assigned to your role yet.</p></Card>
+            <EmptyState icon={GraduationCap} title="Assign first SOP" hint="Owners can publish SOPs and assign them to your role — they'll appear here as required training." />
           ) : (
             <div className="space-y-2">
               {assigned.slice(0, 6).map((s) => (
