@@ -189,7 +189,31 @@ function ManagerPage() {
         })}
       </Card>
 
-      <SectionHeader eyebrow="Accountability" title="Open Tasks" action={<StatusPill tone={openTasks.length ? "warning" : "success"}>{openTasks.length} open</StatusPill>} />
+      {/* LABOR ISSUES */}
+      <SectionHeader eyebrow="Schedule" title="Labor Issues" action={<Link to="/labor" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open labor</Link>} />
+      <Card>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-md border border-border p-3">
+            <div className="label-caps text-muted-foreground">Crew on shift</div>
+            <div className="font-display text-2xl mt-1">{crew.length}</div>
+          </div>
+          <div className="rounded-md border border-border p-3">
+            <div className="label-caps text-muted-foreground">Open tasks</div>
+            <div className="font-display text-2xl mt-1">{openTasks.length}</div>
+          </div>
+          <div className="rounded-md border border-border p-3">
+            <div className="label-caps text-muted-foreground">Team score</div>
+            <div className="font-display text-2xl mt-1 text-[var(--color-gold)]">{scores.team}%</div>
+          </div>
+          <Link to="/schedule" className="rounded-md border border-border p-3 hover:border-[var(--color-gold)] transition-colors">
+            <div className="label-caps text-muted-foreground">Schedule</div>
+            <div className="font-semibold mt-1 text-sm">Open scheduling →</div>
+          </Link>
+        </div>
+      </Card>
+
+      {/* PERFORMANCE — open tasks */}
+      <SectionHeader eyebrow="Performance" title="Open Tasks" action={<StatusPill tone={openTasks.length ? "warning" : "success"}>{openTasks.length} open</StatusPill>} />
       <Card className="p-0 overflow-hidden">
         {!hasShift && <div className="p-6 text-center text-sm text-muted-foreground">No active shift.</div>}
         {hasShift && openTasks.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">All tasks complete. Nice.</div>}
@@ -202,13 +226,14 @@ function ManagerPage() {
         ))}
       </Card>
 
-      <SectionHeader eyebrow="Automation" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
+      {/* ACTIONS */}
+      <SectionHeader eyebrow="Actions" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
       <TaskTemplatesPanel />
 
-      <SectionHeader eyebrow="People" title="Crew Roster" />
+      <SectionHeader eyebrow="Actions" title="Crew Roster" />
       <CrewRosterPanel />
 
-      <SectionHeader eyebrow="Access" title="Invite Codes" />
+      <SectionHeader eyebrow="Actions" title="Invite Codes" />
       <InviteCodesPanel />
 
       {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "tasks", "alerts"); }} />}
