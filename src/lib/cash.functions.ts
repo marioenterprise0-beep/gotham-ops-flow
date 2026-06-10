@@ -622,18 +622,79 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
     const body: Record<string, unknown> = { from, to: recipients, subject, html };
     if (attachment) body.attachments = [attachment];
 
-    const res = await fetch(RESEND_GATEWAY, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableKey}`,
-        "X-Connection-Api-Key": resendKey,
-      },
-      body: JSON.stringify(body),
-    });
-    const text = await res.text();
-    if (!res.ok) throw new Error(`Resend failed (${res.status}): ${text.slice(0, 400)}`);
-    return { ok: true, sent: recipients.length, attached: !!attachment };
+    // Retry on transient failures: network errors, HTTP 429, HTTP 5xx.
+    // Backoff: 1s, 3s, 7s (max 4 attempts total).
+    const delays = [1000, 3000, 7000];
+    const attempts: Array<{ attempt: number; status?: number; error: string }> = [];
+    let lastErr: { status?: number; message: string } | null = null;
+    let success = false;
+    let providerId: string | null = null;
+
+    for (let i = 0; i <= delays.length; i++) {
+      try {
+        const res = await fetch(RESEND_GATEWAY, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${lovableKey}`,
+            "X-Connection-Api-Key": resendKey,
+          },
+          body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        if (res.ok) {
+          try { providerId = (JSON.parse(text) as any)?.id ?? null; } catch { /* ignore */ }
+          success = true;
+          break;
+        }
+        const transient = res.status === 429 || res.status >= 500;
+        attempts.push({ attempt: i + 1, status: res.status, error: text.slice(0, 200) });
+        lastErr = { status: res.status, message: text.slice(0, 400) };
+        if (!transient) break; // 4xx (e.g. 401/403/422) – no point retrying
+      } catch (e: any) {
+        attempts.push({ attempt: i + 1, error: String(e?.message ?? e).slice(0, 200) });
+        lastErr = { message: String(e?.message ?? e).slice(0, 400) };
+      }
+      if (i < delays.length) await new Promise((r) => setTimeout(r, delays[i]));
+    }
+
+    if (success) {
+      return { ok: true, sent: recipients.length, attached: !!attachment, attempts: attempts.length + 1, providerId };
+    }
+
+    // All retries exhausted – raise a critical in-app alert to the owner so the
+    // failure is visible even though no email got through.
+    try {
+      await supabaseAdmin.from("alerts").insert({
+        type: "manager_note" as any,
+        title: `Cash alert email failed — ${trailerName} · ${drawerName}`,
+        description:
+          `Could not deliver Drawer Close email to ${recipients.length} recipient(s) after ${attempts.length} attempt(s). ` +
+          `Last error: ${lastErr?.status ? `HTTP ${lastErr.status} – ` : ""}${lastErr?.message ?? "unknown"}`,
+        source_module: "cash",
+        source_id: data.sessionId,
+        trailer_id: sess.trailer_id,
+        created_by: sess.closed_by,
+        assigned_role: "owner" as any,
+        priority: "critical" as any,
+        status: "pending" as any,
+        payload: {
+          session_id: data.sessionId,
+          pdf_path: sess.pdf_path,
+          recipients,
+          attempts,
+          last_error: lastErr,
+          variance,
+        } as any,
+      } as any);
+    } catch { /* never let alert insert mask the original error */ }
+
+    throw new Error(
+      `Resend failed after ${attempts.length} attempt(s)` +
+      (lastErr?.status ? ` (HTTP ${lastErr.status})` : "") +
+      `: ${lastErr?.message ?? "unknown"}`
+    );
   });
+
 
 
