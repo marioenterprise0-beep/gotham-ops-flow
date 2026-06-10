@@ -21,7 +21,7 @@ import { TaskTemplatesPanel } from "@/components/gotham/TaskTemplatesPanel";
 export const Route = createFileRoute("/manager")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Manager Panel · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Command Center · Gotham OS" }] }),
   component: ManagerPage,
 });
 
