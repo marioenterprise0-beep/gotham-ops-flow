@@ -407,6 +407,7 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
 
   const closeFn = useServerFn(closeDrawerSession);
   const attachFn = useServerFn(attachDrawerClosePdf);
+  const emailFn = useServerFn(sendDrawerCloseAlertEmail);
   const mu = useMutation({
     mutationFn: () => closeFn({ data: {
       sessionId: session.id,
