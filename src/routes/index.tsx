@@ -74,7 +74,7 @@ function Dashboard() {
       {isManagerView
         ? <ManagerView stats={stats} role={role} />
         : <CrewView stats={stats} role={role} roleId={roleId} userName={user} />}
-      <div className="h-6" />
+      <div className="h-4" />
     </AppShell>
   );
 }
