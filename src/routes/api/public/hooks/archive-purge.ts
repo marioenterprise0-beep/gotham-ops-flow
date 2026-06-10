@@ -1,5 +1,5 @@
 // Nightly cron — purges archived rows past retention. Uses service role.
-// Caller authenticates via the Supabase anon key (apikey header) — see schedule-jobs docs.
+// Caller authenticates via a dedicated secret in the `x-purge-key` header.
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { ARCHIVE_DOMAINS, DEFAULT_RETENTION_DAYS, type ArchiveDomain } from "@/lib/archive-registry";
@@ -16,11 +16,10 @@ export const Route = createFileRoute("/api/public/hooks/archive-purge")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = request.headers.get("apikey");
-        if (!apiKey) return new Response(JSON.stringify({ error: "missing apikey" }), { status: 401, headers: { "Content-Type": "application/json" } });
-        const expected = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
-        if (expected && apiKey !== expected) {
-          return new Response(JSON.stringify({ error: "invalid apikey" }), { status: 401, headers: { "Content-Type": "application/json" } });
+        const expected = process.env.ARCHIVE_PURGE_KEY;
+        const provided = request.headers.get("x-purge-key");
+        if (!expected || provided !== expected) {
+          return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
         }
         const body = await request.json().catch(() => ({})) as { days?: number };
         const days = Math.min(3650, Math.max(1, body.days ?? DEFAULT_RETENTION_DAYS));
