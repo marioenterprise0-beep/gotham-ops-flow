@@ -36,10 +36,7 @@ const ROUTES: { to: string; label: string; icon: any; gate?: Gate; key: string }
   { to: "/health",      key: "health",      label: "Health Score", icon: Activity,     gate: "manager" },
   { to: "/alerts",      key: "alerts",      label: "Alerts",       icon: Bell,         gate: "manager" },
   { to: "/manager",     key: "manager",     label: "Manager",      icon: Shield,       gate: "manager" },
-  { to: "/users",       key: "users",       label: "Users",        icon: UsersIcon,    gate: "manager" },
-  { to: "/permissions", key: "permissions", label: "Permissions",  icon: KeyRound,     gate: "owner" },
-  { to: "/audit",       key: "audit",       label: "Audit Log",    icon: ScrollText,   gate: "manager" },
-  { to: "/change-log",  key: "change-log",  label: "Change Log",   icon: ScrollText,   gate: "manager" },
+  { to: "/admin",       key: "admin",       label: "Admin",        icon: Shield,       gate: "manager" },
   { to: "/analytics",   key: "analytics",   label: "Analytics",    icon: BarChart3,    gate: "analytics" },
   { to: "/settings",    key: "settings",    label: "Settings",     icon: SettingsIcon },
 ];
