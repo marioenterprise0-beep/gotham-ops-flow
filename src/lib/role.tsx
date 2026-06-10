@@ -204,7 +204,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       userId: session?.user?.id ?? null,
       homeTrailerId,
       trailers,
-      trailerScope: isManager ? trailerScope : homeTrailerId,
+      trailerScope: effectiveTrailer,
       setTrailerScope,
       setRoleId: () => { void signOut(); },
       signOut,
