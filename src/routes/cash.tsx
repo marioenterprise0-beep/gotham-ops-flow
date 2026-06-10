@@ -16,8 +16,11 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
+  attachDrawerClosePdf, getDrawerClosePdfUrl,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML } from "@/lib/exports";
+import { buildDrawerClosePdf, uploadDrawerClosePdf } from "@/lib/cash-pdf";
+import { supabase } from "@/integrations/supabase/client";
 import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/cash")({
@@ -403,6 +406,7 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
     (!belowFloat || verification === "requested");
 
   const closeFn = useServerFn(closeDrawerSession);
+  const attachFn = useServerFn(attachDrawerClosePdf);
   const mu = useMutation({
     mutationFn: () => closeFn({ data: {
       sessionId: session.id,
@@ -412,7 +416,26 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
       varianceNotes: notes || undefined,
       verification,
     } }),
-    onSuccess: () => { toast.success("Drawer closed"); onSaved(session.id); },
+    onSuccess: async () => {
+      toast.success("Drawer closed");
+      // Build, upload, attach PDF — non-blocking for the UX flow.
+      try {
+        const detail = await detailFn({ data: { sessionId: session.id } }) as any;
+        const { blob, filename } = buildDrawerClosePdf(detail);
+        const path = await uploadDrawerClosePdf(supabase, session.id, detail.session.trailer_id, blob);
+        await attachFn({ data: { sessionId: session.id, path } });
+        // Offer the file to the submitter immediately.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        toast.success("Drawer Close PDF attached");
+      } catch (e: any) {
+        toast.error(`PDF attach failed: ${e?.message ?? "unknown"}`);
+      }
+      onSaved(session.id);
+    },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
@@ -571,11 +594,16 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold">Cash Drops ({drops.length})</h4>
               {s.status !== "open" && (
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => printDrawerClose({
-                  session: s, drawer, trailer, drops, names, totalDrops,
-                })}>
-                  <FileText className="h-4 w-4" /> Drawer Close PDF
-                </Button>
+                <div className="flex gap-2">
+                  {s.pdf_path && (
+                    <StoredPdfButton sessionId={s.id} />
+                  )}
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => printDrawerClose({
+                    session: s, drawer, trailer, drops, names, totalDrops,
+                  })}>
+                    <FileText className="h-4 w-4" /> Drawer Close PDF
+                  </Button>
+                </div>
               )}
             </div>
             {drops.length === 0 ? (
@@ -647,6 +675,25 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StoredPdfButton({ sessionId }: { sessionId: string }) {
+  const getUrlFn = useServerFn(getDrawerClosePdfUrl);
+  const [loading, setLoading] = useState(false);
+  return (
+    <Button size="sm" variant="outline" className="gap-1" disabled={loading} onClick={async () => {
+      setLoading(true);
+      try {
+        const r = await getUrlFn({ data: { sessionId } }) as { url: string | null };
+        if (r?.url) window.open(r.url, "_blank", "noopener");
+        else toast.error("Stored PDF not found");
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed to load PDF");
+      } finally { setLoading(false); }
+    }}>
+      <Download className="h-4 w-4" /> Stored PDF
+    </Button>
   );
 }
 

@@ -454,3 +454,52 @@ export const restoreCashDrop = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// ---------------- Drawer-close PDF attachment ----------------
+
+export const attachDrawerClosePdf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    sessionId: z.string().uuid(),
+    path: z.string().min(1).max(500),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { error } = await supabase.from("cash_drawer_sessions").update({
+      pdf_path: data.path,
+      pdf_uploaded_at: new Date().toISOString(),
+    } as any).eq("id", data.sessionId);
+    if (error) throw error;
+
+    // Fold the PDF path into any open alerts pointing at this session so
+    // manager/owner alert views (and downstream email payloads) can link to it.
+    const { data: alerts } = await supabase
+      .from("alerts")
+      .select("id, payload")
+      .eq("source_module", "cash")
+      .eq("source_id", data.sessionId);
+    for (const a of alerts ?? []) {
+      const prev = (a.payload && typeof a.payload === "object" && !Array.isArray(a.payload)) ? a.payload as Record<string, unknown> : {};
+      const payload = { ...prev, pdf_path: data.path };
+      await supabase.from("alerts").update({ payload } as any).eq("id", a.id);
+    }
+
+    return { ok: true };
+  });
+
+export const getDrawerClosePdfUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ sessionId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: sess, error } = await supabase
+      .from("cash_drawer_sessions").select("pdf_path").eq("id", data.sessionId).single();
+    if (error) throw error;
+    if (!sess?.pdf_path) return { url: null as string | null };
+    const { data: signed, error: se } = await supabase.storage
+      .from("gotham-photos")
+      .createSignedUrl(sess.pdf_path, 60 * 60 * 24 * 7); // 7 days
+    if (se) throw se;
+    return { url: signed?.signedUrl ?? null };
+  });
+

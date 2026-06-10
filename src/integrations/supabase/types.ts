@@ -315,6 +315,8 @@ export type Database = {
           owner_review: Database["public"]["Enums"]["cash_owner_review"]
           owner_reviewed_at: string | null
           owner_reviewed_by: string | null
+          pdf_path: string | null
+          pdf_uploaded_at: string | null
           starting_float: number
           status: Database["public"]["Enums"]["cash_session_status"]
           total_cash_sales: number | null
@@ -341,6 +343,8 @@ export type Database = {
           owner_review?: Database["public"]["Enums"]["cash_owner_review"]
           owner_reviewed_at?: string | null
           owner_reviewed_by?: string | null
+          pdf_path?: string | null
+          pdf_uploaded_at?: string | null
           starting_float?: number
           status?: Database["public"]["Enums"]["cash_session_status"]
           total_cash_sales?: number | null
@@ -367,6 +371,8 @@ export type Database = {
           owner_review?: Database["public"]["Enums"]["cash_owner_review"]
           owner_reviewed_at?: string | null
           owner_reviewed_by?: string | null
+          pdf_path?: string | null
+          pdf_uploaded_at?: string | null
           starting_float?: number
           status?: Database["public"]["Enums"]["cash_session_status"]
           total_cash_sales?: number | null
