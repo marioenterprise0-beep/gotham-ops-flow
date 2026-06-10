@@ -7,7 +7,7 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { AlertTriangle, ArchiveRestore, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download, Boxes, BookOpen, Settings as SettingsIcon, History, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
-import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies } from "@/lib/inventory.functions";
+import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies, listInventoryCategories, createInventoryCategory, archiveInventoryCategory } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
