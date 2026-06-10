@@ -127,7 +127,7 @@ export const deleteSchedule = createServerFn({ method: "POST" })
     await requireOwner(supabase, userId);
     if (!data.force) {
       const [{ data: shifts }, { data: sched }] = await Promise.all([
-        supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).limit(1),
+        supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).is("archived_at", null).limit(1),
         supabase.from("schedules").select("start_date, end_date").eq("id", data.id).maybeSingle(),
       ]);
       let punches = 0;
