@@ -10,11 +10,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listPendingApprovals, signOffTask } from "@/lib/tasks.functions";
 import { listInventory } from "@/lib/inventory.functions";
-import { createInvite, listInvites, revokeInvite } from "@/lib/invites.functions";
-import { getManagerOverview, createActionTask, acknowledgeAlert, reorderItem, listCrewRoster, updateCrewRole } from "@/lib/manager.functions";
-import { amISuperAdmin, setUserActive } from "@/lib/users.functions";
+import {
+  getManagerOverview, createActionTask, acknowledgeAlert, reorderItem,
+  listCrewRoster, requestNewEmployee,
+} from "@/lib/manager.functions";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { TaskTemplatesPanel } from "@/components/gotham/TaskTemplatesPanel";
 
