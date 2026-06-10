@@ -290,8 +290,9 @@ export const updateCrewRole = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), role: z.enum(ROLE_VALUES) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
-    if (data.userId === userId && data.role !== "owner" && data.role !== "manager") {
+    const { requireOwner } = await import("./auth-guards");
+    await requireOwner(supabase, userId); // OWNER ONLY — role changes are governance
+    if (data.userId === userId && data.role !== "owner") {
       throw new Error("You cannot demote yourself");
     }
     await supabase.from("user_roles").delete().eq("user_id", data.userId);
@@ -301,6 +302,75 @@ export const updateCrewRole = createServerFn({ method: "POST" })
       actor_id: userId, action: "update_role", entity: "user", entity_id: data.userId, payload: { role: data.role },
     });
     return { ok: true };
+  });
+
+// Manager-initiated request to add a new employee. Creates an owner alert
+// and a change_log entry. Owner decides via standard alerts queue.
+export const requestNewEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    name: z.string().trim().min(1).max(120),
+    contact: z.string().trim().min(1).max(200),
+    requestedRole: z.enum(ROLE_VALUES),
+    requestedTrailerId: z.string().uuid().nullable().optional(),
+    reason: z.string().trim().min(1).max(2000),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId); // managers may REQUEST
+    const { data: profile } = await supabase
+      .from("profiles").select("display_name, trailer_id").eq("id", userId).maybeSingle();
+    const trailerId = data.requestedTrailerId ?? profile?.trailer_id ?? null;
+    let trailerName: string | null = null;
+    if (trailerId) {
+      const { data: t } = await supabase.from("trailers").select("name").eq("id", trailerId).maybeSingle();
+      trailerName = t?.name ?? null;
+    }
+    const description =
+      `${data.name} (${data.contact}) · role: ${data.requestedRole}` +
+      (trailerName ? ` · location: ${trailerName}` : "") +
+      ` · ${data.reason}`;
+
+    const { data: alert, error: alertErr } = await supabase.from("alerts").insert({
+      type: "manager_note",
+      title: `New employee request — ${data.name}`,
+      description,
+      source_module: "users",
+      source_id: null,
+      trailer_id: trailerId,
+      created_by: userId,
+      assigned_role: "owner",
+      priority: "high",
+      status: "pending",
+      payload: {
+        kind: "new_employee_request",
+        name: data.name,
+        contact: data.contact,
+        requested_role: data.requestedRole,
+        requested_trailer_id: trailerId,
+        reason: data.reason,
+        requested_by: userId,
+        requested_by_name: profile?.display_name ?? null,
+      },
+    }).select("id").maybeSingle();
+    if (alertErr) throw alertErr;
+
+    await supabase.from("change_log").insert({
+      actor_id: userId,
+      actor_name: profile?.display_name ?? null,
+      entity: "user_request",
+      entity_id: alert?.id ?? null,
+      action: "request_new_employee",
+      summary: `Manager requested new employee: ${data.name} (${data.requestedRole})`,
+      after: {
+        name: data.name, contact: data.contact, role: data.requestedRole,
+        trailer_id: trailerId, reason: data.reason,
+      },
+      reason: data.reason,
+      trailer_id: trailerId,
+    });
+
+    return { ok: true, alertId: alert?.id ?? null };
   });
 
 export const listAuditLog = createServerFn({ method: "GET" })
