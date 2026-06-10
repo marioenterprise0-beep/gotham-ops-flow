@@ -207,6 +207,8 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
+    const category = String(data.category).toLowerCase();
+    await assertCategoryExists(supabase, category);
     const { data: store } = await supabase.from("stores").select("id").order("created_at").limit(1).maybeSingle();
     if (!store) throw new Error("No store configured");
     const trailerId = await resolveTrailer(supabase, userId, data.trailerId);
@@ -214,7 +216,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
 
     // Structural fields (global) — propagated across every per-trailer copy.
     const structural: any = {
-      name: data.name, category: data.category, unit: data.unit,
+      name: data.name, category, unit: data.unit,
       par_level: data.parLevel, low_threshold: data.lowThreshold,
       cost_per_unit: data.costPerUnit ?? 0, store_id: store.id,
       updated_at: new Date().toISOString(),
