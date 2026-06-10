@@ -13,6 +13,16 @@ export const Route = createFileRoute("/integrity")({
   beforeLoad: requireAuthBeforeLoad,
   head: () => ({ meta: [{ title: "Data Integrity · Gotham OS" }] }),
   component: IntegrityPage,
+  errorComponent: ({ error, reset }) => (
+    <div className="p-6 max-w-2xl mx-auto">
+      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
+        <div className="text-sm font-medium text-destructive">Could not load Data Integrity</div>
+        <div className="text-xs text-muted-foreground mt-1">{String(error?.message ?? error)}</div>
+        <button onClick={() => reset()} className="mt-3 px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-muted/70">Retry</button>
+      </div>
+    </div>
+  ),
+  notFoundComponent: () => <div className="p-6">Not found.</div>,
 });
 
 const TONE: Record<IntegrityIssue["severity"], "success" | "warning" | "danger" | "info"> = {
