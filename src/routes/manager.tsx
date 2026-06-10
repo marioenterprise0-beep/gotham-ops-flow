@@ -230,11 +230,11 @@ function ManagerPage() {
       <SectionHeader eyebrow="Actions" title="Task Templates" action={<StatusPill tone="gold">Auto-assigns on clock-in</StatusPill>} />
       <TaskTemplatesPanel />
 
-      <SectionHeader eyebrow="Actions" title="Crew Roster" />
+      <SectionHeader eyebrow="Today" title="Crew on Shift" />
       <CrewRosterPanel />
 
-      <SectionHeader eyebrow="Actions" title="Invite Codes" />
-      <InviteCodesPanel />
+      <SectionHeader eyebrow="Requests" title="Request New Employee" action={<StatusPill tone="info">Owner approves</StatusPill>} />
+      <RequestNewEmployeePanel />
 
       {open && <ActionModal onClose={() => setOpen(false)} onCreated={() => { qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "tasks", "alerts"); }} />}
 
