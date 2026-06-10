@@ -62,12 +62,12 @@ export const getAnalytics = createServerFn({ method: "POST" })
     const trailerFilter = data.trailerId ?? null;
 
     // Tasks completion
-    let tasksQ = supabase.from("tasks").select("status, created_at, completed_at, trailer_id")
+    let tasksQ = supabase.from("tasks").select("status, created_at, completed_at, trailer_id").is("archived_at", null)
       .gte("created_at", startIso).lte("created_at", endIso);
     if (trailerFilter) tasksQ = tasksQ.eq("trailer_id", trailerFilter);
 
     // Waste by item -> category
-    let wasteQ = supabase.from("waste_log").select("qty, item_id, logged_at, trailer_id")
+    let wasteQ = supabase.from("waste_log").select("qty, item_id, logged_at, trailer_id").is("archived_at", null)
       .gte("logged_at", startIso).lte("logged_at", endIso);
     if (trailerFilter) wasteQ = wasteQ.eq("trailer_id", trailerFilter);
 
@@ -77,12 +77,12 @@ export const getAnalytics = createServerFn({ method: "POST" })
     if (trailerFilter) countsQ = countsQ.eq("trailer_id", trailerFilter);
 
     // Hospitality incidents
-    let hospQ = supabase.from("hospitality_incidents").select("type, severity, logged_at, trailer_id")
+    let hospQ = supabase.from("hospitality_incidents").select("type, severity, logged_at, trailer_id").is("archived_at", null)
       .gte("logged_at", startIso).lte("logged_at", endIso);
     if (trailerFilter) hospQ = hospQ.eq("trailer_id", trailerFilter);
 
     // Shifts for opening time
-    let shiftsQ = supabase.from("shifts").select("opened_at, phase, status, shift_date, trailer_id")
+    let shiftsQ = supabase.from("shifts").select("opened_at, phase, status, shift_date, trailer_id").is("archived_at", null)
       .gte("shift_date", startDate).lte("shift_date", endDate);
     if (trailerFilter) shiftsQ = shiftsQ.eq("trailer_id", trailerFilter);
 

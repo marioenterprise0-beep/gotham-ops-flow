@@ -7,7 +7,7 @@ export const listTasks = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
-      .from("tasks").select("*")
+      .from("tasks").select("*").is("archived_at", null)
       .eq("shift_id", data.shiftId)
       .order("created_at");
     if (error) throw error;
