@@ -277,7 +277,7 @@ function Operations() {
                         <ShieldCheck className="h-3.5 w-3.5" /> Approve
                       </button>
                     )}
-                    {isManager && (
+                    {isOwner && (
                       <button
                         onClick={() => {
                           if (confirm(`Delete task "${t.title}"? This cannot be undone from the checklist.`)) {
