@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { listChangeLog, recordChange, type ChangeLogRow } from "@/lib/change-log.functions";
 import { syncDomains } from "@/lib/sync-bus";
@@ -13,7 +14,7 @@ import { ScrollText, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/change-log")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
   head: () => ({ meta: [{ title: "Change Log · Gotham OS" }] }),
   component: ChangeLogPage,
 });
@@ -31,7 +32,7 @@ const TONE: Record<string, "success" | "warning" | "danger" | "info" | "gold"> =
   close: "info",
 };
 
-function ChangeLogPage() {
+export function ChangeLogPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
 
@@ -67,7 +68,7 @@ function ChangeLogPage() {
   }, [rows]);
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Activity"
         title="Change Log"
@@ -165,6 +166,6 @@ function ChangeLogPage() {
         </div>
       )}
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }

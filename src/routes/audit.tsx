@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/audit")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
   head: () => ({ meta: [{ title: "Audit Log · Gotham OS" }] }),
   component: AuditPage,
 });
@@ -44,7 +45,7 @@ function csvEscape(v: any) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-function AuditPage() {
+export function AuditPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const fetchLog = useServerFn(listAuditLogFiltered);
@@ -84,7 +85,7 @@ function AuditPage() {
   }
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Activity"
         title="Audit Log"
@@ -170,6 +171,6 @@ function AuditPage() {
       </Dialog>
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }

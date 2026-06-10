@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { canSee, ROLES, useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -43,7 +44,7 @@ const MOD_PRESETS: { id: string; label: string; desc: string; allow: string[] }[
 
 export const Route = createFileRoute("/users")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "people" } as any }); },
   head: () => ({ meta: [{ title: "Users · Gotham OS" }] }),
   component: UsersPage,
 });
@@ -63,13 +64,13 @@ const EXPIRY_OPTIONS = [
   { hours: 24 * 7, label: "7 days" },
 ];
 
-function UsersPage() {
+export function UsersPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [tab, setTab] = useState<"users" | "invites" | "logs">("users");
 
   return (
-    <AppShell>
+    <EmbedShell>
       <Card dark>
         <div className="label-caps text-white/55">Access Control</div>
         <h1 className="font-display text-3xl mt-1 text-white">USERS & ACCESS</h1>
@@ -95,7 +96,7 @@ function UsersPage() {
       {tab === "logs" && <LogsTab />}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

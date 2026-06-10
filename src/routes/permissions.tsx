@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
@@ -18,7 +19,7 @@ import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/permissions")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "permissions" } as any }); },
   head: () => ({ meta: [{ title: "Permissions · Gotham OS" }] }),
   component: PermissionsPage,
 });
@@ -54,7 +55,7 @@ const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[]
   { id: "edit", label: "Full edit", icon: Pencil, tone: "success" },
 ];
 
-function PermissionsPage() {
+export function PermissionsPage() {
   const { loading, session, roleId, refreshPermissions } = useRole();
   const qc = useQueryClient();
   const [mode, setMode] = useState<"role" | "user" | "emails">("role");
@@ -134,18 +135,18 @@ function PermissionsPage() {
 
   if (!authReady) {
     return (
-      <AppShell>
+      <EmbedShell>
         <div className="text-sm text-muted-foreground">Loading permissions…</div>
-      </AppShell>
+      </EmbedShell>
     );
   }
 
   if (!session?.access_token) return <Navigate to="/auth" />;
   if (session && !roleId) {
     return (
-      <AppShell>
+      <EmbedShell>
         <div className="text-sm text-muted-foreground">Loading permissions…</div>
-      </AppShell>
+      </EmbedShell>
     );
   }
   if (roleId !== "owner") return <Navigate to="/" />;
@@ -167,7 +168,7 @@ function PermissionsPage() {
 
 
   return (
-    <AppShell>
+    <EmbedShell>
       <Card dark>
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-[var(--color-gold)]" />
@@ -300,7 +301,7 @@ function PermissionsPage() {
       )}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

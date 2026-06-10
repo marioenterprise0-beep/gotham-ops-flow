@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Check, X, MapPin, Clock, Ban } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +21,7 @@ import { GeofencePanel } from "@/components/gotham/geofence-panel";
 
 export const Route = createFileRoute("/location-requests")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "locations" } as any }); },
   head: () => ({ meta: [{ title: "Location Access · Gotham OS" }] }),
   component: LocationRequests,
 });
@@ -45,7 +46,7 @@ const STATUS_TONE: Record<string, "warning" | "success" | "danger" | "info"> = {
   expired: "danger", cancelled: "info",
 };
 
-function LocationRequests() {
+export function LocationRequests() {
   const qc = useQueryClient();
   const { roleId, trailers, session, loading } = useRole();
   const isOwner = roleId === "owner";
@@ -95,7 +96,7 @@ function LocationRequests() {
   const trailerName = (id?: string | null) => (id ? trailers.find((t) => t.id === id)?.name ?? "Trailer" : "—");
 
   return (
-    <AppShell>
+    <EmbedShell>
       <div className="mb-3">
         <div className="label-caps text-muted-foreground">Governance</div>
         <h1 className="font-display text-2xl text-foreground">LOCATION ACCESS REQUESTS</h1>
@@ -182,7 +183,7 @@ function LocationRequests() {
       {isOwner && <GeofencePanel />}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
 import { canSee, useRole } from "@/lib/role";
@@ -12,7 +13,7 @@ import { RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/data-health")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "system" } as any }); },
   head: () => ({ meta: [{ title: "Data Health · Gotham OS" }] }),
   component: DataHealthPage,
 });
@@ -22,7 +23,7 @@ function ageDays(iso: string | null) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000);
 }
 
-function DataHealthPage() {
+export function DataHealthPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [retention, setRetention] = useState(90);
@@ -34,7 +35,7 @@ function DataHealthPage() {
   });
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Operations"
         title="Data Health"
@@ -113,6 +114,6 @@ function DataHealthPage() {
       </Card>
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
