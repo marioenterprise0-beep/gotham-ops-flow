@@ -199,6 +199,7 @@ function CashPage() {
         <SessionDetailDialog
           sessionId={detailFor}
           isManager={isManager}
+          isOwner={isOwner}
           onClose={() => setDetailFor(null)}
           onChanged={() => {
             syncDomains(qc, "cash");
