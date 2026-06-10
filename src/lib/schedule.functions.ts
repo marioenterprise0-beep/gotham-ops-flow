@@ -445,6 +445,7 @@ export const generateCoverage = createServerFn({ method: "POST" })
       .from("schedule_shifts")
       .select("shift_date, segment, employee_id")
       .eq("schedule_id", data.scheduleId)
+      .is("archived_at", null)
       .is("employee_id", null);
     const taken = new Set<string>((existing ?? []).map((r: any) => `${r.shift_date}|${r.segment}`));
 
