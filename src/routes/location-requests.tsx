@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
+import { EmbedShell } from "@/components/gotham/EmbedShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Check, X, MapPin, Clock, Ban } from "lucide-react";
 import { toast } from "sonner";
