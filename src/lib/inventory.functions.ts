@@ -156,14 +156,23 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
+    // Apply to the targeted item, then propagate to all sibling rows (same name + store).
+    const { data: target } = await supabase.from("inventory_items")
+      .select("name, store_id").eq("id", data.id).maybeSingle();
     const { error } = await supabase.from("inventory_items").update(patch).eq("id", data.id);
     if (error) throw error;
+    if (target?.name && target?.store_id) {
+      const { error: pErr } = await supabase.from("inventory_items").update(patch)
+        .eq("store_id", target.store_id).eq("name", target.name).neq("id", data.id);
+      if (pErr) throw pErr;
+    }
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "update_order_guide", entity: "inventory_item",
-      entity_id: data.id, payload: data.patch,
+      entity_id: data.id, payload: { ...data.patch, propagated: true },
     });
     return { ok: true };
   });
+
 
 // ---------- Lifecycle: scan / archive / restore / hard delete ----------
 
