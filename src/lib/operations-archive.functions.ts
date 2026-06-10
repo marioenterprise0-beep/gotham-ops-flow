@@ -141,8 +141,9 @@ export const deleteOperationsEntity = createServerFn({ method: "POST" })
     await assertOwner(supabase, userId);
     if (!data.force) {
       let liveTotal = 0;
+      const sb: any = supabase;
       for (const dep of DEPS[data.entity]) {
-        const { count } = await (supabase as any)
+        const { count } = await sb
           .from(dep.table)
           .select("id", { count: "exact", head: true })
           .eq(dep.column, data.id)
