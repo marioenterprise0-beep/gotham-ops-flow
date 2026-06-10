@@ -336,19 +336,37 @@ function LiveCountsTab() {
               className={cn(
                 "rounded-md px-3.5 py-2 text-xs font-semibold uppercase tracking-[1.2px] border transition",
                 c === cat ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
-              )}>{CATEGORY_LABELS[c] ?? c}</button>
+              )}>{catLabelByKey.get(c) ?? c}</button>
           ))}
           {isOwner && (
-            <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
-              <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
-              Show archived
-            </label>
+            <>
+              <button
+                onClick={handleAddCategory}
+                disabled={createCatMut.isPending}
+                title="Add category"
+                className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] disabled:opacity-50">
+                <Plus className="h-3.5 w-3.5" /> Category
+              </button>
+              {categories.some((c) => c.key === cat) && (
+                <button
+                  onClick={handleRemoveCategory}
+                  disabled={archiveCatMut.isPending}
+                  title="Remove current category"
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:text-[var(--color-danger)] hover:border-[var(--color-danger)] disabled:opacity-50">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap pl-3">
+                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+                Show archived
+              </label>
+            </>
           )}
         </div>
       </div>
 
       <SectionHeader
-        eyebrow={CATEGORY_LABELS[cat] ?? cat}
+        eyebrow={catLabelByKey.get(cat) ?? cat}
         title="Live Counts"
         action={
           canPropose ? (
