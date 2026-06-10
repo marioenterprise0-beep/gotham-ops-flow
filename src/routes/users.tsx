@@ -214,7 +214,7 @@ function UsersTab() {
         title="All Users"
         action={
           <div className="flex items-center gap-2">
-            {isSuperAdmin && (
+            {isOwner && (
               <button
                 onClick={() => setShowArchived((v) => !v)}
                 className={cn(
