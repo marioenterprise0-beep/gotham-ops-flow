@@ -45,7 +45,7 @@ function csvEscape(v: any) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-function AuditPage() {
+export function AuditPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const fetchLog = useServerFn(listAuditLogFiltered);

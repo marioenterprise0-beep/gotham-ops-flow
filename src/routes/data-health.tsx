@@ -23,7 +23,7 @@ function ageDays(iso: string | null) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400_000);
 }
 
-function DataHealthPage() {
+export function DataHealthPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [retention, setRetention] = useState(90);

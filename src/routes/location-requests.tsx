@@ -46,7 +46,7 @@ const STATUS_TONE: Record<string, "warning" | "success" | "danger" | "info"> = {
   expired: "danger", cancelled: "info",
 };
 
-function LocationRequests() {
+export function LocationRequests() {
   const qc = useQueryClient();
   const { roleId, trailers, session, loading } = useRole();
   const isOwner = roleId === "owner";

@@ -64,7 +64,7 @@ const EXPIRY_OPTIONS = [
   { hours: 24 * 7, label: "7 days" },
 ];
 
-function UsersPage() {
+export function UsersPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const [tab, setTab] = useState<"users" | "invites" | "logs">("users");

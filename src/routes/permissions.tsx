@@ -55,7 +55,7 @@ const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[]
   { id: "edit", label: "Full edit", icon: Pencil, tone: "success" },
 ];
 
-function PermissionsPage() {
+export function PermissionsPage() {
   const { loading, session, roleId, refreshPermissions } = useRole();
   const qc = useQueryClient();
   const [mode, setMode] = useState<"role" | "user" | "emails">("role");

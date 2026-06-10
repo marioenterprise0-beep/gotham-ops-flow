@@ -32,7 +32,7 @@ const TONE: Record<string, "success" | "warning" | "danger" | "info" | "gold"> =
   close: "info",
 };
 
-function ChangeLogPage() {
+export function ChangeLogPage() {
   const { roleId } = useRole();
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
 
