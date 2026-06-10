@@ -375,20 +375,6 @@ function AlertRow({ alert: a, isOwner, onOpen }: { alert: Alert; isOwner: boolea
   );
 }
 
-function StatCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: any; tone: "info" | "danger" | "warning" | "success" }) {
-  const toneClass = tone === "danger" ? "text-red-600" : tone === "warning" ? "text-amber-600" : tone === "success" ? "text-emerald-600" : "text-[var(--color-gold)]";
-  return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-          <div className="text-2xl font-bold mt-1">{value}</div>
-        </div>
-        <Icon className={cn("h-6 w-6", toneClass)} />
-      </div>
-    </Card>
-  );
-}
 
 function AlertDetailDialog({ alertId, isOwner, onClose, onDone }: { alertId: string; isOwner: boolean; onClose: () => void; onDone: () => void }) {
   const getDetail = useServerFn(getAlertDetail);
