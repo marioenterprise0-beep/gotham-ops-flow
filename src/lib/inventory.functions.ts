@@ -39,7 +39,132 @@ async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: st
   }
 }
 
-const CATEGORY_VALUES = ["protein", "bun", "sauce", "produce", "dairy", "packaging", "supplies"] as const;
+// Categories are now stored in `inventory_categories` and managed at runtime
+// by owners. Item writes accept any non-empty string (server validates it
+// against the live category list below).
+const CATEGORY_KEY = z.string().min(1).max(40).regex(/^[a-z0-9_-]+$/i, "letters, numbers, _ or - only");
+
+async function assertCategoryExists(supabase: any, key: string) {
+  const { data, error } = await supabase
+    .from("inventory_categories")
+    .select("key, archived_at")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error(`Unknown category: ${key}`);
+  if (data.archived_at) throw new Error(`Category "${key}" is archived`);
+}
+
+export const listInventoryCategories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase
+      .from("inventory_categories")
+      .select("id, key, label, sort_order, archived_at, archive_reason")
+      .order("sort_order")
+      .order("label");
+    if (!data?.includeArchived) q = q.is("archived_at", null);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const createInventoryCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    key: CATEGORY_KEY,
+    label: z.string().min(1).max(60),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const key = data.key.toLowerCase();
+    const { data: row, error } = await supabase
+      .from("inventory_categories")
+      .insert({
+        key,
+        label: data.label.trim(),
+        sort_order: data.sortOrder ?? 100,
+        created_by: userId,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.code === "23505" ? `Category "${key}" already exists` : error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "inventory_category_created",
+      entity: "inventory_category", entity_id: row.id,
+      payload: { key, label: row.label },
+    });
+    return row;
+  });
+
+export const updateInventoryCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    label: z.string().min(1).max(60).optional(),
+    sortOrder: z.number().int().min(0).max(9999).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const patch: any = {};
+    if (data.label !== undefined) patch.label = data.label.trim();
+    if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
+    const { error } = await supabase.from("inventory_categories").update(patch).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const archiveInventoryCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    reason: z.string().max(200).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { data: cat } = await supabase
+      .from("inventory_categories").select("key").eq("id", data.id).maybeSingle();
+    if (!cat) throw new Error("Category not found");
+    const { count } = await (supabase as any)
+      .from("inventory_items")
+      .select("id", { count: "exact", head: true })
+      .eq("category", cat.key)
+      .is("archived_at", null);
+    if ((count ?? 0) > 0) throw new Error(`Move or archive the ${count} item(s) in this category first.`);
+    const { error } = await supabase
+      .from("inventory_categories")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "inventory_category_archived",
+      entity: "inventory_category", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreInventoryCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { error } = await supabase
+      .from("inventory_categories")
+      .update({ archived_at: null, archived_by: null, archive_reason: null })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 export const listInventory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
