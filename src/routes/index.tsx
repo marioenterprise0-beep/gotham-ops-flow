@@ -331,29 +331,45 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
 
   return (
     <>
-      {/* HERO — TODAY AT GOTHAM */}
-      <Card dark className="relative overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
+      {/* HERO — TODAY AT GOTHAM (compressed) */}
+      <Card dark className="relative overflow-hidden !p-3">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
           <div>
             <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]/80">
               <span className={`h-1.5 w-1.5 rounded-full ${shiftActive ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
               Today at Gotham
             </div>
-            <h1 className="font-display text-3xl md:text-4xl mt-1 text-white">{phaseLabel}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
-              <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
-              <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
-              <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-[var(--color-gold)]" />Crew: {crew.length}</span>
+            <h1 className="font-display text-2xl md:text-3xl mt-0.5 text-white leading-tight">{phaseLabel}</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-white/70">
+              <span className="flex items-center gap-1.5"><Timer className="h-3 w-3 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
+              <span className="flex items-center gap-1.5"><Users className="h-3 w-3 text-[var(--color-gold)]" />Crew: {crew.length}</span>
             </div>
           </div>
-          <div className="flex justify-center md:justify-end">
-            <CircularProgress value={completePct} size={120} stroke={10} label="Complete" />
+          <div className="hidden md:flex justify-end">
+            <CircularProgress value={completePct} size={84} stroke={8} label="Complete" />
           </div>
         </div>
       </Card>
 
+      {/* Shift flow tracker — primary workflow */}
+      <div className="mt-3">
+        <ShiftFlowTracker
+          clockedIn={clockedIn}
+          hasClockedInToday={clockedIn}
+          tasksTotal={myTasks.length}
+          tasksDone={myDone}
+          opsRunPct={completePct}
+          inventoryCountedToday={false}
+          criticalAlertsOpen={(pending ?? []).filter((a: any) => a.priority === "critical").length}
+          recapSubmittedToday={false}
+          isManagerView={true}
+        />
+      </div>
+
       {/* 1 · CURRENT SHIFT  +  2 · CLOCK STATUS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+
         <Card>
           <div className="flex items-start justify-between">
             <div>
