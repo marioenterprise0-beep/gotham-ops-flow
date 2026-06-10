@@ -145,13 +145,18 @@ export function TaskTemplatesPanel() {
           <div className="text-xs">{t.requires_signoff ? "Required" : "—"}</div>
           <div className="flex gap-2 md:justify-end">
             <button onClick={() => setHistoryFor(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><History className="h-3 w-3" /> History</button>
-            <button onClick={() => setEditing(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
-            <button
-              onClick={() => { if (confirm(`Delete "${t.title}"? This stops auto-assigning it.`)) deleteMut.mutate(t.id); }}
-              disabled={deleteMut.isPending}
-              className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 text-[var(--color-danger)] disabled:opacity-50"
-            ><Trash2 className="h-3 w-3" /></button>
+            {canEdit && (
+              <>
+                <button onClick={() => setEditing(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
+                <button
+                  onClick={() => { if (confirm(`Delete "${t.title}"? This stops auto-assigning it.`)) deleteMut.mutate(t.id); }}
+                  disabled={deleteMut.isPending}
+                  className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 text-[var(--color-danger)] disabled:opacity-50"
+                ><Trash2 className="h-3 w-3" /></button>
+              </>
+            )}
           </div>
+
         </div>
       ))}
 
