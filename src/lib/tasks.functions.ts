@@ -140,15 +140,18 @@ export const signOffTask = createServerFn({ method: "POST" })
 
 export const listPendingApprovals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isManager = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
     if (!isManager) throw new Error("Manager role required");
-    const { data, error } = await supabase
+    let q = supabase
       .from("tasks").select("*")
       .eq("status", "done").eq("requires_signoff", true)
       .order("completed_at", { ascending: false }).limit(50);
+    if (data?.trailerId) q = q.eq("trailer_id", data.trailerId);
+    const { data: rows, error } = await q;
     if (error) throw error;
-    return data ?? [];
+    return rows ?? [];
   });
