@@ -66,7 +66,7 @@ const EXPIRY_OPTIONS = [
 
 export function UsersPage() {
   const { roleId } = useRole();
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
+  if (roleId !== "owner") return <Navigate to="/" />;
   const [tab, setTab] = useState<"users" | "invites" | "logs">("users");
 
   return (
