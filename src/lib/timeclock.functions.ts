@@ -101,6 +101,7 @@ export const clockIn = createServerFn({ method: "POST" })
       const today = new Date().toISOString().slice(0, 10);
       const { data: todaysShift } = await supabase.from("schedule_shifts")
         .select("id, schedules!inner(archived_at)").is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", userId).eq("shift_date", today)
         .order("start_time").limit(1).maybeSingle();
       if (todaysShift) scheduleShiftId = todaysShift.id;
@@ -283,6 +284,7 @@ export const getMyWeek = createServerFn({ method: "POST" })
         .order("clock_in_at"),
       supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
         .is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", userId)
         .gte("shift_date", ws)
         .lt("shift_date", end.toISOString().slice(0, 10))
@@ -409,7 +411,7 @@ export const listMyRequests = createServerFn({ method: "GET" })
     const [{ data: corrections }, { data: timeOff }, { data: notes }] = await Promise.all([
       supabase.from("time_corrections").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
       supabase.from("time_off_requests").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
-      supabase.from("shift_notes").select("*").eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
+      supabase.from("shift_notes").select("*").is("archived_at", null).eq("employee_id", userId).order("created_at", { ascending: false }).limit(50),
     ]);
     return { corrections: corrections ?? [], timeOff: timeOff ?? [], notes: notes ?? [] };
   });

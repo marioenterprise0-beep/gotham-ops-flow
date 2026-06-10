@@ -36,7 +36,7 @@ export const scanScheduleDependencies = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     const [shifts, sched] = await Promise.all([
-      supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id),
+      supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).is("archived_at", null),
       supabase.from("schedules").select("trailer_id, start_date, end_date, status").eq("id", data.id).maybeSingle(),
     ]);
     let punchCount = 0;
@@ -127,7 +127,7 @@ export const deleteSchedule = createServerFn({ method: "POST" })
     await requireOwner(supabase, userId);
     if (!data.force) {
       const [{ data: shifts }, { data: sched }] = await Promise.all([
-        supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).limit(1),
+        supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).is("archived_at", null).limit(1),
         supabase.from("schedules").select("start_date, end_date").eq("id", data.id).maybeSingle(),
       ]);
       let punches = 0;
@@ -162,7 +162,7 @@ export const getSchedule = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     let shiftsQ = supabase.from("schedule_shifts").select("*")
-      .eq("schedule_id", data.id).order("shift_date").order("start_time");
+      .eq("schedule_id", data.id).is("archived_at", null).order("shift_date").order("start_time");
     // Include null-trailer shifts (e.g. generated coverage with no trailer scope)
     // alongside the scoped ones so they don't get hidden from the board.
     if (data.trailerId) shiftsQ = shiftsQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
@@ -445,6 +445,7 @@ export const generateCoverage = createServerFn({ method: "POST" })
       .from("schedule_shifts")
       .select("shift_date, segment, employee_id")
       .eq("schedule_id", data.scheduleId)
+      .is("archived_at", null)
       .is("employee_id", null);
     const taken = new Set<string>((existing ?? []).map((r: any) => `${r.shift_date}|${r.segment}`));
 

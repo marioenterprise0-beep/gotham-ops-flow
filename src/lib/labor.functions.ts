@@ -44,6 +44,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       .lt("clock_in_at", end.toISOString());
     let shiftsQ = supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
       .is("schedules.archived_at", null)
+      .is("archived_at", null)
       .gte("shift_date", ws)
       .lt("shift_date", end.toISOString().slice(0, 10));
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
@@ -141,11 +142,13 @@ export const getEmployeeWeek = createServerFn({ method: "POST" })
         .order("clock_in_at"),
       supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
         .is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", data.userId)
         .gte("shift_date", ws)
         .lt("shift_date", end.toISOString().slice(0, 10))
         .order("shift_date"),
       supabase.from("shift_notes").select("*")
+        .is("archived_at", null)
         .eq("employee_id", data.userId)
         .gte("created_at", start.toISOString())
         .lt("created_at", end.toISOString())
@@ -260,7 +263,7 @@ export const listAllRequests = createServerFn({ method: "POST" })
 
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
     let toQ = supabase.from("time_off_requests").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
-    let notesQ = supabase.from("shift_notes").select("*").order("created_at", { ascending: false }).limit(100);
+    let notesQ = supabase.from("shift_notes").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
     if (data.trailerId) {
       corrQ = corrQ.eq("trailer_id", data.trailerId);
       toQ = toQ.eq("trailer_id", data.trailerId);
