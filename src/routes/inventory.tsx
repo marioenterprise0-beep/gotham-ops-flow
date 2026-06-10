@@ -718,6 +718,11 @@ function ModalActions({ onClose, primary, disabled, onSubmit }: { onClose: () =>
 export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClose, onDone }: { item: Item | null; defaultCategory: string; isOwner: boolean; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const upsert = useServerFn(upsertInventoryItem);
   const requestFn = useServerFn(submitInventoryChangeRequest);
+  const listCatsFn = useServerFn(listInventoryCategories);
+  const { data: liveCategories = [] } = useQuery<Array<{ key: string; label: string }>>({
+    queryKey: ["inventory-categories"],
+    queryFn: () => listCatsFn({ data: {} }) as any,
+  });
   const it = item as any;
   const [name, setName] = useState(item?.name ?? "");
   const [category, setCategory] = useState<string>(item?.category ?? defaultCategory);
