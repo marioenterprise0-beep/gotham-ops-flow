@@ -44,6 +44,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       .lt("clock_in_at", end.toISOString());
     let shiftsQ = supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
       .is("schedules.archived_at", null)
+      .is("archived_at", null)
       .gte("shift_date", ws)
       .lt("shift_date", end.toISOString().slice(0, 10));
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
