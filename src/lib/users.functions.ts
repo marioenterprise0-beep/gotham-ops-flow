@@ -363,7 +363,12 @@ export const setUserTrailer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const SUPER_ADMIN_EMAILS = new Set(["mario.enterprise0@gmail.com", "mario@gothamhalal.com"]);
+const SUPER_ADMIN_EMAILS = new Set(
+  (process.env.SUPER_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
 
 async function requireSuperAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase.rpc("my_email");
