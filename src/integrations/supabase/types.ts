@@ -888,6 +888,42 @@ export type Database = {
           },
         ]
       }
+      inventory_categories: {
+        Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       inventory_change_requests: {
         Row: {
           action: Database["public"]["Enums"]["inventory_change_action"]
@@ -1007,8 +1043,10 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          archive_reason: string | null
           archived_at: string | null
-          category: Database["public"]["Enums"]["inventory_category"]
+          archived_by: string | null
+          category: string
           cost_per_unit: number
           count_instructions: string | null
           created_at: string
@@ -1032,8 +1070,10 @@ export type Database = {
           vendor: string | null
         }
         Insert: {
+          archive_reason?: string | null
           archived_at?: string | null
-          category: Database["public"]["Enums"]["inventory_category"]
+          archived_by?: string | null
+          category: string
           cost_per_unit?: number
           count_instructions?: string | null
           created_at?: string
@@ -1057,8 +1097,10 @@ export type Database = {
           vendor?: string | null
         }
         Update: {
+          archive_reason?: string | null
           archived_at?: string | null
-          category?: Database["public"]["Enums"]["inventory_category"]
+          archived_by?: string | null
+          category?: string
           cost_per_unit?: number
           count_instructions?: string | null
           created_at?: string
@@ -2932,14 +2974,6 @@ export type Database = {
         | "other"
       email_frequency: "immediate" | "daily_digest" | "critical_only" | "off"
       incident_severity: "low" | "medium" | "high"
-      inventory_category:
-        | "protein"
-        | "bun"
-        | "produce"
-        | "sauce"
-        | "packaging"
-        | "supplies"
-        | "dairy"
       inventory_change_action: "create" | "update" | "delete" | "archive"
       inventory_change_status: "pending" | "approved" | "declined" | "cancelled"
       inventory_order_status:
@@ -3169,15 +3203,6 @@ export const Constants = {
       ],
       email_frequency: ["immediate", "daily_digest", "critical_only", "off"],
       incident_severity: ["low", "medium", "high"],
-      inventory_category: [
-        "protein",
-        "bun",
-        "produce",
-        "sauce",
-        "packaging",
-        "supplies",
-        "dairy",
-      ],
       inventory_change_action: ["create", "update", "delete", "archive"],
       inventory_change_status: ["pending", "approved", "declined", "cancelled"],
       inventory_order_status: [
