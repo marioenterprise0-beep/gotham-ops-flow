@@ -1,9 +1,9 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, GripVertical, ArrowUp, ArrowDown, Check, RotateCcw, Activity, Banknote, Keyboard, MapPin, Archive, HeartPulse } from "lucide-react";
+import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, Activity, Banknote, Keyboard, MapPin, Archive, HeartPulse, ChevronLeft, ChevronRight, HardHat, Briefcase, Crown } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { canSee, initials, ROLES, useRole } from "@/lib/role";
+import { initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
 import { CommandPalette } from "@/components/gotham/CommandPalette";
@@ -13,56 +13,105 @@ import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
 
 
-type Tab = { to: string; key: string; label: string; icon: typeof Home; gate?: "manager" | "analytics" | "owner" };
+type Tab = { to: string; key: string; label: string; icon: typeof Home };
 
 const ALL_TABS: Tab[] = [
-  { to: "/",            key: "dashboard",   label: "Dashboard",   icon: Home },
-  { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",    icon: ListChecks },
-  { to: "/time-clock",  key: "time-clock",  label: "Time Clock",  icon: Clock },
-  { to: "/cash",        key: "cash",        label: "Cash",        icon: Banknote },
-  { to: "/operations",  key: "operations",  label: "Operations",  icon: ClipboardCheck },
-  { to: "/recaps",      key: "recaps",      label: "Daily Recap", icon: ScrollText,  gate: "manager" },
-  { to: "/schedule",    key: "schedule",    label: "Scheduling",  icon: CalendarDays },
-  { to: "/labor",       key: "labor",       label: "Labor",       icon: Timer,       gate: "manager" },
-  { to: "/inventory",   key: "inventory",   label: "Inventory",   icon: Boxes },
-  { to: "/inventory-guide", key: "inventory-guide", label: "Inventory Guide", icon: BookOpen },
-  { to: "/order-guide", key: "order-guide", label: "Order Guide", icon: BookOpen,    gate: "manager" },
-  { to: "/inventory-changes", key: "inventory-changes", label: "Inventory Requests", icon: ClipboardCheck },
-  { to: "/sops",        key: "sops",        label: "SOPs",        icon: BookOpen },
-  { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
-  { to: "/health",      key: "health",      label: "Health Score",icon: Activity,    gate: "manager" },
-  { to: "/alerts",      key: "alerts",      label: "Alerts",      icon: Bell },
-  { to: "/manager",     key: "manager",     label: "Manager",     icon: Shield,      gate: "manager" },
-  { to: "/users",       key: "users",       label: "Users",       icon: UsersIcon,   gate: "manager" },
-  { to: "/permissions", key: "permissions", label: "Permissions", icon: KeyRound,    gate: "owner" },
-  { to: "/location-requests", key: "location-requests", label: "Location Access", icon: MapPin,   gate: "owner" },
-  { to: "/audit",       key: "audit",       label: "Audit Log",   icon: ScrollText,  gate: "manager" },
-  { to: "/change-log",  key: "change-log",  label: "Change Log",  icon: ScrollText,  gate: "manager" },
-  { to: "/data-health", key: "data-health", label: "Data Health", icon: HeartPulse,  gate: "manager" },
-  { to: "/archive-center", key: "archive-center", label: "Archive Center", icon: Archive, gate: "manager" },
-  { to: "/integrity",   key: "integrity",   label: "Data Integrity", icon: Shield,   gate: "owner" },
-  { to: "/analytics",   key: "analytics",   label: "Analytics",   icon: BarChart3,   gate: "analytics" },
-  { to: "/settings",    key: "settings",    label: "Settings",    icon: SettingsIcon },
+  { to: "/",                  key: "dashboard",          label: "Dashboard",          icon: Home },
+  { to: "/my-tasks",          key: "my-tasks",           label: "My Tasks",           icon: ListChecks },
+  { to: "/time-clock",        key: "time-clock",         label: "Time Clock",         icon: Clock },
+  { to: "/cash",              key: "cash",               label: "Cash",               icon: Banknote },
+  { to: "/operations",        key: "operations",         label: "Operations",         icon: ClipboardCheck },
+  { to: "/recaps",            key: "recaps",             label: "Daily Recap",        icon: ScrollText },
+  { to: "/schedule",          key: "schedule",           label: "Scheduling",         icon: CalendarDays },
+  { to: "/labor",             key: "labor",              label: "Labor",              icon: Timer },
+  { to: "/inventory",         key: "inventory",          label: "Inventory",          icon: Boxes },
+  { to: "/inventory-guide",   key: "inventory-guide",    label: "Inventory Guide",    icon: BookOpen },
+  { to: "/order-guide",       key: "order-guide",        label: "Order Guide",        icon: BookOpen },
+  { to: "/inventory-changes", key: "inventory-changes",  label: "Inventory Requests", icon: ClipboardCheck },
+  { to: "/sops",              key: "sops",               label: "SOPs",               icon: BookOpen },
+  { to: "/hospitality",       key: "hospitality",        label: "Hospitality",        icon: Star },
+  { to: "/health",            key: "health",             label: "Health Score",       icon: Activity },
+  { to: "/alerts",            key: "alerts",             label: "Alerts",             icon: Bell },
+  { to: "/manager",           key: "manager",            label: "Command Center",     icon: Shield },
+  { to: "/users",             key: "users",              label: "Users",              icon: UsersIcon },
+  { to: "/permissions",       key: "permissions",        label: "Permissions",        icon: KeyRound },
+  { to: "/location-requests", key: "location-requests",  label: "Location Access",    icon: MapPin },
+  { to: "/audit",             key: "audit",              label: "Audit Log",          icon: ScrollText },
+  { to: "/change-log",        key: "change-log",         label: "Change Log",         icon: ScrollText },
+  { to: "/data-health",       key: "data-health",        label: "Data Health",        icon: HeartPulse },
+  { to: "/archive-center",    key: "archive-center",     label: "Archive Center",     icon: Archive },
+  { to: "/integrity",         key: "integrity",          label: "Data Integrity",     icon: Shield },
+  { to: "/analytics",         key: "analytics",          label: "Analytics",          icon: BarChart3 },
+  { to: "/settings",          key: "settings",           label: "Settings",           icon: SettingsIcon },
 ];
 
-const TAB_ORDER_KEY = "gotham:tab-order:v1";
+// Workspace modes — role-tailored navigation. Owners can switch modes.
+export type WorkspaceMode = "crew" | "manager" | "owner";
 
-function loadOrder(): string[] {
-  if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(TAB_ORDER_KEY) ?? "[]"); } catch { return []; }
-}
-function saveOrder(keys: string[]) {
-  try { localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(keys)); } catch {}
+const MODE_TABS: Record<WorkspaceMode, string[]> = {
+  crew: [
+    "dashboard", "my-tasks", "time-clock", "operations",
+    "inventory", "sops", "alerts", "settings",
+  ],
+  manager: [
+    "dashboard", "my-tasks", "time-clock", "operations",
+    "recaps", "schedule", "labor", "inventory", "sops",
+    "hospitality", "alerts", "manager", "settings",
+  ],
+  owner: ALL_TABS.map((t) => t.key),
+};
+
+const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: typeof HardHat }> = {
+  crew:    { label: "Crew",    tagline: "I came to work.",   icon: HardHat },
+  manager: { label: "Manager", tagline: "I run this shift.", icon: Briefcase },
+  owner:   { label: "Owner",   tagline: "Full access.",      icon: Crown },
+};
+
+const WORKSPACE_KEY = "gotham:workspace-mode:v1";
+const COLLAPSE_KEY = "gotham:sidebar-collapsed:v1";
+
+function defaultMode(roleId: string | null): WorkspaceMode {
+  if (roleId === "owner") return "owner";
+  if (roleId === "manager") return "manager";
+  return "crew";
 }
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { roleId, session, loading, disabledTabs } = useRole();
-  const [orderKeys, setOrderKeys] = useState<string[]>(() => loadOrder());
-  const [reorderMode, setReorderMode] = useState(false);
   const isOwner = roleId === "owner";
   const unreadAlerts = useUnreadAlerts();
   const queryClient = useQueryClient();
+
+  const [mode, setModeState] = useState<WorkspaceMode>(() => defaultMode(roleId));
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  });
+
+  // Sync mode when role loads / changes. Owners can override via switcher; persist owner choice only.
+  useEffect(() => {
+    if (isOwner) {
+      const saved = typeof window !== "undefined" ? (localStorage.getItem(WORKSPACE_KEY) as WorkspaceMode | null) : null;
+      setModeState(saved && saved in MODE_TABS ? saved : "owner");
+    } else {
+      setModeState(defaultMode(roleId));
+    }
+  }, [roleId, isOwner]);
+
+  function setMode(next: WorkspaceMode) {
+    setModeState(next);
+    if (isOwner) {
+      try { localStorage.setItem(WORKSPACE_KEY, next); } catch {}
+    }
+  }
+  function toggleCollapsed() {
+    setCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }
 
   useEffect(() => {
     const onRefresh = () => {
@@ -73,93 +122,82 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("gotham:refresh", onRefresh);
   }, [queryClient]);
 
-  const visibleTabs = ALL_TABS.filter((t) => {
-    if (t.gate === "owner") { if (roleId !== "owner") return false; }
-    else if (t.gate && !canSee(roleId, t.gate)) return false;
-    if (roleId !== "owner" && disabledTabs.has(t.key)) return false;
-    return true;
-  });
-
   const tabs = useMemo(() => {
-    const byKey = new Map(visibleTabs.map((t) => [t.key, t]));
-    const ordered: Tab[] = [];
-    for (const k of orderKeys) { const t = byKey.get(k); if (t) { ordered.push(t); byKey.delete(k); } }
-    for (const t of visibleTabs) if (byKey.has(t.key)) ordered.push(t);
-    return ordered;
-  }, [visibleTabs, orderKeys]);
+    const allowed = new Set(MODE_TABS[mode]);
+    return ALL_TABS.filter((t) => {
+      if (!allowed.has(t.key)) return false;
+      if (!isOwner && disabledTabs.has(t.key)) return false;
+      return true;
+    });
+  }, [mode, isOwner, disabledTabs]);
+
+  // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
+  const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
   if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
-  function move(key: string, dir: -1 | 1) {
-    const keys = tabs.map((t) => t.key);
-    const i = keys.indexOf(key);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= keys.length) return;
-    [keys[i], keys[j]] = [keys[j], keys[i]];
-    setOrderKeys(keys);
-    saveOrder(keys);
+  // Allow /auth and any sub-paths whose top-level is allowed.
+  const pathAllowed =
+    pathname === "/auth" ||
+    pathname === "/" ||
+    Array.from(allowedPaths).some((p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")));
+  if (session && !pathAllowed) {
+    return <Navigate to="/" />;
   }
-  function resetOrder() { setOrderKeys([]); saveOrder([]); }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <CommandPalette />
       <KeyboardShortcuts />
       <OnlineIndicator />
-      <TopBar />
+      <TopBar mode={mode} setMode={setMode} canSwitch={isOwner} />
 
       <div className="flex-1 flex">
-        <aside className="hidden lg:flex w-60 shrink-0 border-r border-border bg-card flex-col">
-          {isOwner && (
-            <div className="flex items-center justify-between gap-2 px-3 pt-3">
-              <span className="label-caps text-muted-foreground">Navigation</span>
-              <div className="flex gap-1">
-                {reorderMode && (
-                  <button onClick={resetOrder} title="Reset to default"
-                    className="inline-flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground">
-                    <RotateCcw className="h-3 w-3" />
-                  </button>
-                )}
-                <button onClick={() => setReorderMode((v) => !v)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold",
-                    reorderMode ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-[#0A0A0A]" : "border-border text-muted-foreground hover:text-foreground",
-                  )}>
-                  {reorderMode ? <><Check className="h-3 w-3" /> Done</> : <><GripVertical className="h-3 w-3" /> Reorder</>}
-                </button>
+        <aside className={cn(
+          "hidden lg:flex shrink-0 border-r border-border bg-card flex-col transition-[width] duration-200",
+          collapsed ? "w-14" : "w-56",
+        )}>
+          <div className={cn("flex items-center gap-2 px-2 pt-3", collapsed ? "justify-center" : "justify-between px-3")}>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="label-caps text-muted-foreground text-[10px]">Workspace</span>
+                <span className="text-xs font-semibold text-foreground">{MODE_META[mode].label}</span>
               </div>
-            </div>
-          )}
-          <nav className="p-3 flex flex-col gap-1">
-            {tabs.map((t, idx) => {
+            )}
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="inline-grid h-7 w-7 place-items-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+            >
+              {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+
+          <nav className={cn("flex flex-col gap-0.5 mt-2", collapsed ? "px-1.5" : "p-3 pt-1")}>
+            {tabs.map((t) => {
               const active = isActive(pathname, t.to);
               const Icon = t.icon;
-              if (reorderMode && isOwner) {
-                return (
-                  <div key={t.to} className="flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1.5 bg-background">
-                    <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Icon className="h-4 w-4 text-foreground/60" strokeWidth={2} />
-                    <span className="flex-1 text-sm font-medium truncate">{t.label}</span>
-                    <button onClick={() => move(t.key, -1)} disabled={idx === 0}
-                      className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => move(t.key, 1)} disabled={idx === tabs.length - 1}
-                      className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                );
-              }
               return (
-                <Link key={t.to} to={t.to}
+                <Link
+                  key={t.to}
+                  to={t.to}
+                  title={collapsed ? t.label : undefined}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium border-l-2 transition-colors",
+                    "group flex items-center rounded-md text-sm font-medium transition-colors",
+                    collapsed
+                      ? "justify-center h-9 w-9 mx-auto"
+                      : "gap-3 px-3 py-2 border-l-2",
                     active
-                      ? "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[#FAF7EE]"
-                      : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground",
-                  )}>
+                      ? (collapsed
+                          ? "bg-[#FAF7EE] text-[var(--color-gold)]"
+                          : "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[#FAF7EE]")
+                      : (collapsed
+                          ? "text-foreground/70 hover:bg-secondary hover:text-foreground"
+                          : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground"),
+                  )}
+                >
                   <span className="relative inline-flex">
                     <Icon className="h-4 w-4" strokeWidth={2} />
                     {t.key === "alerts" && unreadAlerts > 0 && (
@@ -168,11 +206,17 @@ export function AppShell({ children }: { children?: ReactNode }) {
                       </span>
                     )}
                   </span>
-                  {t.label}
+                  {!collapsed && <span className="truncate">{t.label}</span>}
                 </Link>
               );
             })}
           </nav>
+
+          {!collapsed && (
+            <div className="mt-auto px-3 pb-3 pt-4">
+              <p className="text-[10px] italic text-muted-foreground">{MODE_META[mode].tagline}</p>
+            </div>
+          )}
         </aside>
 
         <main className="flex-1 min-w-0 pb-24 lg:pb-6 pt-4">
@@ -186,12 +230,15 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <div className="mx-auto max-w-3xl overflow-x-auto scrollbar-none">
           <div className="flex min-w-max px-1">
             {tabs.map((t) => {
-            const active = isActive(pathname, t.to);
-            const Icon = t.icon;
-            return (
-                <Link key={t.to} to={t.to}
+              const active = isActive(pathname, t.to);
+              const Icon = t.icon;
+              return (
+                <Link
+                  key={t.to}
+                  to={t.to}
                   className="relative flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 px-2 py-2.5 label-caps text-white/60 data-[active=true]:text-[var(--color-gold)]"
-                  data-active={active}>
+                  data-active={active}
+                >
                   {active && <span className="absolute top-0 inset-x-3 h-[2px] bg-[var(--color-gold)] rounded-full" />}
                   <span className="relative inline-flex">
                     <Icon className="h-5 w-5" strokeWidth={1.75} />
@@ -203,7 +250,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
                   </span>
                   <span className="text-[9px] text-center leading-tight">{t.label}</span>
                 </Link>
-            );
+              );
             })}
           </div>
         </div>
@@ -216,6 +263,42 @@ function isActive(pathname: string, to: string) {
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
+function WorkspaceSwitcher({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean }) {
+  const Meta = MODE_META[mode];
+  const Icon = Meta.icon;
+  if (!canSwitch) {
+    return (
+      <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title={Meta.tagline}>
+        <Icon className="h-3.5 w-3.5 text-[var(--color-gold)]" />
+        <span className="text-xs font-medium text-white/90">{Meta.label}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="hidden md:flex items-center gap-1 p-0.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
+      {(["crew", "manager", "owner"] as WorkspaceMode[]).map((m) => {
+        const MIcon = MODE_META[m].icon;
+        const active = mode === m;
+        return (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            title={MODE_META[m].tagline}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold transition",
+              active ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/60 hover:text-white",
+            )}
+          >
+            <MIcon className="h-3 w-3" />
+            {MODE_META[m].label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function TrailerSwitcher() {
   const { roleId, trailers, trailerScope, setTrailerScope, homeTrailerId } = useRole();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -224,7 +307,6 @@ function TrailerSwitcher() {
   if (trailers.length === 0) return null;
   const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
   const scopeName = trailerScope ? (trailers.find((t) => t.id === trailerScope)?.name ?? homeName) : homeName;
-  // Employees and managers are LOCKED to their home trailer. Only owners may switch freely.
   if (!isOwner) {
     if (isManager) {
       return (
@@ -263,7 +345,7 @@ function TrailerSwitcher() {
   );
 }
 
-function TopBar() {
+function TopBar({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean }) {
   const { roleId, user, signOut } = useRole();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
@@ -279,7 +361,9 @@ function TopBar() {
           <span className="hidden sm:inline font-display text-lg tracking-wider text-[var(--color-gold)]">GOTHAM OS</span>
         </Link>
 
-        <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
+        <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />
+
+        <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
           <span className="text-xs font-medium text-white/90">Live</span>
           <span className="text-xs text-white/50">· {timeStr}</span>
@@ -306,7 +390,6 @@ function TopBar() {
         </button>
 
         <TrailerSwitcher />
-
 
         <div className="flex items-center gap-2.5">
           {role && (
