@@ -9,6 +9,7 @@ import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { Activity } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/health")({
   ssr: false,
@@ -79,8 +80,11 @@ function HealthPage() {
       />
 
       {isLoading && <Card><div className="p-6 text-center text-sm text-muted-foreground">Calculating…</div></Card>}
+      {!isLoading && (!data || data.trend.length === 0) && (
+        <EmptyState icon={Activity} title="Data appears after shift completion" hint="Your store health score is built from shift recaps, punches, inventory, and SOP completion. Finish a shift to see the first reading." />
+      )}
 
-      {data && (
+      {data && data.trend.length > 0 && (
         <>
           <Card goldAccent className="mb-3">
             <div className="flex items-center justify-between gap-6 flex-wrap">

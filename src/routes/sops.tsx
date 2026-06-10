@@ -12,6 +12,7 @@ import {
   Image as ImageIcon, FileText, Siren, Wrench, ClipboardList, Award, CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/gotham/EmptyState";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
@@ -311,7 +312,7 @@ function SOPsPage() {
             const a = myAckMap.get(s.id); return !a || a.version < s.version;
           }).length} to complete`} />
           {assigned.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Nothing assigned to your role yet.</p></Card>
+            <EmptyState icon={GraduationCap} title="Assign first SOP" hint="Owners can publish SOPs and assign them to your role — they'll appear here as required training." />
           ) : (
             <div className="space-y-2">
               {assigned.slice(0, 6).map((s) => (
@@ -361,7 +362,7 @@ function SOPsPage() {
         <div className="mt-6">
           <SectionHeader eyebrow="Your record" title={`Completed certifications · ${completed.length}`} />
           {completed.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Acknowledge an SOP to earn your first certification.</p></Card>
+            <EmptyState icon={Award} title="No certifications yet" hint="Finish an SOP end-to-end to earn your first certification badge." />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {completed.map((s) => (

@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { FileText, Send, ClipboardCheck, Archive, Star } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 import { saveRecap, listRecaps, getRecap, reviewRecap } from "@/lib/recaps.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -89,7 +90,17 @@ function RecapsPage() {
       <SectionHeader eyebrow={tab} title={tab === "today" ? "Today's Recaps" : tab === "pending" ? "Awaiting Owner Review" : "Historical Log"} />
 
       <div className="space-y-2">
-        {recaps.length === 0 && <Card>No recaps to show.</Card>}
+        {recaps.length === 0 && (
+          <EmptyState
+            icon={FileText}
+            title={tab === "today" ? "No recap for today yet" : tab === "pending" ? "No recaps awaiting review" : "No historical recaps"}
+            hint={tab === "today" ? "Capture the shift while it's fresh — your team will thank you."
+                : tab === "pending" ? "Submitted recaps will land here for owner sign-off."
+                : "Reviewed and archived recaps will appear here."}
+            actionLabel={tab === "today" ? "Start today's recap" : undefined}
+            onAction={tab === "today" ? () => { setEditorOpen(true); setOpenId(myToday?.id ?? null); } : undefined}
+          />
+        )}
         {recaps.map((r) => (
           <Card key={r.id} className="p-3">
             <div className="flex items-center justify-between gap-3">

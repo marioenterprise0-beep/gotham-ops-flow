@@ -11,7 +11,8 @@ import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { listAuditLogFiltered, auditLogFilterOptions } from "@/lib/audit-log.functions";
 import { cn } from "@/lib/utils";
-import { Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Activity } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/audit")({
   ssr: false,
@@ -111,9 +112,12 @@ function AuditPage() {
         </Button>
       </Card>
 
+      {!isLoading && rows.length === 0 && (
+        <EmptyState icon={Activity} title="Activity will appear here" hint="Every meaningful action — punches, approvals, edits — gets logged here for review." />
+      )}
+      {(isLoading || rows.length > 0) && (
       <Card className="p-0 overflow-hidden">
         {isLoading && <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>}
-        {!isLoading && rows.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No activity matches filters.</div>}
         {rows.map((r, i) => {
           const payloadStr = r.payload ? Object.entries(r.payload).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") : "";
           return (
@@ -134,6 +138,7 @@ function AuditPage() {
           );
         })}
       </Card>
+      )}
 
       <div className="flex items-center justify-between mt-3">
         <div className="text-xs text-muted-foreground">Page {page + 1} of {totalPages}</div>

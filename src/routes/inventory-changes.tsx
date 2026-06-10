@@ -8,6 +8,7 @@ import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { Check, X, ClipboardList } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/inventory-changes")({
   beforeLoad: () => {
@@ -83,10 +84,11 @@ export function InventoryChangesView() {
 
       {(loading || isLoading) && <Card>Loading…</Card>}
       {!isLoading && visible.length === 0 && (
-        <Card className="p-6 text-center">
-          <ClipboardList className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-          <div className="text-sm text-muted-foreground">No {filter === "pending" ? "pending" : ""} change requests.</div>
-        </Card>
+        <EmptyState
+          icon={ClipboardList}
+          title="No requests pending"
+          hint={filter === "pending" ? "When the team requests inventory changes, they'll queue here for review." : "No change requests have been submitted yet."}
+        />
       )}
 
       <div className="space-y-2">
