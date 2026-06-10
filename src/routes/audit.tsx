@@ -112,9 +112,11 @@ function AuditPage() {
         </Button>
       </Card>
 
+      {!isLoading && rows.length === 0 ? (
+        <EmptyState icon={Activity} title="Activity will appear here" hint="Every meaningful action — punches, approvals, edits — gets logged here for review." />
+      ) : (
       <Card className="p-0 overflow-hidden">
         {isLoading && <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>}
-        {!isLoading && rows.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No activity matches filters.</div>}
         {rows.map((r, i) => {
           const payloadStr = r.payload ? Object.entries(r.payload).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ") : "";
           return (
