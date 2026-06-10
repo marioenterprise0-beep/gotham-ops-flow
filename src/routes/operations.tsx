@@ -37,6 +37,7 @@ function Operations() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
+  const isOwner = roleId === "owner";
   const [phase, setPhase] = useState<Phase>("opening");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -276,7 +277,7 @@ function Operations() {
                         <ShieldCheck className="h-3.5 w-3.5" /> Approve
                       </button>
                     )}
-                    {isManager && (
+                    {isOwner && (
                       <button
                         onClick={() => {
                           if (confirm(`Delete task "${t.title}"? This cannot be undone from the checklist.`)) {
