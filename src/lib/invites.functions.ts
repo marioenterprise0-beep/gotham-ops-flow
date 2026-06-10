@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireManager } from "@/lib/auth-guards";
+import { requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 import { randomInt } from "crypto";
 
@@ -18,7 +18,7 @@ export const listInvites = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireOwner(supabase, userId);
     const { data, error } = await supabase
       .from("invite_codes")
       .select("id, code, role, note, created_at, expires_at, used_by, used_at")
@@ -36,7 +36,7 @@ export const createInvite = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireOwner(supabase, userId);
     if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
       if (!(await isOwner(supabase, userId))) throw new Error("Only owners can issue owner or manager invites");
@@ -56,7 +56,7 @@ export const revokeInvite = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireOwner(supabase, userId);
     const { error } = await supabase
       .from("invite_codes")
       .update({ expires_at: new Date(Date.now() - 1000).toISOString() })

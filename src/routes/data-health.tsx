@@ -25,7 +25,7 @@ function ageDays(iso: string | null) {
 
 export function DataHealthPage() {
   const { roleId } = useRole();
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
+  if (roleId !== "owner") return <Navigate to="/" />;
   const [retention, setRetention] = useState(90);
   const fetchScans = useServerFn(runAllDependencyScans);
   const { data, isLoading, refetch, isFetching } = useQuery({

@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,6 +50,7 @@ export function LocationRequests() {
   const qc = useQueryClient();
   const { roleId, trailers, session, loading } = useRole();
   const isOwner = roleId === "owner";
+  if (!isOwner) return <Navigate to="/" />;
   const listFn = useServerFn(listLocationRequests);
   const approveFn = useServerFn(approveLocationRequest);
   const declineFn = useServerFn(declineLocationRequest);

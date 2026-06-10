@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
-import { canSee, useRole, type RoleId } from "@/lib/role";
+import { useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { EmbeddedProvider } from "@/components/gotham/EmbedShell";
@@ -18,13 +18,14 @@ import { DataHealthPage } from "@/routes/data-health";
 
 type TabKey = "people" | "roles" | "permissions" | "locations" | "activity" | "system";
 
-const TABS: { key: TabKey; label: string; icon: any; need: "manager" | "owner"; blurb: string }[] = [
-  { key: "people",      label: "People",        icon: UsersIcon,    need: "manager", blurb: "Invite crew, set roles, deactivate" },
-  { key: "roles",       label: "Roles",         icon: Shield,       need: "owner",   blurb: "Role templates and defaults" },
-  { key: "permissions", label: "Permissions",   icon: KeyRound,     need: "owner",   blurb: "Tab access matrix (advanced)" },
-  { key: "locations",   label: "Locations",     icon: MapPin,       need: "manager", blurb: "Location access requests" },
-  { key: "activity",    label: "Activity",      icon: ScrollText,   need: "manager", blurb: "Audit log and change history" },
-  { key: "system",      label: "System Health", icon: HeartPulse,   need: "manager", blurb: "Data integrity and platform health" },
+// Admin is OWNER ONLY. Managers operate, owners govern.
+const TABS: { key: TabKey; label: string; icon: any; blurb: string }[] = [
+  { key: "people",      label: "People",        icon: UsersIcon,    blurb: "Invite crew, set roles, deactivate" },
+  { key: "roles",       label: "Roles",         icon: Shield,       blurb: "Role templates and defaults" },
+  { key: "permissions", label: "Permissions",   icon: KeyRound,     blurb: "Tab access matrix (advanced)" },
+  { key: "locations",   label: "Locations",     icon: MapPin,       blurb: "Approve location access requests" },
+  { key: "activity",    label: "Activity",      icon: ScrollText,   blurb: "Audit log and change history" },
+  { key: "system",      label: "System Health", icon: HeartPulse,   blurb: "Data integrity and platform health" },
 ];
 
 const ADMIN_TAB_KEY = "gotham:admin-tab:v1";
@@ -44,9 +45,7 @@ function AdminPage() {
   const navigate = Route.useNavigate();
   const isOwner = roleId === "owner";
 
-  const allowed = useMemo(() => TABS.filter((t) =>
-    t.need === "owner" ? isOwner : canSee(roleId, "manager"),
-  ), [roleId, isOwner]);
+  const allowed = TABS;
 
   const initial: TabKey = useMemo(() => {
     const fromUrl = search.tab && allowed.some((t) => t.key === search.tab) ? search.tab : null;
@@ -72,7 +71,8 @@ function AdminPage() {
   }, [tab]);
 
   if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
+  // Owner-only — managers should never reach this screen.
+  if (!isOwner) return <Navigate to="/" />;
 
   function choose(next: TabKey) {
     setTab(next);
@@ -105,9 +105,7 @@ function AdminPage() {
       <EmbeddedProvider>
         {tab === "people" && <UsersPage />}
         {tab === "roles" && <RolesTab roleId={roleId} />}
-        {tab === "permissions" && (isOwner
-          ? <PermissionsPage />
-          : <Card>You need owner access to edit permissions.</Card>)}
+        {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}

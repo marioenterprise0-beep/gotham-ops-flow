@@ -47,7 +47,7 @@ function csvEscape(v: any) {
 
 export function AuditPage() {
   const { roleId } = useRole();
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
+  if (roleId !== "owner") return <Navigate to="/" />;
   const fetchLog = useServerFn(listAuditLogFiltered);
   const fetchOpts = useServerFn(auditLogFilterOptions);
 
