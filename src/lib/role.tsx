@@ -156,10 +156,33 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const primary = pickPrimary(roles);
   const isManager = primary === "owner" || primary === "manager";
+  const isOwnerRole = primary === "owner";
 
   const setTrailerScope = (id: string | null) => {
-    if (!isManager) { setTrailerScopeState(homeTrailerId); return; }
+    // Only owners can switch freely. Managers/crew must go through request flow.
+    if (!isOwnerRole) {
+      if (id !== homeTrailerId) {
+        toast.error("Location switch requires owner approval. Request temporary access.");
+        return;
+      }
+      setTrailerScopeState(homeTrailerId);
+      return;
+    }
+    if (id === trailerScope) return;
+    const prev = trailerScope;
     setTrailerScopeState(id);
+    const newName = id ? (trailers.find((t) => t.id === id)?.name ?? "Selected location") : "All locations";
+    toast.success(`Now viewing: ${newName}`);
+    // Log + invalidate all caches so every module refetches against the new scope.
+    if (session?.user) {
+      void supabase.from("access_log").insert({
+        user_id: session.user.id,
+        event: "location_switch",
+        payload: { from: prev, to: id, name: newName } as any,
+      });
+    }
+    // Nuke all queries — every location-scoped module refetches; personal queries are cheap to refetch.
+    void qc.invalidateQueries();
   };
 
   const isOwner = primary === "owner";
