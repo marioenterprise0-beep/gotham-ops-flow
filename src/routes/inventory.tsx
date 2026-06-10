@@ -792,7 +792,8 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
         <div className="grid grid-cols-2 gap-3">
           <Field label="Category">
             <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-              {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {(liveCategories.length ? liveCategories : Object.entries(CATEGORY_LABELS).map(([key, label]) => ({ key, label })))
+                .map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
           </Field>
           <Field label="Unit"><input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="lb, ea, case" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
