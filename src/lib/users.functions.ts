@@ -224,8 +224,9 @@ export const archiveUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireSuperAdmin(supabase, userId);
+    await requireOwner(supabase, userId);
     if (data.userId === userId) throw new Error("You cannot archive your own account.");
+    await assertCanActOnTarget(supabase, userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date().toISOString();
     const { error } = await supabaseAdmin
@@ -246,7 +247,7 @@ export const restoreUser = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireSuperAdmin(supabase, userId);
+    await requireOwner(supabase, userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("profiles")
@@ -266,8 +267,9 @@ export const hardDeleteUser = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), force: z.boolean().optional() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireSuperAdmin(supabase, userId);
+    await requireOwner(supabase, userId);
     if (data.userId === userId) throw new Error("You cannot delete your own account.");
+    await assertCanActOnTarget(supabase, userId, data.userId);
     const tables: Array<[string, string]> = [
       ["schedule_shifts", "employee_id"], ["time_punches", "employee_id"], ["tasks", "assignee_id"],
       ["cash_drawer_sessions", "opened_by"], ["cash_drops", "submitted_by"], ["daily_recaps", "manager_id"],
@@ -292,8 +294,20 @@ export const hardDeleteUser = createServerFn({ method: "POST" })
       throw err;
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.force && total > 0) {
+      for (const [tbl, col] of tables) {
+        await (supabaseAdmin as any).from(tbl).delete().eq(col, data.userId);
+      }
+    }
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.userId);
     const { error: aErr } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
     if (aErr) throw new Error(aErr.message);
+    await supabaseAdmin.from("access_log").insert({
+      user_id: data.userId,
+      event: "hard_deleted",
+      payload: { by: userId, force: !!data.force, refs_removed: total },
+    });
     return { ok: true, deleted: true };
   });
 
@@ -375,7 +389,18 @@ async function requireSuperAdmin(supabase: any, userId: string) {
   if (error) throw new Error(error.message);
   const email = String(data ?? "").toLowerCase();
   if (!SUPER_ADMIN_EMAILS.has(email)) {
-    throw new Error("Only the super-admin accounts can disable or restore user access.");
+    throw new Error("Only the super-admin accounts can perform this action.");
+  }
+}
+
+// Owners can act on anyone except other super-admins (only super-admins can act on super-admins).
+async function assertCanActOnTarget(supabase: any, actorId: string, targetId: string) {
+  const { data: targetIsSuper } = await supabase.rpc("is_super_admin", { _user_id: targetId });
+  if (!targetIsSuper) return;
+  const { data: email } = await supabase.rpc("my_email");
+  const e = String(email ?? "").toLowerCase();
+  if (!SUPER_ADMIN_EMAILS.has(e)) {
+    throw new Error("Only super-admins can modify another super-admin account.");
   }
 }
 
@@ -400,7 +425,9 @@ export const setUserActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireSuperAdmin(supabase, userId);
+    await requireOwner(supabase, userId);
+    if (data.userId === userId) throw new Error("You cannot change your own access.");
+    await assertCanActOnTarget(supabase, userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("profiles")

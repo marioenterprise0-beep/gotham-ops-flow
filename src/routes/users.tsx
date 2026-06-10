@@ -214,7 +214,7 @@ function UsersTab() {
         title="All Users"
         action={
           <div className="flex items-center gap-2">
-            {isSuperAdmin && (
+            {isOwner && (
               <button
                 onClick={() => setShowArchived((v) => !v)}
                 className={cn(
@@ -260,22 +260,22 @@ function UsersTab() {
                   {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
                 <div><StatusPill tone={isArchived ? "neutral" : u.active ? "success" : "danger"}>{isArchived ? "Archived" : u.active ? "Active" : "Disabled"}</StatusPill></div>
-                {isSuperAdmin && !isArchived ? (
+                {isOwner && !isArchived ? (
                   <button onClick={() => activeMut.mutate({ userId: u.id, active: !u.active })}
                     className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
                     {u.active ? "Disable" : "Restore access"}
                   </button>
                 ) : <div />}
-                {isSuperAdmin ? (
+                {isOwner ? (
                   isArchived ? (
                     <button onClick={() => restoreMut.mutate(u.id)} disabled={restoreMut.isPending}
                       className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--color-success)] hover:text-[var(--color-success)] disabled:opacity-60">
                       <RotateCcw className="h-3 w-3" /> Restore
                     </button>
                   ) : (
-                    <button onClick={() => startRemove(u)} disabled={isUserOwner}
+                    <button onClick={() => startRemove(u)}
                       className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] disabled:opacity-40"
-                      title={isUserOwner ? "Owners cannot be archived or deleted" : "Archive or delete"}>
+                      title="Archive or delete">
                       <Trash2 className="h-3 w-3" /> Remove
                     </button>
                   )
