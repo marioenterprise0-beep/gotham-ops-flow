@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireManager } from "@/lib/auth-guards";
+import { requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 import { randomInt } from "crypto";
 
