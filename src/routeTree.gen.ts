@@ -30,6 +30,7 @@ import { Route as IntegrityRouteImport } from './routes/integrity'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as EmailLogRouteImport } from './routes/email-log'
+import { Route as DataHealthRouteImport } from './routes/data-health'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -156,6 +157,11 @@ const EmailLogRoute = EmailLogRouteImport.update({
   path: '/email-log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DataHealthRoute = DataHealthRouteImport.update({
+  id: '/data-health',
+  path: '/data-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangeLogRoute = ChangeLogRouteImport.update({
   id: '/change-log',
   path: '/change-log',
@@ -274,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
+  '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
+  '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
   '/change-log': typeof ChangeLogRoute
+  '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cash'
     | '/change-log'
+    | '/data-health'
     | '/email-log'
     | '/health'
     | '/hospitality'
@@ -449,6 +459,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cash'
     | '/change-log'
+    | '/data-health'
     | '/email-log'
     | '/health'
     | '/hospitality'
@@ -492,6 +503,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cash'
     | '/change-log'
+    | '/data-health'
     | '/email-log'
     | '/health'
     | '/hospitality'
@@ -536,6 +548,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CashRoute: typeof CashRoute
   ChangeLogRoute: typeof ChangeLogRoute
+  DataHealthRoute: typeof DataHealthRoute
   EmailLogRoute: typeof EmailLogRoute
   HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
@@ -720,6 +733,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmailLogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/data-health': {
+      id: '/data-health'
+      path: '/data-health'
+      fullPath: '/data-health'
+      preLoaderRoute: typeof DataHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/change-log': {
       id: '/change-log'
       path: '/change-log'
@@ -872,6 +892,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CashRoute: CashRoute,
   ChangeLogRoute: ChangeLogRoute,
+  DataHealthRoute: DataHealthRoute,
   EmailLogRoute: EmailLogRoute,
   HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
