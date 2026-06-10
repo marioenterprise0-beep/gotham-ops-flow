@@ -165,12 +165,36 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const primary = pickPrimary(roles);
-  const isOwnerRole = primary === "owner";
+  const actualPrimary = pickPrimary(roles);
+  const isActualOwner = actualPrimary === "owner";
+  // Owner can "view as" another role. For everyone else, ignore actAsRole.
+  const effectivePrimary: RoleId | null = (isActualOwner && actAsRole) ? actAsRole : actualPrimary;
+  const isOwner = effectivePrimary === "owner";
+
+  const setActAsRole = (r: RoleId | null) => {
+    if (!isActualOwner) return; // safety: only real owners can impersonate
+    setActAsRoleState(r);
+    try {
+      if (r) localStorage.setItem(ACT_AS_KEY, r);
+      else localStorage.removeItem(ACT_AS_KEY);
+    } catch {}
+    toast.success(r ? `Viewing as ${ROLES[r].name}` : "Viewing as Owner");
+    // Recompute permission overrides for the impersonated role and refetch everything.
+    if (session?.user) void loadPermissions(session.user.id, r ? [r] : roles);
+    void qc.invalidateQueries();
+  };
+
+  // Recompute permissions when impersonation changes.
+  useEffect(() => {
+    if (!session?.user) return;
+    const effRoles: RoleId[] = (isActualOwner && actAsRole) ? [actAsRole] : roles;
+    void loadPermissions(session.user.id, effRoles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actAsRole, isActualOwner]);
 
   const setTrailerScope = (id: string | null) => {
-    // Only owners can switch freely. Managers/crew must go through request flow.
-    if (!isOwnerRole) {
+    // Only real owners (not impersonating crew/manager) can switch freely.
+    if (!isOwner) {
       if (id !== homeTrailerId) {
         toast.error("Location switch requires owner approval. Request temporary access.");
         return;
@@ -183,7 +207,6 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setTrailerScopeState(id);
     const newName = id ? (trailers.find((t) => t.id === id)?.name ?? "Selected location") : "All locations";
     toast.success(`Now viewing: ${newName}`);
-    // Log + invalidate all caches so every module refetches against the new scope.
     if (session?.user) {
       void supabase.from("access_log").insert({
         user_id: session.user.id,
@@ -191,11 +214,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         payload: { from: prev, to: id, name: newName } as any,
       });
     }
-    // Nuke all queries — every location-scoped module refetches; personal queries are cheap to refetch.
     void qc.invalidateQueries();
   };
 
-  const isOwner = isOwnerRole;
   const getTabAccess = (tabKey: string): TabAccess => {
     if (isOwner) return "edit";
     return tabAccess[tabKey] ?? "edit";
@@ -208,7 +229,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     <RoleCtx.Provider value={{
       loading,
       session,
-      roleId: primary,
+      roleId: effectivePrimary,
+      actualRoleId: actualPrimary,
+      actAsRole,
+      setActAsRole,
       roles,
       user,
       userId: session?.user?.id ?? null,
@@ -223,6 +247,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       tabAccess,
       getTabAccess,
       refreshPermissions,
+
     }}>{children}</RoleCtx.Provider>
   );
 }
