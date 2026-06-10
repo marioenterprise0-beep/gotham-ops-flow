@@ -1312,6 +1312,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           code_expires_at: string | null
           code_hash: string | null
           created_at: string
@@ -1329,6 +1332,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           code_expires_at?: string | null
           code_hash?: string | null
           created_at?: string
@@ -1346,6 +1352,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           code_expires_at?: string | null
           code_hash?: string | null
           created_at?: string

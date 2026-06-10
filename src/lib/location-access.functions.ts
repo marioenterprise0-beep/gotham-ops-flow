@@ -78,22 +78,24 @@ export const submitLocationRequest = createServerFn({ method: "POST" })
     return { id: row.id };
   });
 
-export const listLocationRequests = createServerFn({ method: "GET" })
+export const listLocationRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { isManager } = await getRoles(supabase, userId);
+    const { isManager, isOwner } = await getRoles(supabase, userId);
     let query = supabase
       .from("location_access_requests")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(100);
+    if (!(data?.includeArchived && isOwner)) query = query.is("archived_at", null);
     if (!isManager) {
       query = query.eq("requested_by", userId);
     }
-    const { data, error } = await query;
+    const { data: rows, error } = await query;
     if (error) throw error;
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const approveLocationRequest = createServerFn({ method: "POST" })
