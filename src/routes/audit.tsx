@@ -11,7 +11,8 @@ import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { listAuditLogFiltered, auditLogFilterOptions } from "@/lib/audit-log.functions";
 import { cn } from "@/lib/utils";
-import { Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, ChevronLeft, ChevronRight, Activity } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/audit")({
   ssr: false,
