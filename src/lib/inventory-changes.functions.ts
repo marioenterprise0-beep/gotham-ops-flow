@@ -66,18 +66,22 @@ export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
     return { id: row.id };
   });
 
-export const listInventoryChangeRequests = createServerFn({ method: "GET" })
+export const listInventoryChangeRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { data, error } = await supabase
+    const showArchived = data?.includeArchived && (await isOwner(supabase, userId));
+    let q = supabase
       .from("inventory_change_requests")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
+    if (!showArchived) q = q.is("archived_at", null);
+    const { data: rows, error } = await q;
     if (error) throw error;
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
