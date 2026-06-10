@@ -24,6 +24,7 @@ export const listTrailers = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("trailers")
       .select("id, name, location, active")
+      .is("archived_at", null)
       .order("created_at");
     if (error) throw new Error(error.message);
     return data ?? [];
