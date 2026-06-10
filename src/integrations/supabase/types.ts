@@ -1523,6 +1523,9 @@ export type Database = {
       }
       schedule_shifts: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           break_minutes: number
           created_at: string
           created_by: string | null
@@ -1540,6 +1543,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           created_at?: string
           created_by?: string | null
@@ -1557,6 +1563,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           break_minutes?: number
           created_at?: string
           created_by?: string | null
@@ -1675,6 +1684,9 @@ export type Database = {
       }
       shift_notes: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           author_id: string
           created_at: string
           employee_id: string
@@ -1687,6 +1699,9 @@ export type Database = {
           visibility: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           author_id: string
           created_at?: string
           employee_id: string
@@ -1699,6 +1714,9 @@ export type Database = {
           visibility?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           author_id?: string
           created_at?: string
           employee_id?: string
