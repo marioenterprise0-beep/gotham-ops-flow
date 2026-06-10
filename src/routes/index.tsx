@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import {
-  AlertTriangle, BellRing, BookOpen, Boxes, Check, ChevronRight, ClipboardList,
+  Activity, AlertTriangle, BellRing, BookOpen, Boxes, Check, ChevronRight, ClipboardList,
   Clock, Coffee, Download, FileText, FileWarning, Flame, LogIn, LogOut, MapPin,
   Megaphone, Play, ShieldCheck, Timer, Users, Wallet,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import { useRole, ROLES, initials, type RoleId } from "@/lib/role";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/dashboard.functions";
+import { getHealthScore } from "@/lib/health.functions";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
 import { getMyActivePunch } from "@/lib/timeclock.functions";
 import { listAlerts } from "@/lib/alerts.functions";
