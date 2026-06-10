@@ -119,11 +119,13 @@ function RecapsPage() {
         <RecapEditor
           id={openId}
           isOwner={isOwner}
+          isCrew={isCrew}
           defaultTrailerId={trailerScope}
           onClose={() => { setEditorOpen(false); setOpenId(null); }}
           onSaved={() => syncDomains(qc, "recaps", "alerts")}
         />
       )}
+
 
       <div className="h-6" />
     </AppShell>
