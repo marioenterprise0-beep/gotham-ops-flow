@@ -190,20 +190,20 @@ function timeAgo(iso: string): string {
 
 function AlertsPage() {
   const qc = useQueryClient();
-  const { roleId, session, loading } = useRole();
+  const { roleId, session, loading, trailerScope } = useRole();
   const isOwner = roleId === "owner";
   const [queue, setQueue] = useState<QueueKey>("critical");
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
 
   const list = useServerFn(listAlerts);
   const { data: openAlerts = [], isLoading } = useQuery<Alert[]>({
-    queryKey: ["alerts", "open"],
-    queryFn: () => list({ data: { status: "open" } }) as any,
+    queryKey: ["alerts", "open", trailerScope ?? "all"],
+    queryFn: () => list({ data: { status: "open", trailerId: trailerScope ?? null } }) as any,
     enabled: !loading && !!session?.access_token,
   });
   const { data: resolvedAlerts = [], isLoading: loadingResolved } = useQuery<Alert[]>({
-    queryKey: ["alerts", "resolved"],
-    queryFn: () => list({ data: { status: "resolved" } }) as any,
+    queryKey: ["alerts", "resolved", trailerScope ?? "all"],
+    queryFn: () => list({ data: { status: "resolved", trailerId: trailerScope ?? null } }) as any,
     enabled: !loading && !!session?.access_token && queue === "resolved",
   });
 

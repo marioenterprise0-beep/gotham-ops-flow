@@ -26,7 +26,7 @@ export const Route = createFileRoute("/manager")({
 });
 
 function ManagerPage() {
-  const { roleId, session, loading } = useRole();
+  const { roleId, session, loading, trailerScope } = useRole();
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const allowed = canSee(roleId, "manager");
@@ -37,8 +37,8 @@ function ManagerPage() {
 
   const fetchOverview = useServerFn(getManagerOverview);
   const { data: overview } = useQuery({
-    queryKey: ["manager-overview"],
-    queryFn: () => fetchOverview(),
+    queryKey: ["manager-overview", trailerScope ?? "all"],
+    queryFn: () => fetchOverview({ data: { trailerId: trailerScope ?? null } }),
     refetchInterval: 30_000,
     enabled: !loading && !!session?.access_token && allowed,
   });
@@ -61,13 +61,13 @@ function ManagerPage() {
   });
 
   const { data: approvals = [] } = useQuery({
-    queryKey: ["pending-approvals"],
-    queryFn: () => fetchApprovals(),
+    queryKey: ["pending-approvals", trailerScope ?? "all"],
+    queryFn: () => fetchApprovals({ data: { trailerId: trailerScope ?? null } } as any),
     enabled: !loading && !!session?.access_token && allowed,
   });
   const { data: inventory = [] } = useQuery({
-    queryKey: ["inventory"],
-    queryFn: () => fetchInventory(),
+    queryKey: ["inventory", trailerScope ?? "all"],
+    queryFn: () => fetchInventory({ data: { trailerId: trailerScope ?? null } } as any),
     enabled: !loading && !!session?.access_token && allowed,
   });
 

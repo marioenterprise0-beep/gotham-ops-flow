@@ -21,6 +21,7 @@ export const listAlerts = createServerFn({ method: "POST" })
     type: z.enum(ALERT_TYPES).optional(),
     category: z.string().optional(),
     includeArchived: z.boolean().optional(),
+    trailerId: z.string().uuid().nullable().optional(),
   }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -29,11 +30,14 @@ export const listAlerts = createServerFn({ method: "POST" })
     if (!(data?.includeArchived && isOwner)) q = q.is("archived_at", null);
     if (data?.status) q = q.eq("status", data.status);
     if (data?.type) q = q.eq("type", data.type);
+    if (data?.trailerId) q = q.eq("trailer_id", data.trailerId);
     const { data: rows, error } = await q;
     if (error) throw error;
 
     // Compute low/critical stock dynamically (not stored)
-    const { data: items } = await supabase.from("inventory_items").select("id,name,current_qty,low_threshold,par_level,trailer_id").is("archived_at", null);
+    let itemsQ = supabase.from("inventory_items").select("id,name,current_qty,low_threshold,par_level,trailer_id").is("archived_at", null);
+    if (data?.trailerId) itemsQ = itemsQ.eq("trailer_id", data.trailerId);
+    const { data: items } = await itemsQ;
     const synthetic: any[] = [];
     for (const it of items ?? []) {
       const cur = Number(it.current_qty), low = Number(it.low_threshold), par = Number(it.par_level || 0);

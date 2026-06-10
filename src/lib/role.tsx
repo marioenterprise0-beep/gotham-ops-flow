@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
@@ -56,6 +58,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [trailerScope, setTrailerScopeState] = useState<string | null>(null);
   const [disabledTabs, setDisabledTabs] = useState<Set<string>>(new Set());
   const [tabAccess, setTabAccess] = useState<Record<string, TabAccess>>({});
+  const qc = useQueryClient();
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
@@ -152,18 +155,43 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   const primary = pickPrimary(roles);
-  const isManager = primary === "owner" || primary === "manager";
+  const isOwnerRole = primary === "owner";
 
   const setTrailerScope = (id: string | null) => {
-    if (!isManager) { setTrailerScopeState(homeTrailerId); return; }
+    // Only owners can switch freely. Managers/crew must go through request flow.
+    if (!isOwnerRole) {
+      if (id !== homeTrailerId) {
+        toast.error("Location switch requires owner approval. Request temporary access.");
+        return;
+      }
+      setTrailerScopeState(homeTrailerId);
+      return;
+    }
+    if (id === trailerScope) return;
+    const prev = trailerScope;
     setTrailerScopeState(id);
+    const newName = id ? (trailers.find((t) => t.id === id)?.name ?? "Selected location") : "All locations";
+    toast.success(`Now viewing: ${newName}`);
+    // Log + invalidate all caches so every module refetches against the new scope.
+    if (session?.user) {
+      void supabase.from("access_log").insert({
+        user_id: session.user.id,
+        event: "location_switch",
+        payload: { from: prev, to: id, name: newName } as any,
+      });
+    }
+    // Nuke all queries — every location-scoped module refetches; personal queries are cheap to refetch.
+    void qc.invalidateQueries();
   };
 
-  const isOwner = primary === "owner";
+  const isOwner = isOwnerRole;
   const getTabAccess = (tabKey: string): TabAccess => {
     if (isOwner) return "edit";
     return tabAccess[tabKey] ?? "edit";
   };
+
+  // Effective active location: owners follow their scope (null = All Locations); everyone else is locked to home.
+  const effectiveTrailer = isOwner ? trailerScope : homeTrailerId;
 
   return (
     <RoleCtx.Provider value={{
@@ -175,7 +203,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       userId: session?.user?.id ?? null,
       homeTrailerId,
       trailers,
-      trailerScope: isManager ? trailerScope : homeTrailerId,
+      trailerScope: effectiveTrailer,
       setTrailerScope,
       setRoleId: () => { void signOut(); },
       signOut,
