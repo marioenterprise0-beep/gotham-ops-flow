@@ -168,7 +168,7 @@ function ManagerPage() {
         ))}
       </Card>
 
-      <SectionHeader eyebrow="Watch" title="Inventory Alerts" />
+      <SectionHeader eyebrow="Watch" title="Inventory Issues" />
       <Card className="p-0 overflow-hidden">
         {alerts.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No inventory alerts.</div>}
         {alerts.map((a, i) => {
