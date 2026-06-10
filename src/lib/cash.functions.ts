@@ -532,7 +532,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
 
     const { data: sess, error: sErr } = await supabaseAdmin
       .from("cash_drawer_sessions")
-      .select("id, trailer_id, drawer_id, counted_amount, expected_amount, variance, variance_reason, variance_notes, closed_at, closed_by, pdf_path")
+      .select("id, trailer_id, drawer_id, counted_amount, expected_amount, variance, variance_reason, closed_at, closed_by, pdf_path")
       .eq("id", data.sessionId)
       .single();
     if (sErr || !sess) throw sErr ?? new Error("Session not found");
