@@ -10,16 +10,19 @@ async function assertManager(supabase: any, userId: string) {
   if (!data) throw new Error("Manager role required");
 }
 
-export const listTaskTemplates = createServerFn({ method: "GET" })
+export const listTaskTemplates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+  .inputValidator((d) => z.object({ includeArchived: z.boolean().default(false) }).parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase
       .from("task_templates")
-      .select("id, trailer_id, role, phase, title, description, requires_signoff, position, active, created_at")
+      .select("id, trailer_id, role, phase, title, description, requires_signoff, position, active, created_at, archived_at, archived_by, archive_reason")
       .order("trailer_id", { ascending: true, nullsFirst: true })
       .order("phase").order("role").order("position").order("title");
+    if (!data.includeArchived) q = q.is("archived_at", null);
+    const { data: rows, error } = await q;
     if (error) throw error;
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const upsertTaskTemplate = createServerFn({ method: "POST" })
