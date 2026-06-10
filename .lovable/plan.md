@@ -1,58 +1,59 @@
-# Canonical Sync Rollout — Phases 4–10
+# Phase 13 — Archive & Integrity Admin Suite
 
-Same pattern as Inventory / Users / SOPs:
-1. Add `archived_at`, `archived_by`, `archive_reason` to canonical table.
-2. `list*` filters archived by default + `includeArchived` (owner-only).
-3. `scan*Dependencies` checks all FK-referencing tables.
-4. `archive*` / `restore*` soft toggle; `delete*` blocks on deps unless `force` (Super Admin).
-5. Update every dependent reader (dashboard/health/analytics/etc.) to filter archived.
-6. Add domain to `sync-bus.ts` fan-out with all related cache keys.
-7. UI: Show Archived toggle, dependency-aware remove flow, Archived badge, Restore button.
-8. Audit log entry on every mutation.
+Wires the Phase 4–12 archive infrastructure into actual admin surfaces, plus tooling to keep the system clean over time.
 
-## Grouping (one phase = one migration + one PR-sized batch)
+## 1. Archive Center UI
 
-**Phase 4 — Schedules domain**
-- `schedules`, `schedule_shifts`, `shift_templates`
-- Dependents: time_punches, labor reports, dashboard, manager view
+New route: `/admin/archive` (owner/manager gated under `_authenticated`).
 
-**Phase 5 — Time & Labor**
-- `time_punches`, `time_corrections`, `time_off_requests`
-- Weekly Hours / Labor are derived views — update readers only, no archive column
-- Dependents: payroll rollup, labor.functions, dashboard, manager
+- **Domain tabs**: SOPs, Task Templates, Schedules, Inventory Items, Inventory Orders, Alerts, Schedule Shifts, Shift Notes, Inventory Counts, Trailers, Stores, Location Requests.
+- **Per-row actions**: Restore, View Dependencies, Hard Delete (owner-only).
+- **Dependency drawer**: calls each domain's `scan*Dependencies` and shows live child counts before allowing delete.
+- **Filters**: archived date range, archived-by user, reason text search.
+- Reuses existing `*-archive.functions.ts` modules — no new server logic for the basic flows.
 
-**Phase 6 — Cash domain**
-- `cash_drawers`, `cash_drawer_sessions`, `cash_drops`
-- Dependents: dashboard cash widgets, reports, alerts
+## 2. Bulk Purge Jobs
 
-**Phase 7 — Operations**
-- `daily_recaps`, `shifts`, `shift_notes`, `tasks`, `task_templates`, `checklist_sessions`, `hospitality_incidents`, `waste_log`
-- Dependents: dashboard, performance, history
+- New server fn `purgeArchivedOlderThan({ domain, days })` — owner-only, dispatches per-domain hard-delete with `force:false` (skips rows that still have live dependencies, reports counts).
+- New scheduled route `src/routes/api/public/hooks/archive-purge.ts` — nightly cron, purges archived rows older than 90 days across all domains.
+- Per-domain override stored in `automation_settings` (`archive_retention_days` jsonb).
+- UI: "Purge Now" button in Archive Center header (owner-only) with confirmation.
 
-**Phase 8 — Inventory Orders / Order Guide**
-- `inventory_orders`, `inventory_order_items`, `inventory_receipts`, `inventory_change_requests`
-- Order Guide is a derived view from inventory_items — readers only
-- Dependents: alerts, dashboard
+## 3. Audit Log Viewer
 
-**Phase 9 — Locations & Access**
-- `trailers`, `stores`, `active_location_grants`, `location_access_requests`, `tab_permissions`, `invite_codes`
-- Dependents: nearly every module (trailer_id is ubiquitous)
+New route: `/admin/audit-log` (owner-only).
 
-**Phase 10 — Communication / Derived**
-- `alerts`, `alert_actions`, `notification_preferences`, `email_send_log`
-- Announcements, Knowledge Hub, Performance, Reports, Dashboards, History, Training, Notifications, Emails — these are **derived views**, not canonical tables. They get reader-filter + fan-out updates only.
+- Reads from existing `audit_log` table.
+- Filters: actor, entity type, action (archive/restore/delete/etc.), date range.
+- Side panel shows full `payload` JSON pretty-printed.
+- Paginated (50/page), newest first.
+- Export to CSV.
 
-## Per-phase deliverables
-- 1 migration (archive columns + indexes for canonical tables only)
-- Updates to `src/lib/<domain>.functions.ts` (scan/archive/restore/delete)
-- Reader updates in dependent `*.functions.ts`
-- `sync-bus.ts` fan-out additions
-- UI updates on the primary route(s)
-- Verify build passes between phases
+## 4. Dependency Health Dashboard
 
-## Scope clarifications I need before starting
+New route: `/admin/data-health` (owner/manager).
 
-1. **Pace**: Should I ship all 7 phases in this single turn (very long — 7 migrations, ~40 file edits, multiple build waits), or one phase per turn so you can review each?
-2. **Derived modules** (Weekly Hours, Labor, Performance, Reports, Dashboards, History, Training, Announcements, Knowledge Hub, Notifications, Emails) have no canonical table of their own — confirm "reader-filter + fan-out only" is acceptable rather than inventing new tables.
-3. **Locations (trailers)**: archiving a trailer cascades to virtually everything. Confirm you want full archive support (vs. just `active=false` which already exists).
-4. **Alerts**: already have `status='archived'`. Should I add the formal `archived_at` columns too, or treat the existing status as the archive mechanism?
+- New server fn `runAllDependencyScans()` — fans out every `scan*Dependencies` across archived rows and reports anything still blocked (cannot be hard-deleted because live children exist).
+- Health cards per domain: total archived, purgeable, blocked, oldest archived row.
+- Drill-in lists blocked rows with the specific dependency type/count.
+- Manual "Run Scan" button + cached result (5-minute TTL in TanStack Query).
+
+## Technical Details
+
+- **New files**:
+  - `src/routes/_authenticated/admin.archive.tsx`
+  - `src/routes/_authenticated/admin.audit-log.tsx`
+  - `src/routes/_authenticated/admin.data-health.tsx`
+  - `src/lib/archive-center.functions.ts` (unified `listArchived(domain)` + `purgeArchivedOlderThan`)
+  - `src/lib/data-health.functions.ts` (`runAllDependencyScans`)
+  - `src/lib/audit-log.functions.ts` (`listAuditLog`, `exportAuditLogCsv`)
+  - `src/routes/api/public/hooks/archive-purge.ts` (cron hook)
+  - `src/components/admin/ArchiveTable.tsx`, `DependencyDrawer.tsx`, `HealthCard.tsx`
+- **Migration**: add `archive_retention_days jsonb default '{}'` column to `automation_settings`; schedule pg_cron for nightly purge.
+- **No new tables** — all infrastructure already exists from Phases 4–12.
+- **Navigation**: add "Admin" submenu entries gated by `is_manager`/owner.
+
+## Out of scope
+
+- Restoring across domain boundaries (e.g. restoring a trailer that references an archived store) — surfaced as a warning, not auto-resolved.
+- Modifying append-only logs (`audit_log`, `change_log`, `email_send_log`) — viewer only.
