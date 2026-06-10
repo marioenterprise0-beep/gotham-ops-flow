@@ -38,9 +38,15 @@ function IntegrityPage() {
   const sweep = useServerFn(runIntegritySweep);
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["integrity-sweep"],
-    queryFn: () => sweep(),
+    queryFn: async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) throw new Error("Not signed in");
+      return sweep();
+    },
     refetchInterval: 60_000,
     staleTime: 30_000,
+    retry: false,
   });
 
   return (
