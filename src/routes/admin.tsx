@@ -105,9 +105,7 @@ function AdminPage() {
       <EmbeddedProvider>
         {tab === "people" && <UsersPage />}
         {tab === "roles" && <RolesTab roleId={roleId} />}
-        {tab === "permissions" && (isOwner
-          ? <PermissionsPage />
-          : <Card>You need owner access to edit permissions.</Card>)}
+        {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}
