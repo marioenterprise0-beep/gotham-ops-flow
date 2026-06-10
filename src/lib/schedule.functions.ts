@@ -477,3 +477,37 @@ export const generateCoverage = createServerFn({ method: "POST" })
     return { inserted, skipped: days.length * segs.length - inserted };
   });
 
+
+// Crew-safe: list only the caller's own assigned shifts from non-archived schedules.
+// Used by the dashboard "My Schedule" view and the schedule page when role is crew.
+export const listMyScheduleShifts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    from: z.string().optional(),
+    to: z.string().optional(),
+  }).optional().parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const from = data?.from ?? new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+    const to = data?.to ?? new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+    const { data: rows, error } = await supabase
+      .from("schedule_shifts")
+      .select("id, schedule_id, shift_date, start_time, end_time, role, segment, trailer_id, break_minutes, notes")
+      .eq("employee_id", userId)
+      .is("archived_at", null)
+      .gte("shift_date", from)
+      .lte("shift_date", to)
+      .order("shift_date").order("start_time");
+    if (error) throw new Error(error.message);
+    // Only show shifts from published schedules
+    const schedIds = Array.from(new Set((rows ?? []).map((r: any) => r.schedule_id)));
+    if (schedIds.length === 0) return [];
+    const { data: scheds } = await supabase
+      .from("schedules").select("id, status, name")
+      .in("id", schedIds);
+    const published = new Set((scheds ?? []).filter((s: any) => s.status === "published").map((s: any) => s.id));
+    const schedNames: Record<string, string> = Object.fromEntries((scheds ?? []).map((s: any) => [s.id, s.name]));
+    return (rows ?? [])
+      .filter((r: any) => published.has(r.schedule_id))
+      .map((r: any) => ({ ...r, schedule_name: schedNames[r.schedule_id] ?? null }));
+  });
