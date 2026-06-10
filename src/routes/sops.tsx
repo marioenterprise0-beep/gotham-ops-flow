@@ -362,7 +362,7 @@ function SOPsPage() {
         <div className="mt-6">
           <SectionHeader eyebrow="Your record" title={`Completed certifications · ${completed.length}`} />
           {completed.length === 0 ? (
-            <Card><p className="text-sm text-muted-foreground">Acknowledge an SOP to earn your first certification.</p></Card>
+            <EmptyState icon={Award} title="No certifications yet" hint="Finish an SOP end-to-end to earn your first certification badge." />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {completed.map((s) => (
