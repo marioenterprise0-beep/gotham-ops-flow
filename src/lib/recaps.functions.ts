@@ -128,13 +128,23 @@ export const listRecaps = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { isOwner, isManager } = await getRoles(supabase, userId);
     let q = supabase
       .from("daily_recaps")
-      .select("id, recap_date, manager_id, trailer_id, location, shift_score, status, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at, archived_at, archived_by, archive_reason")
+      .select("id, recap_date, manager_id, trailer_id, location, shift_score, status, kind, crew_summary, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at, archived_at, archived_by, archive_reason")
       .order("recap_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
     if (!data.includeArchived) q = q.is("archived_at", null);
+
+    // Role scoping: crew sees only own; manager sees own trailer; owner sees all.
+    if (!isOwner && !isManager) {
+      q = q.eq("manager_id", userId);
+    } else if (!isOwner && isManager) {
+      const { data: prof } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+      if (prof?.trailer_id) q = q.eq("trailer_id", prof.trailer_id);
+    }
+
 
     if (data.scope === "mine") q = q.eq("manager_id", userId);
     if (data.scope === "today") q = q.eq("recap_date", new Date().toISOString().slice(0, 10));
