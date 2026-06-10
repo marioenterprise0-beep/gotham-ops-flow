@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
+import { photoUrlSchema } from "@/lib/validators/photo-url";
 
 export const listTasks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -74,7 +75,7 @@ export const completeTask = createServerFn({ method: "POST" })
     taskId: z.string().uuid(),
     numericValue: z.number().optional(),
     textValue: z.string().optional(),
-    photoUrl: z.string().optional(),
+    photoUrl: photoUrlSchema,
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;

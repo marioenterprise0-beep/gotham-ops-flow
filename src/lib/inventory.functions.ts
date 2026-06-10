@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
+import { photoUrlSchema } from "@/lib/validators/photo-url";
 
 async function assertOwner(supabase: any, userId: string) {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -428,7 +429,7 @@ export const logWaste = createServerFn({ method: "POST" })
     itemId: z.string().uuid(),
     qty: z.number().positive(),
     reason: z.string().min(1).max(200),
-    photoUrl: z.string().optional(),
+    photoUrl: photoUrlSchema,
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
