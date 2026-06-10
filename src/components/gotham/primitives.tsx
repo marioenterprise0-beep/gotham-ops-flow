@@ -28,7 +28,7 @@ export function Card({
 }) {
   return (
     <div className={cn(
-      "rounded-xl border p-4 card-shadow transition-colors",
+      "rounded-xl border p-[13px] card-shadow transition-colors",
       dark && "surface-dark border-[#1C1C1C] text-white",
       graphite && "surface-graphite border-[#2A2A2A] text-white",
       !dark && !graphite && "bg-card border-border",
