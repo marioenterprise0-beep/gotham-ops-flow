@@ -155,3 +155,28 @@ export const listPendingApprovals = createServerFn({ method: "GET" })
     if (error) throw error;
     return rows ?? [];
   });
+
+// Soft-delete (archive) a task. Managers and owners only.
+export const deleteTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ taskId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const ok = (roles ?? []).some((r) => r.role === "owner" || r.role === "manager");
+    if (!ok) throw new Error("Manager role required to delete tasks");
+    const { error } = await supabase
+      .from("tasks")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
+      .eq("id", data.taskId);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "delete_task", entity: "task", entity_id: data.taskId,
+      payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
