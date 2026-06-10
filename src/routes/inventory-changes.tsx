@@ -1,21 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { listInventoryChangeRequests, decideInventoryChangeRequest } from "@/lib/inventory-changes.functions";
-import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { Check, X, ClipboardList } from "lucide-react";
 
 export const Route = createFileRoute("/inventory-changes")({
-  ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Inventory Change Requests · Gotham OS" }] }),
-  component: InventoryChanges,
+  beforeLoad: () => {
+    throw redirect({ to: "/inventory", search: { tab: "approvals" } as any });
+  },
+  component: () => null,
 });
 
 type Req = {
@@ -36,7 +34,7 @@ const ACTION_TONE: Record<string, "info" | "warning" | "danger" | "success"> = {
   create: "info", update: "warning", archive: "warning", delete: "danger",
 };
 
-function InventoryChanges() {
+export function InventoryChangesView() {
   const qc = useQueryClient();
   const { roleId, session, loading } = useRole();
   const isOwner = roleId === "owner";
@@ -71,12 +69,7 @@ function InventoryChanges() {
   });
 
   return (
-    <AppShell>
-      <div className="mb-3">
-        <div className="label-caps text-muted-foreground">Governance</div>
-        <h1 className="font-display text-2xl text-foreground">INVENTORY CHANGE REQUESTS</h1>
-      </div>
-
+    <div>
       <SectionHeader
         eyebrow="Queue"
         title={isOwner ? "Owner review" : "My requests"}
@@ -161,6 +154,6 @@ function InventoryChanges() {
       </div>
 
       <div className="h-6" />
-    </AppShell>
+    </div>
   );
 }

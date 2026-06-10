@@ -1,15 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AppShell } from "@/components/gotham/AppShell";
 import { Card } from "@/components/gotham/primitives";
 import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, submitCount } from "@/lib/inventory.functions";
-import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Input } from "@/components/ui/input";
-import {
-  Beef, Boxes, Carrot, Croissant, Milk, Package, Plus, Search, Soup, Sparkles, X,
-} from "lucide-react";
+import { Beef, Boxes, Carrot, Croissant, Milk, Package, Plus, Search, Soup, Sparkles, X } from "lucide-react";
 import { EditItemModal, type Item } from "@/routes/inventory";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
@@ -17,11 +13,12 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { InventoryItemCard, statusOf } from "@/components/gotham/InventoryItemCard";
 
+// Legacy URL — redirect to the unified Inventory page on the Count Guide tab.
 export const Route = createFileRoute("/inventory-guide")({
-  ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Inventory Guide · Gotham OS" }] }),
-  component: InventoryGuide,
+  beforeLoad: () => {
+    throw redirect({ to: "/inventory", search: { tab: "count-guide" } as any });
+  },
+  component: () => null,
 });
 
 const CATEGORY_ORDER = ["protein", "bun", "produce", "sauce", "packaging", "supplies", "other"] as const;
@@ -34,8 +31,7 @@ const CATEGORY_ICON: Record<string, typeof Beef> = {
   packaging: Package, supplies: Sparkles, other: Boxes,
 };
 
-
-function InventoryGuide() {
+export function InventoryGuideView() {
   const qc = useQueryClient();
   const { roleId, trailerScope } = useRole();
   const isOwner = roleId === "owner";
@@ -55,7 +51,7 @@ function InventoryGuide() {
     queryFn: () => fetchInv({ data: {} }) as Promise<Item[]>,
   });
 
-  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+  const FANOUT = ["inventory", "orders", "alerts", "operations", "dashboard", "history"] as const;
   const archiveM = useMutation({
     mutationFn: (id: string) => archiveFn({ data: { id } }),
     onSuccess: () => { toast.success("Item archived"); syncDomains(qc, ...FANOUT); },
@@ -115,7 +111,6 @@ function InventoryGuide() {
     return [...ordered, ...extras];
   }, [byCat]);
 
-  // Spy on scroll to highlight the active category in the rail.
   useEffect(() => {
     if (categories.length === 0) return;
     const io = new IntersectionObserver(
@@ -147,13 +142,10 @@ function InventoryGuide() {
   const lowCount = filtered.filter((it) => statusOf(it) === "LOW").length;
 
   return (
-    <AppShell>
-      {/* Header */}
+    <div>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="label-caps text-muted-foreground">Inventory</div>
-          <h1 className="font-display text-3xl mt-1">Inventory Guide</h1>
-          <p className="text-sm text-muted-foreground mt-1">How to count and store every item.</p>
+          <p className="text-sm text-muted-foreground">How to count and store every item.</p>
         </div>
         {isOwner && (
           <button
@@ -165,7 +157,6 @@ function InventoryGuide() {
         )}
       </div>
 
-      {/* Stat strip */}
       <div className="grid grid-cols-3 gap-2 mt-4">
         <Card className="!p-3">
           <div className="label-caps text-muted-foreground text-[10px]">Tracked</div>
@@ -181,7 +172,6 @@ function InventoryGuide() {
         </Card>
       </div>
 
-      {/* Sticky search */}
       <div className="sticky top-0 z-20 -mx-4 px-4 py-3 mt-4 bg-background/85 backdrop-blur border-b border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -203,7 +193,6 @@ function InventoryGuide() {
         </div>
       </div>
 
-      {/* Mobile category chip rail */}
       {categories.length > 0 && (
         <div className="lg:hidden -mx-4 px-4 pt-3 pb-1 overflow-x-auto">
           <div className="flex gap-2 min-w-max">
@@ -231,9 +220,7 @@ function InventoryGuide() {
         </div>
       )}
 
-      {/* Layout: sticky rail + scrollable list */}
       <div className="mt-4 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6">
-        {/* Sticky category rail (desktop) */}
         <aside className="hidden lg:block">
           <div className="sticky top-20">
             <div className="label-caps text-muted-foreground mb-2">Categories</div>
@@ -267,7 +254,6 @@ function InventoryGuide() {
           </div>
         </aside>
 
-        {/* Scrollable content */}
         <div className="flex flex-col gap-8">
           {isLoading && <Card>Loading…</Card>}
           {!isLoading && filtered.length === 0 && (
@@ -336,6 +322,6 @@ function InventoryGuide() {
           onDone={() => syncDomains(qc, "inventory")}
         />
       )}
-    </AppShell>
+    </div>
   );
 }

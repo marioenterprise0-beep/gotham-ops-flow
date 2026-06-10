@@ -1,21 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Plus, Save, Trash2, Truck, X } from "lucide-react";
 import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, updateOrderGuide, upsertInventoryItem } from "@/lib/inventory.functions";
 import { toast } from "sonner";
-import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/order-guide")({
-  ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Order Guide · Gotham OS" }] }),
-  component: OrderGuide,
+  beforeLoad: () => {
+    throw redirect({ to: "/inventory", search: { tab: "configuration" } as any });
+  },
+  component: () => null,
 });
 
 type Row = {
@@ -40,9 +38,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   produce: "Produce", dairy: "Dairy", packaging: "Packaging", supplies: "Supplies",
 };
 
-function OrderGuide() {
+export function OrderGuideView({ focusItemId }: { focusItemId?: string | null } = {}) {
   const qc = useQueryClient();
-  const { roleId, trailerScope, trailers, session, loading } = useRole();
+  const { roleId, trailerScope, session, loading } = useRole();
   const canEdit = roleId === "owner" || roleId === "manager";
   const list = useServerFn(listInventory);
   const update = useServerFn(updateOrderGuide);
@@ -57,10 +55,6 @@ function OrderGuide() {
     enabled: !loading && !!session?.access_token,
   });
 
-  const trailerLabel = trailerScope
-    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
-    : "All trailers · Company";
-
   const [drafts, setDrafts] = useState<Record<string, Partial<Row>>>({});
   const [filter, setFilter] = useState<string>("all");
   const [showAdd, setShowAdd] = useState(false);
@@ -71,10 +65,16 @@ function OrderGuide() {
 
   useEffect(() => { setDrafts({}); }, [items.length]);
 
+  useEffect(() => {
+    if (!focusItemId) return;
+    const el = document.getElementById(`cfg-${focusItemId}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusItemId, items.length]);
+
   const cats = useMemo(() => ["all", ...Array.from(new Set(items.map((i) => i.category)))], [items]);
   const visible = filter === "all" ? items : items.filter((i) => i.category === filter);
 
-  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+  const FANOUT = ["inventory", "orders", "alerts", "operations", "dashboard", "history"] as const;
 
   const saveMut = useMutation({
     mutationFn: (vars: { id: string; patch: any }) => update({ data: vars }),
@@ -152,15 +152,7 @@ function OrderGuide() {
   }
 
   return (
-    <AppShell>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="label-caps text-muted-foreground">Purchasing</div>
-          <h1 className="font-display text-2xl text-foreground">ORDER GUIDE</h1>
-        </div>
-        <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
-      </div>
-
+    <div>
       <div className="-mx-4 px-4 overflow-x-auto mb-3">
         <div className="flex gap-2 min-w-max">
           {cats.map((c) => (
@@ -229,7 +221,8 @@ function OrderGuide() {
         {visible.map((it) => {
           const dirty = !!drafts[it.id] && Object.keys(drafts[it.id]).length > 0;
           return (
-            <Card key={it.id} className="p-3">
+            <div key={it.id} id={`cfg-${it.id}`} className="scroll-mt-24">
+            <Card className={`p-3 ${focusItemId === it.id ? "ring-2 ring-[var(--color-gold)]" : ""}`}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-sm">{it.name}</div>
@@ -290,13 +283,14 @@ function OrderGuide() {
                 <span>Last received: {it.last_received_at ? new Date(it.last_received_at).toLocaleDateString() : "—"}</span>
               </div>
             </Card>
+            </div>
           );
         })}
         {!isLoading && visible.length === 0 && <Card>No items.</Card>}
       </div>
 
       <div className="h-6" />
-    </AppShell>
+    </div>
   );
 }
 
