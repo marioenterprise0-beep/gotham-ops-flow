@@ -7,6 +7,8 @@ import { Card } from "@/components/gotham/primitives";
 import { cn } from "@/lib/utils";
 import { listTaskTemplates, upsertTaskTemplate, deleteTaskTemplate, listTemplateVersions } from "@/lib/task-templates.functions";
 import { listTrailers } from "@/lib/users.functions";
+import { useRole } from "@/lib/role";
+
 
 type Role = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 type Phase = "opening" | "mid" | "closing" | "emergency";
