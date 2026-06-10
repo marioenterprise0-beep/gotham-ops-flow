@@ -23,7 +23,10 @@ export type TabAccess = "none" | "view" | "edit";
 type Ctx = {
   loading: boolean;
   session: Session | null;
-  roleId: RoleId | null;
+  roleId: RoleId | null;          // EFFECTIVE role (respects owner impersonation)
+  actualRoleId: RoleId | null;    // REAL role from user_roles — use for security-critical checks only
+  actAsRole: RoleId | null;       // owner-only "view as" override
+  setActAsRole: (r: RoleId | null) => void;
   roles: RoleId[];
   user: string;
   userId: string | null;
@@ -42,6 +45,8 @@ type Ctx = {
 
 const RoleCtx = createContext<Ctx | null>(null);
 const RANK: Record<TabAccess, number> = { none: 0, view: 1, edit: 2 };
+const ACT_AS_KEY = "gotham:act-as-role:v1";
+
 
 function pickPrimary(rs: RoleId[]): RoleId | null {
   if (rs.length === 0) return null;
