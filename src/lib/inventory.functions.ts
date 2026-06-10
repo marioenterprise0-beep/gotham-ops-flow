@@ -86,37 +86,54 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     if (!store) throw new Error("No store configured");
     const trailerId = await resolveTrailer(supabase, userId, data.trailerId);
     if (!trailerId) throw new Error("No trailer assigned");
-    const payload: any = {
+
+    // Structural fields (global) — propagated across every per-trailer copy.
+    const structural: any = {
       name: data.name, category: data.category, unit: data.unit,
       par_level: data.parLevel, low_threshold: data.lowThreshold,
       cost_per_unit: data.costPerUnit ?? 0, store_id: store.id,
-      trailer_id: trailerId,
       updated_at: new Date().toISOString(),
     };
-    if (data.currentQty !== undefined) payload.current_qty = data.currentQty;
-    if (data.vendor !== undefined) payload.vendor = data.vendor;
-    if (data.packSize !== undefined) payload.pack_size = data.packSize;
-    if (data.minimumQty !== undefined) payload.minimum_qty = data.minimumQty;
-    if (data.preferredOrderQty !== undefined) payload.preferred_order_qty = data.preferredOrderQty;
-    if (data.estimatedCost !== undefined) payload.estimated_cost = data.estimatedCost;
-    if (data.imageUrl !== undefined) payload.image_url = data.imageUrl;
-    if (data.countInstructions !== undefined) payload.count_instructions = data.countInstructions;
-    if (data.storageLocation !== undefined) payload.storage_location = data.storageLocation;
-    if (data.archived !== undefined) payload.archived_at = data.archived ? new Date().toISOString() : null;
+    if (data.vendor !== undefined) structural.vendor = data.vendor;
+    if (data.packSize !== undefined) structural.pack_size = data.packSize;
+    if (data.minimumQty !== undefined) structural.minimum_qty = data.minimumQty;
+    if (data.preferredOrderQty !== undefined) structural.preferred_order_qty = data.preferredOrderQty;
+    if (data.estimatedCost !== undefined) structural.estimated_cost = data.estimatedCost;
+    if (data.imageUrl !== undefined) structural.image_url = data.imageUrl;
+    if (data.countInstructions !== undefined) structural.count_instructions = data.countInstructions;
+    if (data.storageLocation !== undefined) structural.storage_location = data.storageLocation;
+    if (data.archived !== undefined) structural.archived_at = data.archived ? new Date().toISOString() : null;
+
     if (data.id) {
-      const { error } = await supabase.from("inventory_items").update(payload).eq("id", data.id);
+      // Update the targeted row, then propagate structural fields to sibling rows (same store + name).
+      const targetedPayload: any = { ...structural, trailer_id: trailerId };
+      if (data.currentQty !== undefined) targetedPayload.current_qty = data.currentQty; // local-only
+      const { error } = await supabase.from("inventory_items").update(targetedPayload).eq("id", data.id);
       if (error) throw error;
+      // Propagate to siblings — exclude current_qty so local counts stay independent.
+      const { error: pErr } = await supabase
+        .from("inventory_items").update(structural)
+        .eq("store_id", store.id).eq("name", data.name).neq("id", data.id);
+      if (pErr) throw pErr;
     } else {
-      payload.current_qty = data.currentQty ?? 0;
-      const { error } = await supabase.from("inventory_items").insert(payload);
+      // New master item — fan out to every active trailer in the store with current_qty = 0.
+      const { data: trailers } = await supabase.from("trailers").select("id").eq("active", true);
+      const seed = (trailers ?? []).length > 0 ? trailers! : [{ id: trailerId }];
+      const rows = seed.map((t: any) => ({
+        ...structural,
+        trailer_id: t.id,
+        current_qty: t.id === trailerId ? (data.currentQty ?? 0) : 0,
+      }));
+      const { error } = await supabase.from("inventory_items").insert(rows);
       if (error) throw error;
     }
     await supabase.from("audit_log").insert({
       actor_id: userId, action: data.id ? "update_item" : "create_item", entity: "inventory_item",
-      entity_id: data.id ?? null, payload: { name: data.name, category: data.category, trailer_id: trailerId },
+      entity_id: data.id ?? null, payload: { name: data.name, category: data.category, trailer_id: trailerId, propagated: true },
     });
     return { ok: true };
   });
+
 
 export const updateOrderGuide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -139,14 +156,23 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
+    // Apply to the targeted item, then propagate to all sibling rows (same name + store).
+    const { data: target } = await supabase.from("inventory_items")
+      .select("name, store_id").eq("id", data.id).maybeSingle();
     const { error } = await supabase.from("inventory_items").update(patch).eq("id", data.id);
     if (error) throw error;
+    if (target?.name && target?.store_id) {
+      const { error: pErr } = await supabase.from("inventory_items").update(patch)
+        .eq("store_id", target.store_id).eq("name", target.name).neq("id", data.id);
+      if (pErr) throw pErr;
+    }
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "update_order_guide", entity: "inventory_item",
-      entity_id: data.id, payload: data.patch,
+      entity_id: data.id, payload: { ...data.patch, propagated: true },
     });
     return { ok: true };
   });
+
 
 // ---------- Lifecycle: scan / archive / restore / hard delete ----------
 
@@ -185,13 +211,16 @@ export const archiveInventoryItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("inventory_items")
-      .update({ archived_at: new Date().toISOString() })
-      .eq("id", data.id);
+    const { data: target } = await supabase.from("inventory_items").select("name, store_id").eq("id", data.id).maybeSingle();
+    const archived_at = new Date().toISOString();
+    const filter = target?.name && target?.store_id
+      ? supabase.from("inventory_items").update({ archived_at }).eq("store_id", target.store_id).eq("name", target.name)
+      : supabase.from("inventory_items").update({ archived_at }).eq("id", data.id);
+    const { error } = await filter;
     if (error) throw error;
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "archive_item", entity: "inventory_item",
-      entity_id: data.id, payload: {},
+      entity_id: data.id, payload: { propagated: true },
     });
     return { ok: true, archived: true as const };
   });
@@ -202,10 +231,13 @@ export const restoreInventoryItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("inventory_items")
-      .update({ archived_at: null })
-      .eq("id", data.id);
+    const { data: target } = await supabase.from("inventory_items").select("name, store_id").eq("id", data.id).maybeSingle();
+    const filter = target?.name && target?.store_id
+      ? supabase.from("inventory_items").update({ archived_at: null }).eq("store_id", target.store_id).eq("name", target.name)
+      : supabase.from("inventory_items").update({ archived_at: null }).eq("id", data.id);
+    const { error } = await filter;
     if (error) throw error;
+
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "restore_item", entity: "inventory_item",
       entity_id: data.id, payload: {},

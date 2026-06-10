@@ -37,6 +37,7 @@ function RecapsPage() {
   const { roleId, trailerScope, trailers, session, loading, userId } = useRole();
   const isManager = roleId === "manager" || roleId === "owner";
   const isOwner = roleId === "owner";
+  const isCrew = !isManager;
 
   const [tab, setTab] = useState<"today" | "pending" | "history">("today");
   const [editorOpen, setEditorOpen] = useState(false);
@@ -44,9 +45,9 @@ function RecapsPage() {
 
   const list = useServerFn(listRecaps);
   const { data: recaps = [] } = useQuery<RecapSummary[]>({
-    queryKey: ["recaps", tab, trailerScope ?? "all"],
+    queryKey: ["recaps", tab, trailerScope ?? "all", isCrew ? "crew" : "mgr"],
     queryFn: () => list({ data: {
-      scope: tab === "today" ? "today" : tab === "pending" ? "pending" : "all",
+      scope: isCrew ? "mine" : (tab === "today" ? "today" : tab === "pending" ? "pending" : "all"),
       trailerId: trailerScope ?? undefined,
     } }) as Promise<RecapSummary[]>,
     enabled: !loading && !!session?.access_token,
@@ -54,13 +55,7 @@ function RecapsPage() {
 
   const myToday = useMemo(() => recaps.find((r) => r.manager_id === userId && r.recap_date === new Date().toISOString().slice(0,10)), [recaps, userId]);
 
-  if (!loading && !isManager) {
-    return (
-      <AppShell>
-        <Card>Only managers and owners can submit daily recaps. <Link to="/" className="underline">Back to dashboard</Link></Card>
-      </AppShell>
-    );
-  }
+
 
   return (
     <AppShell>
@@ -124,11 +119,13 @@ function RecapsPage() {
         <RecapEditor
           id={openId}
           isOwner={isOwner}
+          isCrew={isCrew}
           defaultTrailerId={trailerScope}
           onClose={() => { setEditorOpen(false); setOpenId(null); }}
           onSaved={() => syncDomains(qc, "recaps", "alerts")}
         />
       )}
+
 
       <div className="h-6" />
     </AppShell>
@@ -169,10 +166,11 @@ const FIELD_TO_DB: Record<string, string> = {
   nextShiftNotes: "next_shift_notes",
 };
 
-function RecapEditor({ id, isOwner, defaultTrailerId, onClose, onSaved }: {
-  id: string | null; isOwner: boolean; defaultTrailerId: string | null;
+function RecapEditor({ id, isOwner, isCrew = false, defaultTrailerId, onClose, onSaved }: {
+  id: string | null; isOwner: boolean; isCrew?: boolean; defaultTrailerId: string | null;
   onClose: () => void; onSaved: () => void;
 }) {
+
   const { trailers, userId } = useRole();
   const get = useServerFn(getRecap);
   const save = useServerFn(saveRecap);
@@ -210,11 +208,13 @@ function RecapEditor({ id, isOwner, defaultTrailerId, onClose, onSaved }: {
     mutationFn: (submit: boolean) => save({ data: {
       id: existing?.id,
       submit,
+      kind: isCrew ? "crew" : "manager",
       trailerId: trailerId ?? null,
       location: location || null,
       shiftScore: shiftScore === "" ? null : Number(shiftScore),
       ...Object.fromEntries(Object.keys(FIELD_TO_DB).map((k) => [k, form[k] ?? null])),
     } }) as any,
+
     onSuccess: (_d, submit) => {
       toast.success(submit ? "Submitted to owner" : "Draft saved");
       onSaved(); onClose();

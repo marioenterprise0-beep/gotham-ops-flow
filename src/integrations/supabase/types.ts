@@ -602,6 +602,7 @@ export type Database = {
           archived_by: string | null
           created_at: string
           crew: Json
+          crew_summary: string | null
           hosp_complaints: string | null
           hosp_feedback: string | null
           hosp_wins: string | null
@@ -609,6 +610,7 @@ export type Database = {
           inv_concerns: string | null
           inv_low_stock: string | null
           inv_orders: string | null
+          kind: string
           labor_attendance: string | null
           labor_performance: string | null
           labor_staffing: string | null
@@ -635,6 +637,7 @@ export type Database = {
           archived_by?: string | null
           created_at?: string
           crew?: Json
+          crew_summary?: string | null
           hosp_complaints?: string | null
           hosp_feedback?: string | null
           hosp_wins?: string | null
@@ -642,6 +645,7 @@ export type Database = {
           inv_concerns?: string | null
           inv_low_stock?: string | null
           inv_orders?: string | null
+          kind?: string
           labor_attendance?: string | null
           labor_performance?: string | null
           labor_staffing?: string | null
@@ -668,6 +672,7 @@ export type Database = {
           archived_by?: string | null
           created_at?: string
           crew?: Json
+          crew_summary?: string | null
           hosp_complaints?: string | null
           hosp_feedback?: string | null
           hosp_wins?: string | null
@@ -675,6 +680,7 @@ export type Database = {
           inv_concerns?: string | null
           inv_low_stock?: string | null
           inv_orders?: string | null
+          kind?: string
           labor_attendance?: string | null
           labor_performance?: string | null
           labor_staffing?: string | null

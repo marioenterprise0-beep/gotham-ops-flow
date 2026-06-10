@@ -7,6 +7,8 @@ import { Card } from "@/components/gotham/primitives";
 import { cn } from "@/lib/utils";
 import { listTaskTemplates, upsertTaskTemplate, deleteTaskTemplate, listTemplateVersions } from "@/lib/task-templates.functions";
 import { listTrailers } from "@/lib/users.functions";
+import { useRole } from "@/lib/role";
+
 
 type Role = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 type Phase = "opening" | "mid" | "closing" | "emergency";
@@ -37,10 +39,13 @@ type DraftTemplate = Omit<Template, "id"> & { id?: string };
 
 export function TaskTemplatesPanel() {
   const qc = useQueryClient();
+  const { roleId } = useRole();
+  const canEdit = roleId === "owner";
   const fetchTemplates = useServerFn(listTaskTemplates);
   const fetchTrailers = useServerFn(listTrailers);
   const upsertFn = useServerFn(upsertTaskTemplate);
   const deleteFn = useServerFn(deleteTaskTemplate);
+
 
   const [editing, setEditing] = useState<DraftTemplate | null>(null);
   const [historyFor, setHistoryFor] = useState<Template | null>(null);
@@ -104,14 +109,19 @@ export function TaskTemplatesPanel() {
           </select>
         </div>
         <div className="ml-auto">
-          <button
-            onClick={() => setEditing({ trailer_id: null, role: "cashier", phase: "opening", title: "", description: "", requires_signoff: false, position: 0, active: true })}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold uppercase tracking-[1.2px]"
-          >
-            <Plus className="h-3.5 w-3.5" /> New template
-          </button>
+          {canEdit ? (
+            <button
+              onClick={() => setEditing({ trailer_id: null, role: "cashier", phase: "opening", title: "", description: "", requires_signoff: false, position: 0, active: true })}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold uppercase tracking-[1.2px]"
+            >
+              <Plus className="h-3.5 w-3.5" /> New template
+            </button>
+          ) : (
+            <span className="label-caps text-muted-foreground">Read-only · Owner manages master templates</span>
+          )}
         </div>
       </div>
+
 
       <div className="hidden md:grid grid-cols-[1.6fr_120px_110px_140px_90px_120px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
         <div>Title</div><div>Role</div><div>Phase</div><div>Trailer</div><div>Sign-off</div><div className="text-right">Actions</div>
@@ -135,13 +145,18 @@ export function TaskTemplatesPanel() {
           <div className="text-xs">{t.requires_signoff ? "Required" : "—"}</div>
           <div className="flex gap-2 md:justify-end">
             <button onClick={() => setHistoryFor(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><History className="h-3 w-3" /> History</button>
-            <button onClick={() => setEditing(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
-            <button
-              onClick={() => { if (confirm(`Delete "${t.title}"? This stops auto-assigning it.`)) deleteMut.mutate(t.id); }}
-              disabled={deleteMut.isPending}
-              className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 text-[var(--color-danger)] disabled:opacity-50"
-            ><Trash2 className="h-3 w-3" /></button>
+            {canEdit && (
+              <>
+                <button onClick={() => setEditing(t)} className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
+                <button
+                  onClick={() => { if (confirm(`Delete "${t.title}"? This stops auto-assigning it.`)) deleteMut.mutate(t.id); }}
+                  disabled={deleteMut.isPending}
+                  className="rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1 text-[var(--color-danger)] disabled:opacity-50"
+                ><Trash2 className="h-3 w-3" /></button>
+              </>
+            )}
           </div>
+
         </div>
       ))}
 
