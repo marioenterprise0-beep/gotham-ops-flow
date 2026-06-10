@@ -61,7 +61,6 @@ const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: t
   owner:   { label: "Owner",   tagline: "Full access.",      icon: Crown },
 };
 
-const WORKSPACE_KEY = "gotham:workspace-mode:v1";
 const COLLAPSE_KEY = "gotham:sidebar-collapsed:v1";
 
 function defaultMode(roleId: string | null): WorkspaceMode {
@@ -72,32 +71,26 @@ function defaultMode(roleId: string | null): WorkspaceMode {
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roleId, session, loading, disabledTabs } = useRole();
-  const isOwner = roleId === "owner";
+  const { roleId, actualRoleId, actAsRole, setActAsRole, session, loading, disabledTabs } = useRole();
+  const isRealOwner = actualRoleId === "owner";
+  const isOwner = roleId === "owner"; // effective
   const unreadAlerts = useUnreadAlerts();
   const queryClient = useQueryClient();
 
-  const [mode, setModeState] = useState<WorkspaceMode>(() => defaultMode(roleId));
+  // Mode is derived from the effective role — owners impersonating crew see crew workspace.
+  const mode: WorkspaceMode = defaultMode(roleId);
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem(COLLAPSE_KEY) === "1";
   });
 
-  // Sync mode when role loads / changes. Owners can override via switcher; persist owner choice only.
-  useEffect(() => {
-    if (isOwner) {
-      const saved = typeof window !== "undefined" ? (localStorage.getItem(WORKSPACE_KEY) as WorkspaceMode | null) : null;
-      setModeState(saved && saved in MODE_TABS ? saved : "owner");
-    } else {
-      setModeState(defaultMode(roleId));
-    }
-  }, [roleId, isOwner]);
-
   function setMode(next: WorkspaceMode) {
-    setModeState(next);
-    if (isOwner) {
-      try { localStorage.setItem(WORKSPACE_KEY, next); } catch {}
-    }
+    if (!isRealOwner) return;
+    // Map workspace mode to impersonation role. "owner" mode clears impersonation.
+    if (next === "owner") setActAsRole(null);
+    else if (next === "manager") setActAsRole("manager");
+    else setActAsRole("cashier"); // representative crew role
   }
   function toggleCollapsed() {
     setCollapsed((v) => {
@@ -145,7 +138,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
       <CommandPalette />
       <KeyboardShortcuts />
       <OnlineIndicator />
-      <TopBar mode={mode} setMode={setMode} canSwitch={isOwner} />
+      <TopBar mode={mode} setMode={setMode} canSwitch={isRealOwner} impersonating={!!actAsRole && isRealOwner} />
+
 
       <div className="flex-1 flex">
         <aside className={cn(
