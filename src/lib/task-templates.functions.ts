@@ -5,9 +5,9 @@ import { z } from "zod";
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const PHASE = z.enum(["opening", "mid", "closing", "emergency"]);
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
-  if (!data) throw new Error("Manager role required");
+async function assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "owner").maybeSingle();
+  if (!data) throw new Error("Owner role required");
 }
 
 export const listTaskTemplates = createServerFn({ method: "POST" })
