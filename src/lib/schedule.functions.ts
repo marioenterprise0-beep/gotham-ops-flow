@@ -36,7 +36,7 @@ export const scanScheduleDependencies = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     const [shifts, sched] = await Promise.all([
-      supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id),
+      supabase.from("schedule_shifts").select("id").eq("schedule_id", data.id).is("archived_at", null),
       supabase.from("schedules").select("trailer_id, start_date, end_date, status").eq("id", data.id).maybeSingle(),
     ]);
     let punchCount = 0;
