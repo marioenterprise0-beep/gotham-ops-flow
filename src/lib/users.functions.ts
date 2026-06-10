@@ -49,10 +49,10 @@ export const generateInvite = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    if (data.role === "owner") {
+    if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
       if (!(await isOwner(supabase, userId)))
-        throw new Error("Only owners can issue owner invites");
+        throw new Error("Only owners can issue owner or manager invites");
     }
     const code = newCode();
     const expires_at = new Date(Date.now() + data.expiresHours * 3600 * 1000).toISOString();
@@ -310,11 +310,11 @@ export const setUserRole = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    // Only owners can grant the owner role (prevent manager → owner escalation).
-    if (data.role === "owner") {
+    // Only owners can grant owner or manager roles (prevent manager → manager/owner escalation).
+    if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
       if (!(await isOwner(supabase, userId))) {
-        throw new Error("Only owners can assign the owner role");
+        throw new Error("Only owners can assign owner or manager roles");
       }
     }
     // Use admin client for the privileged write — manager check already passed.
