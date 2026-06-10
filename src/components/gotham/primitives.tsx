@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 
 export function SectionHeader({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: ReactNode }) {
   return (
-    <div className="flex items-end justify-between mb-3 mt-6 first:mt-0 gap-3">
+    <div className="flex items-end justify-between mb-2 mt-4 first:mt-0 gap-3">
       <div className="min-w-0">
-        {eyebrow && <div className="label-caps text-muted-foreground mb-1">{eyebrow}</div>}
-        <h2 className="font-display text-2xl text-foreground truncate">{title}</h2>
+        {eyebrow && <div className="label-caps text-muted-foreground mb-0.5">{eyebrow}</div>}
+        <h2 className="font-display text-xl text-foreground truncate">{title}</h2>
       </div>
       {action}
     </div>
