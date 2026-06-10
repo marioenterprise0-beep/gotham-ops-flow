@@ -101,6 +101,7 @@ export const clockIn = createServerFn({ method: "POST" })
       const today = new Date().toISOString().slice(0, 10);
       const { data: todaysShift } = await supabase.from("schedule_shifts")
         .select("id, schedules!inner(archived_at)").is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", userId).eq("shift_date", today)
         .order("start_time").limit(1).maybeSingle();
       if (todaysShift) scheduleShiftId = todaysShift.id;
