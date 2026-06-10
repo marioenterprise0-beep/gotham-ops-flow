@@ -276,6 +276,19 @@ function Operations() {
                         <ShieldCheck className="h-3.5 w-3.5" /> Approve
                       </button>
                     )}
+                    {isManager && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete task "${t.title}"? This cannot be undone from the checklist.`)) {
+                            deleteM.mutate(t.id);
+                          }
+                        }}
+                        disabled={deleteM.isPending}
+                        title="Delete task"
+                        className="h-8 w-8 grid place-items-center rounded-md border border-border text-muted-foreground hover:text-[var(--color-danger)] hover:border-[var(--color-danger)] disabled:opacity-50">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
