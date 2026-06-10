@@ -162,7 +162,7 @@ export const getSchedule = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     let shiftsQ = supabase.from("schedule_shifts").select("*")
-      .eq("schedule_id", data.id).order("shift_date").order("start_time");
+      .eq("schedule_id", data.id).is("archived_at", null).order("shift_date").order("start_time");
     // Include null-trailer shifts (e.g. generated coverage with no trailer scope)
     // alongside the scoped ones so they don't get hidden from the board.
     if (data.trailerId) shiftsQ = shiftsQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
