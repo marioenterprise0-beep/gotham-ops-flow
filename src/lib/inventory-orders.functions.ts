@@ -118,7 +118,8 @@ export async function applyOrderReceipt(supabase: any, userId: string, orderId: 
   const { data: items, error } = await supabase
     .from("inventory_order_items")
     .select("item_id, item_name, requested_qty")
-    .eq("order_id", orderId);
+    .eq("order_id", orderId)
+    .is("archived_at", null);
   if (error) throw error;
   for (const it of items ?? []) {
     if (!it.item_id) continue; // skip free-text items not linked to inventory
