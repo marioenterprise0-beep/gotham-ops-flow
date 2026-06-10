@@ -8,7 +8,8 @@ import {
   ChefHat, Coffee, Shield, Sparkles, Heart, Search, ArrowLeft, Check, Plus,
   Trash2, Pencil, History, Paperclip, X, Upload, Download, BookOpen, Clock,
   Sunrise, Sunset, Package, DollarSign, Brush, Briefcase, Utensils, ListChecks,
-  AlertTriangle, Target, ChevronRight,
+  AlertTriangle, Target, ChevronRight, ChevronLeft, PlayCircle, GraduationCap,
+  Image as ImageIcon, FileText, Siren, Wrench, ClipboardList, Award, CircleDot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
