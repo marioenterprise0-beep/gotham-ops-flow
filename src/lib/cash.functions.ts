@@ -27,7 +27,7 @@ export const listCashDrawers = createServerFn({ method: "POST" })
     let trailerId = data?.trailerId ?? null;
     if (!trailerId) trailerId = await userTrailerId(supabase, userId);
 
-    let q = supabase.from("cash_drawers").select("*").order("name");
+    let q = supabase.from("cash_drawers").select("*").is("archived_at", null).order("name");
     if (trailerId) q = q.eq("trailer_id", trailerId);
     const { data: drawers, error } = await q;
     if (error) throw error;
@@ -40,7 +40,8 @@ export const listCashDrawers = createServerFn({ method: "POST" })
         .from("cash_drawer_sessions")
         .select("*")
         .in("drawer_id", ids)
-        .eq("status", "open");
+        .eq("status", "open")
+        .is("archived_at", null);
       sessions = ss ?? [];
     }
     const withOpen = (drawers ?? []).map((d: any) => {
@@ -95,7 +96,7 @@ export const openDrawerSession = createServerFn({ method: "POST" })
 
     // No double-open
     const { data: existing } = await supabase
-      .from("cash_drawer_sessions").select("id").eq("drawer_id", data.drawerId).eq("status", "open").maybeSingle();
+      .from("cash_drawer_sessions").select("id").eq("drawer_id", data.drawerId).eq("status", "open").is("archived_at", null).maybeSingle();
     if (existing) throw new Error("Drawer is already open");
 
     const { data: session, error } = await supabase.from("cash_drawer_sessions").insert({
@@ -201,7 +202,7 @@ export const getDrawerSession = createServerFn({ method: "POST" })
     const { data: trailer } = await supabase
       .from("trailers").select("name, location").eq("id", session.trailer_id).maybeSingle();
     const { data: drops } = await supabase
-      .from("cash_drops").select("*").eq("session_id", data.sessionId).order("submitted_at");
+      .from("cash_drops").select("*").is("archived_at", null).eq("session_id", data.sessionId).order("submitted_at");
 
     // Resolve user display names
     const ids = new Set<string>();
@@ -230,7 +231,7 @@ export const listDrawerSessions = createServerFn({ method: "POST" })
     limit: z.number().min(1).max(200).default(50),
   }).optional().parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    let q = context.supabase.from("cash_drawer_sessions").select("*")
+    let q = context.supabase.from("cash_drawer_sessions").select("*").is("archived_at", null)
       .order("opened_at", { ascending: false }).limit(data?.limit ?? 50);
     if (data?.trailerId) q = q.eq("trailer_id", data.trailerId);
     if (data?.status) q = q.eq("status", data.status);
@@ -300,6 +301,142 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
       owner_reviewed_by: context.userId,
       owner_reviewed_at: new Date().toISOString(),
     }).eq("id", data.sessionId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Phase 6 — canonical archive/restore + dependency scan for cash domain
+// ---------------------------------------------------------------------------
+
+async function _assertManager(supabase: any, userId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+  if (!data) throw new Error("Manager access required");
+}
+async function _assertOwner(supabase: any, userId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  if (!data) throw new Error("Owner access required");
+}
+
+export const scanDrawerDependencies = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const [sessions, openSession] = await Promise.all([
+      supabase.from("cash_drawer_sessions").select("id").eq("drawer_id", data.id),
+      supabase.from("cash_drawer_sessions").select("id").eq("drawer_id", data.id).eq("status", "open").is("archived_at", null).maybeSingle(),
+    ]);
+    const total = sessions.data?.length ?? 0;
+    return {
+      sessions: total,
+      hasOpenSession: !!openSession.data,
+      total,
+      hasDependencies: total > 0,
+    };
+  });
+
+export const archiveDrawer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertManager(supabase, userId);
+    const { data: openS } = await supabase
+      .from("cash_drawer_sessions").select("id")
+      .eq("drawer_id", data.id).eq("status", "open").is("archived_at", null).maybeSingle();
+    if (openS) {
+      const err: any = new Error("HAS_OPEN_SESSION");
+      err.code = "HAS_OPEN_SESSION";
+      throw err;
+    }
+    const { error } = await supabase.from("cash_drawers").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+      enabled: false,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "drawer_archived", entity: "cash_drawer", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreDrawer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertOwner(supabase, userId);
+    const { error } = await supabase.from("cash_drawers").update({
+      archived_at: null, archived_by: null, archive_reason: null, enabled: true,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "drawer_restored", entity: "cash_drawer", entity_id: data.id, payload: {},
+    });
+    return { ok: true };
+  });
+
+export const archiveDrawerSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertManager(supabase, userId);
+    const { data: sess } = await supabase.from("cash_drawer_sessions").select("status").eq("id", data.id).maybeSingle();
+    if (sess?.status === "open") {
+      const err: any = new Error("SESSION_OPEN");
+      err.code = "SESSION_OPEN";
+      throw err;
+    }
+    const { error } = await supabase.from("cash_drawer_sessions").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "drawer_session_archived", entity: "cash_drawer_session", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreDrawerSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertOwner(supabase, userId);
+    const { error } = await supabase.from("cash_drawer_sessions").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const archiveCashDrop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertManager(supabase, userId);
+    const { error } = await supabase.from("cash_drops").update({
+      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null,
+    } as any).eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "cash_drop_archived", entity: "cash_drop", entity_id: data.id, payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreCashDrop = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await _assertOwner(supabase, userId);
+    const { error } = await supabase.from("cash_drops").update({
+      archived_at: null, archived_by: null, archive_reason: null,
+    } as any).eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });

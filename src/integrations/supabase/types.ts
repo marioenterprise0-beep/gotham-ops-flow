@@ -281,6 +281,9 @@ export type Database = {
       }
       cash_drawer_sessions: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           closed_at: string | null
           closed_by: string | null
           counted_amount: number | null
@@ -304,6 +307,9 @@ export type Database = {
           verification: Database["public"]["Enums"]["cash_verification"]
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           closed_at?: string | null
           closed_by?: string | null
           counted_amount?: number | null
@@ -327,6 +333,9 @@ export type Database = {
           verification?: Database["public"]["Enums"]["cash_verification"]
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           closed_at?: string | null
           closed_by?: string | null
           counted_amount?: number | null
@@ -361,6 +370,9 @@ export type Database = {
       }
       cash_drawers: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string | null
           enabled: boolean
@@ -371,6 +383,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           enabled?: boolean
@@ -381,6 +396,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           enabled?: boolean
@@ -395,6 +413,9 @@ export type Database = {
       cash_drops: {
         Row: {
           amount: number
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           drawer_id: string
           drop_code: string
@@ -410,6 +431,9 @@ export type Database = {
         }
         Insert: {
           amount: number
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           drawer_id: string
           drop_code: string
@@ -425,6 +449,9 @@ export type Database = {
         }
         Update: {
           amount?: number
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           drawer_id?: string
           drop_code?: string
