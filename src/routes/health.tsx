@@ -9,6 +9,7 @@ import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { Activity } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/health")({
   ssr: false,
