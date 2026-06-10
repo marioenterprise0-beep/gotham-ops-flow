@@ -211,13 +211,16 @@ export const archiveInventoryItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("inventory_items")
-      .update({ archived_at: new Date().toISOString() })
-      .eq("id", data.id);
+    const { data: target } = await supabase.from("inventory_items").select("name, store_id").eq("id", data.id).maybeSingle();
+    const archived_at = new Date().toISOString();
+    const filter = target?.name && target?.store_id
+      ? supabase.from("inventory_items").update({ archived_at }).eq("store_id", target.store_id).eq("name", target.name)
+      : supabase.from("inventory_items").update({ archived_at }).eq("id", data.id);
+    const { error } = await filter;
     if (error) throw error;
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "archive_item", entity: "inventory_item",
-      entity_id: data.id, payload: {},
+      entity_id: data.id, payload: { propagated: true },
     });
     return { ok: true, archived: true as const };
   });
@@ -228,10 +231,13 @@ export const restoreInventoryItem = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("inventory_items")
-      .update({ archived_at: null })
-      .eq("id", data.id);
+    const { data: target } = await supabase.from("inventory_items").select("name, store_id").eq("id", data.id).maybeSingle();
+    const filter = target?.name && target?.store_id
+      ? supabase.from("inventory_items").update({ archived_at: null }).eq("store_id", target.store_id).eq("name", target.name)
+      : supabase.from("inventory_items").update({ archived_at: null }).eq("id", data.id);
+    const { error } = await filter;
     if (error) throw error;
+
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "restore_item", entity: "inventory_item",
       entity_id: data.id, payload: {},
