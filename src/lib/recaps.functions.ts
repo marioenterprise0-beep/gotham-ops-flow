@@ -114,15 +114,17 @@ export const listRecaps = createServerFn({ method: "POST" })
     trailerId: z.string().uuid().nullable().optional(),
     from: z.string().optional(),
     to: z.string().optional(),
+    includeArchived: z.boolean().default(false),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     let q = supabase
       .from("daily_recaps")
-      .select("id, recap_date, manager_id, trailer_id, location, shift_score, status, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at")
+      .select("id, recap_date, manager_id, trailer_id, location, shift_score, status, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at, archived_at, archived_by, archive_reason")
       .order("recap_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
+    if (!data.includeArchived) q = q.is("archived_at", null);
 
     if (data.scope === "mine") q = q.eq("manager_id", userId);
     if (data.scope === "today") q = q.eq("recap_date", new Date().toISOString().slice(0, 10));
