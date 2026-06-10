@@ -133,6 +133,33 @@ function estimatedReadMin(body: string, steps: number) {
   return Math.max(1, base + Math.round(steps * 0.3));
 }
 
+// ───────── Training categories (5 buckets) ─────────
+
+const TRAINING_CATEGORIES = [
+  { key: "Operations",    label: "Operations",    icon: ClipboardList, blurb: "Opening, closing, cash, inventory.",
+    match: ["Opening", "Closing", "Cash Management", "Management", "Inventory", "Operations"] },
+  { key: "Product Build", label: "Product Build", icon: Utensils,      blurb: "Grill, prep, recipe execution.",
+    match: ["Grill", "Prep", "Kitchen", "Product Build"] },
+  { key: "Hospitality",   label: "Hospitality",   icon: Heart,         blurb: "Guest service, cashier, front line.",
+    match: ["Hospitality", "Cashier", "Front"] },
+  { key: "Cleaning",      label: "Cleaning",      icon: Brush,         blurb: "Sanitation, deep clean, station resets.",
+    match: ["Cleaning"] },
+  { key: "Emergency",     label: "Emergency",     icon: Siren,         blurb: "Food safety, incidents, escalation.",
+    match: ["Food Safety", "Emergency"] },
+] as const;
+
+function bucketFor(category: string | null | undefined): string {
+  if (!category) return "Operations";
+  for (const b of TRAINING_CATEGORIES) {
+    if ((b.match as readonly string[]).includes(category)) return b.key;
+  }
+  return "Operations";
+}
+
+const CAT_BUCKET_ICON: Record<string, any> = Object.fromEntries(
+  TRAINING_CATEGORIES.map((c) => [c.key, c.icon]),
+);
+
 // ───────── Main page ─────────
 
 function SOPsPage() {
@@ -141,7 +168,7 @@ function SOPsPage() {
   const isOwner = roleId === "owner";
   const isManager = roleId === "owner" || roleId === "manager";
 
-  const [activeCat, setActiveCat] = useState<string>("All");
+  const [activeBucket, setActiveBucket] = useState<string | "All">("All");
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -165,30 +192,58 @@ function SOPsPage() {
     return m;
   }, [myAcks]);
 
-  const presentCategories = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of sops as any[]) if (s.category) set.add(s.category);
-    return Array.from(set);
-  }, [sops]);
+  const assigned = useMemo(() => {
+    return (sops as any[]).filter((s) => {
+      if (s.archived_at) return false;
+      if (!s.role) return true;
+      if (!roleId) return false;
+      if (roleId === "owner" || roleId === "manager") return true;
+      return s.role === roleId;
+    });
+  }, [sops, roleId]);
 
-  const chipCats = useMemo(() => {
-    const ordered = ["All", ...CATEGORIES.filter((c) => presentCategories.includes(c)),
-      ...presentCategories.filter((c) => !CATEGORIES.includes(c as any))];
-    return Array.from(new Set(ordered));
-  }, [presentCategories]);
+  const continueSop = useMemo(() => {
+    const candidates = assigned.filter((s) => {
+      const a = myAckMap.get(s.id);
+      return !a || a.version < s.version;
+    });
+    return candidates[0] ?? null;
+  }, [assigned, myAckMap]);
+
+  const completed = useMemo(() => {
+    return (sops as any[]).filter((s) => {
+      if (s.archived_at) return false;
+      const a = myAckMap.get(s.id);
+      return a && a.version >= s.version;
+    });
+  }, [sops, myAckMap]);
+
+  const bucketCounts = useMemo(() => {
+    const counts = new Map<string, { total: number; remaining: number }>();
+    for (const b of TRAINING_CATEGORIES) counts.set(b.key, { total: 0, remaining: 0 });
+    for (const s of (sops as any[])) {
+      if (s.archived_at) continue;
+      const k = bucketFor(s.category);
+      const c = counts.get(k); if (!c) continue;
+      c.total++;
+      const a = myAckMap.get(s.id);
+      if (!a || a.version < s.version) c.remaining++;
+    }
+    return counts;
+  }, [sops, myAckMap]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (sops as any[]).filter((s) => {
-      if (activeCat !== "All" && s.category !== activeCat) return false;
+      if (s.archived_at && !showArchived) return false;
+      if (activeBucket !== "All" && bucketFor(s.category) !== activeBucket) return false;
       if (!term) return true;
       return [s.title, s.body, s.category, s.role].some((v) => (v ?? "").toString().toLowerCase().includes(term));
     });
-  }, [sops, activeCat, q]);
+  }, [sops, activeBucket, q, showArchived]);
 
   const activeSop = useMemo(() => (sops as any[]).find((s) => s.id === openId) ?? null, [sops, openId]);
 
-  // Detail view
   if (activeSop) {
     return (
       <SopDetail
@@ -196,65 +251,42 @@ function SOPsPage() {
         onBack={() => setOpenId(null)}
         myAck={myAckMap.get(activeSop.id) ?? null}
         canEdit={isOwner}
+        canSignOff={isManager}
         onEdit={() => { setEditId(activeSop.id); setOpenId(null); }}
       />
     );
   }
 
+  const filterActive = activeBucket !== "All" || q.trim().length > 0;
+
   return (
     <AppShell>
-      {/* Hero */}
       <Card dark>
         <div className="flex items-center gap-2 label-caps text-white/55">
-          <BookOpen className="h-3.5 w-3.5" />
-          Standard Operating Procedures
+          <GraduationCap className="h-3.5 w-3.5" />
+          Training & Execution
         </div>
-        <h1 className="font-display text-3xl mt-1 text-white">SOP LIBRARY</h1>
+        <h1 className="font-display text-3xl mt-1 text-white">SOP TRAINING</h1>
         <p className="mt-2 text-sm text-white/65 max-w-xl leading-relaxed">
-          Every procedure your crew needs to execute Gotham standards — searchable,
-          versioned, and signed off by each team member.
+          Work the procedures, complete each step, and sign off so the floor knows you're ready.
         </p>
         <div className="mt-4 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
           <input
             value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder="Search procedures, categories, or roles…"
+            placeholder="Search procedures…"
             className="w-full bg-[#1C1C1C] border border-[#2A2A2A] rounded-md pl-10 pr-3 py-2.5 text-sm text-white placeholder:text-white/40 outline-none focus:border-[var(--color-gold)]"
           />
         </div>
       </Card>
 
-      {/* Category chips */}
-      <div className="mt-4 -mx-4 px-4 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-2 min-w-max">
-          {chipCats.map((c) => {
-            const Icon = c === "All" ? ListChecks : iconFor(c);
-            const active = c === activeCat;
-            return (
-              <button key={c} onClick={() => setActiveCat(c)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[1.1px] border transition",
-                  active
-                    ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]"
-                    : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-[var(--color-gold)]/40",
-                )}>
-                <Icon className="h-3.5 w-3.5" />{c}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Owner-only controls */}
       {isOwner && (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => setShowAdd(true)}
+          <button onClick={() => setShowAdd(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2.5 text-sm font-semibold hover:opacity-90">
             <Plus className="h-4 w-4" /> New SOP
           </button>
-          <button
-            onClick={() => setShowArchived((v) => !v)}
+          <button onClick={() => setShowArchived((v) => !v)}
             className={cn(
               "inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold",
               showArchived
@@ -266,33 +298,103 @@ function SOPsPage() {
         </div>
       )}
 
-      {/* Owner-only ack rollup */}
-      {isOwner && <SopAckRollup />}
-
-      {/* Library grid */}
-      <SectionHeader
-        eyebrow={activeCat === "All" ? "All Procedures" : activeCat}
-        title={isLoading ? "Loading…" : `${filtered.length} ${filtered.length === 1 ? "procedure" : "procedures"}`}
-      />
-
-      {filtered.length === 0 && !isLoading ? (
-        <EmptyState isOwner={isOwner} onCreate={() => setShowAdd(true)} />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((s: any) => (
-            <SopLibraryCard
-              key={s.id}
-              sop={s}
-              myAck={myAckMap.get(s.id) ?? null}
-              onView={() => setOpenId(s.id)}
-              canEdit={isOwner}
-              onEdit={() => setEditId(s.id)}
-            />
-          ))}
+      {!filterActive && continueSop && (
+        <div className="mt-5">
+          <SectionHeader eyebrow="Pick up where you left off" title="Continue learning" />
+          <ContinueCard sop={continueSop} myAck={myAckMap.get(continueSop.id) ?? null} onResume={() => setOpenId(continueSop.id)} />
         </div>
       )}
 
-      {/* Editor modal (owner-only) */}
+      {!filterActive && (
+        <div className="mt-6">
+          <SectionHeader eyebrow="For you" title={`Assigned SOPs · ${assigned.filter((s) => {
+            const a = myAckMap.get(s.id); return !a || a.version < s.version;
+          }).length} to complete`} />
+          {assigned.length === 0 ? (
+            <Card><p className="text-sm text-muted-foreground">Nothing assigned to your role yet.</p></Card>
+          ) : (
+            <div className="space-y-2">
+              {assigned.slice(0, 6).map((s) => (
+                <AssignedRow key={s.id} sop={s} myAck={myAckMap.get(s.id) ?? null} onOpen={() => setOpenId(s.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!filterActive && (
+        <div className="mt-6">
+          <SectionHeader eyebrow="Browse by area" title="Categories" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {TRAINING_CATEGORIES.map((b) => {
+              const c = bucketCounts.get(b.key) ?? { total: 0, remaining: 0 };
+              const Icon = b.icon;
+              return (
+                <button key={b.key} onClick={() => setActiveBucket(b.key)}
+                  className="text-left rounded-xl border border-border bg-card p-4 hover:border-[var(--color-gold)]/50 transition group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-[#0A0A0A] grid place-items-center group-hover:bg-[var(--color-gold)] transition">
+                      <Icon className="h-5 w-5 text-[var(--color-gold)] group-hover:text-[#0A0A0A]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-display text-lg leading-tight">{b.label}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">{b.blurb}</div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="mt-3 flex items-center gap-3 text-xs">
+                    <span className="text-muted-foreground">{c.total} {c.total === 1 ? "SOP" : "SOPs"}</span>
+                    {c.remaining > 0 ? (
+                      <span className="text-[var(--color-gold)] font-semibold">{c.remaining} to complete</span>
+                    ) : c.total > 0 ? (
+                      <span className="text-[var(--color-success)] font-semibold inline-flex items-center gap-1"><Check className="h-3 w-3" /> All caught up</span>
+                    ) : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!filterActive && (
+        <div className="mt-6">
+          <SectionHeader eyebrow="Your record" title={`Completed certifications · ${completed.length}`} />
+          {completed.length === 0 ? (
+            <Card><p className="text-sm text-muted-foreground">Acknowledge an SOP to earn your first certification.</p></Card>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {completed.map((s) => (
+                <CertRow key={s.id} sop={s} myAck={myAckMap.get(s.id)!} onOpen={() => setOpenId(s.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {filterActive && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <SectionHeader eyebrow={activeBucket === "All" ? "Search results" : activeBucket} title={isLoading ? "Loading…" : `${filtered.length} ${filtered.length === 1 ? "procedure" : "procedures"}`} />
+            <button onClick={() => { setActiveBucket("All"); setQ(""); }}
+              className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+              <ArrowLeft className="h-3 w-3" /> Back to dashboard
+            </button>
+          </div>
+          {filtered.length === 0 ? (
+            <Card><p className="text-sm text-muted-foreground">No procedures match.</p></Card>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((s) => (
+                <AssignedRow key={s.id} sop={s} myAck={myAckMap.get(s.id) ?? null} onOpen={() => setOpenId(s.id)} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isOwner && <SopAckRollup />}
+
       {(showAdd || editId) && isOwner && (
         <SopEditorModal
           sop={editId ? (sops as any[]).find((s) => s.id === editId) ?? null : null}
@@ -306,126 +408,116 @@ function SOPsPage() {
   );
 }
 
-// ───────── Empty state ─────────
+// ───────── Continue / Assigned / Cert rows ─────────
 
-function EmptyState({ isOwner, onCreate }: { isOwner: boolean; onCreate: () => void }) {
-  return (
-    <Card className="mt-2">
-      <div className="flex flex-col items-center text-center py-10 px-4">
-        <div className="h-14 w-14 rounded-full bg-secondary border border-border grid place-items-center mb-4">
-          <BookOpen className="h-6 w-6 text-[var(--color-gold)]" />
-        </div>
-        <div className="label-caps text-muted-foreground">SOP Library</div>
-        <h2 className="font-display text-2xl mt-1">No procedures yet</h2>
-        <p className="mt-2 max-w-md text-sm text-muted-foreground leading-relaxed">
-          {isOwner
-            ? "Document your first procedure to give the crew a single source of truth for how this trailer operates."
-            : "There are no SOPs published yet. Check back once your owner adds the first procedure."}
-        </p>
-        {isOwner && (
-          <button onClick={onCreate}
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2.5 text-sm font-semibold hover:opacity-90">
-            <Plus className="h-4 w-4" /> Create your first SOP
-          </button>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-// ───────── Library card ─────────
-
-function SopLibraryCard({
-  sop, myAck, onView, canEdit, onEdit,
-}: { sop: any; myAck: { version: number; acknowledged_at: string } | null; onView: () => void; canEdit: boolean; onEdit: () => void }) {
-  const Icon = iconFor(sop.category);
-  const isArchived = !!sop.archived_at;
-  const ackCurrent = !!myAck && myAck.version >= sop.version;
-  const ackStale = !!myAck && myAck.version < sop.version;
+function ContinueCard({ sop, myAck, onResume }: { sop: any; myAck: { version: number } | null; onResume: () => void }) {
   const parsed = useMemo(() => parseSopBody(sop.body ?? "", sop.pass_standard), [sop.body, sop.pass_standard]);
   const readMin = estimatedReadMin(sop.body ?? "", parsed.steps.length);
-
-  const status: { label: string; tone: "neutral" | "success" | "warning" | "danger" | "gold" | "info" } = isArchived
-    ? { label: "Archived", tone: "neutral" }
-    : ackCurrent
-      ? { label: "Acknowledged", tone: "success" }
-      : ackStale
-        ? { label: "Re-ack needed", tone: "warning" }
-        : { label: "Published", tone: "gold" };
-
+  const reAck = myAck && myAck.version < sop.version;
+  const Icon = CAT_BUCKET_ICON[bucketFor(sop.category)] ?? BookOpen;
   return (
-    <Card className={cn("h-full flex flex-col", isArchived && "opacity-70")} goldAccent={ackCurrent}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="h-8 w-8 shrink-0 rounded-md bg-secondary border border-border grid place-items-center">
-            <Icon className="h-4 w-4 text-[var(--color-gold)]" />
+    <Card goldAccent className="relative overflow-hidden">
+      <div className="flex items-start gap-4">
+        <div className="hidden sm:grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-[#0A0A0A]">
+          <Icon className="h-6 w-6 text-[var(--color-gold)]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="label-caps text-[var(--color-gold)] flex items-center gap-1.5">
+            <PlayCircle className="h-3.5 w-3.5" /> {reAck ? "Re-acknowledge required" : "In progress"}
           </div>
-          <div className="min-w-0">
-            <div className="label-caps text-muted-foreground truncate">
-              {sop.category}{sop.role ? ` · ${ROLE_LABEL[sop.role] ?? sop.role}` : ""}
-            </div>
+          <h3 className="font-display text-xl mt-1 leading-tight">{sop.title}</h3>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+            <span>{sop.category}</span>
+            <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />~{readMin} min</span>
+            <span>{parsed.steps.length || 1} steps</span>
+            <span>v{sop.version}</span>
           </div>
         </div>
-        <StatusPill tone={status.tone}>{status.label}</StatusPill>
-      </div>
-
-      {/* Title */}
-      <h3 className="mt-3 font-display text-lg leading-tight text-foreground line-clamp-2">
-        {sop.title}
-      </h3>
-
-      {/* Meta row */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />~{readMin} min</span>
-        <span>v{sop.version}</span>
-        <span>Updated {new Date(sop.updated_at).toLocaleDateString()}</span>
-        {parsed.steps.length > 0 && <span>{parsed.steps.length} steps</span>}
-      </div>
-
-      {/* Snippet */}
-      {parsed.objective ? (
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-3 leading-relaxed">{parsed.objective}</p>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground line-clamp-3 leading-relaxed">{(sop.body ?? "").slice(0, 220)}</p>
-      )}
-
-      {/* Footer */}
-      <div className="mt-4 flex items-center gap-2 pt-3 border-t border-border">
-        <button
-          onClick={onView}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-[#0A0A0A] text-white px-3 py-2 text-xs font-semibold uppercase tracking-[1.1px] hover:bg-[#1a1a1a]"
-        >
-          View SOP <ChevronRight className="h-3.5 w-3.5" />
+        <button onClick={onResume}
+          className="shrink-0 inline-flex items-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2.5 text-sm font-semibold hover:opacity-90">
+          Resume <ChevronRight className="h-4 w-4" />
         </button>
-        {canEdit && !isArchived && (
-          <button
-            onClick={onEdit}
-            title="Edit"
-            className="rounded-md border border-border p-2 text-muted-foreground hover:text-foreground hover:border-[var(--color-gold)]/40">
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
     </Card>
   );
 }
 
-// ───────── Detail view ─────────
+function AssignedRow({ sop, myAck, onOpen }: { sop: any; myAck: { version: number } | null; onOpen: () => void }) {
+  const parsed = useMemo(() => parseSopBody(sop.body ?? "", sop.pass_standard), [sop.body, sop.pass_standard]);
+  const readMin = estimatedReadMin(sop.body ?? "", parsed.steps.length);
+  const Icon = CAT_BUCKET_ICON[bucketFor(sop.category)] ?? BookOpen;
+  const ackCurrent = !!myAck && myAck.version >= sop.version;
+  const ackStale = !!myAck && myAck.version < sop.version;
+  const tone = ackCurrent ? "success" : ackStale ? "warning" : "gold";
+  const label = ackCurrent ? "Certified" : ackStale ? "Re-ack" : "Start";
+  return (
+    <button onClick={onOpen}
+      className="w-full text-left rounded-lg border border-border bg-card p-3 flex items-center gap-3 hover:border-[var(--color-gold)]/40 transition">
+      <div className="h-10 w-10 shrink-0 rounded-md bg-secondary border border-border grid place-items-center">
+        <Icon className="h-4 w-4 text-[var(--color-gold)]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold truncate">{sop.title}</div>
+        <div className="text-[11px] text-muted-foreground truncate">
+          {sop.category} · {parsed.steps.length || 1} steps · ~{readMin} min · v{sop.version}
+        </div>
+      </div>
+      <StatusPill tone={tone as any}>{label}</StatusPill>
+      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+    </button>
+  );
+}
+
+function CertRow({ sop, myAck, onOpen }: { sop: any; myAck: { version: number; acknowledged_at: string }; onOpen: () => void }) {
+  return (
+    <button onClick={onOpen}
+      className="text-left rounded-lg border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] p-3 flex items-center gap-3 hover:border-[var(--color-success)]/60 transition">
+      <div className="h-10 w-10 shrink-0 rounded-full bg-[#0A0A0A] grid place-items-center">
+        <Award className="h-5 w-5 text-[var(--color-gold)]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold truncate">{sop.title}</div>
+        <div className="text-[11px] text-muted-foreground">
+          v{myAck.version} · signed {new Date(myAck.acknowledged_at).toLocaleDateString()}
+        </div>
+      </div>
+      <Check className="h-4 w-4 text-[var(--color-success)]" />
+    </button>
+  );
+}
+
+// ───────── Detail view (training / execution) ─────────
+
+type StepRunState = { done: boolean; note: string };
 
 function SopDetail({
-  sop, onBack, myAck, canEdit, onEdit,
+  sop, onBack, myAck, canEdit, canSignOff, onEdit,
 }: {
   sop: any; onBack: () => void;
   myAck: { version: number; acknowledged_at: string } | null;
-  canEdit: boolean; onEdit: () => void;
+  canEdit: boolean; canSignOff: boolean; onEdit: () => void;
 }) {
   const qc = useQueryClient();
-  const Icon = iconFor(sop.category);
+  const Icon = CAT_BUCKET_ICON[bucketFor(sop.category)] ?? BookOpen;
   const parsed = useMemo(() => parseSopBody(sop.body ?? "", sop.pass_standard), [sop.body, sop.pass_standard]);
   const readMin = estimatedReadMin(sop.body ?? "", parsed.steps.length);
   const ackCurrent = !!myAck && myAck.version >= sop.version;
+  const ackStale = !!myAck && myAck.version < sop.version;
+
+  const steps = useMemo(() => {
+    if (parsed.steps.length > 0) return parsed.steps;
+    return [{ title: "Read & understand", instruction: parsed.freeform ?? sop.body ?? "", standard: undefined as any, note: undefined as any }];
+  }, [parsed, sop.body]);
+
+  const [active, setActive] = useState(0);
+  const [runState, setRunState] = useState<StepRunState[]>(() => steps.map(() => ({ done: false, note: "" })));
   const [confirmed, setConfirmed] = useState(ackCurrent);
+
+  useEffect(() => {
+    setRunState(steps.map(() => ({ done: false, note: "" })));
+    setActive(0);
+    setConfirmed(ackCurrent);
+  }, [sop.id, sop.version, steps.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recordViewFn = useServerFn(recordSopView);
   const ackFn = useServerFn(acknowledgeSop);
@@ -446,27 +538,37 @@ function SopDetail({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Attachments (view-only signed URLs already returned by server fn)
   const attachFn = useServerFn(listSopAttachments);
   const { data: attachments = [] } = useQuery<any[]>({
     queryKey: ["sop-attachments", sop.id],
     queryFn: () => attachFn({ data: { sopId: sop.id } }) as any,
   });
 
+  const completedSteps = runState.filter((r) => r.done).length;
+  const allStepsDone = completedSteps === steps.length;
+  const pct = Math.round((completedSteps / Math.max(1, steps.length)) * 100);
+  const canAck = (allStepsDone || ackCurrent) && confirmed && !ackCurrent;
+
+  const step = steps[active];
+  const stepImages = useMemo(() => attachments.filter((a) => (a.content_type ?? "").startsWith("image/")), [attachments]);
+  const stepDocs = useMemo(() => attachments.filter((a) => !(a.content_type ?? "").startsWith("image/")), [attachments]);
+
+  const toggleDone = (i: number) => setRunState((rs) => rs.map((r, idx) => idx === i ? { ...r, done: !r.done } : r));
+  const updateNote = (i: number, v: string) => setRunState((rs) => rs.map((r, idx) => idx === i ? { ...r, note: v } : r));
+
   return (
     <AppShell>
-      <div className="pb-28 sm:pb-6">
+      <div className="pb-28 lg:pb-6">
         <button onClick={onBack}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-4 w-4" /> Back to library
+          <ArrowLeft className="h-4 w-4" /> Back to training
         </button>
 
-        {/* Header card */}
         <Card dark>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]">
               <Icon className="h-4 w-4" />
-              {sop.category}{sop.role ? ` · ${ROLE_LABEL[sop.role] ?? sop.role}` : ""}
+              {bucketFor(sop.category)} · {sop.category}
             </div>
             {canEdit && (
               <button onClick={onEdit}
@@ -476,177 +578,283 @@ function SopDetail({
             )}
           </div>
           <h1 className="font-display text-3xl mt-2 text-white leading-tight">{sop.title}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/60">
-            <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />~{readMin} min read</span>
-            <span>Version {sop.version}</span>
-            <span>Updated {new Date(sop.updated_at).toLocaleDateString()}</span>
-            {ackCurrent && (
-              <span className="inline-flex items-center gap-1 text-[var(--color-success)]">
-                <Check className="h-3 w-3" /> Acknowledged
-              </span>
-            )}
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <MetaCell label="Category" value={bucketFor(sop.category)} />
+            <MetaCell label="Version" value={`v${sop.version}`} />
+            <MetaCell label="Est. completion" value={`~${readMin} min`} />
+            <MetaCell label="Status" value={ackCurrent ? "Certified" : ackStale ? "Re-ack needed" : "In progress"}
+              accent={ackCurrent ? "success" : ackStale ? "warning" : "gold"} />
           </div>
+          {ackStale && (
+            <div className="mt-3 rounded-md border border-[var(--color-warning,#C9973A)]/40 bg-[var(--color-warning,#C9973A)]/10 px-3 py-2 text-xs text-white/80">
+              SOP updated since your last sign-off (you acknowledged v{myAck?.version}). Please review and re-acknowledge.
+            </div>
+          )}
         </Card>
 
-        {/* Sections */}
-        <div className="mt-4 space-y-4">
-          {parsed.freeform && (
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)_280px] gap-4">
+          {/* LEFT — step navigator */}
+          <aside className="lg:sticky lg:top-20 lg:self-start">
             <Card>
-              <Section title="Procedure" />
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{parsed.freeform}</p>
-            </Card>
-          )}
-
-          {parsed.objective && (
-            <Card>
-              <Section title="Purpose" icon={Target} />
-              <p className="text-sm leading-relaxed text-foreground">{parsed.objective}</p>
-            </Card>
-          )}
-
-          {parsed.whenToUse && (
-            <Card>
-              <Section title="When to use" icon={Clock} />
-              <p className="text-sm leading-relaxed text-foreground">{parsed.whenToUse}</p>
-            </Card>
-          )}
-
-          {parsed.tools && parsed.tools.length > 0 && (
-            <Card>
-              <Section title="Required tools & materials" icon={Package} />
-              <ul className="space-y-1.5 text-sm">
-                {parsed.tools.map((t, i) => (
-                  <li key={i} className="flex gap-2"><span className="text-[var(--color-gold)]">•</span><span>{t}</span></li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {parsed.steps.length > 0 && (
-            <Card>
-              <Section title="Step-by-step instructions" icon={ListChecks} />
-              <ol className="space-y-4">
-                {parsed.steps.map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <div className="shrink-0 h-8 w-8 rounded-full bg-[#0A0A0A] text-[var(--color-gold)] grid place-items-center text-sm font-bold">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] uppercase tracking-[1.4px] text-muted-foreground font-semibold">
-                        Step {i + 1}
-                      </div>
-                      <div className="font-semibold text-foreground leading-snug">{step.title}</div>
-                      <p className="mt-1 text-sm text-foreground/85 leading-relaxed">{step.instruction}</p>
-                      {step.standard && (
-                        <div className="mt-2 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-3 py-2 text-xs">
-                          <span className="label-caps text-[var(--color-success)]">Standard · </span>
-                          <span className="text-foreground">{step.standard}</span>
-                        </div>
-                      )}
-                      {step.note && <p className="mt-1 text-xs text-muted-foreground italic">{step.note}</p>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </Card>
-          )}
-
-          {parsed.passStandard && (
-            <Card>
-              <div className="rounded-md bg-[var(--color-success-bg)] border border-[var(--color-success)]/30 p-3">
-                <div className="label-caps text-[var(--color-success)] mb-1">Pass Standard</div>
-                <p className="text-sm text-foreground leading-relaxed">{parsed.passStandard}</p>
+              <div className="label-caps text-muted-foreground mb-2">Steps</div>
+              <div className="space-y-1">
+                {steps.map((s, i) => {
+                  const isActive = active === i;
+                  const isDone = runState[i]?.done;
+                  return (
+                    <button key={i} onClick={() => setActive(i)}
+                      className={cn(
+                        "w-full text-left flex items-start gap-2 px-2 py-2 rounded-md text-sm border",
+                        isActive
+                          ? "bg-[#FAF7EE] border-[var(--color-gold)]/40 text-foreground"
+                          : "border-transparent hover:bg-secondary text-foreground/80",
+                      )}>
+                      <span className={cn(
+                        "mt-0.5 h-5 w-5 shrink-0 rounded-full grid place-items-center text-[10px] font-bold border",
+                        isDone
+                          ? "bg-[var(--color-success)] text-white border-[var(--color-success)]"
+                          : isActive ? "border-[var(--color-gold)] text-[var(--color-gold)]" : "border-border text-muted-foreground",
+                      )}>{isDone ? <Check className="h-3 w-3" /> : i + 1}</span>
+                      <span className="flex-1 leading-snug">{s.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 pt-3 border-t border-border">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span>Progress</span><span>{completedSteps}/{steps.length}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full bg-[var(--color-gold)] transition-all" style={{ width: `${pct}%` }} />
+                </div>
               </div>
             </Card>
-          )}
+          </aside>
 
-          {parsed.errors.length > 0 && (
+          {/* CENTER — step content */}
+          <section className="min-w-0 space-y-4">
             <Card>
-              <Section title="Common mistakes" icon={AlertTriangle} tone="danger" />
-              <ul className="space-y-1.5 text-sm">
-                {parsed.errors.map((e, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-[var(--color-danger)]">✕</span><span>{e}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {parsed.corrective && (
-            <Card>
-              <Section title="Corrective action" icon={Shield} />
-              <p className="text-sm leading-relaxed text-foreground">{parsed.corrective}</p>
-            </Card>
-          )}
-
-          {parsed.managerNotes && (
-            <Card>
-              <Section title="Manager notes" icon={Briefcase} />
-              <p className="text-sm leading-relaxed text-foreground">{parsed.managerNotes}</p>
-            </Card>
-          )}
-
-          {attachments.length > 0 && (
-            <Card>
-              <Section title="Attachments" icon={Paperclip} />
-              <div className="space-y-1.5">
-                {attachments.map((a) => (
-                  <a key={a.id} href={a.url ?? "#"} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 rounded-md border border-border p-2 text-sm hover:border-[var(--color-gold)]/40">
-                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="flex-1 truncate">{a.label ?? a.storage_path}</span>
-                    <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                  </a>
-                ))}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="label-caps text-muted-foreground">Step {active + 1} of {steps.length}</div>
+                  <h2 className="font-display text-2xl mt-1 leading-tight">{step.title}</h2>
+                </div>
+                <button onClick={() => toggleDone(active)}
+                  className={cn(
+                    "shrink-0 inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[1.1px] border transition",
+                    runState[active]?.done
+                      ? "bg-[var(--color-success-bg)] border-[var(--color-success)]/40 text-[var(--color-success)]"
+                      : "border-border text-foreground hover:border-[var(--color-gold)]/50",
+                  )}>
+                  {runState[active]?.done ? <><Check className="h-3.5 w-3.5" /> Done</> : <><CircleDot className="h-3.5 w-3.5" /> Mark complete</>}
+                </button>
               </div>
-            </Card>
-          )}
+              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">{step.instruction}</p>
 
-          {/* Desktop / inline acknowledge */}
-          <Card>
-            <div className="label-caps text-muted-foreground">Acknowledge</div>
-            <label className="mt-2 flex items-start gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                disabled={ackCurrent}
-                className="mt-0.5 h-4 w-4 accent-[var(--color-gold)]"
-              />
-              <span>I have read and understand this SOP, and I will follow it in service.</span>
-            </label>
-            <button
-              onClick={() => ackM.mutate()}
-              disabled={!confirmed || ackCurrent || ackM.isPending}
-              className={cn(
-                "mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition",
-                ackCurrent
-                  ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
-                  : "bg-[var(--color-gold)] text-[#0A0A0A] disabled:opacity-50",
+              {step.standard && (
+                <div className="mt-4 rounded-md border border-[var(--color-success)]/30 bg-[var(--color-success-bg)] px-3 py-2 text-sm">
+                  <div className="label-caps text-[var(--color-success)] mb-1 flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Standard</div>
+                  <div className="text-foreground">{step.standard}</div>
+                </div>
               )}
-            >
-              {ackCurrent
-                ? <><Check className="h-4 w-4" /> Acknowledged v{myAck?.version}</>
-                : ackM.isPending ? "Saving…" : "Acknowledge SOP"}
-            </button>
+
+              <div className="mt-4">
+                <div className="label-caps text-muted-foreground mb-1">Your notes</div>
+                <textarea
+                  value={runState[active]?.note ?? ""}
+                  onChange={(e) => updateNote(active, e.target.value)}
+                  placeholder="Capture anything to remember — questions, callouts, mistakes…"
+                  rows={3}
+                  className="w-full bg-secondary border border-border rounded-md px-3 py-2 text-sm outline-none focus:border-[var(--color-gold)]"
+                />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <button disabled={active === 0} onClick={() => setActive((a) => Math.max(0, a - 1))}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold disabled:opacity-40">
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </button>
+                <button
+                  disabled={active === steps.length - 1}
+                  onClick={() => { if (!runState[active]?.done) toggleDone(active); setActive((a) => Math.min(steps.length - 1, a + 1)); }}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[#0A0A0A] text-white px-3 py-2 text-xs font-semibold disabled:opacity-40">
+                  Next step <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </Card>
+
+            {parsed.passStandard && (
+              <Card>
+                <Section title="Standards checklist" icon={Target} />
+                <p className="text-sm leading-relaxed text-foreground">{parsed.passStandard}</p>
+              </Card>
+            )}
+
+            {parsed.errors.length > 0 && (
+              <Card>
+                <Section title="Common mistakes" icon={AlertTriangle} tone="danger" />
+                <ul className="space-y-1.5 text-sm">
+                  {parsed.errors.map((e, i) => (
+                    <li key={i} className="flex gap-2"><span className="text-[var(--color-danger)]">✕</span><span>{e}</span></li>
+                  ))}
+                </ul>
+                {parsed.corrective && (
+                  <div className="mt-3 rounded-md border border-border bg-secondary px-3 py-2 text-sm">
+                    <div className="label-caps text-muted-foreground mb-1">Corrective action</div>
+                    <div>{parsed.corrective}</div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {(parsed.objective || parsed.whenToUse || (parsed.tools && parsed.tools.length > 0)) && (
+              <Card>
+                <Section title="Context" icon={BookOpen} />
+                {parsed.objective && (
+                  <div className="mb-3">
+                    <div className="label-caps text-muted-foreground mb-1">Purpose</div>
+                    <p className="text-sm text-foreground">{parsed.objective}</p>
+                  </div>
+                )}
+                {parsed.whenToUse && (
+                  <div className="mb-3">
+                    <div className="label-caps text-muted-foreground mb-1">When to use</div>
+                    <p className="text-sm text-foreground">{parsed.whenToUse}</p>
+                  </div>
+                )}
+                {parsed.tools && parsed.tools.length > 0 && (
+                  <div>
+                    <div className="label-caps text-muted-foreground mb-1">Required tools</div>
+                    <ul className="space-y-1 text-sm">
+                      {parsed.tools.map((t, i) => (
+                        <li key={i} className="flex gap-2"><span className="text-[var(--color-gold)]">•</span><span>{t}</span></li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </Card>
+            )}
+          </section>
+
+          {/* RIGHT — media panel */}
+          <aside className="lg:sticky lg:top-20 lg:self-start">
+            <Card>
+              <div className="label-caps text-muted-foreground mb-2 flex items-center gap-1.5">
+                <ImageIcon className="h-3.5 w-3.5" /> Media & reference
+              </div>
+              {attachments.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No reference media for this SOP yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {stepImages.length > 0 && (
+                    <div className="space-y-2">
+                      {stepImages.map((a) => (
+                        <a key={a.id} href={a.url ?? "#"} target="_blank" rel="noreferrer"
+                          className="block rounded-md overflow-hidden border border-border bg-secondary hover:border-[var(--color-gold)]/50 transition">
+                          {a.url ? (
+                            <img src={a.url} alt={a.label ?? "Reference"} className="w-full h-32 object-cover" />
+                          ) : (
+                            <div className="h-32 grid place-items-center text-xs text-muted-foreground">Image unavailable</div>
+                          )}
+                          {a.label && <div className="px-2 py-1 text-[11px] text-muted-foreground truncate">{a.label}</div>}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {stepDocs.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="label-caps text-muted-foreground">Documents</div>
+                      {stepDocs.map((a) => (
+                        <a key={a.id} href={a.url ?? "#"} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 rounded-md border border-border p-2 text-xs hover:border-[var(--color-gold)]/40">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="flex-1 truncate">{a.label ?? "Document"}</span>
+                          <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </aside>
+        </div>
+
+        {/* BOTTOM — completion, acknowledge, manager sign-off */}
+        <div className="mt-4">
+          <Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <div className="label-caps text-muted-foreground">Completion</div>
+                <div className="mt-1 flex items-center gap-3">
+                  <div className="font-display text-2xl">{pct}%</div>
+                  <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
+                    <div className="h-full bg-[var(--color-gold)] transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-sm text-muted-foreground">{completedSteps}/{steps.length} steps</div>
+                </div>
+                <label className="mt-4 flex items-start gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}
+                    disabled={ackCurrent}
+                    className="mt-0.5 h-4 w-4 accent-[var(--color-gold)]" />
+                  <span>I have completed every step and will execute this SOP to standard.</span>
+                </label>
+              </div>
+              <div className="flex flex-col gap-2 justify-center">
+                <button
+                  onClick={() => ackM.mutate()}
+                  disabled={!canAck || ackM.isPending}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold transition",
+                    ackCurrent
+                      ? "bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success)]/40"
+                      : "bg-[var(--color-gold)] text-[#0A0A0A] disabled:opacity-50",
+                  )}>
+                  {ackCurrent
+                    ? <><Check className="h-4 w-4" /> Acknowledged v{myAck?.version}</>
+                    : ackM.isPending ? "Saving…" : ackStale ? "Re-acknowledge SOP" : "Acknowledge SOP"}
+                </button>
+                {!allStepsDone && !ackCurrent && (
+                  <p className="text-[11px] text-muted-foreground text-center">Finish all steps to enable sign-off.</p>
+                )}
+                {canSignOff && (
+                  <div className="mt-1 rounded-md border border-border bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
+                    <div className="label-caps text-muted-foreground mb-0.5">Manager sign-off</div>
+                    Owners and managers verify completion from the SOP rollup on the training dashboard.
+                  </div>
+                )}
+              </div>
+            </div>
           </Card>
         </div>
       </div>
 
-      {/* Sticky mobile acknowledge */}
       {!ackCurrent && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur p-3">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 backdrop-blur p-3">
           <button
-            onClick={() => { setConfirmed(true); ackM.mutate(); }}
-            disabled={ackM.isPending}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-3 text-sm font-bold uppercase tracking-[1.1px]"
+            onClick={() => { if (!confirmed) setConfirmed(true); ackM.mutate(); }}
+            disabled={!allStepsDone || ackM.isPending}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-3 text-sm font-bold uppercase tracking-[1.1px] disabled:opacity-50"
           >
-            <Check className="h-4 w-4" /> {ackM.isPending ? "Saving…" : "Acknowledge SOP"}
+            <Check className="h-4 w-4" /> {ackM.isPending ? "Saving…" : allStepsDone ? (ackStale ? "Re-acknowledge" : "Acknowledge SOP") : `${completedSteps}/${steps.length} steps complete`}
           </button>
         </div>
       )}
     </AppShell>
+  );
+}
+
+function MetaCell({ label, value, accent }: { label: string; value: string; accent?: "success" | "warning" | "gold" }) {
+  const color =
+    accent === "success" ? "text-[var(--color-success)]"
+    : accent === "warning" ? "text-[var(--color-warning,#C9973A)]"
+    : accent === "gold" ? "text-[var(--color-gold)]"
+    : "text-white";
+  return (
+    <div className="rounded-md bg-[#1C1C1C] border border-[#2A2A2A] px-3 py-2">
+      <div className="label-caps text-white/50">{label}</div>
+      <div className={cn("text-sm font-semibold mt-0.5", color)}>{value}</div>
+    </div>
   );
 }
 
@@ -661,6 +869,7 @@ function Section({ title, icon: Icon, tone }: { title: string; icon?: any; tone?
     </div>
   );
 }
+
 
 // ───────── Editor modal (owner-only: create / edit / archive / delete) ─────────
 
