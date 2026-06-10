@@ -61,7 +61,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("profiles").select("display_name, trailer_id").eq("id", uid).maybeSingle(),
-      supabase.from("trailers").select("id, name").eq("active", true).order("name"),
+      supabase.from("trailers").select("id, name").eq("active", true).is("archived_at", null).order("name"),
     ]);
     const rs = ((roleRows ?? []) as { role: RoleId }[]).map((r) => r.role);
     setRoles(rs);
