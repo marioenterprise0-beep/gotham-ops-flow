@@ -284,6 +284,7 @@ export const getMyWeek = createServerFn({ method: "POST" })
         .order("clock_in_at"),
       supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
         .is("schedules.archived_at", null)
+        .is("archived_at", null)
         .eq("employee_id", userId)
         .gte("shift_date", ws)
         .lt("shift_date", end.toISOString().slice(0, 10))
