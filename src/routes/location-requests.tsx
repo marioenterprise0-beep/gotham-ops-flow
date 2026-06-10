@@ -50,6 +50,7 @@ export function LocationRequests() {
   const qc = useQueryClient();
   const { roleId, trailers, session, loading } = useRole();
   const isOwner = roleId === "owner";
+  if (!isOwner) return <Navigate to="/" />;
   const listFn = useServerFn(listLocationRequests);
   const approveFn = useServerFn(approveLocationRequest);
   const declineFn = useServerFn(declineLocationRequest);
