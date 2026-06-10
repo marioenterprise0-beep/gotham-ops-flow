@@ -27,7 +27,7 @@ export const listCashDrawers = createServerFn({ method: "POST" })
     let trailerId = data?.trailerId ?? null;
     if (!trailerId) trailerId = await userTrailerId(supabase, userId);
 
-    let q = supabase.from("cash_drawers").select("*").order("name");
+    let q = supabase.from("cash_drawers").select("*").is("archived_at", null).order("name");
     if (trailerId) q = q.eq("trailer_id", trailerId);
     const { data: drawers, error } = await q;
     if (error) throw error;
@@ -40,7 +40,8 @@ export const listCashDrawers = createServerFn({ method: "POST" })
         .from("cash_drawer_sessions")
         .select("*")
         .in("drawer_id", ids)
-        .eq("status", "open");
+        .eq("status", "open")
+        .is("archived_at", null);
       sessions = ss ?? [];
     }
     const withOpen = (drawers ?? []).map((d: any) => {
@@ -95,7 +96,7 @@ export const openDrawerSession = createServerFn({ method: "POST" })
 
     // No double-open
     const { data: existing } = await supabase
-      .from("cash_drawer_sessions").select("id").eq("drawer_id", data.drawerId).eq("status", "open").maybeSingle();
+      .from("cash_drawer_sessions").select("id").eq("drawer_id", data.drawerId).eq("status", "open").is("archived_at", null).maybeSingle();
     if (existing) throw new Error("Drawer is already open");
 
     const { data: session, error } = await supabase.from("cash_drawer_sessions").insert({
@@ -201,7 +202,7 @@ export const getDrawerSession = createServerFn({ method: "POST" })
     const { data: trailer } = await supabase
       .from("trailers").select("name, location").eq("id", session.trailer_id).maybeSingle();
     const { data: drops } = await supabase
-      .from("cash_drops").select("*").eq("session_id", data.sessionId).order("submitted_at");
+      .from("cash_drops").select("*").is("archived_at", null).eq("session_id", data.sessionId).order("submitted_at");
 
     // Resolve user display names
     const ids = new Set<string>();
@@ -230,7 +231,7 @@ export const listDrawerSessions = createServerFn({ method: "POST" })
     limit: z.number().min(1).max(200).default(50),
   }).optional().parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    let q = context.supabase.from("cash_drawer_sessions").select("*")
+    let q = context.supabase.from("cash_drawer_sessions").select("*").is("archived_at", null)
       .order("opened_at", { ascending: false }).limit(data?.limit ?? 50);
     if (data?.trailerId) q = q.eq("trailer_id", data.trailerId);
     if (data?.status) q = q.eq("status", data.status);
