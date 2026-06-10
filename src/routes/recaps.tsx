@@ -208,11 +208,13 @@ function RecapEditor({ id, isOwner, isCrew = false, defaultTrailerId, onClose, o
     mutationFn: (submit: boolean) => save({ data: {
       id: existing?.id,
       submit,
+      kind: isCrew ? "crew" : "manager",
       trailerId: trailerId ?? null,
       location: location || null,
       shiftScore: shiftScore === "" ? null : Number(shiftScore),
       ...Object.fromEntries(Object.keys(FIELD_TO_DB).map((k) => [k, form[k] ?? null])),
     } }) as any,
+
     onSuccess: (_d, submit) => {
       toast.success(submit ? "Submitted to owner" : "Draft saved");
       onSaved(); onClose();
