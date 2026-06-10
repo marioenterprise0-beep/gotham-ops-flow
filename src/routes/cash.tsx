@@ -406,6 +406,8 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
     (!belowFloat || verification === "requested");
 
   const closeFn = useServerFn(closeDrawerSession);
+  const detailFn = useServerFn(getDrawerSession);
+  const attachFn = useServerFn(attachDrawerClosePdf);
   const mu = useMutation({
     mutationFn: () => closeFn({ data: {
       sessionId: session.id,
@@ -415,7 +417,26 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
       varianceNotes: notes || undefined,
       verification,
     } }),
-    onSuccess: () => { toast.success("Drawer closed"); onSaved(session.id); },
+    onSuccess: async () => {
+      toast.success("Drawer closed");
+      // Build, upload, attach PDF — non-blocking for the UX flow.
+      try {
+        const detail = await detailFn({ data: { sessionId: session.id } }) as any;
+        const { blob, filename } = buildDrawerClosePdf(detail);
+        const path = await uploadDrawerClosePdf(supabase, session.id, detail.session.trailer_id, blob);
+        await attachFn({ data: { sessionId: session.id, path } });
+        // Offer the file to the submitter immediately.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        toast.success("Drawer Close PDF attached");
+      } catch (e: any) {
+        toast.error(`PDF attach failed: ${e?.message ?? "unknown"}`);
+      }
+      onSaved(session.id);
+    },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
 
