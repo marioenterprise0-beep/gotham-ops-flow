@@ -102,6 +102,12 @@ function Operations() {
     onSuccess: () => { toast.success("Signed off"); syncDomains(qc, "tasks", "operations"); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const deleteFn = useServerFn(deleteTask);
+  const deleteM = useMutation({
+    mutationFn: (taskId: string) => deleteFn({ data: { taskId } }),
+    onSuccess: () => { toast.success("Task deleted"); syncDomains(qc, "tasks", "operations"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const addTaskFn = useServerFn(createActionTask);
   const addTaskM = useMutation({
