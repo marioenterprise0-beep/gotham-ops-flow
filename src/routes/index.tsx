@@ -21,6 +21,7 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { syncDomains } from "@/lib/sync-bus";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ShiftFlowTracker } from "@/components/gotham/ShiftFlowTracker";
 
 export const Route = createFileRoute("/")({
   ssr: false,
