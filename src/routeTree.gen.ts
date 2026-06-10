@@ -34,6 +34,7 @@ import { Route as ChangeLogRouteImport } from './routes/change-log'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditRouteImport } from './routes/audit'
+import { Route as ArchiveCenterRouteImport } from './routes/archive-center'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as IndexRouteImport } from './routes/index'
@@ -47,6 +48,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as ApiPublicHooksEmailQaSelftestRouteImport } from './routes/api/public/hooks/email-qa-selftest'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
+import { Route as ApiPublicHooksArchivePurgeRouteImport } from './routes/api/public/hooks/archive-purge'
 import { Route as ApiPublicHooksAlertEmailDispatchRouteImport } from './routes/api/public/hooks/alert-email-dispatch'
 
 const UsersRoute = UsersRouteImport.update({
@@ -174,6 +176,11 @@ const AuditRoute = AuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchiveCenterRoute = ArchiveCenterRouteImport.update({
+  id: '/archive-center',
+  path: '/archive-center',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -245,6 +252,12 @@ const ApiPublicHooksDailyDigestRoute =
     path: '/api/public/hooks/daily-digest',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksArchivePurgeRoute =
+  ApiPublicHooksArchivePurgeRouteImport.update({
+    id: '/api/public/hooks/archive-purge',
+    path: '/api/public/hooks/archive-purge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAlertEmailDispatchRoute =
   ApiPublicHooksAlertEmailDispatchRouteImport.update({
     id: '/api/public/hooks/alert-email-dispatch',
@@ -256,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
+  '/archive-center': typeof ArchiveCenterRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
@@ -284,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
@@ -297,6 +312,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
+  '/archive-center': typeof ArchiveCenterRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
@@ -325,6 +341,7 @@ export interface FileRoutesByTo {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
@@ -339,6 +356,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/alerts': typeof AlertsRoute
   '/analytics': typeof AnalyticsRoute
+  '/archive-center': typeof ArchiveCenterRoute
   '/audit': typeof AuditRoute
   '/auth': typeof AuthRoute
   '/cash': typeof CashRoute
@@ -367,6 +385,7 @@ export interface FileRoutesById {
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
+  '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
@@ -382,6 +401,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/analytics'
+    | '/archive-center'
     | '/audit'
     | '/auth'
     | '/cash'
@@ -410,6 +430,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/archive-purge'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
@@ -423,6 +444,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/analytics'
+    | '/archive-center'
     | '/audit'
     | '/auth'
     | '/cash'
@@ -451,6 +473,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/archive-purge'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
@@ -464,6 +487,7 @@ export interface FileRouteTypes {
     | '/'
     | '/alerts'
     | '/analytics'
+    | '/archive-center'
     | '/audit'
     | '/auth'
     | '/cash'
@@ -492,6 +516,7 @@ export interface FileRouteTypes {
     | '/email/unsubscribe'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
+    | '/api/public/hooks/archive-purge'
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
@@ -506,6 +531,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AlertsRoute: typeof AlertsRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  ArchiveCenterRoute: typeof ArchiveCenterRoute
   AuditRoute: typeof AuditRoute
   AuthRoute: typeof AuthRoute
   CashRoute: typeof CashRoute
@@ -534,6 +560,7 @@ export interface RootRouteChildren {
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksAlertEmailDispatchRoute: typeof ApiPublicHooksAlertEmailDispatchRoute
+  ApiPublicHooksArchivePurgeRoute: typeof ApiPublicHooksArchivePurgeRoute
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
   ApiPublicHooksEmailQaSelftestRoute: typeof ApiPublicHooksEmailQaSelftestRoute
@@ -721,6 +748,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/archive-center': {
+      id: '/archive-center'
+      path: '/archive-center'
+      fullPath: '/archive-center'
+      preLoaderRoute: typeof ArchiveCenterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -812,6 +846,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDailyDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/archive-purge': {
+      id: '/api/public/hooks/archive-purge'
+      path: '/api/public/hooks/archive-purge'
+      fullPath: '/api/public/hooks/archive-purge'
+      preLoaderRoute: typeof ApiPublicHooksArchivePurgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/alert-email-dispatch': {
       id: '/api/public/hooks/alert-email-dispatch'
       path: '/api/public/hooks/alert-email-dispatch'
@@ -826,6 +867,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AlertsRoute: AlertsRoute,
   AnalyticsRoute: AnalyticsRoute,
+  ArchiveCenterRoute: ArchiveCenterRoute,
   AuditRoute: AuditRoute,
   AuthRoute: AuthRoute,
   CashRoute: CashRoute,
@@ -854,6 +896,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksAlertEmailDispatchRoute: ApiPublicHooksAlertEmailDispatchRoute,
+  ApiPublicHooksArchivePurgeRoute: ApiPublicHooksArchivePurgeRoute,
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
   ApiPublicHooksEmailQaSelftestRoute: ApiPublicHooksEmailQaSelftestRoute,
@@ -866,3 +909,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
