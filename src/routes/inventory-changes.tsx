@@ -8,6 +8,7 @@ import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { Check, X, ClipboardList } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/inventory-changes")({
   beforeLoad: () => {
