@@ -100,8 +100,8 @@ function ManagerPage() {
       <Card dark>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
           <div>
-            <div className="label-caps text-white/55">Store Score · Today</div>
-            <h1 className="font-display text-3xl mt-1 text-white">STORE PERFORMANCE</h1>
+            <div className="label-caps text-[var(--color-gold)]/80">One place. All day.</div>
+            <h1 className="font-display text-3xl mt-1 text-white">COMMAND CENTER</h1>
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { l: "Operations",  v: scores.ops },
