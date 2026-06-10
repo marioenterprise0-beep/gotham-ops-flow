@@ -134,18 +134,18 @@ function PermissionsPage() {
 
   if (!authReady) {
     return (
-      <AppShell>
+      <EmbedShell>
         <div className="text-sm text-muted-foreground">Loading permissions…</div>
-      </AppShell>
+      </EmbedShell>
     );
   }
 
   if (!session?.access_token) return <Navigate to="/auth" />;
   if (session && !roleId) {
     return (
-      <AppShell>
+      <EmbedShell>
         <div className="text-sm text-muted-foreground">Loading permissions…</div>
-      </AppShell>
+      </EmbedShell>
     );
   }
   if (roleId !== "owner") return <Navigate to="/" />;
@@ -167,7 +167,7 @@ function PermissionsPage() {
 
 
   return (
-    <AppShell>
+    <EmbedShell>
       <Card dark>
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-[var(--color-gold)]" />
@@ -300,7 +300,7 @@ function PermissionsPage() {
       )}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

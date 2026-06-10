@@ -69,7 +69,7 @@ function UsersPage() {
   const [tab, setTab] = useState<"users" | "invites" | "logs">("users");
 
   return (
-    <AppShell>
+    <EmbedShell>
       <Card dark>
         <div className="label-caps text-white/55">Access Control</div>
         <h1 className="font-display text-3xl mt-1 text-white">USERS & ACCESS</h1>
@@ -95,7 +95,7 @@ function UsersPage() {
       {tab === "logs" && <LogsTab />}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

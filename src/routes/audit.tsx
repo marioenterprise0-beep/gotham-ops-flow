@@ -84,7 +84,7 @@ function AuditPage() {
   }
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Activity"
         title="Audit Log"
@@ -170,6 +170,6 @@ function AuditPage() {
       </Dialog>
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }

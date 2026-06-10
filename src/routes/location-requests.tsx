@@ -95,7 +95,7 @@ function LocationRequests() {
   const trailerName = (id?: string | null) => (id ? trailers.find((t) => t.id === id)?.name ?? "Trailer" : "—");
 
   return (
-    <AppShell>
+    <EmbedShell>
       <div className="mb-3">
         <div className="label-caps text-muted-foreground">Governance</div>
         <h1 className="font-display text-2xl text-foreground">LOCATION ACCESS REQUESTS</h1>
@@ -182,7 +182,7 @@ function LocationRequests() {
       {isOwner && <GeofencePanel />}
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
 

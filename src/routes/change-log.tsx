@@ -67,7 +67,7 @@ function ChangeLogPage() {
   }, [rows]);
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Activity"
         title="Change Log"
@@ -165,6 +165,6 @@ function ChangeLogPage() {
         </div>
       )}
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }

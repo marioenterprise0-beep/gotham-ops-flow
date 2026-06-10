@@ -34,7 +34,7 @@ function DataHealthPage() {
   });
 
   return (
-    <AppShell>
+    <EmbedShell>
       <SectionHeader
         eyebrow="Operations"
         title="Data Health"
@@ -113,6 +113,6 @@ function DataHealthPage() {
       </Card>
 
       <div className="h-6" />
-    </AppShell>
+    </EmbedShell>
   );
 }
