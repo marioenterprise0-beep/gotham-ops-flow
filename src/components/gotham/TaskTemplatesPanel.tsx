@@ -109,14 +109,19 @@ export function TaskTemplatesPanel() {
           </select>
         </div>
         <div className="ml-auto">
-          <button
-            onClick={() => setEditing({ trailer_id: null, role: "cashier", phase: "opening", title: "", description: "", requires_signoff: false, position: 0, active: true })}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold uppercase tracking-[1.2px]"
-          >
-            <Plus className="h-3.5 w-3.5" /> New template
-          </button>
+          {canEdit ? (
+            <button
+              onClick={() => setEditing({ trailer_id: null, role: "cashier", phase: "opening", title: "", description: "", requires_signoff: false, position: 0, active: true })}
+              className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold uppercase tracking-[1.2px]"
+            >
+              <Plus className="h-3.5 w-3.5" /> New template
+            </button>
+          ) : (
+            <span className="label-caps text-muted-foreground">Read-only · Owner manages master templates</span>
+          )}
         </div>
       </div>
+
 
       <div className="hidden md:grid grid-cols-[1.6fr_120px_110px_140px_90px_120px] gap-3 px-4 py-2.5 label-caps text-muted-foreground bg-[#FAFAF5] border-b border-border">
         <div>Title</div><div>Role</div><div>Phase</div><div>Trailer</div><div>Sign-off</div><div className="text-right">Actions</div>
