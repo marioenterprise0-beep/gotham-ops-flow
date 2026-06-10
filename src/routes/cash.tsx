@@ -34,6 +34,7 @@ function CashPage() {
   const qc = useQueryClient();
   const { roleId, trailerScope, homeTrailerId, trailers, session, loading } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
+  const isOwner = roleId === "owner";
   const trailerId = trailerScope ?? homeTrailerId ?? null;
   const trailerName = trailers.find((t) => t.id === trailerId)?.name ?? "—";
 
@@ -81,7 +82,7 @@ function CashPage() {
       </Card>
 
       <SectionHeader title="Drawers" action={
-        trailerId ? (
+        trailerId && isManager ? (
           <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1">
             <Plus className="h-4 w-4" /> Add Drawer
           </Button>
@@ -198,6 +199,7 @@ function CashPage() {
         <SessionDetailDialog
           sessionId={detailFor}
           isManager={isManager}
+          isOwner={isOwner}
           onClose={() => setDetailFor(null)}
           onChanged={() => {
             syncDomains(qc, "cash");
@@ -500,8 +502,8 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
   );
 }
 
-function SessionDetailDialog({ sessionId, isManager, onClose, onChanged }: {
-  sessionId: string; isManager: boolean; onClose: () => void; onChanged: () => void;
+function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged }: {
+  sessionId: string; isManager: boolean; isOwner: boolean; onClose: () => void; onChanged: () => void;
 }) {
   const detailFn = useServerFn(getDrawerSession);
   const { data, refetch } = useQuery<any>({
@@ -612,18 +614,32 @@ function SessionDetailDialog({ sessionId, isManager, onClose, onChanged }: {
             )}
           </div>
 
-          {isManager && s.status !== "open" && (
-            <Card goldAccent>
-              <h4 className="font-semibold mb-2">Owner Review</h4>
-              <Textarea placeholder="Note (optional)" value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} rows={2} maxLength={1000} />
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button size="sm" className="gap-1" onClick={() => reviewMu.mutate("approved")}><Check className="h-3 w-3" /> Approve</Button>
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => reviewMu.mutate("correction")}><Clock className="h-3 w-3" /> Request Correction</Button>
-                <Button size="sm" variant="destructive" className="gap-1" onClick={() => reviewMu.mutate("flagged")}><AlertTriangle className="h-3 w-3" /> Flag</Button>
-              </div>
-              {s.owner_note && <p className="text-xs text-muted-foreground mt-2">Last note: {s.owner_note}</p>}
-            </Card>
-          )}
+          {isManager && s.status !== "open" && (() => {
+            const absVar = Math.abs(Number(s.variance ?? 0));
+            const needsOwner = absVar > 50;
+            const canApprove = isOwner || !needsOwner;
+            return (
+              <Card goldAccent>
+                <h4 className="font-semibold mb-2">
+                  {isOwner ? "Owner Approval" : needsOwner ? "Manager Review (Owner approval required)" : "Manager Verification"}
+                </h4>
+                {!isOwner && needsOwner && (
+                  <p className="text-xs text-[var(--color-warning,#9a6b00)] mb-2">
+                    Variance is over $50 — final approval is locked to the owner. You can still request a correction or flag.
+                  </p>
+                )}
+                <Textarea placeholder="Note (optional)" value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} rows={2} maxLength={1000} />
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <Button size="sm" className="gap-1" disabled={!canApprove} onClick={() => reviewMu.mutate("approved")}>
+                    <Check className="h-3 w-3" /> {isOwner ? "Approve Variance" : "Verify Drawer"}
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => reviewMu.mutate("correction")}><Clock className="h-3 w-3" /> Request Recount</Button>
+                  <Button size="sm" variant="destructive" className="gap-1" onClick={() => reviewMu.mutate("flagged")}><AlertTriangle className="h-3 w-3" /> Flag / Escalate</Button>
+                </div>
+                {s.owner_note && <p className="text-xs text-muted-foreground mt-2">Last note: {s.owner_note}</p>}
+              </Card>
+            );
+          })()}
         </div>
 
         <DialogFooter>

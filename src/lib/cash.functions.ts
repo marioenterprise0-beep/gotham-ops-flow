@@ -286,6 +286,9 @@ export const verifyCashDrop = createServerFn({ method: "POST" })
 
 // ---------------- Owner review ----------------
 
+// Variance threshold above which owner approval is mandatory.
+const OWNER_APPROVAL_THRESHOLD = 50;
+
 export const reviewDrawerSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -294,16 +297,27 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
     note: z.string().max(1000).optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
-    await requireManager(context.supabase, context.userId);
-    const { error } = await context.supabase.from("cash_drawer_sessions").update({
+    const { supabase, userId } = context;
+    // Any manager+ may review; final $-variance approval is owner-only.
+    await requireManager(supabase, userId);
+    const { data: sess, error: se } = await supabase
+      .from("cash_drawer_sessions").select("variance").eq("id", data.sessionId).single();
+    if (se) throw se;
+    const absVar = Math.abs(Number(sess?.variance ?? 0));
+    if (data.decision === "approved" && absVar > OWNER_APPROVAL_THRESHOLD) {
+      const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+      if (!isOwner) throw new Error(`Variance over $${OWNER_APPROVAL_THRESHOLD} requires owner approval.`);
+    }
+    const { error } = await supabase.from("cash_drawer_sessions").update({
       owner_review: data.decision,
       owner_note: data.note ?? null,
-      owner_reviewed_by: context.userId,
+      owner_reviewed_by: userId,
       owner_reviewed_at: new Date().toISOString(),
     }).eq("id", data.sessionId);
     if (error) throw error;
     return { ok: true };
   });
+
 
 // ---------------------------------------------------------------------------
 // Phase 6 — canonical archive/restore + dependency scan for cash domain
