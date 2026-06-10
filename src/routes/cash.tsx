@@ -34,6 +34,7 @@ function CashPage() {
   const qc = useQueryClient();
   const { roleId, trailerScope, homeTrailerId, trailers, session, loading } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
+  const isOwner = roleId === "owner";
   const trailerId = trailerScope ?? homeTrailerId ?? null;
   const trailerName = trailers.find((t) => t.id === trailerId)?.name ?? "—";
 
