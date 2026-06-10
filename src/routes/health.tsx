@@ -84,7 +84,7 @@ function HealthPage() {
         <EmptyState icon={Activity} title="Data appears after shift completion" hint="Your store health score is built from shift recaps, punches, inventory, and SOP completion. Finish a shift to see the first reading." />
       )}
 
-      {data && (
+      {data && data.trend.length > 0 && (
         <>
           <Card goldAccent className="mb-3">
             <div className="flex items-center justify-between gap-6 flex-wrap">
