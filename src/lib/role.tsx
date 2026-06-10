@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
