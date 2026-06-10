@@ -138,6 +138,7 @@ function AuditPage() {
           );
         })}
       </Card>
+      )}
 
       <div className="flex items-center justify-between mt-3">
         <div className="text-xs text-muted-foreground">Page {page + 1} of {totalPages}</div>
