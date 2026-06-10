@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { FileText, Send, ClipboardCheck, Archive, Star } from "lucide-react";
+import { EmptyState } from "@/components/gotham/EmptyState";
 import { saveRecap, listRecaps, getRecap, reviewRecap } from "@/lib/recaps.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
