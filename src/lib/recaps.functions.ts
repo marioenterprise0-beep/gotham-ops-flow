@@ -19,6 +19,8 @@ const RECAP_FIELDS = {
   location: z.string().max(120).optional().nullable(),
   shiftScore: z.number().int().min(1).max(10).optional().nullable(),
   crew: z.array(z.object({ id: z.string().optional(), name: z.string() })).optional(),
+  kind: z.enum(["crew", "manager"]).optional(),
+  crewSummary: z.string().max(4000).optional().nullable(),
   opsWentWell: z.string().max(4000).optional().nullable(),
   opsSlowed: z.string().max(4000).optional().nullable(),
   opsAttention: z.string().max(4000).optional().nullable(),
@@ -33,6 +35,7 @@ const RECAP_FIELDS = {
   hospComplaints: z.string().max(4000).optional().nullable(),
   nextShiftNotes: z.string().max(4000).optional().nullable(),
 };
+
 
 function toRow(d: any, managerId: string) {
   return {
