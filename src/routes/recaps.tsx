@@ -37,6 +37,7 @@ function RecapsPage() {
   const { roleId, trailerScope, trailers, session, loading, userId } = useRole();
   const isManager = roleId === "manager" || roleId === "owner";
   const isOwner = roleId === "owner";
+  const isCrew = !isManager;
 
   const [tab, setTab] = useState<"today" | "pending" | "history">("today");
   const [editorOpen, setEditorOpen] = useState(false);
@@ -44,9 +45,9 @@ function RecapsPage() {
 
   const list = useServerFn(listRecaps);
   const { data: recaps = [] } = useQuery<RecapSummary[]>({
-    queryKey: ["recaps", tab, trailerScope ?? "all"],
+    queryKey: ["recaps", tab, trailerScope ?? "all", isCrew ? "crew" : "mgr"],
     queryFn: () => list({ data: {
-      scope: tab === "today" ? "today" : tab === "pending" ? "pending" : "all",
+      scope: isCrew ? "mine" : (tab === "today" ? "today" : tab === "pending" ? "pending" : "all"),
       trailerId: trailerScope ?? undefined,
     } }) as Promise<RecapSummary[]>,
     enabled: !loading && !!session?.access_token,
@@ -54,13 +55,7 @@ function RecapsPage() {
 
   const myToday = useMemo(() => recaps.find((r) => r.manager_id === userId && r.recap_date === new Date().toISOString().slice(0,10)), [recaps, userId]);
 
-  if (!loading && !isManager) {
-    return (
-      <AppShell>
-        <Card>Only managers and owners can submit daily recaps. <Link to="/" className="underline">Back to dashboard</Link></Card>
-      </AppShell>
-    );
-  }
+
 
   return (
     <AppShell>
