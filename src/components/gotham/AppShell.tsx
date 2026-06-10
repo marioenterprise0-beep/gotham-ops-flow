@@ -42,11 +42,11 @@ export type WorkspaceMode = "crew" | "manager" | "owner";
 
 const MODE_TABS: Record<WorkspaceMode, string[]> = {
   crew: [
-    "dashboard", "my-tasks", "time-clock", "operations",
-    "inventory", "sops", "alerts", "settings",
+    "dashboard", "my-tasks", "time-clock", "cash", "operations",
+    "recaps", "schedule", "inventory", "sops", "alerts", "settings",
   ],
   manager: [
-    "dashboard", "my-tasks", "time-clock", "operations",
+    "dashboard", "my-tasks", "time-clock", "cash", "operations",
     "recaps", "schedule", "labor", "inventory", "sops",
     "hospitality", "alerts", "manager", "settings",
   ],
