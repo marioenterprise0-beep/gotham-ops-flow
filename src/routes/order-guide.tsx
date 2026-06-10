@@ -221,7 +221,8 @@ export function OrderGuideView({ focusItemId }: { focusItemId?: string | null } 
         {visible.map((it) => {
           const dirty = !!drafts[it.id] && Object.keys(drafts[it.id]).length > 0;
           return (
-            <Card key={it.id} id={`cfg-${it.id}`} className={`p-3 scroll-mt-24 ${focusItemId === it.id ? "ring-2 ring-[var(--color-gold)]" : ""}`}>
+            <div key={it.id} id={`cfg-${it.id}`} className="scroll-mt-24">
+            <Card className={`p-3 ${focusItemId === it.id ? "ring-2 ring-[var(--color-gold)]" : ""}`}>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="min-w-0">
                   <div className="font-semibold text-sm">{it.name}</div>
