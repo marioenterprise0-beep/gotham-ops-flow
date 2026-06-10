@@ -301,148 +301,110 @@ function ActionModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   );
 }
 
-const ROLE_OPTIONS: { id: "cashier"|"prep"|"grill"|"shift_lead"|"manager"|"owner"; label: string }[] = [
+const REQUEST_ROLE_OPTIONS: { id: "cashier"|"prep"|"grill"|"shift_lead"|"manager"; label: string }[] = [
   { id: "cashier", label: "Cashier" },
   { id: "prep", label: "Prep" },
   { id: "grill", label: "Grill Master" },
   { id: "shift_lead", label: "Shift Lead" },
   { id: "manager", label: "Manager" },
-  { id: "owner", label: "Owner" },
 ];
 
-function InviteCodesPanel() {
-  const qc = useQueryClient();
-  const fetchInvites = useServerFn(listInvites);
-  const createFn = useServerFn(createInvite);
-  const revokeFn = useServerFn(revokeInvite);
-
-  const [role, setRole] = useState<typeof ROLE_OPTIONS[number]["id"]>("cashier");
-  const [note, setNote] = useState("");
-
-  const { data: invites = [] } = useQuery({ queryKey: ["invites"], queryFn: () => fetchInvites() });
-
-  const createMut = useMutation({
-    mutationFn: () => createFn({ data: { role, note: note || undefined } }),
-    onSuccess: (row: any) => {
-      toast.success(`Code ${row.code} created`);
-      setNote("");
-      navigator.clipboard?.writeText(row.code).catch(() => {});
-      qc.invalidateQueries({ queryKey: ["invites"] });
-    },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
-
-  const revokeMut = useMutation({
-    mutationFn: (id: string) => revokeFn({ data: { id } }),
-    onSuccess: () => { toast.success("Revoked"); qc.invalidateQueries({ queryKey: ["invites"] }); syncDomains(qc, "invites"); },
-    onError: (e: any) => toast.error(e.message ?? "Failed"),
-  });
-
-  const copy = (code: string) => {
-    navigator.clipboard?.writeText(code);
-    toast.success(`Copied ${code}`);
-  };
+// View-only roster. Managers see who's on shift but cannot change roles,
+// disable accounts, or reset access. Those are owner-only governance actions.
+function CrewRosterPanel() {
+  const fetchRoster = useServerFn(listCrewRoster);
+  const { data: roster = [] } = useQuery({ queryKey: ["crew-roster"], queryFn: () => fetchRoster() });
 
   return (
     <Card className="p-0 overflow-hidden">
-      <div className="p-4 border-b border-border bg-[#FAFAF5] grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-2 items-end">
-        <div>
-          <div className="label-caps text-muted-foreground mb-1">Role</div>
-          <select value={role} onChange={(e) => setRole(e.target.value as any)} className="w-full h-10 rounded-md border border-border bg-card px-2 text-sm">
-            {ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
+      {roster.length === 0 && (
+        <div className="p-6 text-center text-sm text-muted-foreground">
+          No crew assigned to this location yet. Use “Request New Employee” below to ask the owner to add someone.
         </div>
-        <div>
-          <div className="label-caps text-muted-foreground mb-1">Note (optional)</div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="For: Carlos" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+      )}
+      {roster.map((m: any, i: number) => (
+        <div key={m.id} className={cn("grid grid-cols-[1fr_auto] md:grid-cols-[1.6fr_160px_1fr] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
+          <div className="font-medium truncate">{m.name}</div>
+          <div><RoleBadge role={ROLES[m.role as RoleId]?.name ?? m.role} /></div>
+          <div className="text-xs text-muted-foreground hidden md:block">Joined {new Date(m.joined).toLocaleDateString()}</div>
         </div>
-        <button onClick={() => createMut.mutate()} disabled={createMut.isPending} className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] disabled:opacity-60">
-          {createMut.isPending ? "Generating…" : "Generate code"}
-        </button>
-      </div>
-      {invites.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No invite codes yet. Generate one above to onboard crew.</div>}
-      {invites.map((inv: any, i: number) => {
-        const used = !!inv.used_by;
-        const expired = !used && new Date(inv.expires_at) < new Date();
-        return (
-          <div key={inv.id} className={cn("grid grid-cols-1 md:grid-cols-[180px_120px_1fr_140px_120px] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
-            <div className="font-mono text-base tracking-widest">{inv.code}</div>
-            <div><RoleBadge role={inv.role} /></div>
-            <div className="text-xs text-muted-foreground truncate">{inv.note || "—"}</div>
-            <div className="text-xs text-muted-foreground">
-              {used ? `Used ${new Date(inv.used_at).toLocaleDateString()}` : expired ? "Expired" : `Expires ${new Date(inv.expires_at).toLocaleDateString()}`}
-            </div>
-            <div className="flex gap-2 justify-end">
-              {!used && !expired && (
-                <>
-                  <button onClick={() => copy(inv.code)} className="rounded-md border border-border px-2 py-1.5 text-xs inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copy</button>
-                  <button onClick={() => revokeMut.mutate(inv.id)} className="rounded-md border border-border px-2 py-1.5 text-xs">Revoke</button>
-                </>
-              )}
-              {used && <StatusPill tone="success">Used</StatusPill>}
-              {!used && expired && <StatusPill tone="warning">Expired</StatusPill>}
-            </div>
-          </div>
-        );
-      })}
+      ))}
     </Card>
   );
 }
 
-function CrewRosterPanel() {
+function RequestNewEmployeePanel() {
   const qc = useQueryClient();
-  const fetchRoster = useServerFn(listCrewRoster);
-  const updateRole = useServerFn(updateCrewRole);
-  const fetchSuper = useServerFn(amISuperAdmin);
-  const kickUser = useServerFn(setUserActive);
-  const { data: roster = [] } = useQuery({ queryKey: ["crew-roster"], queryFn: () => fetchRoster() });
-  const { data: superData } = useQuery({ queryKey: ["am-super-admin"], queryFn: () => fetchSuper() });
-  const isSuper = !!superData?.isSuperAdmin;
+  const { trailers } = useRole();
+  const requestFn = useServerFn(requestNewEmployee);
 
-  const roleMut = useMutation({
-    mutationFn: (vars: { userId: string; role: RoleId }) => updateRole({ data: vars }),
-    onSuccess: () => { toast.success("Role updated"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); qc.invalidateQueries({ queryKey: ["manager-overview"] }); syncDomains(qc, "roles", "users", "permissions"); },
-    onError: (e: Error) => toast.error(e.message),
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [requestedRole, setRequestedRole] = useState<typeof REQUEST_ROLE_OPTIONS[number]["id"]>("cashier");
+  const [trailerId, setTrailerId] = useState<string>("");
+  const [reason, setReason] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () => requestFn({ data: {
+      name: name.trim(),
+      contact: contact.trim(),
+      requestedRole,
+      requestedTrailerId: trailerId || null,
+      reason: reason.trim(),
+    } }),
+    onSuccess: () => {
+      toast.success("Request sent to owner");
+      setName(""); setContact(""); setReason(""); setTrailerId("");
+      setRequestedRole("cashier");
+      qc.invalidateQueries({ queryKey: ["alerts"] });
+      syncDomains(qc, "alerts");
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed"),
   });
 
-  const kickMut = useMutation({
-    mutationFn: (vars: { userId: string }) => kickUser({ data: { userId: vars.userId, active: false } }),
-    onSuccess: () => { toast.success("User kicked"); qc.invalidateQueries({ queryKey: ["crew-roster"] }); syncDomains(qc, "users"); },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const canSubmit = name.trim() && contact.trim() && reason.trim() && !mut.isPending;
 
   return (
-    <Card className="p-0 overflow-hidden">
-      {roster.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No crew yet. Share an invite code to onboard.</div>}
-      {roster.map((m: any, i: number) => (
-        <div key={m.id} className={cn("grid grid-cols-1 md:grid-cols-[1.4fr_140px_180px_1fr_auto] gap-3 px-4 py-3 items-center text-sm", i && "border-t border-border")}>
-          <div className="font-medium truncate">{m.name}</div>
-          <div><RoleBadge role={ROLES[m.role as RoleId]?.name ?? m.role} /></div>
-          <select
-            value={m.role}
-            disabled={roleMut.isPending}
-            onChange={(e) => roleMut.mutate({ userId: m.id, role: e.target.value as RoleId })}
-            className="h-9 rounded-md border border-border bg-card px-2 text-xs"
-          >
-            {(Object.keys(ROLES) as RoleId[]).map((r) => <option key={r} value={r}>{ROLES[r].name}</option>)}
-          </select>
-          <div className="text-xs text-muted-foreground">Joined {new Date(m.joined).toLocaleDateString()}</div>
-          {isSuper ? (
-            <button
-              type="button"
-              disabled={kickMut.isPending}
-              onClick={() => {
-                if (confirm(`Kick ${m.name}? They will lose access immediately.`)) {
-                  kickMut.mutate({ userId: m.id });
-                }
-              }}
-              className="h-9 px-3 rounded-md border border-destructive/40 text-destructive text-xs font-medium hover:bg-destructive/10 disabled:opacity-50"
-            >
-              Kick
-            </button>
-          ) : null}
+    <Card>
+      <div className="text-xs text-muted-foreground mb-3">
+        Need a new crew member at your location? Submit a request — the owner will receive an alert and email, and decides whether to approve, decline, or ask for more info.
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Employee name</div>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Carlos Rivera" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
         </div>
-      ))}
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Phone or email</div>
+          <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="555-0144 or carlos@…" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+        </div>
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Requested role</div>
+          <select value={requestedRole} onChange={(e) => setRequestedRole(e.target.value as any)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+            {REQUEST_ROLE_OPTIONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <div className="label-caps text-muted-foreground mb-1">Requested location</div>
+          <select value={trailerId} onChange={(e) => setTrailerId(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
+            <option value="">My current location</option>
+            {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <div className="label-caps text-muted-foreground mb-1">Reason</div>
+          <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Short-staffed weekends; replacing departed cashier; etc." className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
+        </div>
+      </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={() => mut.mutate()}
+          disabled={!canSubmit}
+          className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] disabled:opacity-60"
+        >
+          {mut.isPending ? "Sending…" : "Request new employee"}
+        </button>
+      </div>
     </Card>
   );
 }
