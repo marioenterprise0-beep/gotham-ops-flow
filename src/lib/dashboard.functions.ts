@@ -36,11 +36,31 @@ export const getDashboardStats = createServerFn({ method: "GET" })
 
     // Pull real pending alerts (orders, corrections, recaps, etc.) so the
     // dashboard reflects the same alerts surface as the alerts page.
-    const { data: pendingAlerts } = await supabase.from("alerts")
-      .select("id, type, title, priority")
+    const { data: rawPendingAlerts } = await supabase.from("alerts")
+      .select("id, type, title, priority, source_id")
       .in("status", ["open", "pending"])
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(50);
+
+    // Reconcile critical_stock alerts against current inventory: drop alerts
+    // whose item is gone, archived, or back above its low_threshold. Mark
+    // them resolved so they don't keep appearing on subsequent loads.
+    const liveItems = new Map(
+      (items ?? []).map((i: any) => [i.id, i]),
+    );
+    const stale: string[] = [];
+    const pendingAlerts = (rawPendingAlerts ?? []).filter((a: any) => {
+      if (a.type !== "critical_stock") return true;
+      const it = a.source_id ? liveItems.get(a.source_id) : null;
+      const isStale = !it || Number(it.current_qty) > Number(it.low_threshold);
+      if (isStale) stale.push(a.id);
+      return !isStale;
+    }).slice(0, 20);
+    if (stale.length > 0) {
+      await supabase.from("alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
+        .in("id", stale);
+    }
 
     const { data: crew } = await supabase
       .from("profiles").select("id, display_name").is("archived_at", null).limit(20);
