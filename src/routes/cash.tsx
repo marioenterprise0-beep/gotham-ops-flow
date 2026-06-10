@@ -502,8 +502,8 @@ function CloseDrawerDialog({ drawer, session, onClose, onSaved }: {
   );
 }
 
-function SessionDetailDialog({ sessionId, isManager, onClose, onChanged }: {
-  sessionId: string; isManager: boolean; onClose: () => void; onChanged: () => void;
+function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged }: {
+  sessionId: string; isManager: boolean; isOwner: boolean; onClose: () => void; onChanged: () => void;
 }) {
   const detailFn = useServerFn(getDrawerSession);
   const { data, refetch } = useQuery<any>({
