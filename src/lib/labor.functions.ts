@@ -263,7 +263,7 @@ export const listAllRequests = createServerFn({ method: "POST" })
 
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
     let toQ = supabase.from("time_off_requests").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
-    let notesQ = supabase.from("shift_notes").select("*").order("created_at", { ascending: false }).limit(100);
+    let notesQ = supabase.from("shift_notes").select("*").is("archived_at", null).order("created_at", { ascending: false }).limit(100);
     if (data.trailerId) {
       corrQ = corrQ.eq("trailer_id", data.trailerId);
       toQ = toQ.eq("trailer_id", data.trailerId);
