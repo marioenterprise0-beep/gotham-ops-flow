@@ -56,8 +56,9 @@ export const scanOperationsDependencies = createServerFn({ method: "POST" })
     const out: Array<{ table: string; label: string; count: number }> = [];
     let total = 0;
     let liveTotal = 0;
+    const sb: any = context.supabase;
     for (const dep of DEPS[data.entity]) {
-      const { count } = await (context.supabase as any)
+      const { count } = await sb
         .from(dep.table)
         .select("id", { count: "exact", head: true })
         .eq(dep.column, data.id);
@@ -65,7 +66,7 @@ export const scanOperationsDependencies = createServerFn({ method: "POST" })
       out.push({ table: dep.table, label: dep.label, count: c });
       total += c;
       // For block-on-delete, consider only non-archived children "live"
-      const { count: live } = await (context.supabase as any)
+      const { count: live } = await sb
         .from(dep.table)
         .select("id", { count: "exact", head: true })
         .eq(dep.column, data.id)
@@ -140,8 +141,9 @@ export const deleteOperationsEntity = createServerFn({ method: "POST" })
     await assertOwner(supabase, userId);
     if (!data.force) {
       let liveTotal = 0;
+      const sb: any = supabase;
       for (const dep of DEPS[data.entity]) {
-        const { count } = await (supabase as any)
+        const { count } = await sb
           .from(dep.table)
           .select("id", { count: "exact", head: true })
           .eq(dep.column, data.id)
