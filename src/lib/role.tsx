@@ -155,7 +155,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   const primary = pickPrimary(roles);
-  const isManager = primary === "owner" || primary === "manager";
+  // (manager-level helpers reserved for future use)
+  const isOwnerRole_alias = primary === "owner" || primary === "manager"; void isOwnerRole_alias;
   const isOwnerRole = primary === "owner";
 
   const setTrailerScope = (id: string | null) => {
