@@ -9,13 +9,14 @@ import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives"
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Bell, CheckCircle2, Clock, XCircle, MessageSquare, Check, Loader2, ArrowUp, UserPlus, Megaphone, Inbox } from "lucide-react";
 import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement, listCategoryReads, markCategoryRead } from "@/lib/alerts.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/alerts")({
   ssr: false,
