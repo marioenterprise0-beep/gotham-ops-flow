@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/gotham/EmptyState";
 
 export const Route = createFileRoute("/audit")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
   head: () => ({ meta: [{ title: "Audit Log · Gotham OS" }] }),
   component: AuditPage,
 });

@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,7 +19,7 @@ import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/permissions")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "permissions" } as any }); },
   head: () => ({ meta: [{ title: "Permissions · Gotham OS" }] }),
   component: PermissionsPage,
 });

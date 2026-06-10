@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -44,7 +44,7 @@ const MOD_PRESETS: { id: string; label: string; desc: string; allow: string[] }[
 
 export const Route = createFileRoute("/users")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "people" } as any }); },
   head: () => ({ meta: [{ title: "Users · Gotham OS" }] }),
   component: UsersPage,
 });

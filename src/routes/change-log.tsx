@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -14,7 +14,7 @@ import { ScrollText, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/change-log")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
   head: () => ({ meta: [{ title: "Change Log · Gotham OS" }] }),
   component: ChangeLogPage,
 });

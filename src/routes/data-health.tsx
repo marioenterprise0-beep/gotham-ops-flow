@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -13,7 +13,7 @@ import { RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/data-health")({
   ssr: false,
-  beforeLoad: requireAuthBeforeLoad,
+  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "system" } as any }); },
   head: () => ({ meta: [{ title: "Data Health · Gotham OS" }] }),
   component: DataHealthPage,
 });
