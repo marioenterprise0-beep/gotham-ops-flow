@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import {
-  AlertTriangle, BellRing, BookOpen, Boxes, Check, ChevronRight, ClipboardList,
+  Activity, AlertTriangle, BellRing, BookOpen, Boxes, Check, ChevronRight, ClipboardList,
   Clock, Coffee, Download, FileText, FileWarning, Flame, LogIn, LogOut, MapPin,
   Megaphone, Play, ShieldCheck, Timer, Users, Wallet,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import { useRole, ROLES, initials, type RoleId } from "@/lib/role";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/dashboard.functions";
+import { getHealthScore } from "@/lib/health.functions";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
 import { getMyActivePunch } from "@/lib/timeclock.functions";
 import { listAlerts } from "@/lib/alerts.functions";
@@ -283,29 +284,50 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
   const completePct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const alertCount = stats?.alerts.count ?? 0;
   const pending = stats?.alerts.pending ?? [];
+  const lowStock = stats?.alerts.lowStock ?? stats?.alerts.items ?? [];
   const crew = stats?.crew ?? [];
   const shiftActive = !!stats?.shift;
-  const phaseLabel = stats?.shift?.phase ? `${String(stats.shift.phase).toUpperCase()} SHIFT` : "NO ACTIVE SHIFT";
+  const phaseLabel = stats?.shift?.phase ? String(stats.shift.phase).toUpperCase() : "NO ACTIVE SHIFT";
+  const openedAt = stats?.shift?.opened_at ? new Date(stats.shift.opened_at) : null;
+
+  // Personal clock status for the manager/owner viewing the dashboard.
+  const punchFn = useServerFn(getMyActivePunch);
+  const { data: punch } = useQuery({
+    queryKey: ["my-active-punch"],
+    queryFn: () => punchFn(),
+    refetchInterval: 30_000,
+  });
+  const clockedIn = !!(punch as any)?.clock_in_at;
+  const clockInAt = clockedIn ? new Date((punch as any).clock_in_at) : null;
+  const elapsedMs = clockInAt ? now.getTime() - clockInAt.getTime() : 0;
+  const hours = Math.floor(elapsedMs / 3_600_000);
+  const minutes = Math.floor((elapsedMs % 3_600_000) / 60_000);
+  const elapsedLabel = clockedIn ? `${hours}h ${minutes.toString().padStart(2, "0")}m` : "Off the clock";
+
+  // My tasks (managers also have personal tasks)
+  const listTasksFn = useServerFn(listMyTasks);
+  const { data: myTasks = [] } = useQuery<Task[]>({
+    queryKey: ["my-tasks"],
+    queryFn: () => listTasksFn() as Promise<Task[]>,
+    refetchInterval: 30_000,
+  });
+  const myDone = myTasks.filter((t) => t.status === "done" || t.status === "signed_off").length;
 
   return (
     <>
+      {/* HERO — TODAY AT GOTHAM */}
       <Card dark className="relative overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
           <div>
-            <div className="flex items-center gap-2 label-caps text-white/60">
+            <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]/80">
               <span className={`h-1.5 w-1.5 rounded-full ${shiftActive ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
-              {shiftActive ? "Current Shift" : "Idle"}
+              Today at Gotham
             </div>
             <h1 className="font-display text-3xl md:text-4xl mt-1 text-white">{phaseLabel}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
               <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5 text-[var(--color-gold)]" />{now.toLocaleString([], { weekday: "short", month: "short", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</span>
               <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-[var(--color-gold)]" />{stats?.store?.name ?? "—"}</span>
               <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-[var(--color-gold)]" />Crew: {crew.length}</span>
-            </div>
-            <div className="mt-3">
-              {shiftActive
-                ? <StatusPill tone="gold">Active</StatusPill>
-                : <Link to="/operations" className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><Play className="h-3 w-3" /> Start Shift</Link>}
             </div>
           </div>
           <div className="flex justify-center md:justify-end">
@@ -314,58 +336,105 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-        <DarkStat label="Tasks Remaining" value={String(remaining)} sub={`of ${totalTasks} total`} />
-        <DarkStat label="Open Alerts" value={String(alertCount)} sub={alertCount > 0 ? "needs attention" : "all clear"} tone={alertCount > 0 ? "danger" : undefined} />
-        <DarkStat label="Crew" value={String(crew.length)} sub="on roster" />
-        <DarkStat label="Pending Approvals" value={String(pending.length)} sub="awaiting your sign-off" tone={pending.length ? "gold" : undefined} />
+      {/* 1 · CURRENT SHIFT  +  2 · CLOCK STATUS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+        <Card>
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="label-caps text-muted-foreground">Current Shift</div>
+              <div className="font-display text-2xl mt-1">{shiftActive ? phaseLabel : "Idle"}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {openedAt ? `Opened ${openedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}` : "No shift opened today"}
+              </div>
+            </div>
+            {shiftActive
+              ? <StatusPill tone="gold">Active</StatusPill>
+              : <Link to="/operations" className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><Play className="h-3 w-3" /> Start</Link>}
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <MiniStat label="Tasks done" value={`${doneTasks}/${totalTasks}`} />
+            <MiniStat label="Remaining" value={String(remaining)} />
+            <MiniStat label="Crew on" value={String(crew.length)} />
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="label-caps text-muted-foreground">Clock Status</div>
+              <div className="font-display text-2xl mt-1">{elapsedLabel}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {clockedIn ? `Since ${clockInAt!.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}` : "You are not clocked in"}
+              </div>
+            </div>
+            {clockedIn
+              ? <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><LogOut className="h-3 w-3" /> Clock out</Link>
+              : <Link to="/time-clock" className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]"><LogIn className="h-3 w-3" /> Clock in</Link>}
+          </div>
+          <div className="mt-3">
+            <Link to="/time-clock" className="text-xs label-caps text-foreground/70 hover:text-[var(--color-gold)] inline-flex items-center gap-1">
+              Open time clock <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </Card>
       </div>
 
-      <SectionHeader eyebrow="Execute" title="Quick Actions" action={stats ? (
-        <div className="flex gap-2">
-          <button onClick={() => exportHealthCSV(stats, crew, role?.name ?? "Crew")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold">
-            <Download className="h-3.5 w-3.5" /> Health CSV
-          </button>
-          <button onClick={() => exportHealthPDF(stats, crew, role?.name ?? "Crew", phaseLabel)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
-            <FileText className="h-3.5 w-3.5" /> Health PDF
-          </button>
-        </div>
-      ) : null} />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <ActionBtn to="/manager" label="Manager Console" icon={ShieldCheck} primary />
-        <ActionBtn to="/alerts" label="Review Alerts" icon={BellRing} />
-        <ActionBtn to="/schedule" label="Schedule" icon={Coffee} />
-        <ActionBtn to="/inventory" label="Inventory" icon={Boxes} />
-      </div>
-
-      {pending.length > 0 && (
-        <>
-          <SectionHeader eyebrow="Action needed" title="Pending Approvals" action={<Link to="/alerts" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open queue</Link>} />
-          <Card className="p-0 overflow-hidden">
-            {pending.slice(0, 5).map((a: any, i: number) => (
-              <Link key={a.id} to="/alerts" className={cn("flex items-center justify-between p-4", i && "border-t border-border")}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-9 w-9 rounded-lg bg-[var(--color-gold-bg)] grid place-items-center">
-                    <Flame className="h-4 w-4 text-[var(--color-gold)]" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{a.title}</div>
-                    <div className="text-xs text-muted-foreground capitalize">{(a.type ?? "").replace(/_/g, " ")}</div>
-                  </div>
-                </div>
-                <StatusPill tone={a.priority === "critical" ? "danger" : "warning"}>{a.priority ?? "normal"}</StatusPill>
-              </Link>
-            ))}
-          </Card>
-        </>
-      )}
-
-      <SectionHeader eyebrow="Watch" title="Critical Stock" action={<Link to="/inventory" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">View all</Link>} />
+      {/* 3 · MY TASKS */}
+      <SectionHeader
+        eyebrow="Your shift"
+        title="My Tasks"
+        action={<Link to="/my-tasks" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open list ({myDone}/{myTasks.length})</Link>}
+      />
       <Card className="p-0 overflow-hidden">
-        {stats?.alerts.items.length === 0 && (
-          <div className="p-6 text-center text-sm text-muted-foreground">No critical stock. Nice work.</div>
+        {myTasks.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">No personal tasks right now.</div>
         )}
-        {stats?.alerts.items.map((r: any, i: number) => (
+        {myTasks.slice(0, 5).map((t, i) => {
+          const isDone = t.status === "done" || t.status === "signed_off";
+          return (
+            <div key={t.id} className={cn("p-3.5 flex items-center gap-3", i && "border-t border-border")}>
+              <div className={cn("h-5 w-5 rounded-md border-2 grid place-items-center shrink-0",
+                isDone ? "bg-[var(--color-gold)] border-[var(--color-gold)]" : "border-border")}>
+                {isDone && <Check className="h-3 w-3 text-[#0A0A0A]" strokeWidth={3} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={cn("text-sm font-medium leading-tight", isDone && "line-through text-muted-foreground")}>{t.title}</div>
+                <div className="label-caps text-muted-foreground mt-0.5">{t.phase}</div>
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+
+      {/* 4 · CRITICAL ALERTS */}
+      <SectionHeader eyebrow="Action needed" title="Critical Alerts" action={<Link to="/alerts" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">All alerts</Link>} />
+      <Card className="p-0 overflow-hidden">
+        {pending.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">No critical alerts. All clear.</div>
+        )}
+        {pending.slice(0, 5).map((a: any, i: number) => (
+          <Link key={a.id} to="/alerts" className={cn("flex items-center justify-between p-4", i && "border-t border-border")}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-[var(--color-danger-bg)] grid place-items-center shrink-0">
+                <Flame className="h-4 w-4 text-[var(--color-danger)]" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-medium truncate">{a.title}</div>
+                <div className="text-xs text-muted-foreground capitalize">{(a.type ?? "").replace(/_/g, " ")}</div>
+              </div>
+            </div>
+            <StatusPill tone={a.priority === "critical" ? "danger" : "warning"}>{a.priority ?? "normal"}</StatusPill>
+          </Link>
+        ))}
+      </Card>
+
+      {/* 5 · INVENTORY RISKS */}
+      <SectionHeader eyebrow="Watch" title="Inventory Risks" action={<Link to="/inventory" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">View inventory</Link>} />
+      <Card className="p-0 overflow-hidden">
+        {lowStock.length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">No items at risk.</div>
+        )}
+        {lowStock.map((r: any, i: number) => (
           <div key={r.id} className={`flex items-center justify-between p-4 ${i ? "border-t border-border" : ""}`}>
             <div className="flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-lg bg-[var(--color-danger-bg)] grid place-items-center">
@@ -381,23 +450,120 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
         ))}
       </Card>
 
-      <SectionHeader eyebrow="On Station" title="Current Crew" action={<StatusPill tone="success">{crew.length} active</StatusPill>} />
-      <Card>
-        {crew.length === 0 && <div className="p-2 text-sm text-muted-foreground">No crew profiles yet.</div>}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {crew.map((c: any) => (
-            <div key={c.id} className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-[#0A0A0A] text-white grid place-items-center font-semibold text-sm">
-                {initials(c.display_name)}
+      {/* 6 · PENDING APPROVALS */}
+      <SectionHeader eyebrow="Review" title="Pending Approvals" action={<Link to="/manager" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open Command Center</Link>} />
+      <Card className="p-0 overflow-hidden">
+        {pending.filter((a: any) => a.type === "approval_required" || a.type === "signoff" || a.type === "task_signoff").length === 0 && (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            Nothing waiting on your sign-off.
+          </div>
+        )}
+        {pending.slice(0, 4).map((a: any, i: number) => (
+          <Link key={`appr-${a.id}`} to="/manager" className={cn("flex items-center justify-between p-4", i && "border-t border-border")}>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-lg bg-[var(--color-gold-bg)] grid place-items-center">
+                <ShieldCheck className="h-4 w-4 text-[var(--color-gold)]" />
               </div>
               <div className="min-w-0">
-                <div className="font-medium truncate text-sm">{c.display_name}</div>
-                <RoleBadge role={role?.name ?? "Crew"} />
+                <div className="font-medium truncate">{a.title}</div>
+                <div className="text-xs text-muted-foreground capitalize">{(a.type ?? "").replace(/_/g, " ")}</div>
               </div>
             </div>
-          ))}
-        </div>
+            <StatusPill tone="gold">Review</StatusPill>
+          </Link>
+        ))}
       </Card>
+
+      {/* 7 · STORE SNAPSHOT + STORE HEALTH */}
+      <SectionHeader eyebrow="Snapshot" title="Store Snapshot" action={
+        <div className="flex gap-2">
+          <button onClick={() => exportHealthCSV(stats, crew, role?.name ?? "Crew")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold">
+            <Download className="h-3.5 w-3.5" /> CSV
+          </button>
+          <button onClick={() => exportHealthPDF(stats, crew, role?.name ?? "Crew", phaseLabel)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
+            <FileText className="h-3.5 w-3.5" /> PDF
+          </button>
+        </div>
+      } />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <DarkStat label="Tasks Remaining" value={String(remaining)} sub={`of ${totalTasks} total`} />
+        <DarkStat label="Open Alerts" value={String(alertCount)} sub={alertCount > 0 ? "needs attention" : "all clear"} tone={alertCount > 0 ? "danger" : undefined} />
+        <DarkStat label="Crew" value={String(crew.length)} sub="on roster" />
+        <DarkStat label="Pending Approvals" value={String(pending.length)} sub="awaiting sign-off" tone={pending.length ? "gold" : undefined} />
+      </div>
+
+      <StoreHealthCard />
+
+      <SectionHeader eyebrow="Execute" title="Quick Actions" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <ActionBtn to="/manager" label="Command Center" icon={ShieldCheck} primary />
+        <ActionBtn to="/alerts" label="Review Alerts" icon={BellRing} />
+        <ActionBtn to="/schedule" label="Schedule" icon={Coffee} />
+        <ActionBtn to="/inventory" label="Inventory" icon={Boxes} />
+      </div>
+    </>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-secondary/40 border border-border p-2">
+      <div className="label-caps text-muted-foreground text-[9px]">{label}</div>
+      <div className="font-semibold text-sm mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function StoreHealthCard() {
+  const fetch = useServerFn(getHealthScore);
+  const { data } = useQuery({
+    queryKey: ["health", null, 1],
+    queryFn: () => fetch({ data: { trailerId: null, days: 1 } }),
+    refetchInterval: 60_000,
+  });
+  const score = data?.overall ?? null;
+  const band = data?.band ?? "yellow";
+  const color = band === "green" ? "var(--color-success)" : band === "yellow" ? "var(--color-warning)" : "var(--color-danger)";
+  const top = (data?.components ?? []).slice().sort((a, b) => a.score - b.score).slice(0, 3);
+
+  return (
+    <>
+      <SectionHeader eyebrow="Analytics" title="Store Health" action={<Link to="/health" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open full analytics <ChevronRight className="inline h-3 w-3" /></Link>} />
+      <Link to="/health" className="block">
+        <Card className="hover:border-[var(--color-gold)] transition-colors">
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-5 items-center">
+            <div className="flex items-center gap-4">
+              <div className="grid place-items-center h-20 w-20 rounded-full border-4" style={{ borderColor: color, color }}>
+                <span className="font-display text-3xl font-bold">{score ?? "—"}</span>
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground">Today</div>
+                <div className="font-display text-xl">{band === "green" ? "Healthy" : band === "yellow" ? "Needs Attention" : "Action Needed"}</div>
+                <StatusPill tone={band === "green" ? "success" : band === "yellow" ? "warning" : "danger"}>{band.toUpperCase()}</StatusPill>
+              </div>
+            </div>
+            <div>
+              <div className="label-caps text-muted-foreground mb-2">Top drivers · biggest drag</div>
+              {top.length === 0 && <div className="text-sm text-muted-foreground">Loading…</div>}
+              <div className="space-y-1.5">
+                {top.map((c) => (
+                  <div key={c.key} className="flex items-center gap-3 text-sm">
+                    <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-medium w-24 truncate">{c.label}</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                      <div className="h-full" style={{ width: `${c.score}%`, backgroundColor: c.score >= 80 ? "var(--color-success)" : c.score >= 60 ? "var(--color-warning)" : "var(--color-danger)" }} />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-10 text-right">{c.score}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-xs text-muted-foreground">
+                Tap to see drivers, trend, and recommended actions.
+              </div>
+            </div>
+          </div>
+        </Card>
+      </Link>
     </>
   );
 }

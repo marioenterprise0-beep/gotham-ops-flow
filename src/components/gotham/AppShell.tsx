@@ -58,7 +58,9 @@ const MODE_TABS: Record<WorkspaceMode, string[]> = {
     "recaps", "schedule", "labor", "inventory", "sops",
     "hospitality", "alerts", "manager", "settings",
   ],
-  owner: ALL_TABS.map((t) => t.key),
+  // Owner sees everything EXCEPT Health Score — it's reached via the
+  // Store Health card on the dashboard, not the sidebar.
+  owner: ALL_TABS.filter((t) => t.key !== "health").map((t) => t.key),
 };
 
 const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: typeof HardHat }> = {
