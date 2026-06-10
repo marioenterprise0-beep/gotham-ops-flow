@@ -199,7 +199,7 @@ export const getActiveShift = createServerFn({ method: "GET" })
     const { data: store } = await supabase.from("stores").select("id, name").order("created_at").limit(1).maybeSingle();
     const trailerId = await resolveTrailer(supabase, userId, data?.trailerId ?? null);
 
-    let q = supabase.from("shifts").select("*").eq("status", "active").order("opened_at", { ascending: false }).limit(1);
+    let q = supabase.from("shifts").select("*").is("archived_at", null).eq("status", "active").order("opened_at", { ascending: false }).limit(1);
     if (trailerId) q = q.eq("trailer_id", trailerId);
     const { data: shift } = await q.maybeSingle();
     return { shift, store, trailerId };

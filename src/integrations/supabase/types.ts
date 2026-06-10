@@ -522,6 +522,9 @@ export type Database = {
       }
       checklist_sessions: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string | null
           employee_name: string | null
@@ -537,6 +540,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           employee_name?: string | null
@@ -552,6 +558,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           employee_name?: string | null
@@ -570,6 +579,9 @@ export type Database = {
       }
       daily_recaps: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           crew: Json
           hosp_complaints: string | null
@@ -600,6 +612,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           crew?: Json
           hosp_complaints?: string | null
@@ -630,6 +645,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           crew?: Json
           hosp_complaints?: string | null
@@ -789,6 +807,9 @@ export type Database = {
       }
       hospitality_incidents: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           id: string
           logged_at: string
           logged_by: string | null
@@ -800,6 +821,9 @@ export type Database = {
           type: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           logged_at?: string
           logged_by?: string | null
@@ -811,6 +835,9 @@ export type Database = {
           type: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           logged_at?: string
           logged_by?: string | null
@@ -1689,6 +1716,9 @@ export type Database = {
       }
       shifts: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           closed_at: string | null
           closed_by: string | null
           id: string
@@ -1702,6 +1732,9 @@ export type Database = {
           trailer_id: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           closed_at?: string | null
           closed_by?: string | null
           id?: string
@@ -1715,6 +1748,9 @@ export type Database = {
           trailer_id?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           closed_at?: string | null
           closed_by?: string | null
           id?: string
@@ -2045,6 +2081,9 @@ export type Database = {
       task_templates: {
         Row: {
           active: boolean
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -2059,6 +2098,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -2073,6 +2115,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -2097,6 +2142,9 @@ export type Database = {
       }
       tasks: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           assignee_role: Database["public"]["Enums"]["app_role"] | null
           assignee_user_id: string | null
           completed_at: string | null
@@ -2118,6 +2166,9 @@ export type Database = {
           trailer_id: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assignee_role?: Database["public"]["Enums"]["app_role"] | null
           assignee_user_id?: string | null
           completed_at?: string | null
@@ -2139,6 +2190,9 @@ export type Database = {
           trailer_id?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           assignee_role?: Database["public"]["Enums"]["app_role"] | null
           assignee_user_id?: string | null
           completed_at?: string | null
@@ -2463,6 +2517,9 @@ export type Database = {
       }
       waste_log: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           id: string
           item_id: string
           logged_at: string
@@ -2473,6 +2530,9 @@ export type Database = {
           trailer_id: string | null
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           item_id: string
           logged_at?: string
@@ -2483,6 +2543,9 @@ export type Database = {
           trailer_id?: string | null
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           id?: string
           item_id?: string
           logged_at?: string
