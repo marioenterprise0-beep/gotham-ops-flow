@@ -1,15 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
-import { AlertTriangle, ArchiveRestore, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download } from "lucide-react";
+import { AlertTriangle, ArchiveRestore, ClipboardList, FileText, Plus, Trash2, Truck, Pencil, Download, Boxes, BookOpen, Settings as SettingsIcon, History, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
-import { Link } from "@tanstack/react-router";
 import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -17,13 +16,19 @@ import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
 import { supabase } from "@/integrations/supabase/client";
 import { SignedImage } from "@/components/gotham/SignedImage";
-
+import { InventoryGuideView } from "@/routes/inventory-guide";
+import { OrderGuideView } from "@/routes/order-guide";
+import { InventoryChangesView } from "@/routes/inventory-changes";
 
 export const Route = createFileRoute("/inventory")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: typeof s.tab === "string" ? (s.tab as string) : undefined,
+    focus: typeof s.focus === "string" ? (s.focus as string) : undefined,
+  }),
   head: () => ({ meta: [{ title: "Inventory · Gotham OS" }] }),
-  component: Inventory,
+  component: InventoryPage,
 });
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -48,12 +53,118 @@ function statusOf(it: Item): Status {
 function statusTone(s: Status) {
   return s === "CRITICAL" ? "danger" : s === "LOW" ? "warning" : s === "OVERSTOCKED" ? "info" : "success";
 }
+function recommendedAction(s: Status): { label: string; tone: "danger" | "warning" | "success" | "info" } {
+  if (s === "CRITICAL") return { label: "Order now", tone: "danger" };
+  if (s === "LOW") return { label: "Order soon", tone: "warning" };
+  if (s === "OVERSTOCKED") return { label: "Hold off ordering", tone: "info" };
+  return { label: "Stocked — no action", tone: "success" };
+}
 
-function Inventory() {
+/* =================== TABBED SHELL =================== */
+
+const TABS = [
+  { key: "live-counts",   label: "Live Counts",   icon: Boxes },
+  { key: "count-guide",   label: "Count Guide",   icon: BookOpen },
+  { key: "orders",        label: "Orders",        icon: Truck },
+  { key: "approvals",     label: "Approvals",     icon: ClipboardList },
+  { key: "configuration", label: "Configuration", icon: SettingsIcon },
+] as const;
+type TabKey = typeof TABS[number]["key"];
+const TAB_KEYS = TABS.map((t) => t.key) as readonly TabKey[];
+const TAB_STORAGE = "gotham:inventory:tab:v1";
+
+function InventoryPage() {
+  const { roleId } = useRole();
+  const isOwner = roleId === "owner";
+  const isManager = isOwner || roleId === "manager";
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  const initial = useMemo<TabKey>(() => {
+    if (search.tab && (TAB_KEYS as readonly string[]).includes(search.tab)) return search.tab as TabKey;
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem(TAB_STORAGE);
+      if (saved && (TAB_KEYS as readonly string[]).includes(saved)) return saved as TabKey;
+    }
+    return "live-counts";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [tab, setTab] = useState<TabKey>(initial);
+
+  // Sync URL <-> state when user clicks a tab; respect deep links.
+  useEffect(() => {
+    if (search.tab && search.tab !== tab && (TAB_KEYS as readonly string[]).includes(search.tab)) {
+      setTab(search.tab as TabKey);
+    }
+  }, [search.tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const changeTab = (next: TabKey, opts?: { focus?: string }) => {
+    setTab(next);
+    try { window.localStorage.setItem(TAB_STORAGE, next); } catch { /* noop */ }
+    navigate({ search: { tab: next, focus: opts?.focus } as any, replace: true });
+  };
+
+  // Tabs that aren't relevant for crew → hide visually.
+  const visibleTabs = TABS.filter((t) => {
+    if (t.key === "approvals") return isManager;
+    if (t.key === "configuration") return isManager;
+    if (t.key === "orders") return isManager;
+    return true;
+  });
+
+  // Make sure crew never lands on a privileged tab via direct URL.
+  useEffect(() => {
+    if (!visibleTabs.some((t) => t.key === tab)) {
+      changeTab("live-counts");
+    }
+  }, [roleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <AppShell>
+      <div className="mb-4">
+        <div className="label-caps text-muted-foreground">Stock</div>
+        <h1 className="font-display text-2xl text-foreground">INVENTORY</h1>
+      </div>
+
+      <div className="mb-4 -mx-4 px-4 overflow-x-auto border-b border-border">
+        <div className="flex gap-1 min-w-max">
+          {visibleTabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => changeTab(t.key)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-[1.2px] border-b-2 -mb-px transition",
+                  active
+                    ? "text-foreground border-[var(--color-gold)]"
+                    : "text-muted-foreground border-transparent hover:text-foreground",
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {tab === "live-counts"   && <LiveCountsTab />}
+      {tab === "count-guide"   && <InventoryGuideView />}
+      {tab === "orders"        && isManager && <OrdersTab onEditDetails={(itemId) => changeTab("configuration", { focus: itemId })} />}
+      {tab === "approvals"     && isManager && <InventoryChangesView />}
+      {tab === "configuration" && isManager && <OrderGuideView focusItemId={search.focus ?? null} />}
+    </AppShell>
+  );
+}
+
+/* =================== LIVE COUNTS TAB =================== */
+
+function LiveCountsTab() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers, session, loading } = useRole();
   const isOwner = roleId === "owner";
-  const isManager = roleId === "owner" || roleId === "manager";
   const canPropose = !!session?.access_token;
   const list = useServerFn(listInventory);
   const [showArchived, setShowArchived] = useState(false);
@@ -68,6 +179,9 @@ function Inventory() {
 
   const cats = Array.from(new Set(items.map((i) => i.category)));
   const [cat, setCat] = useState<string>("protein");
+  useEffect(() => {
+    if (cats.length && !cats.includes(cat)) setCat(cats[0]);
+  }, [cats.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const visible = items.filter((i) => i.category === cat);
 
   const counts = items.reduce((acc, it) => {
@@ -79,8 +193,6 @@ function Inventory() {
   const [receiveItem, setReceiveItem] = useState<Item | null>(null);
   const [wasteItem, setWasteItem] = useState<Item | null>(null);
   const [editItem, setEditItem] = useState<Item | "new" | null>(null);
-  const [orderOpen, setOrderOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
 
   const submitCountFn = useServerFn(submitCount);
   const countMut = useMutation({
@@ -89,7 +201,7 @@ function Inventory() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const FANOUT = ["inventory","orders","alerts","operations","dashboard","history"] as const;
+  const FANOUT = ["inventory", "orders", "alerts", "operations", "dashboard", "history"] as const;
 
   const scanFn = useServerFn(scanInventoryDependencies);
   const deleteFn = useServerFn(deleteInventoryItem);
@@ -98,7 +210,7 @@ function Inventory() {
 
   const archiveMut = useMutation({
     mutationFn: (id: string) => archiveFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item archived · all dependent screens refreshed"); syncDomains(qc, ...FANOUT); },
+    onSuccess: () => { toast.success("Item archived"); syncDomains(qc, ...FANOUT); },
     onError: (e: Error) => toast.error(e.message),
   });
   const restoreMut = useMutation({
@@ -141,31 +253,24 @@ function Inventory() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
   return (
-    <AppShell>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <div className="label-caps text-muted-foreground">Stock</div>
-          <h1 className="font-display text-2xl text-foreground">INVENTORY</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => exportVarianceCSV(items, trailerLabel)}
-            disabled={!items.length}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
-            title="Export variance CSV">
-            <Download className="h-3.5 w-3.5" /> CSV
-          </button>
-          <button
-            onClick={() => exportVariancePDF(items, trailerLabel, counts)}
-            disabled={!items.length}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
-            title="Export variance PDF">
-            <FileText className="h-3.5 w-3.5" /> PDF
-          </button>
-          <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
-        </div>
+    <div>
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <button
+          onClick={() => exportVarianceCSV(items, trailerLabel)}
+          disabled={!items.length}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+          title="Export variance CSV">
+          <Download className="h-3.5 w-3.5" /> CSV
+        </button>
+        <button
+          onClick={() => exportVariancePDF(items, trailerLabel, counts)}
+          disabled={!items.length}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-40"
+          title="Export variance PDF">
+          <FileText className="h-3.5 w-3.5" /> PDF
+        </button>
+        <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -196,39 +301,38 @@ function Inventory() {
         eyebrow={CATEGORY_LABELS[cat] ?? cat}
         title="Live Counts"
         action={
-          <div className="flex gap-2">
-            {isManager && (
-              <button onClick={() => setOrderOpen(true)} className="inline-flex items-center gap-1 rounded-md bg-[#0A0A0A] text-[var(--color-gold)] px-2.5 py-1 text-xs font-semibold">
-                <Truck className="h-3.5 w-3.5" /> Create order
-              </button>
-            )}
-            {canPropose && (
-              <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
-                <Plus className="h-3.5 w-3.5" /> {isOwner ? "New item" : "Request item"}
-              </button>
-            )}
-            <Link to="/inventory-changes" className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
-              Change requests
-            </Link>
-          </div>
+          canPropose ? (
+            <button onClick={() => setEditItem("new")} className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+              <Plus className="h-3.5 w-3.5" /> {isOwner ? "New item" : "Request item"}
+            </button>
+          ) : null
         }
       />
-
 
       {(loading || isLoading) && <Card>Loading…</Card>}
 
       <div className="space-y-2">
         {visible.map((it) => {
           const s = statusOf(it);
+          const action = recommendedAction(s);
           const pct = Math.min(150, Math.round((Number(it.current_qty) / Math.max(1, Number(it.par_level))) * 100));
           return (
             <Card key={it.id} className={cn("p-3", it.archived_at && "opacity-60")}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-sm">{it.name} {it.archived_at && <span className="ml-1 text-[10px] uppercase tracking-wider text-muted-foreground">· archived</span>}</div>
-                  <div className="label-caps text-muted-foreground mt-0.5">Par {Number(it.par_level)} · Low ≤ {Number(it.low_threshold)} {it.unit}</div>
+                  <div className="label-caps text-muted-foreground mt-0.5">PAR {Number(it.par_level)} {it.unit}</div>
                 </div>
-                <StatusPill tone={statusTone(s)}>{s}</StatusPill>
+                <div className="flex flex-col items-end gap-1">
+                  <StatusPill tone={statusTone(s)}>{s}</StatusPill>
+                  <span className={cn(
+                    "text-[10px] uppercase tracking-[1.1px] font-semibold",
+                    action.tone === "danger"  && "text-[var(--color-danger)]",
+                    action.tone === "warning" && "text-[var(--color-warning)]",
+                    action.tone === "success" && "text-[var(--color-success)]",
+                    action.tone === "info"    && "text-muted-foreground",
+                  )}>{action.label}</span>
+                </div>
                 {canPropose && (
                   <div className="flex gap-1">
                     {it.archived_at ? (
@@ -282,19 +386,167 @@ function Inventory() {
       {receiveItem && <ReceiveModal item={receiveItem} onClose={() => setReceiveItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
       {wasteItem && <WasteModal item={wasteItem} onClose={() => setWasteItem(null)} onDone={() => syncDomains(qc, "inventory")} />}
       {editItem && <EditItemModal item={editItem === "new" ? null : editItem} defaultCategory={cat} isOwner={isOwner} trailerId={trailerScope} onClose={() => setEditItem(null)} onDone={() => syncDomains(qc, "inventory", "alerts")} />}
-      {orderOpen && <OrderBuilderModal items={items} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
-      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
-      {isManager && (
-        <div className="mt-4 flex justify-end">
-          <button onClick={() => setHistoryOpen(true)} className="text-xs underline text-muted-foreground hover:text-foreground">View my orders</button>
-        </div>
-      )}
-
 
       <div className="h-6" />
-    </AppShell>
+    </div>
   );
 }
+
+/* =================== ORDERS TAB (simple) =================== */
+
+type OrderRow = {
+  id: string; name: string; category: string; unit: string;
+  vendor: string | null; pack_size: string | null;
+  current_qty: number; par_level: number; low_threshold: number;
+  preferred_order_qty: number;
+};
+
+function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void }) {
+  const qc = useQueryClient();
+  const { trailerScope, trailers, session, loading } = useRole();
+  const list = useServerFn(listInventory);
+  const { data: items = [], isLoading } = useQuery<OrderRow[]>({
+    queryKey: ["inventory-orders-tab", trailerScope ?? "company"],
+    queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<OrderRow[]>,
+    enabled: !loading && !!session?.access_token,
+  });
+
+  const trailerLabel = trailerScope
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
+    : "All trailers · Company";
+
+  const [filter, setFilter] = useState<"needs" | "all">("needs");
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  const recommendedFor = (it: OrderRow) => {
+    const s = statusOf(it as unknown as Item);
+    if (s === "OK" || s === "OVERSTOCKED") return 0;
+    const par = Number(it.par_level) || 0;
+    const onHand = Number(it.current_qty) || 0;
+    const gap = Math.max(0, par - onHand);
+    const preferred = Number(it.preferred_order_qty) || 0;
+    return preferred > 0 ? preferred : gap;
+  };
+
+  const visible = useMemo(() => {
+    const sorted = [...items].sort((a, b) => {
+      const sa = statusOf(a as unknown as Item);
+      const sb = statusOf(b as unknown as Item);
+      const rank = (s: Status) => s === "CRITICAL" ? 0 : s === "LOW" ? 1 : s === "OVERSTOCKED" ? 3 : 2;
+      const diff = rank(sa) - rank(sb);
+      return diff !== 0 ? diff : a.name.localeCompare(b.name);
+    });
+    if (filter === "all") return sorted;
+    return sorted.filter((it) => recommendedFor(it) > 0);
+  }, [items, filter]);
+
+  const needsCount = items.filter((it) => recommendedFor(it) > 0).length;
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-2">
+          <button onClick={() => setFilter("needs")}
+            className={cn(
+              "rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]",
+              filter === "needs" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground",
+            )}>
+            Needs Order · {needsCount}
+          </button>
+          <button onClick={() => setFilter("all")}
+            className={cn(
+              "rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]",
+              filter === "all" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground",
+            )}>
+            All items
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setHistoryOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+            <History className="h-3.5 w-3.5" /> My orders
+          </button>
+          <button onClick={() => setOrderOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold">
+            <Truck className="h-3.5 w-3.5" /> Create order
+          </button>
+          <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
+        </div>
+      </div>
+
+      {(loading || isLoading) && <Card>Loading…</Card>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {visible.map((it) => {
+          const s = statusOf(it as unknown as Item);
+          const recommended = recommendedFor(it);
+          const action = recommendedAction(s);
+          return (
+            <Card key={it.id} className="p-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-base">{it.name}</div>
+                  <div className="label-caps text-muted-foreground mt-0.5">
+                    {it.vendor || "No vendor set"} {it.pack_size ? `· ${it.pack_size}` : ""}
+                  </div>
+                </div>
+                <StatusPill tone={statusTone(s)}>{s}</StatusPill>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <Stat label="Current" value={`${Number(it.current_qty)} ${it.unit}`} />
+                <Stat label="PAR" value={`${Number(it.par_level)} ${it.unit}`} />
+                <Stat
+                  label="Recommended"
+                  value={recommended > 0 ? `${recommended} ${it.unit}` : "—"}
+                  emphasis={recommended > 0}
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className={cn(
+                  "text-[11px] font-semibold uppercase tracking-[1.1px]",
+                  action.tone === "danger"  && "text-[var(--color-danger)]",
+                  action.tone === "warning" && "text-[var(--color-warning)]",
+                  action.tone === "success" && "text-[var(--color-success)]",
+                  action.tone === "info"    && "text-muted-foreground",
+                )}>{action.label}</span>
+                <button
+                  onClick={() => onEditDetails(it.id)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Edit details <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </Card>
+          );
+        })}
+        {!isLoading && visible.length === 0 && (
+          <Card className="md:col-span-2 p-6 text-center text-sm text-muted-foreground">
+            {filter === "needs" ? "Nothing needs ordering right now." : "No items to display."}
+          </Card>
+        )}
+      </div>
+
+      {orderOpen && <OrderBuilderModal items={items as unknown as Item[]} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
+      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
+
+      <div className="h-6" />
+    </div>
+  );
+}
+
+function Stat({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="rounded-md bg-secondary/40 px-3 py-2">
+      <div className="label-caps text-muted-foreground text-[10px]">{label}</div>
+      <div className={cn("font-semibold tabular-nums mt-0.5", emphasis ? "text-base text-[var(--color-gold)]" : "text-sm text-foreground")}>{value}</div>
+    </div>
+  );
+}
+
+/* =================== SHARED PRIMITIVES =================== */
 
 function CountStrip({ onSubmit }: { onSubmit: (n: number) => void }) {
   const [v, setV] = useState("");
@@ -540,7 +792,7 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
   );
 }
 
-type OrderRow = {
+type OrderBuilderRow = {
   itemId?: string | null; itemName: string; category?: string; unit?: string;
   currentQty: number; parQty: number; requestedQty: number;
   urgency: "normal" | "needed_soon" | "critical" | "emergency";
@@ -556,7 +808,7 @@ const URGENCY_OPTIONS = [
 
 function OrderBuilderModal({ items, trailerId, onClose, onDone }: { items: Item[]; trailerId: string | null; onClose: () => void; onDone: () => void }) {
   const createOrder = useServerFn(createInventoryOrder);
-  const [rows, setRows] = useState<OrderRow[]>([]);
+  const [rows, setRows] = useState<OrderBuilderRow[]>([]);
   const [notes, setNotes] = useState("");
   const [picker, setPicker] = useState("");
 
@@ -572,7 +824,7 @@ function OrderBuilderModal({ items, trailerId, onClose, onDone }: { items: Item[
     setPicker("");
   };
 
-  const updateRow = (idx: number, patch: Partial<OrderRow>) => {
+  const updateRow = (idx: number, patch: Partial<OrderBuilderRow>) => {
     setRows((r) => r.map((row, i) => i === idx ? { ...row, ...patch } : row));
   };
   const removeRow = (idx: number) => setRows((r) => r.filter((_, i) => i !== idx));
