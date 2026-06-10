@@ -283,6 +283,7 @@ export function OrderGuideView({ focusItemId }: { focusItemId?: string | null } 
                 <span>Last received: {it.last_received_at ? new Date(it.last_received_at).toLocaleDateString() : "—"}</span>
               </div>
             </Card>
+            </div>
           );
         })}
         {!isLoading && visible.length === 0 && <Card>No items.</Card>}
