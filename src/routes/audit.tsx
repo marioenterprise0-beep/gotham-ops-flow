@@ -112,9 +112,10 @@ function AuditPage() {
         </Button>
       </Card>
 
-      {!isLoading && rows.length === 0 ? (
+      {!isLoading && rows.length === 0 && (
         <EmptyState icon={Activity} title="Activity will appear here" hint="Every meaningful action — punches, approvals, edits — gets logged here for review." />
-      ) : (
+      )}
+      {(isLoading || rows.length > 0) && (
       <Card className="p-0 overflow-hidden">
         {isLoading && <div className="p-6 text-center text-sm text-muted-foreground">Loading…</div>}
         {rows.map((r, i) => {
