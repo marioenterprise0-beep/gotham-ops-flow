@@ -34,7 +34,7 @@ const TONE: Record<string, "success" | "warning" | "danger" | "info" | "gold"> =
 
 export function ChangeLogPage() {
   const { roleId } = useRole();
-  if (!canSee(roleId, "manager")) return <Navigate to="/" />;
+  if (roleId !== "owner") return <Navigate to="/" />;
 
   const fetchLog = useServerFn(listChangeLog);
   const insertLog = useServerFn(recordChange);
