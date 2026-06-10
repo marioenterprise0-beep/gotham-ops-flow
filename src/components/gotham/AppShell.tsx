@@ -333,7 +333,7 @@ function TrailerSwitcher() {
   );
 }
 
-function TopBar({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean }) {
+function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean; impersonating?: boolean }) {
   const { roleId, user, signOut } = useRole();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
@@ -343,6 +343,11 @@ function TopBar({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m
 
   return (
     <header className="sticky top-0 z-30 surface-dark border-b border-[#1C1C1C]">
+      {impersonating && (
+        <div className="bg-[var(--color-gold)] text-[#0A0A0A] text-[11px] font-semibold tracking-wide text-center py-1">
+          VIEWING AS {role?.name?.toUpperCase() ?? "ROLE"} · Click "Owner" to return
+        </div>
+      )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <img src={logoAsset.url} alt="Gotham Halal" className="h-8 w-auto object-contain" />
@@ -350,6 +355,7 @@ function TopBar({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />
+
 
         <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
