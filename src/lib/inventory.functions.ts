@@ -187,7 +187,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     id: z.string().uuid().optional(),
     name: z.string().min(1).max(120),
-    category: z.enum(CATEGORY_VALUES),
+    category: CATEGORY_KEY,
     unit: z.string().min(1).max(20),
     parLevel: z.number().nonnegative(),
     lowThreshold: z.number().nonnegative(),
