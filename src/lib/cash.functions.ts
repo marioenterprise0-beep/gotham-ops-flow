@@ -608,7 +608,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
               <tr><td style="padding:6px 0;color:#6b7280;">Variance</td><td style="text-align:right;font-weight:700;color:${varColor};">${variance >= 0 ? "+" : ""}${_money(variance)}</td></tr>
               ${sess.variance_reason ? `<tr><td style="padding:6px 0;color:#6b7280;">Reason</td><td style="text-align:right;">${_esc(String(sess.variance_reason))}</td></tr>` : ""}
             </table>
-            ${sess.variance_notes ? `<div style="margin-top:12px;padding:10px 12px;background:#f9fafb;border-radius:8px;font-size:13px;color:#374151;">${_esc(String(sess.variance_notes))}</div>` : ""}
+            
             <div style="margin-top:16px;font-size:12px;color:#6b7280;">
               ${attachment ? "Drawer Close PDF attached." : "PDF not yet available — see Cash Activity in the app."}
               ${absVar > 50 ? "<br/><b>Owner approval required</b> (variance &gt; $50)." : ""}
