@@ -16,7 +16,8 @@ import {
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { LogOut, Mail, Save, Zap } from "lucide-react";
+import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/settings")({
@@ -106,6 +107,7 @@ function Settings() {
         </>
       )}
 
+      <PushNotificationsPanel />
       <NotificationsPanel />
 
       {roleId === "owner" && <AutomationPanel />}
@@ -233,6 +235,61 @@ function ToggleRow({ label, help, checked, onChange }: { label: string; help: st
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
       </button>
     </div>
+  );
+}
+
+function PushNotificationsPanel() {
+  const { permission, requestPermission } = usePushNotifications();
+  const [busy, setBusy] = useState(false);
+
+  if (permission === "unsupported") return null;
+
+  const handleEnable = async () => {
+    setBusy(true);
+    const result = await requestPermission();
+    setBusy(false);
+    if (result === "granted") toast.success("Push notifications enabled");
+    else if (result === "denied") toast.error("Notifications blocked — enable them in your browser settings");
+  };
+
+  return (
+    <>
+      <SectionHeader eyebrow="Notifications" title="Push Alerts" />
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold inline-flex items-center gap-2">
+              {permission === "granted"
+                ? <Bell className="h-3.5 w-3.5 text-[var(--color-gold)]" />
+                : <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
+              Browser push notifications
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {permission === "granted"
+                ? "You'll receive alerts even when the app is in the background."
+                : permission === "denied"
+                ? "Notifications are blocked. Allow them in your browser / device settings."
+                : "Get notified of critical alerts and announcements when the app is in the background."}
+            </div>
+          </div>
+          {permission !== "granted" && permission !== "denied" && (
+            <button
+              onClick={handleEnable}
+              disabled={busy}
+              className="shrink-0 h-9 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              {busy ? "Requesting…" : "Enable"}
+            </button>
+          )}
+          {permission === "granted" && (
+            <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+              <Bell className="h-3.5 w-3.5" /> Active
+            </span>
+          )}
+        </div>
+      </Card>
+    </>
   );
 }
 

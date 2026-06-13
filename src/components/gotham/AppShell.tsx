@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { initials, ROLES, useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
+import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { CommandPalette } from "@/components/gotham/CommandPalette";
 import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
 import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
@@ -75,6 +76,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const isRealOwner = actualRoleId === "owner";
   const isOwner = roleId === "owner"; // effective
   const unreadAlerts = useUnreadAlerts();
+  usePushNotifications();
   const queryClient = useQueryClient();
 
   // Mode is derived from the effective role — owners impersonating crew see crew workspace.

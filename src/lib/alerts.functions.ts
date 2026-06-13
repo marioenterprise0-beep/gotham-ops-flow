@@ -22,11 +22,15 @@ export const listAlerts = createServerFn({ method: "POST" })
     category: z.string().optional(),
     includeArchived: z.boolean().optional(),
     trailerId: z.string().uuid().nullable().optional(),
+    limit: z.number().int().min(1).max(200).optional(),
+    offset: z.number().int().min(0).optional(),
   }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { isOwner } = await getRoles(supabase, userId);
-    let q = supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(500);
+    const pageSize = data?.limit ?? 50;
+    const pageOffset = data?.offset ?? 0;
+    let q = supabase.from("alerts").select("*").order("created_at", { ascending: false }).range(pageOffset, pageOffset + pageSize - 1);
     if (!(data?.includeArchived && isOwner)) q = q.is("archived_at", null);
     if (data?.status) q = q.eq("status", data.status);
     if (data?.type) q = q.eq("type", data.type);

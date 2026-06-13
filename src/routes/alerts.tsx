@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { markAlertsSeen } from "@/hooks/use-unread-alerts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertTriangle, CheckCircle2, Clock, XCircle, MessageSquare, Check, ArrowUp, UserPlus, Megaphone, Inbox } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, XCircle, MessageSquare, Check, ArrowUp, UserPlus, Megaphone, Inbox, Loader2 } from "lucide-react";
 import { listAlerts, actOnAlert, getAlertDetail, createAnnouncement, markCategoryRead } from "@/lib/alerts.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -195,17 +195,32 @@ function AlertsPage() {
   const [queue, setQueue] = useState<QueueKey>("critical");
   const [openAlertId, setOpenAlertId] = useState<string | null>(null);
 
+  const PAGE_SIZE = 50;
   const list = useServerFn(listAlerts);
-  const { data: openAlerts = [], isLoading } = useQuery<Alert[]>({
+
+  const openQuery = useInfiniteQuery<Alert[]>({
     queryKey: ["alerts", "open", trailerScope ?? "all"],
-    queryFn: () => list({ data: { status: "open", trailerId: trailerScope ?? null } }) as any,
+    queryFn: ({ pageParam = 0 }) =>
+      list({ data: { status: "open", trailerId: trailerScope ?? null, limit: PAGE_SIZE, offset: pageParam as number } }) as any,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === PAGE_SIZE ? allPages.flat().length : undefined,
+    initialPageParam: 0,
     enabled: !loading && !!session?.access_token,
   });
-  const { data: resolvedAlerts = [], isLoading: loadingResolved } = useQuery<Alert[]>({
+  const openAlerts: Alert[] = openQuery.data?.pages.flat() ?? [];
+  const isLoading = openQuery.isLoading;
+
+  const resolvedQuery = useInfiniteQuery<Alert[]>({
     queryKey: ["alerts", "resolved", trailerScope ?? "all"],
-    queryFn: () => list({ data: { status: "resolved", trailerId: trailerScope ?? null } }) as any,
+    queryFn: ({ pageParam = 0 }) =>
+      list({ data: { status: "resolved", trailerId: trailerScope ?? null, limit: PAGE_SIZE, offset: pageParam as number } }) as any,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === PAGE_SIZE ? allPages.flat().length : undefined,
+    initialPageParam: 0,
     enabled: !loading && !!session?.access_token && queue === "resolved",
   });
+  const resolvedAlerts: Alert[] = resolvedQuery.data?.pages.flat() ?? [];
+  const loadingResolved = resolvedQuery.isLoading;
 
   useEffect(() => {
     if (loading || !session?.access_token) return;
@@ -310,6 +325,30 @@ function AlertsPage() {
           : visible.map((a) => (
             <AlertRow key={a.id} alert={a} isOwner={isOwner} onOpen={() => !a.synthetic && setOpenAlertId(a.id)} />
           ))}
+
+        {/* Load more button — only shown for the resolved queue which can be large */}
+        {queue === "resolved" && resolvedQuery.hasNextPage && (
+          <button
+            onClick={() => resolvedQuery.fetchNextPage()}
+            disabled={resolvedQuery.isFetchingNextPage}
+            className="mt-2 w-full rounded-lg border border-border py-2.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:border-foreground/30 transition inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {resolvedQuery.isFetchingNextPage
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading…</>
+              : "Load more"}
+          </button>
+        )}
+        {queue !== "resolved" && openQuery.hasNextPage && (
+          <button
+            onClick={() => openQuery.fetchNextPage()}
+            disabled={openQuery.isFetchingNextPage}
+            className="mt-2 w-full rounded-lg border border-border py-2.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:border-foreground/30 transition inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {openQuery.isFetchingNextPage
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading…</>
+              : "Load more"}
+          </button>
+        )}
       </div>
 
       {openAlertId && (
