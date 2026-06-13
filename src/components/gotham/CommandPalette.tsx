@@ -75,6 +75,7 @@ export function CommandPalette() {
   const { data: alerts = [] } = useQuery({
     queryKey: ["cmdk", "alerts"],
     enabled: open && !!session?.access_token && isManager,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data } = await supabase
         .from("alerts")
@@ -90,6 +91,7 @@ export function CommandPalette() {
   const { data: tasks = [] } = useQuery({
     queryKey: ["cmdk", "my-tasks"],
     enabled: open && !!session?.access_token,
+    staleTime: 60_000,
     queryFn: async () => {
       const { data } = await supabase
         .from("tasks")

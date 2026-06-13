@@ -27,7 +27,8 @@ export function SignedImage({
     if (!path) { setUrl(null); return; }
     if (/^https?:\/\//i.test(path)) { setUrl(path); return; }
 
-    const hit = cache.get(path);
+    const cacheKey = `${bucket}:${path}`;
+    const hit = cache.get(cacheKey);
     if (hit && hit.expiresAt > Date.now() + 60_000) {
       setUrl(hit.url);
       return;
@@ -35,7 +36,7 @@ export function SignedImage({
     (async () => {
       const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
       if (cancelled || !data?.signedUrl) return;
-      cache.set(path, { url: data.signedUrl, expiresAt: Date.now() + 55 * 60 * 1000 });
+      cache.set(cacheKey, { url: data.signedUrl, expiresAt: Date.now() + 55 * 60 * 1000 });
       setUrl(data.signedUrl);
     })();
     return () => { cancelled = true; };

@@ -62,7 +62,8 @@ function Dashboard() {
       return fetchStats();
     },
     enabled: !loading && !!session,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   if (loading) {
@@ -89,14 +90,16 @@ function CrewView({ stats, role, roleId, userName }: { stats: any; role: any; ro
   const { data: myTasks = [] } = useQuery<Task[]>({
     queryKey: ["my-tasks"],
     queryFn: () => listTasksFn() as Promise<Task[]>,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   const punchFn = useServerFn(getMyActivePunch);
   const { data: punch } = useQuery({
     queryKey: ["my-active-punch"],
     queryFn: () => punchFn(),
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   const alertsFn = useServerFn(listAlerts);
@@ -104,6 +107,7 @@ function CrewView({ stats, role, roleId, userName }: { stats: any; role: any; ro
     queryKey: ["my-announcements"],
     queryFn: () => alertsFn({ data: { category: "announcements" } }) as Promise<any[]>,
     refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   const completeFn = useServerFn(completeTask);
@@ -311,7 +315,8 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
   const { data: punch } = useQuery({
     queryKey: ["my-active-punch"],
     queryFn: () => punchFn(),
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
   const clockedIn = !!(punch as any)?.clock_in_at;
   const clockInAt = clockedIn ? new Date((punch as any).clock_in_at) : null;
@@ -325,7 +330,8 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
   const { data: myTasks = [] } = useQuery<Task[]>({
     queryKey: ["my-tasks"],
     queryFn: () => listTasksFn() as Promise<Task[]>,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
   const myDone = myTasks.filter((t) => t.status === "done" || t.status === "signed_off").length;
 

@@ -9,7 +9,7 @@ type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 function newCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "GH-";
-  for (let i = 0; i < 4; i++) out += alphabet[randomInt(alphabet.length)];
+  for (let i = 0; i < 6; i++) out += alphabet[randomInt(alphabet.length)];
   return out;
 }
 
@@ -234,6 +234,8 @@ export const archiveUser = createServerFn({ method: "POST" })
       .update({ archived_at: now, archived_by: userId, archive_reason: data.reason ?? null, active: false })
       .eq("id", data.userId);
     if (error) throw new Error(error.message);
+    // Revoke all active sessions immediately so archived users can't keep using the app.
+    await supabaseAdmin.auth.admin.signOut(data.userId, "global").catch(() => null);
     await supabaseAdmin.from("access_log").insert({
       user_id: data.userId,
       event: "archived",

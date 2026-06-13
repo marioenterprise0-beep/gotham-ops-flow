@@ -219,7 +219,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const getTabAccess = (tabKey: string): TabAccess => {
     if (isOwner) return "edit";
-    return tabAccess[tabKey] ?? "edit";
+    // Default to "view" — missing permissions should never grant write access.
+    return tabAccess[tabKey] ?? "view";
   };
 
   // Effective active location: owners follow their scope (null = All Locations); everyone else is locked to home.

@@ -49,16 +49,17 @@ const PRINT_CSS = `
 `;
 
 export function openPrintablePDF(title: string, bodyHTML: string) {
-  const w = window.open("", "_blank", "width=900,height=1000");
+  const safeTitle = escapeHTML(title);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>${PRINT_CSS}</style></head><body>${bodyHTML}<footer>Generated ${new Date().toLocaleString()} · Gotham OS</footer><script>window.onload = () => { setTimeout(() => window.print(), 250); };<\/script></body></html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank", "width=900,height=1000");
   if (!w) {
+    URL.revokeObjectURL(url);
     alert("Pop-up blocked. Allow pop-ups to export PDF.");
     return;
   }
-  const safeTitle = escapeHTML(title);
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>${PRINT_CSS}</style></head><body>${bodyHTML}<footer>Generated ${new Date().toLocaleString()} · Gotham OS</footer><script>window.onload = () => { setTimeout(() => window.print(), 250); };</script></body></html>`;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function htmlTable(headers: string[], rows: (string | number)[][]): string {

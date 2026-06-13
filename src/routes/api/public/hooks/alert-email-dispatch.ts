@@ -25,7 +25,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const SITE_URL =
-  'https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app'
+  (process.env.SITE_URL ?? 'https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app').replace(/\/$/, '')
 
 type Mapping = {
   template: string
