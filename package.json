@@ -1,5 +1,8 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "gothamhalaldash",
+  "version": "1.0.0",
+  "description": "Gotham Halal internal operations dashboard",
+  "author": "Mario <mario.enterprise0@gmail.com>",
   "private": true,
   "sideEffects": false,
   "type": "module",
