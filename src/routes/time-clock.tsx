@@ -97,22 +97,41 @@ function TimeClockPage() {
     return new Promise((resolve) => {
       if (!selfieRef.current) return resolve(null);
       const input = selfieRef.current;
-      const onChange = async () => {
+
+      let settled = false;
+      const settle = (url: string | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener("focus", onWindowFocus);
         input.removeEventListener("change", onChange);
+        setSelfieUploading(false);
+        resolve(url);
+      };
+
+      // Detect file picker dismissed without selecting (focus returns to window)
+      const onWindowFocus = () => setTimeout(() => { if (!input.files?.length) settle(null); }, 300);
+      // Hard fallback — never block clock-in longer than 30s
+      const timer = setTimeout(() => settle(null), 30_000);
+
+      const onChange = async () => {
+        window.removeEventListener("focus", onWindowFocus);
+        clearTimeout(timer);
         const file = input.files?.[0];
-        if (!file) return resolve(null);
+        if (!file) return settle(null);
         setSelfieUploading(true);
         try {
           const ext = file.name.split(".").pop() ?? "jpg";
           const path = `selfies/${Date.now()}_clockin.${ext}`;
           const { error } = await supabase.storage.from("gotham-photos").upload(path, file, { upsert: true });
-          if (error) { resolve(null); return; }
+          if (error) { settle(null); return; }
           const { data: signed } = await supabase.storage.from("gotham-photos").createSignedUrl(path, 60 * 60 * 8);
           setSelfieUrl(signed?.signedUrl ?? null);
-          resolve(signed?.signedUrl ?? null);
-        } catch { resolve(null); }
-        finally { setSelfieUploading(false); }
+          settle(signed?.signedUrl ?? null);
+        } catch { settle(null); }
       };
+
+      window.addEventListener("focus", onWindowFocus, { once: true });
       input.addEventListener("change", onChange);
       input.click();
     });
