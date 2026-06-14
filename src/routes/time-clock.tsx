@@ -158,12 +158,18 @@ function TimeClockPage() {
     mutationFn: async () => {
       const geo = await getGeo();
       if (!geo) throw new Error("LOCATION_OFF");
-      // Attempt selfie capture — non-blocking; proceeds even if photo fails
-      const photoUrl = await captureSelfie().catch(() => null);
+      // Only prompt for a selfie on touch devices (front camera). On desktop
+      // the file picker can hang the clock-in for up to 30s if dismissed
+      // without the window losing focus. Fire-and-forget so the punch is
+      // never blocked by photo capture.
+      const isTouch = typeof window !== "undefined" &&
+        (("ontouchstart" in window) || (navigator as any).maxTouchPoints > 0);
+      if (isTouch) {
+        void captureSelfie().catch(() => null);
+      }
       return inFn({ data: {
         deviceInfo: {
           ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "",
-          ...(photoUrl ? { selfie_url: photoUrl } : {}),
           ...(geo.accuracy > 30 ? { low_gps_accuracy: true, gps_accuracy_m: Math.round(geo.accuracy) } : {}),
         },
         lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
