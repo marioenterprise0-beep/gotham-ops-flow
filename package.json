@@ -11,7 +11,13 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "icons": "node scripts/generate-icons.cjs",
+    "electron": "electron electron/main.cjs",
+    "electron:dev": "NODE_ENV=development electron electron/main.cjs",
+    "electron:build": "electron-builder --config electron-builder.yml",
+    "electron:build:mac": "electron-builder --config electron-builder.yml --mac",
+    "electron:publish": "electron-builder --config electron-builder.yml --mac --publish always"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -55,6 +61,9 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "electron-auto-launch": "^5.0.7",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.9",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "jspdf": "^4.2.1",
@@ -82,23 +91,27 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^36.9.5",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
+    "happy-dom": "^14.0.0",
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
+    "sharp": "^0.35.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
-    "vitest": "^2.0.0",
-    "happy-dom": "^14.0.0"
+    "vitest": "^2.0.0"
   },
   "pnpm": {
     "overrides": {
       "entities": "4.5.0"
     }
-  }
+  },
+  "main": "electron/main.cjs"
 }

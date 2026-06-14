@@ -167,3 +167,63 @@
   100% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-ring) 0%, transparent); }
 }
 .animate-button-flash { animation: button-flash 450ms ease-out; }
+
+/* ─── iPad PWA optimizations ─────────────────────────────────────────────── */
+
+/* Safe area insets for notch/home indicator */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent tap highlight on touch devices */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+input, textarea, select, [contenteditable] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* When running as standalone PWA */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* iPad-specific time-clock optimizations */
+@media (min-width: 768px) and (max-width: 1366px) and (pointer: coarse) {
+  /* Bigger touch targets for clock-in/out buttons */
+  .ipad-clock-btn {
+    min-height: 72px !important;
+    font-size: 1.125rem !important;
+    padding: 1.25rem 2rem !important;
+    border-radius: 1rem !important;
+  }
+
+  /* Larger status pills on tablet */
+  .status-pill-lg {
+    font-size: 0.875rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+
+  /* Bigger touch targets for tab navigation */
+  [role="tab"] {
+    min-height: 48px !important;
+    font-size: 0.9375rem !important;
+  }
+}
+
+/* mb-safe utility for PWA bottom bar spacing */
+.mb-safe {
+  margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

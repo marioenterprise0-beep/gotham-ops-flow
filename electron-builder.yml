@@ -1,0 +1,56 @@
+appId: com.gothamhalal.dash
+productName: "Gothamhalal Dash"
+copyright: "Copyright © 2025 Gotham Halal"
+asar: true
+
+# Where Electron's main entry lives
+directories:
+  buildResources: electron/build
+  output: dist-electron
+
+files:
+  - electron/**/*
+  - "!electron/build/icon.iconset"
+
+# macOS build
+mac:
+  category: public.app-category.business
+  icon: electron/build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: electron/build/entitlements.mac.plist
+  entitlementsInherit: electron/build/entitlements.mac.plist
+  extendInfo:
+    NSCameraUsageDescription: "Gothamhalal Dash uses the camera for employee selfie clock-in verification."
+    NSLocationWhenInUseUsageDescription: "Gothamhalal Dash uses your location to verify you are at the correct trailer when clocking in."
+    NSMicrophoneUsageDescription: "Gothamhalal Dash may use the microphone for voice notes."
+
+dmg:
+  title: "Gothamhalal Dash ${version}"
+  icon: electron/build/icon.icns
+  background: electron/build/dmg-background.png
+  iconSize: 80
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 150
+      y: 190
+      type: file
+    - x: 390
+      y: 190
+      type: link
+      path: /Applications
+
+# Auto-updater: publish releases to GitHub
+publish:
+  provider: github
+  owner: marioenterprise0-beep
+  repo: gothamhalaldash
+  releaseType: release
+  private: false

@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleProvider } from "../lib/role";
 import { supabase } from "@/integrations/supabase/client";
+import { PwaInstallPrompt } from "@/components/gotham/PwaInstallPrompt";
 
 function NotFoundComponent() {
   return (
@@ -78,10 +79,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Gotham OS — Internal Operations" },
       { name: "description", content: "Gotham Halal internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
       { name: "author", content: "Gotham Halal" },
+      // PWA / Apple meta tags
+      { name: "theme-color", content: "#D4A853" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "GH Dash" },
+      { name: "application-name", content: "Gothamhalal Dash" },
+      { name: "msapplication-TileColor", content: "#0A0A0A" },
+      { name: "msapplication-TileImage", content: "/icons/icon-144x144.png" },
+      // Open Graph
       { property: "og:title", content: "Gotham OS — Internal Operations" },
       { property: "og:description", content: "Gotham Halal internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
       { property: "og:type", content: "website" },
@@ -93,10 +104,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/df56c6ea-4aef-4633-a717-52e90460f312/id-preview-812cc439--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app-1780698621811.png" },
     ],
     links: [
+      { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Black+Han+Sans&display=swap" },
       { rel: "stylesheet", href: appCss },
+      // Apple touch icons
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
+      { rel: "apple-touch-icon", sizes: "120x120", href: "/icons/apple-touch-icon-120x120.png" },
+      { rel: "apple-touch-icon", sizes: "152x152", href: "/icons/apple-touch-icon-152x152.png" },
+      { rel: "apple-touch-icon", sizes: "167x167", href: "/icons/apple-touch-icon-167x167.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon.png" },
+      // Standard icon
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192x192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icons/icon-512x512.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -128,6 +149,7 @@ function RootComponent() {
         <AuthSyncBridge />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <PwaInstallPrompt />
       </RoleProvider>
     </QueryClientProvider>
   );
