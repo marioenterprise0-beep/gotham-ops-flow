@@ -309,6 +309,13 @@ export const getMyWeek = createServerFn({ method: "POST" })
     if ((punches ?? []).some((p) => p.status === "open")) flags.push("open_punch");
     if (workedMin > scheduledMin + 30) flags.push("over_scheduled");
     if (workedMin > 40 * 60) flags.push("overtime");
+    // Flag any closed punch over 5h with no break logged (labor compliance)
+    const hasLongShiftNoBreak = (punches ?? []).some((p) => {
+      if (!p.clock_out_at) return false;
+      const diffMin = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
+      return diffMin > 5 * 60 && (p.break_minutes ?? 0) === 0;
+    });
+    if (hasLongShiftNoBreak) flags.push("no_break_on_long_shift");
 
     return {
       weekStart: ws,

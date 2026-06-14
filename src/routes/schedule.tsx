@@ -5,6 +5,7 @@ import { useMemo, useState, useEffect } from "react";
 import {
   ChevronLeft, ChevronRight, Lock, Unlock, Send, Check, Upload, Trash2,
   Copy, Sparkles, Plus, Calendar as CalIcon, RotateCcw, Filter,
+  ArrowLeftRight, X,
 } from "lucide-react";
 import { Card, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,9 @@ import {
   getSchedule, upsertShift, deleteShift, duplicateShift,
   transitionSchedule, listEmployees, deleteSchedule,
   getOrCreateScheduleForRange, generateCoverage,
+  requestShiftSwap, listSwapRequests, decideSwapRequest, mySwapRequests,
 } from "@/lib/schedule.functions";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { syncDomains } from "@/lib/sync-bus";
 
 export const Route = createFileRoute("/schedule")({ component: SchedulePage });
@@ -117,40 +120,56 @@ function SchedulePage() {
   return (
     <AppShell>
       <div className="-mx-4 px-4">
-        <HeaderBar
-          anchor={anchor} setAnchor={setAnchor} mode={mode} setMode={setMode}
-          start={start} end={end} schedule={schedule}
-          filterRole={filterRole} setFilterRole={setFilterRole}
-          isOwner={isOwner} isMgr={isMgr}
-          onPrev={() => shift(-1)} onNext={() => shift(1)} onToday={() => setAnchor(new Date())}
-        />
+        <Tabs defaultValue="schedule">
+          <div className="flex items-center gap-3 mb-3">
+            <TabsList>
+              <TabsTrigger value="schedule">Schedule</TabsTrigger>
+              <TabsTrigger value="swaps" className="flex items-center gap-1.5">
+                <ArrowLeftRight className="h-3.5 w-3.5" /> Swaps
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        {!schedule ? (
-          <Card className="mt-3">
-            <div className="py-10 text-center">
-              <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-              <div className="font-display text-lg">No schedule for this range</div>
-              <div className="text-sm text-muted-foreground mt-1 mb-4">
-                {rangeLabel(start, end, mode)}
-              </div>
-              {isMgr ? (
-                <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}
-                  className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
-                  <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
-                </Button>
-              ) : (
-                <div className="text-xs text-muted-foreground">A manager will publish one soon.</div>
-              )}
-            </div>
-          </Card>
-        ) : (
-          <ScheduleBoard
-            scheduleId={schedule.id} startStr={startStr} endStr={endStr}
-            filterRole={filterRole} isOwner={isOwner} isMgr={isMgr}
-            trailerScope={trailerScope}
-          />
+          <TabsContent value="schedule">
+            <HeaderBar
+              anchor={anchor} setAnchor={setAnchor} mode={mode} setMode={setMode}
+              start={start} end={end} schedule={schedule}
+              filterRole={filterRole} setFilterRole={setFilterRole}
+              isOwner={isOwner} isMgr={isMgr}
+              onPrev={() => shift(-1)} onNext={() => shift(1)} onToday={() => setAnchor(new Date())}
+            />
 
-        )}
+            {!schedule ? (
+              <Card className="mt-3">
+                <div className="py-10 text-center">
+                  <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+                  <div className="font-display text-lg">No schedule for this range</div>
+                  <div className="text-sm text-muted-foreground mt-1 mb-4">
+                    {rangeLabel(start, end, mode)}
+                  </div>
+                  {isMgr ? (
+                    <Button onClick={() => createMut.mutate()} disabled={createMut.isPending}
+                      className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+                      <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
+                    </Button>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">A manager will publish one soon.</div>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              <ScheduleBoard
+                scheduleId={schedule.id} startStr={startStr} endStr={endStr}
+                filterRole={filterRole} isOwner={isOwner} isMgr={isMgr}
+                trailerScope={trailerScope}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="swaps">
+            <SwapRequestsPanel isMgr={isMgr} />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppShell>
   );
@@ -778,6 +797,132 @@ function ShiftForm({ initial, employees, onSave, onDelete, onDuplicate, canEdit 
           <Check className="h-4 w-4 mr-1.5" />Save
         </Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+// ============================================================
+// Shift Swap Panel
+// ============================================================
+const SWAP_STATUS_TONE: Record<string, "neutral" | "warning" | "success" | "danger"> = {
+  pending: "warning", accepted: "success", declined: "danger", approved: "success", cancelled: "neutral",
+};
+
+function SwapRequestsPanel({ isMgr }: { isMgr: boolean }) {
+  const qc = useQueryClient();
+  const { session } = useRole();
+  const listMgrFn = useServerFn(listSwapRequests);
+  const listMyFn = useServerFn(mySwapRequests);
+  const decideFn = useServerFn(decideSwapRequest);
+  const requestFn = useServerFn(requestShiftSwap);
+
+  const { data: swaps = [], isLoading } = useQuery({
+    queryKey: isMgr ? ["swap-requests"] : ["my-swaps"],
+    queryFn: () => isMgr ? listMgrFn({ data: {} }) as any : listMyFn() as any,
+    enabled: !!session,
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [schedShiftId, setSchedShiftId] = useState("");
+  const [swapReason, setSwapReason] = useState("");
+
+  const decideMut = useMutation({
+    mutationFn: (v: { id: string; decision: "approved" | "declined"; note?: string }) =>
+      decideFn({ data: v }),
+    onSuccess: () => { toast.success("Decision saved"); syncDomains(qc, "swaps"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const requestMut = useMutation({
+    mutationFn: () => requestFn({ data: { scheduleShiftId: schedShiftId, reason: swapReason || undefined } }),
+    onSuccess: () => { toast.success("Swap request sent to manager"); setShowForm(false); setSchedShiftId(""); setSwapReason(""); syncDomains(qc, "swaps"); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="font-display text-lg">{isMgr ? "Swap Requests" : "My Swap Requests"}</div>
+        {!isMgr && (
+          <Button size="sm" onClick={() => setShowForm((v) => !v)} variant="outline">
+            <ArrowLeftRight className="h-3.5 w-3.5 mr-1.5" /> Request Swap
+          </Button>
+        )}
+      </div>
+
+      {!isMgr && showForm && (
+        <Card className="p-4 space-y-3">
+          <div className="font-semibold text-sm">New Swap Request</div>
+          <div>
+            <Label>Schedule Shift ID</Label>
+            <Input
+              value={schedShiftId}
+              onChange={(e) => setSchedShiftId(e.target.value)}
+              placeholder="Paste your shift ID from the schedule"
+            />
+            <div className="text-[11px] text-muted-foreground mt-1">Find this in your shift details (hover a shift block).</div>
+          </div>
+          <div>
+            <Label>Reason (optional)</Label>
+            <Textarea value={swapReason} onChange={(e) => setSwapReason(e.target.value)} placeholder="Why do you need to swap this shift?" />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => requestMut.mutate()} disabled={!schedShiftId || requestMut.isPending}
+              className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90">
+              <Send className="h-3.5 w-3.5 mr-1.5" /> Send Request
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}><X className="h-3.5 w-3.5" /></Button>
+          </div>
+        </Card>
+      )}
+
+      {isLoading && <Card>Loading…</Card>}
+
+      {!isLoading && (swaps as any[]).length === 0 && (
+        <Card className="py-10 text-center text-sm text-muted-foreground">
+          No swap requests yet.
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        {(swaps as any[]).map((req: any) => (
+          <Card key={req.id} className="p-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <div className="font-semibold text-sm">
+                  {req.requester_name ?? "Me"} → shift on {req.schedule_shifts?.shift_date ?? req.shift_date ?? "—"}
+                  {req.schedule_shifts?.start_time ? ` (${fmtTime12(req.schedule_shifts.start_time)}–${fmtTime12(req.schedule_shifts.end_time)})` : ""}
+                </div>
+                {req.reason && <div className="text-xs text-muted-foreground mt-0.5">"{req.reason}"</div>}
+                {req.decision_note && <div className="text-xs text-[var(--color-warning)] mt-0.5">Note: {req.decision_note}</div>}
+                <div className="text-[10px] label-caps text-muted-foreground mt-1">
+                  {new Date(req.created_at).toLocaleDateString()}
+                  {req.decided_at && ` · decided ${new Date(req.decided_at).toLocaleDateString()}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <StatusPill tone={SWAP_STATUS_TONE[req.status] ?? "neutral"}>{req.status}</StatusPill>
+                {isMgr && req.status === "pending" && (
+                  <>
+                    <Button size="sm" variant="outline"
+                      onClick={() => decideMut.mutate({ id: req.id, decision: "approved" })}
+                      disabled={decideMut.isPending}
+                      className="text-[var(--color-success)] border-[var(--color-success)]">
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="outline"
+                      onClick={() => decideMut.mutate({ id: req.id, decision: "declined" })}
+                      disabled={decideMut.isPending}
+                      className="text-[var(--color-danger)] border-[var(--color-danger)]">
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

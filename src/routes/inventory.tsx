@@ -432,7 +432,7 @@ function LiveCountsTab() {
 
               <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2 items-center">
                 <div>
-                  <div className="text-2xl font-semibold">{Number(it.current_qty)} <span className="text-xs text-muted-foreground">{it.unit} · {pct}%</span></div>
+                  <div className="text-2xl font-semibold">{Number(it.current_qty)} <span className="text-xs text-muted-foreground">{it.unit} · {pct}%{(it as any).cost_per_unit > 0 ? ` · $${Number((it as any).cost_per_unit).toFixed(2)}/${it.unit}` : ""}</span></div>
                   <div className="mt-1 h-1.5 rounded-full bg-[#EAEAE5] overflow-hidden">
                     <div className={cn("h-full rounded-full", s === "CRITICAL" ? "bg-[var(--color-danger)]" : s === "LOW" ? "bg-[var(--color-warning)]" : "bg-[var(--color-success)]")} style={{ width: `${Math.min(100, pct)}%` }} />
                   </div>
@@ -734,6 +734,7 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
   const [imageUrl, setImageUrl] = useState<string>(it?.image_url ?? "");
   const [countInstructions, setCountInstructions] = useState<string>(it?.count_instructions ?? "");
   const [storageLocation, setStorageLocation] = useState<string>(it?.storage_location ?? "");
+  const [costPerUnit, setCostPerUnit] = useState<string>(it?.cost_per_unit != null ? String(it.cost_per_unit) : "");
   const [uploading, setUploading] = useState(false);
 
   const onPickImage = async (file: File) => {
@@ -763,6 +764,7 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
         imageUrl: imageUrl || null,
         countInstructions: countInstructions || null,
         storageLocation: storageLocation || null,
+        costPerUnit: costPerUnit !== "" ? Number(costPerUnit) : undefined,
       };
       if (isOwner) {
         await upsert({ data: { id: item?.id, ...payload, category: payload.category as any } });
@@ -802,7 +804,19 @@ export function EditItemModal({ item, defaultCategory, isOwner, trailerId, onClo
           <Field label="Par level"><input type="number" value={par} onChange={(e) => setPar(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
           <Field label="Low / critical alert ≤"><input type="number" value={low} onChange={(e) => setLow(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
         </div>
-        <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Current quantity (optional)"><input type="number" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="leave blank to keep" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" /></Field>
+          <Field label="Cost / unit ($)">
+            <input
+              type="number" step="0.0001" min="0"
+              value={costPerUnit}
+              onChange={(e) => setCostPerUnit(e.target.value)}
+              placeholder="0.00"
+              disabled={!isOwner}
+              className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-60"
+            />
+          </Field>
+        </div>
 
         <div className="border-t border-border pt-3">
           <div className="label-caps text-muted-foreground mb-2">Inventory Guide {isOwner ? "" : "(owner-only)"}</div>

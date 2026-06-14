@@ -511,3 +511,116 @@ export const listMyScheduleShifts = createServerFn({ method: "POST" })
       .filter((r: any) => published.has(r.schedule_id))
       .map((r: any) => ({ ...r, schedule_name: schedNames[r.schedule_id] ?? null }));
   });
+
+// ---------- Shift Swap Requests ----------
+
+export const requestShiftSwap = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    scheduleShiftId: z.string().uuid(),
+    targetEmployeeId: z.string().uuid().nullable().optional(),
+    reason: z.string().max(500).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+    const trailerId = (profile as any)?.trailer_id ?? null;
+    // Prevent duplicate pending request for same shift
+    const { data: existing } = await supabase
+      .from("shift_swap_requests")
+      .select("id").eq("schedule_shift_id", data.scheduleShiftId)
+      .eq("requester_id", userId).eq("status", "pending")
+      .is("archived_at", null).maybeSingle();
+    if (existing) throw new Error("You already have a pending swap request for this shift.");
+    const { data: row, error } = await supabase.from("shift_swap_requests").insert({
+      requester_id: userId,
+      target_employee_id: data.targetEmployeeId ?? null,
+      schedule_shift_id: data.scheduleShiftId,
+      trailer_id: trailerId,
+      reason: data.reason ?? null,
+    }).select("*").single();
+    if (error) throw new Error(error.message);
+    await supabase.from("alerts").insert({
+      type: "schedule_approval",
+      title: "Shift swap requested",
+      description: `An employee needs a shift covered.${data.reason ? ` Reason: ${data.reason}` : ""}`,
+      source_module: "schedule",
+      source_id: row.id,
+      trailer_id: trailerId,
+      created_by: userId,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "open",
+    } as any);
+    return row;
+  });
+
+export const listSwapRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    trailerId: z.string().uuid().nullable().optional(),
+    status: z.enum(["pending", "accepted", "declined", "approved", "cancelled"]).optional(),
+  }).optional().parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    let q = supabase.from("shift_swap_requests")
+      .select("*, schedule_shifts(shift_date, start_time, end_time, segment)")
+      .is("archived_at", null)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (data?.trailerId) q = q.eq("trailer_id", data.trailerId);
+    if (data?.status) q = q.eq("status", data.status);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const ids = Array.from(new Set([
+      ...(rows ?? []).map((r: any) => r.requester_id),
+      ...(rows ?? []).filter((r: any) => r.target_employee_id).map((r: any) => r.target_employee_id),
+    ].filter(Boolean)));
+    let nameMap: Record<string, string> = {};
+    if (ids.length) {
+      const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", ids);
+      nameMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, (p as any).display_name ?? "Crew"]));
+    }
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      requester_name: nameMap[r.requester_id] ?? "Crew",
+      target_name: r.target_employee_id ? (nameMap[r.target_employee_id] ?? "Crew") : null,
+    }));
+  });
+
+export const decideSwapRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    decision: z.enum(["approved", "declined"]),
+    note: z.string().max(500).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { error } = await supabase.from("shift_swap_requests").update({
+      status: data.decision,
+      decided_by: userId,
+      decided_at: new Date().toISOString(),
+      decision_note: data.note ?? null,
+    }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const mySwapRequests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("shift_swap_requests")
+      .select("*, schedule_shifts(shift_date, start_time, end_time, segment)")
+      .is("archived_at", null)
+      .eq("requester_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+

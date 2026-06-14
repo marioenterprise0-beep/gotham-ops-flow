@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireTabAccess } from "./auth-guards";
+import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
+import { getOwners } from "@/lib/email/recipients.server";
 
 async function getRoles(supabase: any, userId: string) {
   const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -94,6 +96,7 @@ export const saveRecap = createServerFn({ method: "POST" })
         .select()
         .single();
       if (error) throw new Error(error.message);
+      if (data.submit) await sendNightSummaryEmail(supabase, userId, rec).catch(() => null);
       return rec;
     } else {
       const insert: any = { ...row, status: "draft" };
@@ -111,6 +114,7 @@ export const saveRecap = createServerFn({ method: "POST" })
           .select()
           .single();
         if (e2) throw new Error(e2.message);
+        await sendNightSummaryEmail(supabase, userId, subm).catch(() => null);
         return subm;
       }
       return created;
@@ -184,6 +188,73 @@ export const getRecap = createServerFn({ method: "POST" })
     }
     return { ...r, manager_name };
   });
+
+async function sendNightSummaryEmail(supabase: any, managerId: string, recap: any) {
+  const owners = await getOwners();
+  if (!owners.length) return;
+
+  // Gather labor hours for this recap date
+  const dateStart = `${recap.recap_date}T00:00:00`;
+  const dateEnd   = `${recap.recap_date}T23:59:59`;
+  const [{ data: punches }, { data: cashSessions }, { data: critAlerts }, { data: trailer }] = await Promise.all([
+    supabase.from("time_punches").select("clock_in_at, clock_out_at, break_minutes")
+      .is("archived_at", null)
+      .gte("clock_in_at", dateStart).lte("clock_in_at", dateEnd)
+      .not("clock_out_at", "is", null),
+    supabase.from("cash_drawer_sessions").select("variance")
+      .gte("closed_at", dateStart).lte("closed_at", dateEnd)
+      .not("closed_at", "is", null),
+    supabase.from("alerts").select("id")
+      .eq("priority", "critical").eq("status", "open")
+      .is("archived_at", null),
+    recap.trailer_id
+      ? supabase.from("trailers").select("name").eq("id", recap.trailer_id).maybeSingle()
+      : { data: null },
+  ]);
+
+  let workedMin = 0;
+  let crewCount = 0;
+  const empSet = new Set<string>();
+  for (const p of punches ?? []) {
+    if (!p.clock_out_at) continue;
+    const diff = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
+    workedMin += Math.max(0, diff - (p.break_minutes ?? 0));
+    if ((p as any).employee_id) empSet.add((p as any).employee_id);
+  }
+  crewCount = empSet.size || (punches ?? []).length;
+
+  const totalVariance = (cashSessions ?? []).reduce((sum: number, s: any) => sum + Number(s.variance ?? 0), 0);
+  const varStr = (totalVariance >= 0 ? "+" : "") + `$${Math.abs(totalVariance).toFixed(2)}`;
+  const hoursStr = `${(workedMin / 60).toFixed(1)}h`;
+  const trailerName = (trailer?.data as any)?.name ?? "Gotham Halal";
+
+  let managerName = "Manager";
+  if (managerId) {
+    const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", managerId).maybeSingle();
+    managerName = (prof as any)?.display_name ?? managerName;
+  }
+
+  await enqueueAlertEmail({
+    alertId: null,
+    templateName: "night-summary",
+    templateData: {
+      trailer_name: trailerName,
+      shift_date: recap.recap_date,
+      shift_score: recap.shift_score ?? null,
+      total_hours: hoursStr,
+      cash_variance: varStr,
+      critical_alerts: (critAlerts ?? []).length,
+      crew_count: crewCount || "—",
+      highlights: recap.ops_went_well ?? recap.crew_summary ?? null,
+    },
+    recipients: owners,
+    category: "operations",
+    priority: "normal",
+    subject: `Night summary — ${trailerName} · ${recap.recap_date}`,
+    sourceModule: "recaps",
+    sourceId: recap.id,
+  });
+}
 
 export const reviewRecap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

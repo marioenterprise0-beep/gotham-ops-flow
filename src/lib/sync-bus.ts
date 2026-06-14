@@ -30,7 +30,9 @@ export type SyncDomain =
   | "hospitality"
   | "history"
   | "dashboard"
-  | "integrity";
+  | "integrity"
+  | "prep"
+  | "swaps";
 
 const MAP: Record<SyncDomain, string[][]> = {
   users:        [["users"], ["employees"], ["my-profile"], ["dashboard-stats"], ["change-log"]],
@@ -53,6 +55,8 @@ const MAP: Record<SyncDomain, string[][]> = {
   history:      [["change-log"], ["audit-log"], ["access-logs"]],
   dashboard:    [["dashboard-stats"]],
   integrity:    [["integrity-sweep"]],
+  prep:         [["prep-log"], ["dashboard-stats"]],
+  swaps:        [["swap-requests"], ["my-swaps"], ["schedule-range"], ["alerts"]],
 };
 
 export function syncDomains(qc: QueryClient, ...domains: SyncDomain[]) {

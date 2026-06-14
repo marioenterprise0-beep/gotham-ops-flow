@@ -252,6 +252,37 @@ export const decideTimeOff = createServerFn({ method: "POST" })
     return row;
   });
 
+export const getPayrollDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ weekStart: z.string() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
+    const weekEnd = new Date(data.weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const endStr = weekEnd.toISOString().slice(0, 10) + "T23:59:59";
+    const [{ data: punches }, { data: profiles }] = await Promise.all([
+      supabase.from("time_punches")
+        .select("id, employee_id, clock_in_at, clock_out_at, break_minutes, status, device_info")
+        .is("archived_at", null)
+        .gte("clock_in_at", data.weekStart + "T00:00:00")
+        .lte("clock_in_at", endStr)
+        .order("clock_in_at", { ascending: true }),
+      supabase.from("profiles").select("id, display_name"),
+    ]);
+    const pmap = new Map<string, string>((profiles ?? []).map((p: any) => [p.id, p.display_name ?? "Crew"]));
+    const empMap = new Map<string, any[]>();
+    for (const punch of punches ?? []) {
+      const eid = punch.employee_id;
+      if (!empMap.has(eid)) empMap.set(eid, []);
+      empMap.get(eid)!.push(punch);
+    }
+    return {
+      weekStart: data.weekStart,
+      employees: Array.from(empMap.entries()).map(([id, ps]) => ({ id, name: pmap.get(id) ?? "Crew", punches: ps })),
+    };
+  });
+
 export const listAllRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({

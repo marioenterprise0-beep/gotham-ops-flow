@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,11 @@ import {
 import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
-import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin, AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin, AlertTriangle, Coffee, CameraIcon } from "lucide-react";
+
+const BREAK_KEY  = "gotham:break-start:v1";
+const BREAK_ACC  = "gotham:break-acc:v1";   // accumulated break minutes from prior breaks this punch
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -55,6 +59,65 @@ function TimeClockPage() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
 
+  // Break tracking — persisted in localStorage so it survives page refresh
+  const [onBreak, setOnBreak] = useState<boolean>(() => !!localStorage.getItem(BREAK_KEY));
+  const [breakStart, setBreakStart] = useState<number | null>(() => {
+    const v = localStorage.getItem(BREAK_KEY); return v ? Number(v) : null;
+  });
+  const [breakAccMin, setBreakAccMin] = useState<number>(() => Number(localStorage.getItem(BREAK_ACC) ?? "0"));
+
+  const breakElapsedMin = onBreak && breakStart ? (now.getTime() - breakStart) / 60000 : 0;
+  const totalBreakMin = breakAccMin + breakElapsedMin;
+
+  function startBreak() {
+    const t = Date.now();
+    localStorage.setItem(BREAK_KEY, String(t));
+    setBreakStart(t); setOnBreak(true);
+  }
+  function endBreak() {
+    const extra = breakStart ? (Date.now() - breakStart) / 60000 : 0;
+    const newAcc = breakAccMin + extra;
+    localStorage.setItem(BREAK_ACC, String(newAcc));
+    localStorage.removeItem(BREAK_KEY);
+    setBreakAccMin(newAcc); setBreakStart(null); setOnBreak(false);
+  }
+  function clearBreakState() {
+    localStorage.removeItem(BREAK_KEY); localStorage.removeItem(BREAK_ACC);
+    setOnBreak(false); setBreakStart(null); setBreakAccMin(0);
+  }
+  // Reset break state when no active punch
+  useEffect(() => { if (!active) clearBreakState(); }, [active]);
+
+  // Selfie capture
+  const selfieRef = useRef<HTMLInputElement>(null);
+  const [selfieUploading, setSelfieUploading] = useState(false);
+  const [selfieUrl, setSelfieUrl] = useState<string | null>(null);
+
+  async function captureSelfie(): Promise<string | null> {
+    return new Promise((resolve) => {
+      if (!selfieRef.current) return resolve(null);
+      const input = selfieRef.current;
+      const onChange = async () => {
+        input.removeEventListener("change", onChange);
+        const file = input.files?.[0];
+        if (!file) return resolve(null);
+        setSelfieUploading(true);
+        try {
+          const ext = file.name.split(".").pop() ?? "jpg";
+          const path = `selfies/${Date.now()}_clockin.${ext}`;
+          const { error } = await supabase.storage.from("gotham-photos").upload(path, file, { upsert: true });
+          if (error) { resolve(null); return; }
+          const { data: signed } = await supabase.storage.from("gotham-photos").createSignedUrl(path, 60 * 60 * 8);
+          setSelfieUrl(signed?.signedUrl ?? null);
+          resolve(signed?.signedUrl ?? null);
+        } catch { resolve(null); }
+        finally { setSelfieUploading(false); }
+      };
+      input.addEventListener("change", onChange);
+      input.click();
+    });
+  }
+
   const elapsed = active?.clock_in_at
     ? Math.max(0, (now.getTime() - new Date(active.clock_in_at).getTime()) / 60000)
     : 0;
@@ -76,8 +139,14 @@ function TimeClockPage() {
     mutationFn: async () => {
       const geo = await getGeo();
       if (!geo) throw new Error("LOCATION_OFF");
+      // Attempt selfie capture — non-blocking; proceeds even if photo fails
+      const photoUrl = await captureSelfie().catch(() => null);
       return inFn({ data: {
-        deviceInfo: { ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "" },
+        deviceInfo: {
+          ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "",
+          ...(photoUrl ? { selfie_url: photoUrl } : {}),
+          ...(geo.accuracy > 30 ? { low_gps_accuracy: true, gps_accuracy_m: Math.round(geo.accuracy) } : {}),
+        },
         lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
       } });
     },
@@ -109,11 +178,19 @@ function TimeClockPage() {
   const [confirmOut, setConfirmOut] = useState(false);
 
   const outM = useMutation({
-    mutationFn: () => outFn({ data: { breakMinutes: 0 } }),
+    mutationFn: () => {
+      // End break if active before clocking out
+      if (onBreak && breakStart) endBreak();
+      const finalBreakMin = Math.round(onBreak && breakStart
+        ? breakAccMin + (Date.now() - breakStart) / 60000
+        : breakAccMin);
+      return outFn({ data: { breakMinutes: finalBreakMin } });
+    },
     onSuccess: (result: any) => {
       const missed = result?.missedTaskCount ?? 0;
       toast.success(missed > 0 ? `Clocked out · ${missed} task${missed === 1 ? "" : "s"} marked missed` : "Clocked out");
       setConfirmOut(false);
+      clearBreakState();
       qc.invalidateQueries({ queryKey: ["my-tasks"] });
       syncDomains(qc, "timeclock", "labor", "operations", "tasks");
     },
@@ -133,25 +210,50 @@ function TimeClockPage() {
         <h1 className="font-display text-3xl text-foreground">{user.toUpperCase()}</h1>
       </div>
 
+      {/* Hidden file input for selfie capture (opens front camera on mobile) */}
+      <input ref={selfieRef} type="file" accept="image/*" capture="user" className="hidden" aria-hidden />
+
       <Card className="mt-6 p-6 text-center">
         <Clock className="h-8 w-8 mx-auto text-[var(--color-gold)]" />
         <div className="mt-2 text-sm text-muted-foreground">
-          {active ? "Currently clocked in" : "Ready to start your shift"}
+          {active ? (onBreak ? "On break" : "Currently clocked in") : "Ready to start your shift"}
         </div>
         {active && (
-          <div className="mt-2 text-3xl font-display text-foreground">{fmtDuration(elapsed)}</div>
+          <div className="mt-2 text-3xl font-display text-foreground">
+            {onBreak
+              ? <span className="text-[var(--color-gold)]">{fmtDuration(elapsed)}</span>
+              : fmtDuration(elapsed - totalBreakMin)}
+          </div>
         )}
-        <div className="mt-4">
+        {active && totalBreakMin > 0 && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            Break: {fmtDuration(totalBreakMin)}
+          </div>
+        )}
+        {selfieUploading && (
+          <div className="mt-1 text-xs text-[var(--color-gold)]">Uploading clock-in photo…</div>
+        )}
+        <div className="mt-4 flex flex-col items-center gap-3">
           {!active ? (
-            <Button size="lg" className="px-10 h-14 text-base" onClick={() => inM.mutate()} disabled={inM.isPending}>
-              <LogIn className="h-5 w-5" /> Clock In
+            <Button size="lg" className="px-10 h-14 text-base" onClick={() => inM.mutate()} disabled={inM.isPending || selfieUploading}>
+              <LogIn className="h-5 w-5" /> {inM.isPending ? "Clocking in…" : "Clock In"}
             </Button>
           ) : (
-            <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={handleClockOut} disabled={outM.isPending}>
-              <LogOut className="h-5 w-5" /> Clock Out
-            </Button>
+            <>
+              <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={handleClockOut} disabled={outM.isPending}>
+                <LogOut className="h-5 w-5" /> Clock Out
+              </Button>
+              {!onBreak ? (
+                <Button size="sm" variant="outline" onClick={startBreak} className="gap-2">
+                  <Coffee className="h-4 w-4" /> Start Break
+                </Button>
+              ) : (
+                <Button size="sm" onClick={endBreak} className="gap-2 bg-[var(--color-gold)] text-[#0A0A0A] hover:bg-[var(--color-gold)]/90">
+                  <Coffee className="h-4 w-4" /> End Break
+                </Button>
+              )}
+            </>
           )}
-
         </div>
       </Card>
 
@@ -165,7 +267,11 @@ function TimeClockPage() {
           </div>
           {week.flags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {week.flags.map((f) => <StatusPill key={f} tone="warning">{f.replace(/_/g, " ")}</StatusPill>)}
+              {week.flags.map((f: string) => (
+                <StatusPill key={f} tone={f === "no_break_on_long_shift" ? "danger" : "warning"}>
+                  {f === "no_break_on_long_shift" ? "Long shift — no break recorded" : f.replace(/_/g, " ")}
+                </StatusPill>
+              ))}
             </div>
           )}
         </>

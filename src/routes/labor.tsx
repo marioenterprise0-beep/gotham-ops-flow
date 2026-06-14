@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
-import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests } from "@/lib/labor.functions";
+import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests, getPayrollDetail } from "@/lib/labor.functions";
 import { ChevronLeft, ChevronRight, Check, X, MessageSquare, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn, fmtTime12 } from "@/lib/utils";
@@ -84,6 +84,7 @@ function LaborPage() {
           <Button variant="outline" size="sm" disabled={!dash} onClick={() => exportLaborPDF(weekStart, rangeLabel, dash)}>
             <FileText className="h-4 w-4 mr-1" /> PDF
           </Button>
+          <PayrollExportButton weekStart={weekStart} />
         </div>
       </div>
 
@@ -321,6 +322,65 @@ function NotesList({ items }: { items: any[] }) {
         </div>
       ))}
     </Card>
+  );
+}
+
+function PayrollExportButton({ weekStart }: { weekStart: string }) {
+  const fn = useServerFn(getPayrollDetail);
+  const [busy, setBusy] = useState(false);
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      const detail = await fn({ data: { weekStart } }) as any;
+      exportPayrollCSV(weekStart, detail);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Export failed");
+    } finally { setBusy(false); }
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={handleExport} disabled={busy}>
+      <Download className="h-4 w-4 mr-1" />{busy ? "…" : "Payroll"}
+    </Button>
+  );
+}
+
+function exportPayrollCSV(weekStart: string, detail: any) {
+  const rows: (string | number | null | undefined)[][] = [];
+  for (const emp of detail.employees ?? []) {
+    let regMin = 0, otMin = 0;
+    for (const p of emp.punches ?? []) {
+      if (!p.clock_out_at) continue;
+      const diffMin = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
+      const netMin = Math.max(0, diffMin - (p.break_minutes ?? 0));
+      const dailyReg = Math.min(netMin, 8 * 60);
+      const dailyOT  = Math.max(0, netMin - 8 * 60);
+      regMin += dailyReg; otMin += dailyOT;
+      rows.push([
+        emp.name, emp.id,
+        new Date(p.clock_in_at).toLocaleDateString(),
+        new Date(p.clock_in_at).toLocaleTimeString(),
+        p.clock_out_at ? new Date(p.clock_out_at).toLocaleTimeString() : "Open",
+        (netMin / 60).toFixed(2),
+        (dailyReg / 60).toFixed(2),
+        (dailyOT / 60).toFixed(2),
+        p.break_minutes ?? 0,
+        p.status,
+      ]);
+    }
+    // Subtotal row per employee
+    rows.push([
+      `TOTAL — ${emp.name}`, emp.id, "", "", "",
+      ((regMin + otMin) / 60).toFixed(2),
+      (regMin / 60).toFixed(2),
+      (otMin / 60).toFixed(2),
+      "", "",
+    ]);
+    rows.push([]); // spacer
+  }
+  downloadCSV(
+    `payroll-${weekStart}.csv`,
+    ["Employee", "Employee ID", "Date", "Clock In", "Clock Out", "Net Hours", "Regular (h)", "OT (h)", "Break (min)", "Status"],
+    rows,
   );
 }
 
