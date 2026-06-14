@@ -495,6 +495,7 @@ export interface FileRouteTypes {
     | '/operations'
     | '/order-guide'
     | '/permissions'
+    | '/prep-log'
     | '/recaps'
     | '/role'
     | '/schedule'
@@ -540,6 +541,7 @@ export interface FileRouteTypes {
     | '/operations'
     | '/order-guide'
     | '/permissions'
+    | '/prep-log'
     | '/recaps'
     | '/role'
     | '/schedule'
@@ -652,18 +654,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoleRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/prep-log': {
-      id: '/prep-log'
-      path: '/prep-log'
-      fullPath: '/prep-log'
-      preLoaderRoute: typeof PrepLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/recaps': {
       id: '/recaps'
       path: '/recaps'
       fullPath: '/recaps'
       preLoaderRoute: typeof RecapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prep-log': {
+      id: '/prep-log'
+      path: '/prep-log'
+      fullPath: '/prep-log'
+      preLoaderRoute: typeof PrepLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/permissions': {
@@ -970,3 +972,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
