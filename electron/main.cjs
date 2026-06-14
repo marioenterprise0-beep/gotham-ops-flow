@@ -15,6 +15,9 @@ autoUpdater.autoInstallOnAppQuit = true;
 const APP_URL = "https://gothamhalaldash.com";
 const isDev = process.env.NODE_ENV === "development";
 
+// Strip "Electron/x.x.x" from the user-agent so the site treats us as a normal browser
+app.userAgentFallback = app.userAgentFallback.replace(/\s*Electron\/[\d.]+/, "");
+
 let mainWindow = null;
 
 // ─── Auto-launch on Mac startup ───────────────────────────────────────────────

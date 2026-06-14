@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleProvider } from "../lib/role";
 import { supabase } from "@/integrations/supabase/client";
 import { PwaInstallPrompt } from "@/components/gotham/PwaInstallPrompt";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -149,6 +150,7 @@ function RootComponent() {
         <AuthSyncBridge />
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
+        <Toaster richColors position="top-right" />
         <PwaInstallPrompt />
       </RoleProvider>
     </QueryClientProvider>
