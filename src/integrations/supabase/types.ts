@@ -1461,6 +1461,80 @@ export type Database = {
         }
         Relationships: []
       }
+      prep_log: {
+        Row: {
+          archived_at: string | null
+          category: string
+          created_at: string
+          id: string
+          item_name: string
+          logged_at: string
+          logged_by: string
+          notes: string | null
+          quantity: number
+          shift_id: string | null
+          trailer_id: string | null
+          unit: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          item_name: string
+          logged_at?: string
+          logged_by: string
+          notes?: string | null
+          quantity: number
+          shift_id?: string | null
+          trailer_id?: string | null
+          unit?: string
+        }
+        Update: {
+          archived_at?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          item_name?: string
+          logged_at?: string
+          logged_by?: string
+          notes?: string | null
+          quantity?: number
+          shift_id?: string | null
+          trailer_id?: string | null
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prep_log_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prep_log_logged_by_fkey"
+            columns: ["logged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_with_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prep_log_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prep_log_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -1801,6 +1875,108 @@ export type Database = {
           visibility?: string
         }
         Relationships: []
+      }
+      shift_swap_requests: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          reason: string | null
+          requester_id: string
+          schedule_shift_id: string
+          status: string
+          target_employee_id: string | null
+          trailer_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          requester_id: string
+          schedule_shift_id: string
+          status?: string
+          target_employee_id?: string | null
+          trailer_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          requester_id?: string
+          schedule_shift_id?: string
+          status?: string
+          target_employee_id?: string | null
+          trailer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_swap_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_with_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_with_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_schedule_shift_id_fkey"
+            columns: ["schedule_shift_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_target_employee_id_fkey"
+            columns: ["target_employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_with_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_swap_requests_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shift_templates: {
         Row: {
