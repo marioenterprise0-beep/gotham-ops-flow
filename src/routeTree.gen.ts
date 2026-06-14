@@ -16,6 +16,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScheduleRouteImport } from './routes/schedule'
 import { Route as RoleRouteImport } from './routes/role'
 import { Route as RecapsRouteImport } from './routes/recaps'
+import { Route as PrepLogRouteImport } from './routes/prep-log'
 import { Route as PermissionsRouteImport } from './routes/permissions'
 import { Route as OrderGuideRouteImport } from './routes/order-guide'
 import { Route as OperationsRouteImport } from './routes/operations'
@@ -86,6 +87,11 @@ const RoleRoute = RoleRouteImport.update({
 const RecapsRoute = RecapsRouteImport.update({
   id: '/recaps',
   path: '/recaps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrepLogRoute = PrepLogRouteImport.update({
+  id: '/prep-log',
+  path: '/prep-log',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PermissionsRoute = PermissionsRouteImport.update({
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
+  '/prep-log': typeof PrepLogRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
+  '/prep-log': typeof PrepLogRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -393,6 +401,7 @@ export interface FileRoutesById {
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
   '/permissions': typeof PermissionsRoute
+  '/prep-log': typeof PrepLogRoute
   '/recaps': typeof RecapsRoute
   '/role': typeof RoleRoute
   '/schedule': typeof ScheduleRoute
@@ -440,6 +449,7 @@ export interface FileRouteTypes {
     | '/operations'
     | '/order-guide'
     | '/permissions'
+    | '/prep-log'
     | '/recaps'
     | '/role'
     | '/schedule'
@@ -576,6 +586,7 @@ export interface RootRouteChildren {
   OperationsRoute: typeof OperationsRoute
   OrderGuideRoute: typeof OrderGuideRoute
   PermissionsRoute: typeof PermissionsRoute
+  PrepLogRoute: typeof PrepLogRoute
   RecapsRoute: typeof RecapsRoute
   RoleRoute: typeof RoleRoute
   ScheduleRoute: typeof ScheduleRoute
@@ -639,6 +650,13 @@ declare module '@tanstack/react-router' {
       path: '/role'
       fullPath: '/role'
       preLoaderRoute: typeof RoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prep-log': {
+      id: '/prep-log'
+      path: '/prep-log'
+      fullPath: '/prep-log'
+      preLoaderRoute: typeof PrepLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recaps': {
@@ -928,6 +946,7 @@ const rootRouteChildren: RootRouteChildren = {
   OperationsRoute: OperationsRoute,
   OrderGuideRoute: OrderGuideRoute,
   PermissionsRoute: PermissionsRoute,
+  PrepLogRoute: PrepLogRoute,
   RecapsRoute: RecapsRoute,
   RoleRoute: RoleRoute,
   ScheduleRoute: ScheduleRoute,
