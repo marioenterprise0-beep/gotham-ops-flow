@@ -951,6 +951,201 @@ export type Database = {
           },
         ]
       }
+      hr_document_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          body_blocks: Json | null
+          completed_at: string | null
+          created_at: string
+          custom_content_type: string | null
+          custom_storage_path: string | null
+          due_date: string | null
+          employee_id: string
+          id: string
+          required_signer_roles: string[]
+          status: Database["public"]["Enums"]["hr_assignment_status"]
+          template_id: string | null
+          title: string
+          trailer_id: string | null
+          viewed_at: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          body_blocks?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          custom_content_type?: string | null
+          custom_storage_path?: string | null
+          due_date?: string | null
+          employee_id: string
+          id?: string
+          required_signer_roles?: string[]
+          status?: Database["public"]["Enums"]["hr_assignment_status"]
+          template_id?: string | null
+          title: string
+          trailer_id?: string | null
+          viewed_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          body_blocks?: Json | null
+          completed_at?: string | null
+          created_at?: string
+          custom_content_type?: string | null
+          custom_storage_path?: string | null
+          due_date?: string | null
+          employee_id?: string
+          id?: string
+          required_signer_roles?: string[]
+          status?: Database["public"]["Enums"]["hr_assignment_status"]
+          template_id?: string | null
+          title?: string
+          trailer_id?: string | null
+          viewed_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_document_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_document_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_document_signatures: {
+        Row: {
+          assignment_id: string
+          id: string
+          signed_at: string | null
+          signer_role_label: string
+          signer_user_id: string | null
+          typed_full_name: string | null
+        }
+        Insert: {
+          assignment_id: string
+          id?: string
+          signed_at?: string | null
+          signer_role_label: string
+          signer_user_id?: string | null
+          typed_full_name?: string | null
+        }
+        Update: {
+          assignment_id?: string
+          id?: string
+          signed_at?: string | null
+          signer_role_label?: string
+          signer_user_id?: string | null
+          typed_full_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_document_signatures_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_document_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_document_template_versions: {
+        Row: {
+          body_blocks: Json
+          edited_at: string
+          edited_by: string | null
+          id: string
+          signer_roles: string[]
+          template_id: string
+          title: string
+          version: number
+        }
+        Insert: {
+          body_blocks: Json
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          signer_roles: string[]
+          template_id: string
+          title: string
+          version: number
+        }
+        Update: {
+          body_blocks?: Json
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          signer_roles?: string[]
+          template_id?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_document_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_document_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_document_templates: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          body_blocks: Json
+          category: Database["public"]["Enums"]["hr_doc_category"]
+          created_at: string
+          doc_code: string
+          id: string
+          owner_only: boolean
+          signer_roles: string[]
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          body_blocks: Json
+          category: Database["public"]["Enums"]["hr_doc_category"]
+          created_at?: string
+          doc_code: string
+          id?: string
+          owner_only?: boolean
+          signer_roles?: string[]
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          body_blocks?: Json
+          category?: Database["public"]["Enums"]["hr_doc_category"]
+          created_at?: string
+          doc_code?: string
+          id?: string
+          owner_only?: boolean
+          signer_roles?: string[]
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       inventory_categories: {
         Row: {
           archive_reason: string | null
@@ -3215,6 +3410,8 @@ export type Database = {
         | "stayed_late"
         | "other"
       email_frequency: "immediate" | "daily_digest" | "critical_only" | "off"
+      hr_assignment_status: "pending" | "viewed" | "signed" | "voided"
+      hr_doc_category: "onboarding" | "training" | "hr" | "operations"
       incident_severity: "low" | "medium" | "high"
       inventory_change_action: "create" | "update" | "delete" | "archive"
       inventory_change_status: "pending" | "approved" | "declined" | "cancelled"
@@ -3444,6 +3641,8 @@ export const Constants = {
         "other",
       ],
       email_frequency: ["immediate", "daily_digest", "critical_only", "off"],
+      hr_assignment_status: ["pending", "viewed", "signed", "voided"],
+      hr_doc_category: ["onboarding", "training", "hr", "operations"],
       incident_severity: ["low", "medium", "high"],
       inventory_change_action: ["create", "update", "delete", "archive"],
       inventory_change_status: ["pending", "approved", "declined", "cancelled"],
