@@ -1,0 +1,1 @@
+UPDATE public.hr_document_templates SET signer_roles = '{"Complainant Signature (or write ''Anonymous'')","Received By — Director of Operations"}'::text[] WHERE doc_code = 'HR-ICF-001';
