@@ -859,6 +859,45 @@ export type Database = {
         }
         Relationships: []
       }
+      handbook_sections: {
+        Row: {
+          body_blocks: Json
+          display_order: number
+          id: string
+          is_policy: boolean
+          part_number: number
+          part_title: string
+          section_number: number
+          section_title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          body_blocks: Json
+          display_order: number
+          id?: string
+          is_policy?: boolean
+          part_number: number
+          part_title: string
+          section_number: number
+          section_title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          body_blocks?: Json
+          display_order?: number
+          id?: string
+          is_policy?: boolean
+          part_number?: number
+          part_title?: string
+          section_number?: number
+          section_title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       hospitality_incidents: {
         Row: {
           archive_reason: string | null
