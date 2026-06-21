@@ -30,6 +30,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IntegrityRouteImport } from './routes/integrity'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as HealthRouteImport } from './routes/health'
+import { Route as HandbookRouteImport } from './routes/handbook'
 import { Route as EmailLogRouteImport } from './routes/email-log'
 import { Route as DataHealthRouteImport } from './routes/data-health'
 import { Route as ChangeLogRouteImport } from './routes/change-log'
@@ -157,6 +158,11 @@ const HospitalityRoute = HospitalityRouteImport.update({
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
   path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HandbookRoute = HandbookRouteImport.update({
+  id: '/handbook',
+  path: '/handbook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailLogRoute = EmailLogRouteImport.update({
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/change-log': typeof ChangeLogRoute
   '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
+  '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
@@ -341,6 +348,7 @@ export interface FileRoutesByTo {
   '/change-log': typeof ChangeLogRoute
   '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
+  '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
@@ -388,6 +396,7 @@ export interface FileRoutesById {
   '/change-log': typeof ChangeLogRoute
   '/data-health': typeof DataHealthRoute
   '/email-log': typeof EmailLogRoute
+  '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
   '/integrity': typeof IntegrityRoute
@@ -436,6 +445,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/data-health'
     | '/email-log'
+    | '/handbook'
     | '/health'
     | '/hospitality'
     | '/integrity'
@@ -482,6 +492,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/data-health'
     | '/email-log'
+    | '/handbook'
     | '/health'
     | '/hospitality'
     | '/integrity'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/change-log'
     | '/data-health'
     | '/email-log'
+    | '/handbook'
     | '/health'
     | '/hospitality'
     | '/integrity'
@@ -575,6 +587,7 @@ export interface RootRouteChildren {
   ChangeLogRoute: typeof ChangeLogRoute
   DataHealthRoute: typeof DataHealthRoute
   EmailLogRoute: typeof EmailLogRoute
+  HandbookRoute: typeof HandbookRoute
   HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
   IntegrityRoute: typeof IntegrityRoute
@@ -759,6 +772,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/handbook': {
+      id: '/handbook'
+      path: '/handbook'
+      fullPath: '/handbook'
+      preLoaderRoute: typeof HandbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/email-log': {
       id: '/email-log'
       path: '/email-log'
@@ -935,6 +955,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChangeLogRoute: ChangeLogRoute,
   DataHealthRoute: DataHealthRoute,
   EmailLogRoute: EmailLogRoute,
+  HandbookRoute: HandbookRoute,
   HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
   IntegrityRoute: IntegrityRoute,
@@ -972,3 +993,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
