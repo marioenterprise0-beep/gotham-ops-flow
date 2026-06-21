@@ -835,6 +835,69 @@ export type Database = {
         }
         Relationships: []
       }
+      handbook_acknowledgements: {
+        Row: {
+          acknowledged_at: string
+          full_name_typed: string
+          handbook_version: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string
+          full_name_typed: string
+          handbook_version: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string
+          full_name_typed?: string
+          handbook_version?: number
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      handbook_sections: {
+        Row: {
+          body_blocks: Json
+          display_order: number
+          id: string
+          is_policy: boolean
+          part_number: number
+          part_title: string
+          section_number: number
+          section_title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          body_blocks: Json
+          display_order: number
+          id?: string
+          is_policy?: boolean
+          part_number: number
+          part_title: string
+          section_number: number
+          section_title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          body_blocks?: Json
+          display_order?: number
+          id?: string
+          is_policy?: boolean
+          part_number?: number
+          part_title?: string
+          section_number?: number
+          section_title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       hospitality_incidents: {
         Row: {
           archive_reason: string | null
@@ -1544,6 +1607,7 @@ export type Database = {
           created_at: string
           display_name: string
           email: string | null
+          handbook_acknowledged_at: string | null
           id: string
           last_login_at: string | null
           sop_accepted_at: string | null
@@ -1560,6 +1624,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           email?: string | null
+          handbook_acknowledged_at?: string | null
           id: string
           last_login_at?: string | null
           sop_accepted_at?: string | null
@@ -1576,6 +1641,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           email?: string | null
+          handbook_acknowledged_at?: string | null
           id?: string
           last_login_at?: string | null
           sop_accepted_at?: string | null
