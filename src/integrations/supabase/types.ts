@@ -1112,6 +1112,7 @@ export type Database = {
       }
       hr_document_templates: {
         Row: {
+          archive_reason: string | null
           archived_at: string | null
           archived_by: string | null
           body_blocks: Json
@@ -1126,6 +1127,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
           body_blocks: Json
@@ -1140,6 +1142,7 @@ export type Database = {
           version?: number
         }
         Update: {
+          archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
           body_blocks?: Json
