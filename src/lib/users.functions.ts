@@ -382,29 +382,14 @@ export const setUserTrailer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const SUPER_ADMIN_EMAILS = new Set(
-  (process.env.SUPER_ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean),
-);
-
-async function requireSuperAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase.rpc("my_email");
-  if (error) throw new Error(error.message);
-  const email = String(data ?? "").toLowerCase();
-  if (!SUPER_ADMIN_EMAILS.has(email)) {
-    throw new Error("Only the super-admin accounts can perform this action.");
-  }
-}
-
 // Owners can act on anyone except other super-admins (only super-admins can act on super-admins).
+// is_super_admin() reads profiles.is_super_admin -- the single source of
+// truth for this flag, on both the DB and app side.
 async function assertCanActOnTarget(supabase: any, actorId: string, targetId: string) {
   const { data: targetIsSuper } = await supabase.rpc("is_super_admin", { _user_id: targetId });
   if (!targetIsSuper) return;
-  const { data: email } = await supabase.rpc("my_email");
-  const e = String(email ?? "").toLowerCase();
-  if (!SUPER_ADMIN_EMAILS.has(e)) {
+  const { data: actorIsSuper } = await supabase.rpc("is_super_admin", { _user_id: actorId });
+  if (!actorIsSuper) {
     throw new Error("Only super-admins can modify another super-admin account.");
   }
 }
@@ -412,10 +397,9 @@ async function assertCanActOnTarget(supabase: any, actorId: string, targetId: st
 export const amISuperAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase } = context;
-    const { data } = await supabase.rpc("my_email");
-    const email = String(data ?? "").toLowerCase();
-    return { isSuperAdmin: SUPER_ADMIN_EMAILS.has(email) };
+    const { supabase, userId } = context;
+    const { data } = await supabase.rpc("is_super_admin", { _user_id: userId });
+    return { isSuperAdmin: !!data };
   });
 
 export const setUserActive = createServerFn({ method: "POST" })
