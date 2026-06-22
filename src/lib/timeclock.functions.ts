@@ -361,6 +361,25 @@ export const submitCorrection = createServerFn({ method: "POST" })
       schedule_shift_id: data.scheduleShiftId ?? null,
     }).select("*").single();
     if (error) throw new Error(error.message);
+
+    await supabase.from("alerts").insert({
+      type: "time_adjustment",
+      title: "Time adjustment request",
+      description: `${data.forDate} · ${data.reason}`,
+      source_module: "time_corrections",
+      source_id: row.id,
+      trailer_id: profile?.trailer_id ?? null,
+      created_by: userId,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "pending",
+      payload: {
+        reason: data.reason,
+        original: data.requestedIn ? `Requested in: ${data.requestedIn}` : undefined,
+        requested: data.requestedOut ? `Requested out: ${data.requestedOut}` : undefined,
+      },
+    } as any);
+
     return row;
   });
 
@@ -390,6 +409,21 @@ export const submitTimeOff = createServerFn({ method: "POST" })
       notes: data.notes ?? null,
     }).select("*").single();
     if (error) throw new Error(error.message);
+
+    await supabase.from("alerts").insert({
+      type: "time_off",
+      title: "Time off request",
+      description: `${data.startDate}${data.endDate !== data.startDate ? ` – ${data.endDate}` : ""} · ${data.reason}`,
+      source_module: "time_off",
+      source_id: row.id,
+      trailer_id: profile?.trailer_id ?? null,
+      created_by: userId,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "pending",
+      payload: { request_id: row.id, start_date: data.startDate, end_date: data.endDate, reason: data.reason },
+    } as any);
+
     return row;
   });
 

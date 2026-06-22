@@ -10,6 +10,9 @@ import { template as autoClockOut } from './auto-clock-out'
 import { template as timeAdjustmentRequest } from './time-adjustment-request'
 import { template as timeAdjustmentApproved } from './time-adjustment-approved'
 import { template as timeAdjustmentDeclined } from './time-adjustment-declined'
+import { template as timeOffRequest } from './time-off-request'
+import { template as timeOffApproved } from './time-off-approved'
+import { template as timeOffDeclined } from './time-off-declined'
 import { template as inventoryOrderSubmitted } from './inventory-order-submitted'
 import { template as inventoryOrderApproved } from './inventory-order-approved'
 import { template as inventoryOrderDeclined } from './inventory-order-declined'
@@ -48,6 +51,9 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'time-adjustment-request': timeAdjustmentRequest,
   'time-adjustment-approved': timeAdjustmentApproved,
   'time-adjustment-declined': timeAdjustmentDeclined,
+  'time-off-request': timeOffRequest,
+  'time-off-approved': timeOffApproved,
+  'time-off-declined': timeOffDeclined,
   'inventory-order-submitted': inventoryOrderSubmitted,
   'inventory-order-approved': inventoryOrderApproved,
   'inventory-order-declined': inventoryOrderDeclined,

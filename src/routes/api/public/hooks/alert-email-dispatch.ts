@@ -173,6 +173,20 @@ const MAPPINGS: Record<string, Mapping> = {
     }),
   },
 
+  time_off: {
+    template: 'time-off-request',
+    category: 'time_clock',
+    subject: (_a, ctx) => `Time off request — ${ctx.creator?.display_name ?? 'Employee'}`,
+    recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
+    buildData: async (alert, ctx) => ({
+      employee_name: ctx.creator?.display_name ?? 'Employee',
+      start_date: alert.payload?.start_date,
+      end_date: alert.payload?.end_date,
+      reason: alert.payload?.reason,
+      request_id: alert.source_id,
+    }),
+  },
+
   schedule_approval: {
     template: 'schedule-submitted',
     category: 'schedule',
@@ -416,6 +430,51 @@ async function resolveTrainingMilestoneMapping(alert: any): Promise<Mapping | nu
   }
 }
 
+// time_off_decided / time_adjustment_decided carry payload.decision
+// ('approved' | 'declined') and are always targeted at the requesting
+// employee directly via assigned_user_id — picks between the matching
+// approved/declined template pair.
+async function resolveTimeOffDecisionMapping(alert: any): Promise<Mapping | null> {
+  if (alert.type !== 'time_off_decided') return null
+  const approved = alert.payload?.decision === 'approved'
+  return {
+    template: approved ? 'time-off-approved' : 'time-off-declined',
+    category: 'time_clock',
+    subject: () => (approved ? 'Time off approved' : 'Time off request declined'),
+    recipients: async (a) => {
+      const emp = await getEmployee(a.assigned_user_id)
+      return emp ? [emp] : []
+    },
+    buildData: async (a) => ({
+      start_date: a.payload?.start_date,
+      end_date: a.payload?.end_date,
+      decision_reason: a.payload?.decision_reason,
+      decided_by: a.payload?.decided_by_name,
+    }),
+  }
+}
+
+async function resolveTimeAdjustmentDecisionMapping(alert: any): Promise<Mapping | null> {
+  if (alert.type !== 'time_adjustment_decided') return null
+  const approved = alert.payload?.decision === 'approved'
+  return {
+    template: approved ? 'time-adjustment-approved' : 'time-adjustment-declined',
+    category: 'time_clock',
+    subject: () => (approved ? 'Time adjustment approved' : 'Time adjustment declined'),
+    recipients: async (a) => {
+      const emp = await getEmployee(a.assigned_user_id)
+      return emp ? [emp] : []
+    },
+    buildData: async (a) => ({
+      shift_date: a.payload?.shift_date,
+      approved_value: a.payload?.approved_value,
+      decision_reason: a.payload?.decision_reason,
+      decided_by: a.payload?.decided_by_name,
+      approver_name: a.payload?.decided_by_name,
+      punch_id: a.payload?.punch_id,
+    }),
+  }
+}
 
 // ---------------------------------------------------------------------------
 
@@ -473,7 +532,9 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
           (await resolveCashDropMapping(alert)) ||
           (await resolveCashDrawerMapping(alert)) ||
           (await resolveSchedulePublishedMapping(alert)) ||
-          (await resolveTrainingMilestoneMapping(alert))
+          (await resolveTrainingMilestoneMapping(alert)) ||
+          (await resolveTimeOffDecisionMapping(alert)) ||
+          (await resolveTimeAdjustmentDecisionMapping(alert))
         if (!mapping) mapping = MAPPINGS[alert.type] ?? null
 
         if (!mapping) {

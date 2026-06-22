@@ -225,6 +225,38 @@ export const decideCorrection = createServerFn({ method: "POST" })
       actor_id: userId, entity: "time_correction", entity_id: data.id,
       action: `decision_${data.decision}`, reason: data.note ?? null,
     });
+
+    // info_requested has no matching email template (not approved, not
+    // declined) — only notify the employee on a real decision.
+    if (data.decision === "approved" || data.decision === "declined") {
+      const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+      const approvedValue = [
+        row.requested_in ? `In: ${new Date(row.requested_in).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : null,
+        row.requested_out ? `Out: ${new Date(row.requested_out).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : null,
+      ].filter(Boolean).join(" · ");
+      await supabase.from("alerts").insert({
+        type: "time_adjustment_decided",
+        title: `Time adjustment ${data.decision} — ${row.for_date}`,
+        description: data.note ?? null,
+        source_module: "time_corrections",
+        source_id: row.id,
+        trailer_id: row.trailer_id,
+        created_by: userId,
+        assigned_user_id: row.employee_id,
+        assigned_role: "manager",
+        priority: "normal",
+        status: "pending",
+        payload: {
+          decision: data.decision,
+          shift_date: row.for_date,
+          approved_value: approvedValue || undefined,
+          decision_reason: data.note ?? null,
+          decided_by_name: decider?.display_name ?? "Management",
+          punch_id: row.punch_id ?? undefined,
+        },
+      } as any);
+    }
+
     return row;
   });
 
@@ -249,6 +281,32 @@ export const decideTimeOff = createServerFn({ method: "POST" })
       actor_id: userId, entity: "time_off", entity_id: data.id,
       action: `decision_${data.decision}`, reason: data.note ?? null,
     });
+
+    // info_requested has no matching email template (not approved, not
+    // declined) — only notify the employee on a real decision.
+    if (data.decision === "approved" || data.decision === "declined") {
+      const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+      await supabase.from("alerts").insert({
+        type: "time_off_decided",
+        title: `Time off ${data.decision} — ${row.start_date}`,
+        description: data.note ?? null,
+        source_module: "time_off",
+        source_id: row.id,
+        trailer_id: row.trailer_id,
+        created_by: userId,
+        assigned_user_id: row.employee_id,
+        assigned_role: "manager",
+        priority: "normal",
+        status: "pending",
+        payload: {
+          decision: data.decision,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          decision_reason: data.note ?? null,
+          decided_by_name: decider?.display_name ?? "Management",
+        },
+      } as any);
+    }
     return row;
   });
 
