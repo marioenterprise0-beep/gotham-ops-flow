@@ -503,7 +503,8 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
 export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
     const { data: a, error } = await (supabaseAdmin as any)
       .from("hr_document_assignments")
       .select("id, title, employee_id, status, completed_at")
@@ -512,6 +513,15 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!a) throw new Error("Assignment not found");
     if (a.status !== "signed") throw new Error("Document is not fully signed yet");
+
+    // Without this, any authenticated user could pass an arbitrary
+    // assignmentId + pdfStoragePath and get hello@/mario@ to receive a
+    // "completed document" email pointing at content they don't control.
+    // Only the assignment's own employee, or a manager/owner, may trigger it.
+    const { data: isMgr } = await supabaseAdmin.rpc("is_manager", { _user_id: userId });
+    if (userId !== a.employee_id && !isMgr) {
+      throw new Error("Not authorized for this assignment");
+    }
 
     await (supabaseAdmin as any)
       .from("hr_document_assignments")
@@ -528,10 +538,18 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
       .from("gotham-photos")
       .createSignedUrl(data.pdfStoragePath, 60 * 60 * 24 * 7); // 7 days — long enough to act on
 
-    const recipients: Recipient[] = [
-      { user_id: crypto.randomUUID(), email: "hello@gothamhalal.com", display_name: "Gotham Halal", role: "owner" },
-      { user_id: crypto.randomUUID(), email: "mario@gothamhalal.com", display_name: "Mario", role: "owner" },
-    ];
+    // Configurable via env so the recipient list can be rotated without a
+    // code change; falls back to the original addresses if unset.
+    const complianceEmails = (process.env.HR_COMPLIANCE_EMAILS ?? "hello@gothamhalal.com,mario@gothamhalal.com")
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const recipients: Recipient[] = complianceEmails.map((email) => ({
+      user_id: crypto.randomUUID(),
+      email,
+      display_name: "Gotham Halal",
+      role: "owner",
+    }));
 
     const templateData = {
       title: a.title,
