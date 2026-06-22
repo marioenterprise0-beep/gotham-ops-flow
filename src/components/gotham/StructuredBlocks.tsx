@@ -83,7 +83,7 @@ function isSoleBold(text: string) {
 // checkbox rows like "☐ None ☐ Yes") is left as plain text — converting
 // those into real controls reliably would need per-document field tagging,
 // which is out of scope here.
-function isFillablePlaceholder(text: string): boolean {
+export function isFillablePlaceholder(text: string): boolean {
   const t = text.trim();
   if (t === "") return true;
   if (/^_{3,}$/.test(t)) return true;
@@ -95,8 +95,8 @@ function isFillablePlaceholder(text: string): boolean {
 // checkboxes) — splits right before each checkbox glyph, keeping it with
 // the label that follows. Source forms never pre-check a box, but ☑/☒ are
 // honored too in case that ever changes.
-const CHECKBOX_CHAR_RE = /[☐☑☒]/;
-function splitCheckboxSegments(text: string): { checked: boolean; label: string }[] | null {
+export const CHECKBOX_CHAR_RE = /[☐☑☒]/;
+export function splitCheckboxSegments(text: string): { checked: boolean; label: string }[] | null {
   if (!CHECKBOX_CHAR_RE.test(text)) return null;
   const parts = text
     .split(/(?=[☐☑☒])/g)

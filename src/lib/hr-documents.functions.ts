@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
+import type { Recipient } from "@/lib/email/recipients.server";
 import { z } from "zod";
 import type { HandbookBlock } from "@/lib/handbook.functions";
 
@@ -448,4 +450,66 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
     }
 
     return { ...a, signatures: sigs ?? [], fileUrl };
+  });
+
+// Sends the completed-document PDF (already generated client-side and
+// uploaded by the caller — see hr-document-pdf.ts — since this app
+// deploys to Cloudflare Workers, where real PDF libraries don't reliably
+// run) to the two fixed compliance addresses. Uses synthetic recipient
+// ids rather than looking up real accounts: this is a compliance record
+// copy, not a personal alert, so it must never be silently suppressed by
+// someone's notification_preferences mute toggle.
+export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) }).parse(d))
+  .handler(async ({ data }) => {
+    const { data: a, error } = await (supabaseAdmin as any)
+      .from("hr_document_assignments")
+      .select("id, title, employee_id, status, completed_at")
+      .eq("id", data.assignmentId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!a) throw new Error("Assignment not found");
+    if (a.status !== "signed") throw new Error("Document is not fully signed yet");
+
+    await (supabaseAdmin as any)
+      .from("hr_document_assignments")
+      .update({ completed_pdf_path: data.pdfStoragePath })
+      .eq("id", data.assignmentId);
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", a.employee_id)
+      .maybeSingle();
+
+    const { data: signed } = await supabaseAdmin.storage
+      .from("gotham-photos")
+      .createSignedUrl(data.pdfStoragePath, 60 * 60 * 24 * 7); // 7 days — long enough to act on
+
+    const recipients: Recipient[] = [
+      { user_id: crypto.randomUUID(), email: "hello@gothamhalal.com", display_name: "Gotham Halal", role: "owner" },
+      { user_id: crypto.randomUUID(), email: "mario@gothamhalal.com", display_name: "Mario", role: "owner" },
+    ];
+
+    const templateData = {
+      title: a.title,
+      employee_name: profile?.display_name ?? "Employee",
+      completed_at: a.completed_at ? new Date(a.completed_at).toLocaleString() : new Date().toLocaleString(),
+      pdf_url: signed?.signedUrl ?? null,
+    };
+
+    await enqueueAlertEmail({
+      alertId: null,
+      templateName: "hr-document-completed-record",
+      templateData,
+      recipients,
+      category: "hr_documents",
+      priority: "normal",
+      subject: `[Gotham Halal] Completed: ${a.title} — ${templateData.employee_name}`,
+      sourceModule: "hr_documents",
+      sourceId: a.id,
+    });
+
+    return { ok: true };
   });

@@ -14,10 +14,11 @@ import { syncDomains, type SyncDomain } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { renderStructuredBlocks, type FieldValues } from "@/components/gotham/StructuredBlocks";
+import { buildHrDocumentPdf, uploadHrDocumentPdf } from "@/lib/hr-document-pdf";
 import {
   getMyHrDocuments, getEmployeeHrDocuments, getHrAssignmentDetail, listHrTemplates,
   assignHrDocument, signHrDocument, markHrDocumentViewed, voidHrAssignment, fillHrDocumentFields,
-  getHrCompletionOverview,
+  getHrCompletionOverview, notifyHrDocumentCompletion,
   type HrDocumentAssignment, type HrDocumentTemplate, type HrDocCategory,
 } from "@/lib/hr-documents.functions";
 import { listUsers } from "@/lib/users.functions";
@@ -138,13 +139,39 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
   }, [id]);
 
   const FANOUT: SyncDomain[] = ["hr_documents"];
+  const notifyCompletionFn = useServerFn(notifyHrDocumentCompletion);
   const signM = useMutation({
     mutationFn: (signerRoleLabel: string) => signFn({ data: { assignmentId: id, signerRoleLabel, typedFullName: name.trim(), confirmed: true } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Signed");
       qc.invalidateQueries({ queryKey: ["hr-assignment-detail", id] });
       syncDomains(qc, ...FANOUT);
       setSigningRole(null); setName(""); setConfirmed(false);
+
+      // If that was the final required signature, generate the completed
+      // record and email it to the compliance addresses. Fetched fresh
+      // (not from cache) since the invalidation above only schedules a
+      // background refetch, not a value available here yet.
+      try {
+        const fresh: any = await fetchDetail({ data: { id } });
+        if (fresh.status !== "signed" || fresh.completed_pdf_path) return;
+        let pdfPath: string | null = null;
+        if (fresh.body_blocks) {
+          const { blob } = buildHrDocumentPdf(
+            { title: fresh.title, body_blocks: fresh.body_blocks, field_values: fresh.field_values },
+            fresh.signatures,
+          );
+          pdfPath = await uploadHrDocumentPdf(supabase, id, blob);
+        } else if (fresh.custom_storage_path) {
+          pdfPath = fresh.custom_storage_path;
+        }
+        if (!pdfPath) return;
+        await notifyCompletionFn({ data: { assignmentId: id, pdfStoragePath: pdfPath } });
+        qc.invalidateQueries({ queryKey: ["hr-assignment-detail", id] });
+      } catch (e: any) {
+        // Non-fatal — the signature itself already succeeded.
+        toast.error(`Signed, but the completion record failed: ${e?.message ?? "unknown error"}`);
+      }
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to sign"),
   });

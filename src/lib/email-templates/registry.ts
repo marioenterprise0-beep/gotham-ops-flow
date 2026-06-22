@@ -21,6 +21,7 @@ import { template as trainingAssigned } from './training-assigned'
 import { template as trainingCompleted } from './training-completed'
 import { template as hrDocumentAssigned } from './hr-document-assigned'
 import { template as hrDocumentSigned } from './hr-document-signed'
+import { template as hrDocumentCompletedRecord } from './hr-document-completed-record'
 import { template as dailyRecapSubmitted } from './daily-recap-submitted'
 import { template as announcementPublished } from './announcement-published'
 import { template as criticalAlert } from './critical-alert'
@@ -58,6 +59,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'training-completed': trainingCompleted,
   'hr-document-assigned': hrDocumentAssigned,
   'hr-document-signed': hrDocumentSigned,
+  'hr-document-completed-record': hrDocumentCompletedRecord,
   'daily-recap-submitted': dailyRecapSubmitted,
   'announcement-published': announcementPublished,
   'critical-alert': criticalAlert,
