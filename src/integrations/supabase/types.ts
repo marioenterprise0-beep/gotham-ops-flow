@@ -956,6 +956,7 @@ export type Database = {
           assigned_at: string
           assigned_by: string
           body_blocks: Json | null
+          category: Database["public"]["Enums"]["hr_doc_category"] | null
           completed_at: string | null
           created_at: string
           custom_content_type: string | null
@@ -978,6 +979,7 @@ export type Database = {
           assigned_at?: string
           assigned_by: string
           body_blocks?: Json | null
+          category?: Database["public"]["Enums"]["hr_doc_category"] | null
           completed_at?: string | null
           created_at?: string
           custom_content_type?: string | null
@@ -1000,6 +1002,7 @@ export type Database = {
           assigned_at?: string
           assigned_by?: string
           body_blocks?: Json | null
+          category?: Database["public"]["Enums"]["hr_doc_category"] | null
           completed_at?: string | null
           created_at?: string
           custom_content_type?: string | null
