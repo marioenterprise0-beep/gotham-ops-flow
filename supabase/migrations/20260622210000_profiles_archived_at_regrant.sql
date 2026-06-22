@@ -1,0 +1,18 @@
+-- 20260622042028 revoked SELECT on profiles.last_login_at/archived_at/
+-- archived_by/archive_reason from authenticated, as part of tightening
+-- the RLS row-policy in the same migration (a real, correct fix for the
+-- row-visibility issue). But archived_at is used as a structural
+-- .is("archived_at", null) filter in many non-manager-gated, crew-facing
+-- functions — dashboard.functions.ts (the home dashboard, used by every
+-- employee), health.functions.ts, handbook.functions.ts, schedule.
+-- functions.ts, sops.functions.ts, labor.functions.ts. Postgres requires
+-- column-level SELECT privilege to use a column in a WHERE clause, not
+-- just to read it in the output — so all of those broke.
+--
+-- archived_by/archive_reason (who archived a profile and why — i.e.
+-- termination details) stay revoked: confirmed earlier tonight that
+-- every consumer of those two is already manager/owner-gated and uses
+-- the admin client. last_login_at is re-granted too — it's a mild
+-- attendance signal, not sensitive in the way email/archive_reason are,
+-- and isn't worth a broader refactor to route through supabaseAdmin.
+GRANT SELECT (last_login_at, archived_at) ON public.profiles TO authenticated;
