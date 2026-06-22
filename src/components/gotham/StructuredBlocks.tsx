@@ -67,6 +67,21 @@ function isFillablePlaceholder(text: string): boolean {
   return false;
 }
 
+// "☐ Label" (one or more, e.g. "☐ Yes  ☐ No" or a list of violation
+// checkboxes) — splits right before each checkbox glyph, keeping it with
+// the label that follows. Source forms never pre-check a box, but ☑/☒ are
+// honored too in case that ever changes.
+const CHECKBOX_CHAR_RE = /[☐☑☒]/;
+function splitCheckboxSegments(text: string): { checked: boolean; label: string }[] | null {
+  if (!CHECKBOX_CHAR_RE.test(text)) return null;
+  const parts = text
+    .split(/(?=[☐☑☒])/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return null;
+  return parts.map((p) => ({ checked: p[0] === "☑" || p[0] === "☒", label: p.slice(1).trim() }));
+}
+
 export type FieldValues = Record<string, string>;
 
 export type FillContext = {
@@ -100,6 +115,41 @@ function FillSlot({ fieldKey, placeholder, fill, className }: { fieldKey: string
   );
 }
 
+// One or more "☐ Label" toggles sharing a base key — each segment locks
+// independently the moment it's saved checked; unchecked boxes are simply
+// never saved (blank/unchecked is already the natural default, no need to
+// lock a negative).
+function CheckboxRow({ baseKey, segments, fill }: { baseKey: string; segments: { checked: boolean; label: string }[]; fill?: FillContext }) {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {segments.map((seg, i) => {
+        const key = `${baseKey}_cb${i}`;
+        const saved = fill?.fieldValues?.[key];
+        const isLocked = saved === "true";
+        const checked = isLocked ? true : fill?.editable ? fill.draftValues?.[key] === "true" : seg.checked;
+        return (
+          <label
+            key={i}
+            className={cn(
+              "inline-flex items-center gap-1.5 text-sm",
+              isLocked && "text-[var(--color-gold)] font-medium",
+              !isLocked && !fill?.editable && "text-muted-foreground",
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={isLocked || !fill?.editable}
+              onChange={(e) => fill?.onDraftChange?.(key, e.target.checked ? "true" : "")}
+            />
+            {seg.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 export function StructuredBlock({
   block, blockIndex, fill,
 }: {
@@ -127,12 +177,21 @@ export function StructuredBlock({
         );
       }
       return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text)}</p>;
-    case "bullet":
+    case "bullet": {
+      const cbSegments = blockIndex !== undefined ? splitCheckboxSegments(block.text) : null;
+      if (cbSegments) {
+        return (
+          <li className="list-none -ml-4 mb-1">
+            <CheckboxRow baseKey={`b${blockIndex}`} segments={cbSegments} fill={fill} />
+          </li>
+        );
+      }
       return (
         <li className="text-sm leading-relaxed text-foreground/90 ml-4 list-disc mb-1">
           {renderInline(block.text)}
         </li>
       );
+    }
     case "note":
       return (
         <div className="flex gap-2 items-start rounded-md border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/10 px-3 py-2 my-3 text-sm font-medium text-[var(--color-gold)]">
@@ -147,15 +206,20 @@ export function StructuredBlock({
             <tbody>
               {block.rows.map((row, ri) => (
                 <tr key={ri} className={cn(ri === 0 ? "bg-secondary font-semibold" : ri % 2 ? "bg-card" : "bg-secondary/30")}>
-                  {row.map((cell, ci) => (
-                    <td key={ci} className="px-2.5 py-1.5 border-b border-border align-top min-w-[7rem]">
-                      {ri > 0 && blockIndex !== undefined && isFillablePlaceholder(cell) ? (
-                        <FillSlot fieldKey={`b${blockIndex}_r${ri}_c${ci}`} placeholder={cell} fill={fill} />
-                      ) : (
-                        cell
-                      )}
-                    </td>
-                  ))}
+                  {row.map((cell, ci) => {
+                    const cbSegments = ri > 0 && blockIndex !== undefined ? splitCheckboxSegments(cell) : null;
+                    return (
+                      <td key={ci} className="px-2.5 py-1.5 border-b border-border align-top min-w-[7rem]">
+                        {cbSegments ? (
+                          <CheckboxRow baseKey={`b${blockIndex}_r${ri}_c${ci}`} segments={cbSegments} fill={fill} />
+                        ) : ri > 0 && blockIndex !== undefined && isFillablePlaceholder(cell) ? (
+                          <FillSlot fieldKey={`b${blockIndex}_r${ri}_c${ci}`} placeholder={cell} fill={fill} />
+                        ) : (
+                          cell
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -172,7 +236,7 @@ export function StructuredBlock({
 // exactly as before) and the HR document detail/send views (pass `fill` to
 // turn blanks into inputs or locked saved-answer text).
 export function renderStructuredBlocks(blocks: HandbookBlock[], fill?: FillContext): ReactNode[] {
-  const bullets: HandbookBlock[] = [];
+  const bullets: { block: HandbookBlock; index: number }[] = [];
   const out: ReactNode[] = [];
   let key = 0;
 
@@ -180,8 +244,8 @@ export function renderStructuredBlocks(blocks: HandbookBlock[], fill?: FillConte
     if (bullets.length === 0) return;
     out.push(
       <ul key={`bul-${key++}`} className="my-1">
-        {bullets.map((b, i) => (
-          <StructuredBlock key={i} block={b} />
+        {bullets.map(({ block, index }, i) => (
+          <StructuredBlock key={i} block={block} blockIndex={index} fill={fill} />
         ))}
       </ul>,
     );
@@ -191,7 +255,7 @@ export function renderStructuredBlocks(blocks: HandbookBlock[], fill?: FillConte
   blocks.forEach((block, blockIndex) => {
     if (block.type === "other") return;
     if (block.type === "bullet") {
-      bullets.push(block);
+      bullets.push({ block, index: blockIndex });
       return;
     }
     flushBullets();
