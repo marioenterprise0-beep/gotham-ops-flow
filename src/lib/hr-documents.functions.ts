@@ -380,6 +380,39 @@ export const getEmployeeHrDocuments = createServerFn({ method: "POST" })
     return withSignatures(supabase, assignments ?? []);
   });
 
+export type HrCompletionRow = HrDocumentAssignment & { employee_name: string };
+
+// Tracking dashboard data: every assignment across every employee. "Skipped"
+// in the dashboard UI maps to status='voided' — reuses the existing
+// void/cancel action rather than introducing a separate concept ("this
+// employee doesn't need this document" already has a place to live).
+// Completion timestamps and who-did-what are already captured by the
+// existing audit_log inserts in assignHrDocument/signHrDocument/
+// fillHrDocumentFields — this just surfaces assignment-level status, which
+// is what the dashboard actually needs to render.
+export const getHrCompletionOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+
+    const { data: assignments, error } = await (supabase as any)
+      .from("hr_document_assignments")
+      .select(ASSIGNMENT_COLUMNS)
+      .order("assigned_at", { ascending: false });
+    if (error) throw error;
+
+    const withSigs = await withSignatures(supabase, assignments ?? []);
+
+    const employeeIds = [...new Set(withSigs.map((a: any) => a.employee_id))];
+    const { data: profiles } = employeeIds.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", employeeIds)
+      : { data: [] as any[] };
+    const nameMap = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
+
+    return withSigs.map((a: any) => ({ ...a, employee_name: nameMap.get(a.employee_id) ?? "Unknown" })) as HrCompletionRow[];
+  });
+
 // RLS on hr_document_assignments already restricts the SELECT to the
 // assignment's own employee or a manager/owner, so by the time `a` loads
 // successfully here, access is already validated — no second check needed.

@@ -17,6 +17,7 @@ import { renderStructuredBlocks, type FieldValues } from "@/components/gotham/St
 import {
   getMyHrDocuments, getEmployeeHrDocuments, getHrAssignmentDetail, listHrTemplates,
   assignHrDocument, signHrDocument, markHrDocumentViewed, voidHrAssignment, fillHrDocumentFields,
+  getHrCompletionOverview,
   type HrDocumentAssignment, type HrDocumentTemplate, type HrDocCategory,
 } from "@/lib/hr-documents.functions";
 import { listUsers } from "@/lib/users.functions";
@@ -503,10 +504,119 @@ function TeamPanel({ onOpenAssignment }: { onOpenAssignment: (id: string) => voi
   );
 }
 
+// "Skipped" maps to status='voided' — reuses the existing void action
+// rather than a separate concept (see getHrCompletionOverview's comment).
+function trackingStatus(status: HrDocumentAssignment["status"]): "completed" | "pending" | "skipped" {
+  if (status === "signed") return "completed";
+  if (status === "voided") return "skipped";
+  return "pending";
+}
+
+function TrackingPanel({ onOpenAssignment }: { onOpenAssignment: (id: string) => void }) {
+  const fetchOverview = useServerFn(getHrCompletionOverview);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "completed" | "pending" | "skipped">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | HrDocCategory>("all");
+
+  const { data: rows = [], isLoading } = useQuery<any[]>({
+    queryKey: ["hr-completion-overview"],
+    queryFn: () => fetchOverview() as Promise<any[]>,
+  });
+
+  const filtered = useMemo(() => {
+    const lc = query.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (statusFilter !== "all" && trackingStatus(r.status) !== statusFilter) return false;
+      if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
+      if (!lc) return true;
+      return r.employee_name?.toLowerCase().includes(lc) || r.title?.toLowerCase().includes(lc);
+    });
+  }, [rows, query, statusFilter, categoryFilter]);
+
+  const counts = useMemo(() => {
+    const c = { completed: 0, pending: 0, skipped: 0 };
+    for (const r of rows) c[trackingStatus(r.status)]++;
+    return c;
+  }, [rows]);
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <Card className="!p-3">
+          <div className="label-caps text-muted-foreground text-[10px]">Completed</div>
+          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-success)]">{counts.completed}</div>
+        </Card>
+        <Card className="!p-3">
+          <div className="label-caps text-[var(--color-warning)] text-[10px]">Pending</div>
+          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-warning)]">{counts.pending}</div>
+        </Card>
+        <Card className="!p-3">
+          <div className="label-caps text-muted-foreground text-[10px]">Skipped</div>
+          <div className="text-2xl font-semibold leading-none mt-1">{counts.skipped}</div>
+        </Card>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search employee or document…"
+            className="w-full bg-secondary border border-border rounded-md pl-8 pr-3 py-2 text-sm" />
+        </div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}
+          className="bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+          <option value="all">All statuses</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+          <option value="skipped">Skipped</option>
+        </select>
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value as any)}
+          className="bg-secondary border border-border rounded-md px-3 py-2 text-sm">
+          <option value="all">All document types</option>
+          {Object.entries(CATEGORY_LABEL).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+        </select>
+      </div>
+
+      {isLoading && <Card>Loading…</Card>}
+      {!isLoading && filtered.length === 0 && (
+        <Card><div className="text-center py-8 text-sm text-muted-foreground">No documents match.</div></Card>
+      )}
+      {!isLoading && filtered.length > 0 && (
+        <div className="rounded-md border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-secondary text-left text-[11px] uppercase text-muted-foreground">
+                <th className="px-3 py-2">Employee</th>
+                <th className="px-3 py-2">Document</th>
+                <th className="px-3 py-2">Type</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Sent</th>
+                <th className="px-3 py-2">Completed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r, i) => (
+                <tr key={r.id} onClick={() => onOpenAssignment(r.id)}
+                  className={cn("cursor-pointer hover:bg-secondary/60 border-t border-border", i % 2 === 1 && "bg-card/50")}>
+                  <td className="px-3 py-2 font-medium">{r.employee_name}</td>
+                  <td className="px-3 py-2">{r.title}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{r.category ? CATEGORY_LABEL[r.category as HrDocCategory] : "—"}</td>
+                  <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
+                  <td className="px-3 py-2 text-muted-foreground">{new Date(r.assigned_at).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{r.completed_at ? new Date(r.completed_at).toLocaleDateString() : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HrDocumentsPage() {
   const { roleId } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
-  const [view, setView] = useState<"mine" | "team">("mine");
+  const [view, setView] = useState<"mine" | "team" | "tracking">("mine");
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const fetchMine = useServerFn(getMyHrDocuments);
@@ -533,6 +643,11 @@ function HrDocumentsPage() {
                 view === "team" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground")}>
               <Users className="h-3.5 w-3.5" /> Team
             </button>
+            <button onClick={() => setView("tracking")}
+              className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border-l border-border",
+                view === "tracking" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground")}>
+              <ClipboardList className="h-3.5 w-3.5" /> Tracking
+            </button>
           </div>
         )}
       </div>
@@ -540,6 +655,7 @@ function HrDocumentsPage() {
       <div className="mt-4">
         {view === "mine" && (isLoading ? <Card>Loading…</Card> : <AssignmentList assignments={mine} onOpen={setDetailId} />)}
         {view === "team" && isManager && <TeamPanel onOpenAssignment={setDetailId} />}
+        {view === "tracking" && isManager && <TrackingPanel onOpenAssignment={setDetailId} />}
       </div>
 
       {detailId && <AssignmentDetailModal id={detailId} onClose={() => setDetailId(null)} />}
