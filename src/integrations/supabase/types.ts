@@ -3342,6 +3342,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      run_clock_sweep: { Args: never; Returns: undefined }
       run_daily_rollover: {
         Args: { _as_of?: string; _trailer_id: string }
         Returns: {
@@ -3362,6 +3363,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      sweep_missed_clock_in: { Args: never; Returns: undefined }
+      sweep_missed_clock_out: { Args: never; Returns: undefined }
     }
     Enums: {
       alert_action_kind:
