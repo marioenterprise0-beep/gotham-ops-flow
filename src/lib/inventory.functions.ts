@@ -200,7 +200,15 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
     minimumQty: z.number().nonnegative().optional(),
     preferredOrderQty: z.number().nonnegative().optional(),
     estimatedCost: z.number().nonnegative().optional(),
-    imageUrl: z.string().max(1000).nullable().optional(),
+    // Only accept bare storage paths (e.g. "inventory/<id>/<file>") — never an
+    // external URL. Mirrors the sanitizeImageUrl guard in inventory-changes so
+    // SignedImage never fetches an attacker-controlled origin from <img src>.
+    imageUrl: z
+      .string()
+      .max(1000)
+      .refine((v) => !v.includes("://"), { message: "imageUrl must be a storage path, not a URL" })
+      .nullable()
+      .optional(),
     countInstructions: z.string().max(2000).nullable().optional(),
     storageLocation: z.string().max(200).nullable().optional(),
     archived: z.boolean().optional(),
