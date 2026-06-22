@@ -2,16 +2,55 @@ import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { HandbookBlock } from "@/lib/handbook.functions";
 
-function renderInline(text: string) {
-  const parts = text.split(/(<b>.*?<\/b>)/g);
-  return parts.map((part, i) => {
-    const m = part.match(/^<b>(.*)<\/b>$/s);
-    return m ? <strong key={i}>{m[1]}</strong> : <span key={i}>{part}</span>;
-  });
+// Source text carries a small, known set of ReportLab-style inline tags —
+// <b>...</b> and <font color='#HEX'>...</font>, sometimes nested (a bold,
+// colored bullet prefix: <b><font color='#b8960c'>Prefix</font></b> rest).
+// Parsed recursively rather than a flat split/regex so nesting renders
+// correctly instead of leaking raw tags as text.
+const INLINE_TAG_RE = /<(b|font)(?:\s+color=['"]?(#[0-9A-Fa-f]{6})['"]?)?>/i;
+
+function renderInline(text: string, keyPrefix = ""): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let pos = 0;
+  let key = 0;
+
+  while (pos < text.length) {
+    const rest = text.slice(pos);
+    const open = rest.match(INLINE_TAG_RE);
+    if (!open || open.index === undefined) {
+      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest}</span>);
+      break;
+    }
+    if (open.index > 0) {
+      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(0, open.index)}</span>);
+    }
+    const tagName = open[1].toLowerCase();
+    const color = open[2];
+    const afterOpenTag = rest.slice(open.index + open[0].length);
+    const closeRe = new RegExp(`</${tagName}>`, "i");
+    const close = afterOpenTag.match(closeRe);
+    if (!close || close.index === undefined) {
+      // Unclosed tag — bail and render the remainder as plain text rather
+      // than silently dropping content.
+      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(open.index)}</span>);
+      break;
+    }
+    const inner = afterOpenTag.slice(0, close.index);
+    const innerNodes = renderInline(inner, `${keyPrefix}${key}-`);
+    nodes.push(
+      tagName === "b" ? (
+        <strong key={`${keyPrefix}t${key++}`}>{innerNodes}</strong>
+      ) : (
+        <span key={`${keyPrefix}t${key++}`} style={color ? { color } : undefined}>{innerNodes}</span>
+      ),
+    );
+    pos += open.index + open[0].length + close.index + close[0].length;
+  }
+  return nodes;
 }
 
 function isSoleBold(text: string) {
-  return /^<b>[^<]*<\/b>$/.test(text.trim());
+  return /^<b>[\s\S]*<\/b>$/.test(text.trim());
 }
 
 export function StructuredBlock({ block }: { block: HandbookBlock }) {
@@ -24,8 +63,8 @@ export function StructuredBlock({ block }: { block: HandbookBlock }) {
       );
     case "paragraph":
       if (isSoleBold(block.text)) {
-        const m = block.text.trim().match(/^<b>(.*)<\/b>$/s);
-        return <h4 className="font-semibold text-sm mt-4 mb-1.5">{m ? m[1] : block.text}</h4>;
+        const m = block.text.trim().match(/^<b>([\s\S]*)<\/b>$/);
+        return <h4 className="font-semibold text-sm mt-4 mb-1.5">{m ? renderInline(m[1]) : block.text}</h4>;
       }
       return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text)}</p>;
     case "bullet":
