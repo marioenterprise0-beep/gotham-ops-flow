@@ -40,7 +40,7 @@ function showNotification(
 // Fires a browser notification when a new alert arrives via the real-time
 // subscription and the tab is in the background.
 export function usePushNotifications() {
-  const { session, loading, roleId } = useRole();
+  const { session, loading, roleId, userId } = useRole();
   const [permission, setPermission] = useState<PushPermission>(() => {
     if (!isSupported()) return "unsupported";
     return Notification.permission as PushPermission;
@@ -68,27 +68,32 @@ export function usePushNotifications() {
         (payload) => {
           // Only notify if page is hidden so we don't double-alert.
           if (document.visibilityState !== "hidden") return;
-          // Crew only gets notified about announcements; managers get everything.
           const alert = payload.new as any;
           const isAnnouncement =
             alert.source_module === "announcements" || alert.type === "announcement";
-          if (!isManagerOrOwner && !isAnnouncement) return;
+          // A crew member's OWN targeted alert (e.g. an HR document sent to
+          // them) must push regardless of type — this was a real pre-existing
+          // gap: assigned_user_id alerts (also used for task assignment)
+          // never pushed to crew, only to managers/owners or announcements.
+          const isTargetedAtMe = !!userId && alert.assigned_user_id === userId;
+          if (!isManagerOrOwner && !isAnnouncement && !isTargetedAtMe) return;
 
           const reg = regRef.current;
           if (!reg) return;
+          const url = alert.source_module === "hr_documents" ? "/hr-documents" : "/alerts";
           showNotification(
             reg,
             alert.title ?? "New alert",
             alert.description ?? `Priority: ${alert.priority}`,
             alert.priority ?? "normal",
-            "/alerts",
+            url,
           );
         },
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [loading, session?.access_token, permission, roleId]);
+  }, [loading, session?.access_token, permission, roleId, userId]);
 
   const requestPermission = async (): Promise<PushPermission> => {
     if (!isSupported()) return "unsupported";

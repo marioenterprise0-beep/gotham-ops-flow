@@ -139,6 +139,25 @@ export const assignHrDocument = createServerFn({ method: "POST" })
       payload: { employee_id: data.employeeId, template_id: data.templateId ?? null, title },
     });
 
+    // trailer_id is deliberately left unset — the location-based email
+    // fan-out (alert-email-dispatch.ts) always includes the whole trailer
+    // crew when trailer_id is set, which would broadcast a private HR
+    // document. assigned_user_id alone targets just this employee (plus
+    // owners, who are always CC'd on alerts in this app).
+    await supabase.from("alerts").insert({
+      type: "hr_document",
+      title: `New document to review — ${title}`,
+      description: data.dueDate ? `Due ${data.dueDate}` : "View and sign in HR Documents",
+      source_module: "hr_documents",
+      source_id: inserted.id,
+      created_by: userId,
+      assigned_user_id: data.employeeId,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "pending",
+      payload: { title, due_date: data.dueDate ?? null, assignment_id: inserted.id },
+    } as any);
+
     return { ok: true, id: inserted.id as string };
   });
 

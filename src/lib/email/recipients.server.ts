@@ -30,6 +30,7 @@ export type Category =
   | 'training'
   | 'announcements'
   | 'critical'
+  | 'hr_documents'
 
 async function fetchProfilesByRole(role: string): Promise<Recipient[]> {
   const sb = admin()

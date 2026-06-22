@@ -256,6 +256,40 @@ const MAPPINGS: Record<string, Mapping> = {
       cta_url: `${SITE_URL}/alerts`,
     }),
   },
+
+  // Targeted at the one assigned employee only — trailer_id is left null on
+  // these alerts specifically so the generic location-based fan-out (which
+  // always includes owners but also the whole trailer crew when trailer_id
+  // is set) doesn't broadcast a private HR document to other crew members.
+  hr_document: {
+    template: 'hr-document-assigned',
+    category: 'hr_documents',
+    subject: (alert) => `New document to review — ${alert.payload?.title ?? alert.title}`,
+    recipients: async (alert) => {
+      const emp = await getEmployee(alert.assigned_user_id)
+      return emp ? [emp] : []
+    },
+    buildData: async (alert, ctx) => ({
+      title: alert.payload?.title ?? alert.title,
+      due_date: alert.payload?.due_date ?? '—',
+      assigned_by: ctx.creator?.display_name ?? 'Management',
+    }),
+  },
+
+  hr_document_signed: {
+    template: 'hr-document-signed',
+    category: 'hr_documents',
+    subject: (alert) => `Document fully signed — ${alert.payload?.title ?? alert.title}`,
+    recipients: async (alert) => {
+      const emp = await getEmployee(alert.assigned_user_id)
+      return emp ? [emp] : []
+    },
+    buildData: async (alert, ctx) => ({
+      title: alert.payload?.title ?? alert.title,
+      employee_name: alert.payload?.employee_name ?? '—',
+      completed_at: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+    }),
+  },
 }
 
 // ---- Module-specific dispatch helpers --------------------------------------
