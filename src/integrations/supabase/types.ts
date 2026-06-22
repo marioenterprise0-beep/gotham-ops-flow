@@ -3391,6 +3391,8 @@ export type Database = {
         | "maintenance"
         | "manager_recap"
         | "announcement"
+        | "hr_document"
+        | "hr_document_signed"
       app_role:
         | "owner"
         | "manager"
@@ -3626,6 +3628,8 @@ export const Constants = {
         "maintenance",
         "manager_recap",
         "announcement",
+        "hr_document",
+        "hr_document_signed",
       ],
       app_role: ["owner", "manager", "shift_lead", "grill", "prep", "cashier"],
       cash_owner_review: ["pending", "approved", "correction", "flagged"],
