@@ -1695,6 +1695,71 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_requests: {
+        Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
+          created_at: string
+          description: string | null
+          id: string
+          photo_url: string | null
+          priority: Database["public"]["Enums"]["alert_priority"]
+          reported_by: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          trailer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          photo_url?: string | null
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          reported_by: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          photo_url?: string | null
+          priority?: Database["public"]["Enums"]["alert_priority"]
+          reported_by?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title?: string
+          trailer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_requests_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           categories: Json
@@ -3457,6 +3522,7 @@ export type Database = {
         | "cancelled"
         | "used"
         | "expired"
+      maintenance_status: "open" | "in_progress" | "resolved"
       punch_status: "open" | "closed" | "edited" | "voided" | "auto_closed"
       recap_status: "draft" | "submitted" | "reviewed" | "archived"
       request_status: "pending" | "approved" | "declined" | "info_requested"
@@ -3695,6 +3761,7 @@ export const Constants = {
         "used",
         "expired",
       ],
+      maintenance_status: ["open", "in_progress", "resolved"],
       punch_status: ["open", "closed", "edited", "voided", "auto_closed"],
       recap_status: ["draft", "submitted", "reviewed", "archived"],
       request_status: ["pending", "approved", "declined", "info_requested"],
