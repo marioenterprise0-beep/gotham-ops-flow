@@ -1,0 +1,1 @@
+GRANT SELECT (last_login_at, archived_at) ON public.profiles TO authenticated;
