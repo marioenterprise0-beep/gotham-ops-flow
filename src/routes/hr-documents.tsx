@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card } from "@/components/gotham/primitives";
 import {
-  ClipboardList, Users, X, FileText, Upload, CheckCircle2, Clock, Ban, Search,
+  ClipboardList, Users, X, FileText, Upload, CheckCircle2, Clock, Ban, Search, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -18,7 +18,7 @@ import { buildHrDocumentPdf, uploadHrDocumentPdf } from "@/lib/hr-document-pdf";
 import {
   getMyHrDocuments, getEmployeeHrDocuments, getHrAssignmentDetail, listHrTemplates,
   assignHrDocument, signHrDocument, markHrDocumentViewed, voidHrAssignment, fillHrDocumentFields,
-  getHrCompletionOverview, notifyHrDocumentCompletion,
+  getHrCompletionOverview, notifyHrDocumentCompletion, archiveHrTemplate, restoreHrTemplate,
   type HrDocumentAssignment, type HrDocumentTemplate, type HrDocCategory,
 } from "@/lib/hr-documents.functions";
 import { listUsers } from "@/lib/users.functions";
@@ -316,7 +316,7 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
   );
 }
 
-function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?: string; onClose: () => void }) {
+function SendDocumentModal({ defaultEmployeeId, defaultTemplateId, onClose }: { defaultEmployeeId?: string; defaultTemplateId?: string; onClose: () => void }) {
   const qc = useQueryClient();
   const listUsersFn = useServerFn(listUsers);
   const listTemplatesFn = useServerFn(listHrTemplates);
@@ -325,7 +325,7 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
   const [employeeId, setEmployeeId] = useState(defaultEmployeeId ?? "");
   const [source, setSource] = useState<"template" | "upload">("template");
   const [templateQuery, setTemplateQuery] = useState("");
-  const [templateId, setTemplateId] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | null>(defaultTemplateId ?? null);
   const [customTitle, setCustomTitle] = useState("");
   const [customFile, setCustomFile] = useState<File | null>(null);
   const [dueDate, setDueDate] = useState("");
@@ -640,11 +640,119 @@ function TrackingPanel({ onOpenAssignment }: { onOpenAssignment: (id: string) =>
   );
 }
 
+// Owner-only — full company guide across all 4 categories, including
+// Operations (which RLS already hides from managers, so this view simply
+// has fewer rows for them rather than needing a second visibility check).
+// Read-only previews + a "Send" shortcut; editing a template's content
+// isn't supported (these are structured documents extracted from the
+// original PDFs, not freeform text — archiving/restoring is the practical
+// lifecycle action, mirroring the existing SOP archive pattern).
+function GuidePanel({ onSendTemplate }: { onSendTemplate: (templateId: string) => void }) {
+  const qc = useQueryClient();
+  const listTemplatesFn = useServerFn(listHrTemplates);
+  const archiveFn = useServerFn(archiveHrTemplate);
+  const restoreFn = useServerFn(restoreHrTemplate);
+  const [query, setQuery] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data: templates = [], isLoading } = useQuery<HrDocumentTemplate[]>({
+    queryKey: ["hr-templates-guide", showArchived],
+    queryFn: () => listTemplatesFn({ data: { includeArchived: showArchived } }) as Promise<HrDocumentTemplate[]>,
+  });
+
+  const archiveM = useMutation({
+    mutationFn: (id: string) => archiveFn({ data: { id, reason: prompt("Reason for archiving (optional)") ?? undefined } }),
+    onSuccess: () => { toast.success("Archived"); qc.invalidateQueries({ queryKey: ["hr-templates-guide"] }); qc.invalidateQueries({ queryKey: ["hr-templates"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to archive"),
+  });
+  const restoreM = useMutation({
+    mutationFn: (id: string) => restoreFn({ data: { id } }),
+    onSuccess: () => { toast.success("Restored"); qc.invalidateQueries({ queryKey: ["hr-templates-guide"] }); qc.invalidateQueries({ queryKey: ["hr-templates"] }); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to restore"),
+  });
+
+  const grouped = useMemo(() => {
+    const lc = query.trim().toLowerCase();
+    const list = lc ? templates.filter((t) => t.title.toLowerCase().includes(lc) || t.doc_code.toLowerCase().includes(lc)) : templates;
+    const byCat: Record<string, HrDocumentTemplate[]> = {};
+    for (const t of list) (byCat[t.category] ??= []).push(t);
+    return byCat;
+  }, [templates, query]);
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the company guide…"
+            className="w-full bg-secondary border border-border rounded-md pl-8 pr-3 py-2 text-sm" />
+        </div>
+        <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground px-2">
+          <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+          Show archived
+        </label>
+      </div>
+
+      {isLoading && <Card>Loading…</Card>}
+      {!isLoading && Object.entries(grouped).map(([cat, list]) => (
+        <div key={cat} className="mb-5">
+          <div className="label-caps text-muted-foreground mb-2">
+            {CATEGORY_LABEL[cat as HrDocCategory]} ({list.length}){cat === "operations" && " · Owner only"}
+          </div>
+          <div className="space-y-2">
+            {list.map((t) => (
+              <Card key={t.id} className={cn("!p-3", t.archived_at && "opacity-60")}>
+                <div className="flex items-start justify-between gap-2">
+                  <button onClick={() => setExpandedId(expandedId === t.id ? null : t.id)} className="text-left">
+                    <div className="font-semibold text-sm">{t.title}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {t.doc_code} · {t.signer_roles.length} signer{t.signer_roles.length === 1 ? "" : "s"}
+                      {t.archived_at && " · Archived"}
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!t.archived_at && (
+                      <button onClick={() => onSendTemplate(t.id)}
+                        className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-2.5 py-1 text-xs font-semibold">
+                        Send
+                      </button>
+                    )}
+                    {t.archived_at ? (
+                      <button onClick={() => restoreM.mutate(t.id)} disabled={restoreM.isPending} className="text-xs text-muted-foreground hover:underline">
+                        Restore
+                      </button>
+                    ) : (
+                      <button onClick={() => archiveM.mutate(t.id)} disabled={archiveM.isPending} className="text-xs text-[var(--color-danger)] hover:underline">
+                        Archive
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {expandedId === t.id && (
+                  <div className="mt-3 pt-3 border-t border-border max-h-72 overflow-y-auto text-xs">
+                    {renderStructuredBlocks(t.body_blocks)}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      ))}
+      {!isLoading && Object.keys(grouped).length === 0 && (
+        <Card><div className="text-center py-8 text-sm text-muted-foreground">No documents match.</div></Card>
+      )}
+    </div>
+  );
+}
+
 function HrDocumentsPage() {
   const { roleId } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
-  const [view, setView] = useState<"mine" | "team" | "tracking">("mine");
+  const isOwner = roleId === "owner";
+  const [view, setView] = useState<"mine" | "team" | "tracking" | "guide">("mine");
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [sendTemplateId, setSendTemplateId] = useState<string | null>(null);
 
   const fetchMine = useServerFn(getMyHrDocuments);
   const { data: mine = [], isLoading } = useQuery<HrDocumentAssignment[]>({
@@ -675,6 +783,13 @@ function HrDocumentsPage() {
                 view === "tracking" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground")}>
               <ClipboardList className="h-3.5 w-3.5" /> Tracking
             </button>
+            {isOwner && (
+              <button onClick={() => setView("guide")}
+                className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border-l border-border",
+                  view === "guide" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground")}>
+                <BookOpen className="h-3.5 w-3.5" /> Guide
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -683,9 +798,13 @@ function HrDocumentsPage() {
         {view === "mine" && (isLoading ? <Card>Loading…</Card> : <AssignmentList assignments={mine} onOpen={setDetailId} />)}
         {view === "team" && isManager && <TeamPanel onOpenAssignment={setDetailId} />}
         {view === "tracking" && isManager && <TrackingPanel onOpenAssignment={setDetailId} />}
+        {view === "guide" && isOwner && <GuidePanel onSendTemplate={setSendTemplateId} />}
       </div>
 
       {detailId && <AssignmentDetailModal id={detailId} onClose={() => setDetailId(null)} />}
+      {sendTemplateId && (
+        <SendDocumentModal defaultTemplateId={sendTemplateId} onClose={() => setSendTemplateId(null)} />
+      )}
     </AppShell>
   );
 }

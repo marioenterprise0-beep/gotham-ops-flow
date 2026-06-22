@@ -20,6 +20,10 @@ export const ARCHIVE_DOMAINS: ArchiveDomain[] = [
     { table: "sop_attachments", column: "sop_id", label: "Attachments" },
     { table: "sop_acknowledgements", column: "sop_id", label: "Acknowledgements" },
   ]},
+  { table: "hr_document_templates", label: "HR Document Templates", ownerOnlyArchive: true, nameColumn: "title", deps: [
+    { table: "hr_document_template_versions", column: "template_id", label: "Versions" },
+    { table: "hr_document_assignments", column: "template_id", label: "Sent assignments" },
+  ]},
   { table: "task_templates", label: "Task Templates", nameColumn: "title", deps: [
     { table: "tasks", column: "template_id", label: "Generated tasks" },
   ]},

@@ -48,6 +48,7 @@ export type HrDocumentTemplate = {
   owner_only: boolean;
   version: number;
   archived_at: string | null;
+  archive_reason: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,18 +58,58 @@ export type HrDocumentTemplate = {
 // category split is enforced at the database layer, not here.
 export const listHrTemplates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ category: z.enum(["onboarding", "training", "hr", "operations"]).optional() }).optional().parse(d ?? {}))
+  .inputValidator((d) =>
+    z
+      .object({ category: z.enum(["onboarding", "training", "hr", "operations"]).optional(), includeArchived: z.boolean().optional() })
+      .optional()
+      .parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     let q = (context.supabase as any)
       .from("hr_document_templates")
-      .select("id, doc_code, category, title, body_blocks, signer_roles, owner_only, version, archived_at, created_at, updated_at")
-      .is("archived_at", null)
+      .select("id, doc_code, category, title, body_blocks, signer_roles, owner_only, version, archived_at, archive_reason, created_at, updated_at")
       .order("category", { ascending: true })
       .order("doc_code", { ascending: true });
+    if (!data?.includeArchived) q = q.is("archived_at", null);
     if (data?.category) q = q.eq("category", data.category);
     const { data: rows, error } = await q;
     if (error) throw error;
     return (rows ?? []) as HrDocumentTemplate[];
+  });
+
+export const archiveHrTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
+    const { error } = await (supabase as any)
+      .from("hr_document_templates")
+      .update({ archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null })
+      .eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "archive_hr_template", entity: "hr_document_template", entity_id: data.id,
+      payload: { reason: data.reason ?? null },
+    });
+    return { ok: true };
+  });
+
+export const restoreHrTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
+    const { error } = await (supabase as any)
+      .from("hr_document_templates")
+      .update({ archived_at: null, archived_by: null, archive_reason: null })
+      .eq("id", data.id);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "restore_hr_template", entity: "hr_document_template", entity_id: data.id, payload: {},
+    });
+    return { ok: true };
   });
 
 const assignInputSchema = z
