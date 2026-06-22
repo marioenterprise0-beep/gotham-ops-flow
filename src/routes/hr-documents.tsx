@@ -108,9 +108,14 @@ const DIRECTOR_LABEL_RE = /director of operations/i;
 
 function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const { userId, roleId } = useRole();
-  const isOwner = roleId === "owner";
-  const isManager = roleId === "owner" || roleId === "manager";
+  const { userId, actualRoleId } = useRole();
+  // Real role, not the effective/"view as" one — signing and voiding are
+  // real actions whose availability shouldn't disappear just because an
+  // owner is previewing the app as another role (the server enforces the
+  // real check regardless; hiding the button here would only confuse the
+  // actual owner without adding any real security).
+  const isOwner = actualRoleId === "owner";
+  const isManager = actualRoleId === "owner" || actualRoleId === "manager";
   const fetchDetail = useServerFn(getHrAssignmentDetail);
   const markViewedFn = useServerFn(markHrDocumentViewed);
   const signFn = useServerFn(signHrDocument);
