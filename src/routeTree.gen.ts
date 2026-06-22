@@ -22,6 +22,7 @@ import { Route as OrderGuideRouteImport } from './routes/order-guide'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
 import { Route as ManagerRouteImport } from './routes/manager'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LocationRequestsRouteImport } from './routes/location-requests'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
@@ -119,6 +120,11 @@ const MyTasksRoute = MyTasksRouteImport.update({
 const ManagerRoute = ManagerRouteImport.update({
   id: '/manager',
   path: '/manager',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocationRequestsRoute = LocationRequestsRouteImport.update({
@@ -317,6 +323,7 @@ export interface FileRoutesByFullPath {
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -365,6 +372,7 @@ export interface FileRoutesByTo {
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -414,6 +422,7 @@ export interface FileRoutesById {
   '/inventory-guide': typeof InventoryGuideRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
+  '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
@@ -464,6 +473,7 @@ export interface FileRouteTypes {
     | '/inventory-guide'
     | '/labor'
     | '/location-requests'
+    | '/maintenance'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -512,6 +522,7 @@ export interface FileRouteTypes {
     | '/inventory-guide'
     | '/labor'
     | '/location-requests'
+    | '/maintenance'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -560,6 +571,7 @@ export interface FileRouteTypes {
     | '/inventory-guide'
     | '/labor'
     | '/location-requests'
+    | '/maintenance'
     | '/manager'
     | '/my-tasks'
     | '/operations'
@@ -609,6 +621,7 @@ export interface RootRouteChildren {
   InventoryGuideRoute: typeof InventoryGuideRoute
   LaborRoute: typeof LaborRoute
   LocationRequestsRoute: typeof LocationRequestsRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   ManagerRoute: typeof ManagerRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
@@ -727,6 +740,13 @@ declare module '@tanstack/react-router' {
       path: '/manager'
       fullPath: '/manager'
       preLoaderRoute: typeof ManagerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/location-requests': {
@@ -985,6 +1005,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryGuideRoute: InventoryGuideRoute,
   LaborRoute: LaborRoute,
   LocationRequestsRoute: LocationRequestsRoute,
+  MaintenanceRoute: MaintenanceRoute,
   ManagerRoute: ManagerRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
@@ -1014,3 +1035,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

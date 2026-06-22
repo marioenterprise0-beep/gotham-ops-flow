@@ -44,6 +44,7 @@ export const ARCHIVE_DOMAINS: ArchiveDomain[] = [
   { table: "checklist_sessions", label: "Checklists", deps: [] },
   { table: "daily_recaps", label: "Daily Recaps", deps: [] },
   { table: "hospitality_incidents", label: "Hospitality Incidents", deps: [] },
+  { table: "maintenance_requests", label: "Maintenance Requests", nameColumn: "title", deps: [] },
   { table: "waste_log", label: "Waste Log", deps: [] },
   { table: "inventory_items", label: "Inventory Items", nameColumn: "name", deps: [
     { table: "inventory_change_requests", column: "item_id", label: "Change requests" },

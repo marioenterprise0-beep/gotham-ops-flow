@@ -34,7 +34,8 @@ export type SyncDomain =
   | "dashboard"
   | "integrity"
   | "prep"
-  | "swaps";
+  | "swaps"
+  | "maintenance";
 
 const MAP: Record<SyncDomain, string[][]> = {
   users:        [["users"], ["employees"], ["my-profile"], ["dashboard-stats"], ["change-log"]],
@@ -56,6 +57,7 @@ const MAP: Record<SyncDomain, string[][]> = {
   hr_documents: [["my-hr-documents"], ["hr-employee-docs"], ["hr-assignment-detail"], ["hr-templates"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   recaps:       [["recaps"], ["recap"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   hospitality:  [["hospitality"], ["dashboard-stats"]],
+  maintenance:  [["maintenance-requests"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   history:      [["change-log"], ["audit-log"], ["access-logs"]],
   dashboard:    [["dashboard-stats"]],
   integrity:    [["integrity-sweep"]],
