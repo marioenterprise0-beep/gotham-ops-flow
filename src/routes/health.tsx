@@ -1,12 +1,13 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { getHealthScore, type HealthScore } from "@/lib/health.functions";
 import { canSee, useRole } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Activity } from "lucide-react";
 import { EmptyState } from "@/components/gotham/EmptyState";
@@ -54,11 +55,29 @@ function HealthPage() {
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const fetch = useServerFn(getHealthScore);
   const [days, setDays] = useState(1);
+  const [hasSession, setHasSession] = useState(false);
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setHasSession(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setHasSession(!!session);
+      if (session) qc.invalidateQueries({ queryKey: ["health"] });
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [qc]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["health", trailerScope, days],
     queryFn: () => fetch({ data: { trailerId: trailerScope ?? null, days } }),
     refetchInterval: 60_000,
+    enabled: hasSession,
   });
 
   return (
