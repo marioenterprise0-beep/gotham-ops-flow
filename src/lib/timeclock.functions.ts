@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 import {
   ensureActiveShiftForTrailer,
@@ -71,9 +72,14 @@ export const clockIn = createServerFn({ method: "POST" })
     // Geofence: when the trailer has coordinates configured, require the
     // caller to be within geofence_radius_m of the trailer. The server
     // re-checks distance so a tampered client can't bypass the limit.
+    // Reads via supabaseAdmin: geofence_* columns are no longer
+    // SELECT-granted to authenticated (see migration 20260621280000) —
+    // every crew member calling clock-in would otherwise need to read raw
+    // trailer GPS coordinates just to get a distance check. Only the
+    // computed distance/name is ever returned to the client below.
     const trailerId = profile?.trailer_id ?? null;
     if (trailerId) {
-      const { data: trailer } = await supabase.from("trailers")
+      const { data: trailer } = await supabaseAdmin.from("trailers")
         .select("geofence_lat, geofence_lng, geofence_radius_m, name")
         .eq("id", trailerId).maybeSingle();
       if (trailer?.geofence_lat != null && trailer?.geofence_lng != null) {

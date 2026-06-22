@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
@@ -137,7 +138,9 @@ export const listTemplateVersions = createServerFn({ method: "GET" })
     const actorIds = Array.from(new Set((rows ?? []).map((r: any) => r.actor_id).filter(Boolean)));
     let actors: Record<string, string> = {};
     if (actorIds.length) {
-      const { data: profs } = await supabase
+      // email is no longer SELECT-granted to authenticated (see migration
+      // 20260621280000) — this read is already behind assertOwner above.
+      const { data: profs } = await supabaseAdmin
         .from("profiles").select("id, display_name, email").in("id", actorIds);
       actors = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.display_name || p.email || "—"]));
     }

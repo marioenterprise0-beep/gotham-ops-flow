@@ -3,6 +3,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
 async function assertManager(supabase: any, userId: string) {
@@ -40,8 +41,11 @@ export const listAuditLogFiltered = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     const ids = Array.from(new Set((rows ?? []).map((r: any) => r.actor_id).filter(Boolean)));
+    // email is no longer SELECT-granted to authenticated (see migration
+    // 20260621280000) — this read is already behind assertManager above,
+    // so the admin client is the right way to get it, not a broader grant.
     const { data: profiles } = ids.length
-      ? await supabase.from("profiles").select("id, display_name, email").in("id", ids as string[])
+      ? await supabaseAdmin.from("profiles").select("id, display_name, email").in("id", ids as string[])
       : { data: [] };
     const nameById = new Map<string, { name: string; email: string }>(
       (profiles ?? []).map((p: any) => [p.id, { name: p.display_name, email: p.email }])

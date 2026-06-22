@@ -10,6 +10,23 @@ async function isOwner(supabase: any, userId: string) {
 
 const ACTION = ["create", "update", "delete", "archive"] as const;
 
+// The legitimate upload flow (EditItemModal.onPickImage, owner-only)
+// always produces a bare storage path like "inventory/<id>/<file>".
+// `payload` here is otherwise-unvalidated client JSON (z.record(any)) —
+// without this, any authenticated user could submit an arbitrary
+// http(s) URL as imageUrl, which SignedImage renders directly via
+// <img src>; once a manager approves the request, every later viewer's
+// browser fetches that attacker-controlled URL (IP/UA leak / tracking).
+function sanitizeImageUrl(v: unknown): string | null {
+  if (typeof v !== "string" || v.trim() === "") return null;
+  return v.includes("://") ? null : v;
+}
+
+function sanitizeChangePayload(payload: Record<string, any>): Record<string, any> {
+  if (!("imageUrl" in payload)) return payload;
+  return { ...payload, imageUrl: sanitizeImageUrl(payload.imageUrl) };
+}
+
 export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -34,6 +51,7 @@ export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
         .maybeSingle();
       trailerId = p?.trailer_id ?? null;
     }
+    const payload = sanitizeChangePayload(data.payload);
     const { data: row, error } = await supabase
       .from("inventory_change_requests")
       .insert({
@@ -41,7 +59,7 @@ export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
         trailer_id: trailerId,
         target_item_id: data.targetItemId ?? null,
         action: data.action,
-        payload: data.payload,
+        payload,
         reason: data.reason ?? null,
       })
       .select("id")
@@ -109,7 +127,9 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
 
     if (data.decision === "approved") {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const p: any = req.payload ?? {};
+      // Re-sanitize defense-in-depth: covers any row inserted before this
+      // check existed, or via any other path into this table.
+      const p: any = sanitizeChangePayload((req.payload as Record<string, any>) ?? {});
       if (req.action === "create") {
         const { data: store } = await supabase
           .from("stores")
@@ -199,7 +219,11 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
       .eq("source_id", data.id)
       .eq("source_module", "inventory");
 
-    // Employee-tier follow-up alert
+    // Targeted at the requester (+ managers) only — NOT "all": this alert
+    // carries the manager's free-text decision note about one specific
+    // employee's request, which has no business being broadcast to the
+    // entire crew. assigned_user_id alone doesn't restrict visibility
+    // (the RLS policy ORs every clause), assigned_role does.
     await supabase.from("alerts").insert({
       type: "manager_note",
       title: `Inventory request ${data.decision}`,
@@ -208,7 +232,7 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
       source_id: req.id,
       created_by: userId,
       assigned_user_id: req.requested_by,
-      assigned_role: "all",
+      assigned_role: "manager",
       priority: "normal",
       status: "pending",
       payload: { change_request_id: req.id, decision: data.decision },
