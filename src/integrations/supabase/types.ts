@@ -3332,6 +3332,7 @@ export type Database = {
         Returns: number
       }
       my_email: { Args: never; Returns: string }
+      my_trailer_id: { Args: never; Returns: string }
       payroll_week_start: { Args: { _d: string }; Returns: string }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
