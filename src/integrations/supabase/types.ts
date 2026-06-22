@@ -1881,6 +1881,7 @@ export type Database = {
           email: string | null
           handbook_acknowledged_at: string | null
           id: string
+          is_super_admin: boolean
           last_login_at: string | null
           sop_accepted_at: string | null
           store_id: string | null
@@ -1898,6 +1899,7 @@ export type Database = {
           email?: string | null
           handbook_acknowledged_at?: string | null
           id: string
+          is_super_admin?: boolean
           last_login_at?: string | null
           sop_accepted_at?: string | null
           store_id?: string | null
@@ -1915,6 +1917,7 @@ export type Database = {
           email?: string | null
           handbook_acknowledged_at?: string | null
           id?: string
+          is_super_admin?: boolean
           last_login_at?: string | null
           sop_accepted_at?: string | null
           store_id?: string | null
