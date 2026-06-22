@@ -27,6 +27,7 @@ export type SyncDomain =
   | "tasks"
   | "sops"
   | "handbook"
+  | "hr_documents"
   | "recaps"
   | "hospitality"
   | "history"
@@ -52,6 +53,7 @@ const MAP: Record<SyncDomain, string[][]> = {
   tasks:        [["tasks"], ["operations"], ["dashboard-stats"]],
   sops:         [["sops"], ["sop-versions"], ["sop-attachments"], ["sop-ack-rollup"], ["my-sop-acks"], ["dashboard-stats"], ["change-log"]],
   handbook:     [["handbook"], ["my-handbook-ack"], ["handbook-ack-rollup"], ["dashboard-stats"], ["change-log"]],
+  hr_documents: [["my-hr-documents"], ["hr-employee-docs"], ["hr-assignment-detail"], ["hr-templates"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   recaps:       [["recaps"], ["recap"], ["alerts"], ["dashboard-stats"], ["change-log"]],
   hospitality:  [["hospitality"], ["dashboard-stats"]],
   history:      [["change-log"], ["audit-log"], ["access-logs"]],

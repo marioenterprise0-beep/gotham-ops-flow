@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, Activity, Banknote, Keyboard, MapPin, Archive, HeartPulse, ChevronLeft, ChevronRight, HardHat, Briefcase, Crown, Utensils, FileText } from "lucide-react";
+import { Home, ClipboardCheck, ClipboardList, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, Activity, Banknote, Keyboard, MapPin, Archive, HeartPulse, ChevronLeft, ChevronRight, HardHat, Briefcase, Crown, Utensils, FileText } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ const ALL_TABS: Tab[] = [
   { to: "/inventory",         key: "inventory",          label: "Inventory",          icon: Boxes },
   { to: "/sops",              key: "sops",               label: "SOPs",               icon: BookOpen },
   { to: "/handbook",          key: "handbook",           label: "Handbook",           icon: FileText },
+  { to: "/hr-documents",      key: "hr-documents",       label: "My HR Documents",    icon: ClipboardList },
   { to: "/hospitality",       key: "hospitality",        label: "Hospitality",        icon: Star },
   { to: "/health",            key: "health",             label: "Health Score",       icon: Activity },
   { to: "/alerts",            key: "alerts",             label: "Alerts",             icon: Bell },
@@ -46,11 +47,11 @@ export type WorkspaceMode = "crew" | "manager" | "owner";
 const MODE_TABS: Record<WorkspaceMode, string[]> = {
   crew: [
     "dashboard", "my-tasks", "time-clock", "cash", "operations",
-    "recaps", "prep-log", "schedule", "inventory", "sops", "handbook", "alerts", "settings",
+    "recaps", "prep-log", "schedule", "inventory", "sops", "handbook", "hr-documents", "alerts", "settings",
   ],
   manager: [
     "dashboard", "my-tasks", "time-clock", "cash", "operations",
-    "recaps", "prep-log", "schedule", "labor", "inventory", "sops", "handbook",
+    "recaps", "prep-log", "schedule", "labor", "inventory", "sops", "handbook", "hr-documents",
     "hospitality", "alerts", "manager", "settings",
   ],
   // Owner sees everything EXCEPT Health Score — it's reached via the

@@ -28,6 +28,7 @@ import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
 import { Route as InventoryChangesRouteImport } from './routes/inventory-changes'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IntegrityRouteImport } from './routes/integrity'
+import { Route as HrDocumentsRouteImport } from './routes/hr-documents'
 import { Route as HospitalityRouteImport } from './routes/hospitality'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as HandbookRouteImport } from './routes/handbook'
@@ -148,6 +149,11 @@ const InventoryRoute = InventoryRouteImport.update({
 const IntegrityRoute = IntegrityRouteImport.update({
   id: '/integrity',
   path: '/integrity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HrDocumentsRoute = HrDocumentsRouteImport.update({
+  id: '/hr-documents',
+  path: '/hr-documents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HospitalityRoute = HospitalityRouteImport.update({
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/hr-documents': typeof HrDocumentsRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/hr-documents': typeof HrDocumentsRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
@@ -399,6 +407,7 @@ export interface FileRoutesById {
   '/handbook': typeof HandbookRoute
   '/health': typeof HealthRoute
   '/hospitality': typeof HospitalityRoute
+  '/hr-documents': typeof HrDocumentsRoute
   '/integrity': typeof IntegrityRoute
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/handbook'
     | '/health'
     | '/hospitality'
+    | '/hr-documents'
     | '/integrity'
     | '/inventory'
     | '/inventory-changes'
@@ -495,6 +505,7 @@ export interface FileRouteTypes {
     | '/handbook'
     | '/health'
     | '/hospitality'
+    | '/hr-documents'
     | '/integrity'
     | '/inventory'
     | '/inventory-changes'
@@ -542,6 +553,7 @@ export interface FileRouteTypes {
     | '/handbook'
     | '/health'
     | '/hospitality'
+    | '/hr-documents'
     | '/integrity'
     | '/inventory'
     | '/inventory-changes'
@@ -590,6 +602,7 @@ export interface RootRouteChildren {
   HandbookRoute: typeof HandbookRoute
   HealthRoute: typeof HealthRoute
   HospitalityRoute: typeof HospitalityRoute
+  HrDocumentsRoute: typeof HrDocumentsRoute
   IntegrityRoute: typeof IntegrityRoute
   InventoryRoute: typeof InventoryRoute
   InventoryChangesRoute: typeof InventoryChangesRoute
@@ -756,6 +769,13 @@ declare module '@tanstack/react-router' {
       path: '/integrity'
       fullPath: '/integrity'
       preLoaderRoute: typeof IntegrityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hr-documents': {
+      id: '/hr-documents'
+      path: '/hr-documents'
+      fullPath: '/hr-documents'
+      preLoaderRoute: typeof HrDocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hospitality': {
@@ -958,6 +978,7 @@ const rootRouteChildren: RootRouteChildren = {
   HandbookRoute: HandbookRoute,
   HealthRoute: HealthRoute,
   HospitalityRoute: HospitalityRoute,
+  HrDocumentsRoute: HrDocumentsRoute,
   IntegrityRoute: IntegrityRoute,
   InventoryRoute: InventoryRoute,
   InventoryChangesRoute: InventoryChangesRoute,

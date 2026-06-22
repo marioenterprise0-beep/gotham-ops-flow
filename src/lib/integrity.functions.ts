@@ -10,7 +10,7 @@ import { requireManager } from "@/lib/auth-guards";
 // Canonical tab keys understood by the nav. Keep in sync with AppShell ALL_TABS.
 export const NAV_TAB_KEYS = [
   "dashboard", "my-tasks", "time-clock", "cash", "operations", "recaps",
-  "schedule", "labor", "inventory", "order-guide", "sops", "handbook", "hospitality",
+  "schedule", "labor", "inventory", "order-guide", "sops", "handbook", "hr-documents", "hospitality",
   "health", "alerts", "manager", "users", "permissions", "audit",
   "change-log", "analytics", "settings",
 ] as const;
