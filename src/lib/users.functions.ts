@@ -151,7 +151,10 @@ export const listUsers = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
     const includeArchived = !!data?.includeArchived;
-    let q = supabase
+    // Use admin client after manager check: column-level REVOKEs on profiles
+    // (archived_at, archive_reason, last_login_at) block authenticated SELECT.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
       .from("profiles")
       .select(
         "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at",
@@ -160,8 +163,8 @@ export const listUsers = createServerFn({ method: "POST" })
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }, { data: trailers }] =
       await Promise.all([
         q,
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.from("trailers").select("id, name").is("archived_at", null),
+        supabaseAdmin.from("user_roles").select("user_id, role"),
+        supabaseAdmin.from("trailers").select("id, name").is("archived_at", null),
       ]);
     if (pErr) throw new Error(pErr.message);
     if (rErr) throw new Error(rErr.message);
