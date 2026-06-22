@@ -94,7 +94,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "electron": "^36.9.5",
+    "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
@@ -102,14 +102,14 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
-    "happy-dom": "^14.0.0",
+    "happy-dom": "^20.10.6",
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
     "sharp": "^0.35.1",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
-    "vitest": "^2.0.0"
+    "vitest": "^4.1.9"
   },
   "pnpm": {
     "overrides": {
