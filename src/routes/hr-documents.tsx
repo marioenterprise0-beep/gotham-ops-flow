@@ -165,7 +165,11 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
     onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
   });
 
-  const isEditable = data && data.status !== "voided" && data.status !== "signed";
+  // Training docs are reference/instructional material (e.g. a Cash
+  // Handling Guide's example denomination table) — their blanks are
+  // illustrative, not real data to capture, so they stay read-only.
+  const isFillableCategory = data?.category !== "training";
+  const isEditable = data && data.status !== "voided" && data.status !== "signed" && isFillableCategory;
   const hasUnsavedAnswers = Object.values(draftValues).some((v) => v.trim() !== "");
 
   function canSign(label: string): boolean {
@@ -175,12 +179,16 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-y-auto" onClick={onClose}>
-      <div className="w-full sm:max-w-2xl rounded-none sm:rounded-xl border border-border bg-card p-5 my-0 sm:my-8" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 mb-4">
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="w-full sm:max-w-2xl max-h-full sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-xl border border-border bg-card my-0 sm:my-8 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-border shrink-0">
           <div className="font-display text-lg">{data?.title ?? "Document"}</div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1"><X className="h-4 w-4" /></button>
         </div>
+        <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0">
 
         {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
 
@@ -193,7 +201,7 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
             )}
 
             {data.body_blocks && (
-              <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border p-4 mb-2">
+              <div className="rounded-md border border-border p-4 mb-2">
                 {renderStructuredBlocks(data.body_blocks, {
                   fieldValues: data.field_values,
                   draftValues,
@@ -201,6 +209,9 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
                   editable: isEditable,
                 })}
               </div>
+            )}
+            {!isFillableCategory && data.body_blocks && (
+              <p className="text-[11px] text-muted-foreground mb-4">This is reference material — nothing to fill in, just review and sign.</p>
             )}
             {isEditable && data.body_blocks && (
               <div className="flex items-center justify-between gap-2 mb-4">
@@ -271,6 +282,7 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );
@@ -348,13 +360,16 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-y-auto" onClick={onClose}>
-      <div className="w-full sm:max-w-2xl rounded-none sm:rounded-xl border border-border bg-card p-5 my-0 sm:my-8" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between gap-3 mb-4">
+    <div className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="w-full sm:max-w-2xl max-h-full sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-xl border border-border bg-card my-0 sm:my-8 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 border-b border-border shrink-0">
           <div className="font-display text-lg">Send a document</div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1"><X className="h-4 w-4" /></button>
         </div>
-
+        <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0">
         <div className="space-y-3">
           <div>
             <div className="label-caps text-muted-foreground mb-1">Employee</div>
@@ -401,7 +416,7 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
                 {templates.length === 0 && <div className="text-xs text-muted-foreground">No templates available.</div>}
               </div>
 
-              {selectedTemplate && (
+              {selectedTemplate && selectedTemplate.category !== "training" && (
                 <div className="mt-3">
                   <p className="text-[11px] text-muted-foreground mb-1.5">
                     Fill in anything you know now — these lock immediately once sent and the employee won't be able to change them. Leave the rest blank for the employee to fill in themselves.
@@ -414,6 +429,9 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
                     })}
                   </div>
                 </div>
+              )}
+              {selectedTemplate && selectedTemplate.category === "training" && (
+                <p className="mt-3 text-[11px] text-muted-foreground">This is reference material — nothing for you to fill in before sending.</p>
               )}
             </div>
           ) : (
@@ -439,6 +457,7 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
             className="w-full rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-sm font-semibold disabled:opacity-40">
             {sendM.isPending || uploading ? "Sending…" : "Send document"}
           </button>
+        </div>
         </div>
       </div>
     </div>

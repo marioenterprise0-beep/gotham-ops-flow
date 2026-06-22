@@ -4,39 +4,63 @@ import type { HandbookBlock } from "@/lib/handbook.functions";
 
 // Source text carries a small, known set of ReportLab-style inline tags —
 // <b>...</b> and <font color='#HEX'>...</font>, sometimes nested (a bold,
-// colored bullet prefix: <b><font color='#b8960c'>Prefix</font></b> rest).
-// Parsed recursively rather than a flat split/regex so nesting renders
-// correctly instead of leaking raw tags as text.
-const INLINE_TAG_RE = /<(b|font)(?:\s+color=['"]?(#[0-9A-Fa-f]{6})['"]?)?>/i;
+// colored bullet prefix: <b><font color='#b8960c'>Prefix</font></b> rest) —
+// AND, far more often, an inline blank embedded mid-sentence ("Overall
+// rating: ______"), not just a paragraph that's blank in its entirety.
+// Both are parsed in one recursive pass so nesting/ordering renders
+// correctly instead of leaking raw tags or missing the blank.
+const INLINE_TOKEN_RE = /<(b|font)(?:\s+color=['"]?(#[0-9A-Fa-f]{6})['"]?)?>|(_{3,})/i;
 
-function renderInline(text: string, keyPrefix = ""): ReactNode[] {
+function renderInline(
+  text: string,
+  blockIndex?: number,
+  fill?: FillContext,
+  keyPrefix = "",
+  blankCounter: { n: number } = { n: 0 },
+): ReactNode[] {
   const nodes: ReactNode[] = [];
   let pos = 0;
   let key = 0;
 
   while (pos < text.length) {
     const rest = text.slice(pos);
-    const open = rest.match(INLINE_TAG_RE);
-    if (!open || open.index === undefined) {
+    const m = rest.match(INLINE_TOKEN_RE);
+    if (!m || m.index === undefined) {
       nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest}</span>);
       break;
     }
-    if (open.index > 0) {
-      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(0, open.index)}</span>);
+    if (m.index > 0) {
+      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(0, m.index)}</span>);
     }
-    const tagName = open[1].toLowerCase();
-    const color = open[2];
-    const afterOpenTag = rest.slice(open.index + open[0].length);
+
+    if (m[3]) {
+      // An inline blank run — only fillable when we know which block this
+      // is; otherwise (e.g. the read-only Handbook) just show the blank.
+      if (blockIndex !== undefined) {
+        const fieldKey = `b${blockIndex}_u${blankCounter.n++}`;
+        nodes.push(
+          <FillSlot key={`${keyPrefix}t${key++}`} fieldKey={fieldKey} placeholder="" fill={fill} className="inline-block w-28 mx-1 align-baseline" />,
+        );
+      } else {
+        nodes.push(<span key={`${keyPrefix}t${key++}`}>{m[3]}</span>);
+      }
+      pos += m.index + m[0].length;
+      continue;
+    }
+
+    const tagName = m[1].toLowerCase();
+    const color = m[2];
+    const afterOpenTag = rest.slice(m.index + m[0].length);
     const closeRe = new RegExp(`</${tagName}>`, "i");
     const close = afterOpenTag.match(closeRe);
     if (!close || close.index === undefined) {
       // Unclosed tag — bail and render the remainder as plain text rather
       // than silently dropping content.
-      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(open.index)}</span>);
+      nodes.push(<span key={`${keyPrefix}t${key++}`}>{rest.slice(m.index)}</span>);
       break;
     }
     const inner = afterOpenTag.slice(0, close.index);
-    const innerNodes = renderInline(inner, `${keyPrefix}${key}-`);
+    const innerNodes = renderInline(inner, blockIndex, fill, `${keyPrefix}${key}-`, blankCounter);
     nodes.push(
       tagName === "b" ? (
         <strong key={`${keyPrefix}t${key++}`}>{innerNodes}</strong>
@@ -44,7 +68,7 @@ function renderInline(text: string, keyPrefix = ""): ReactNode[] {
         <span key={`${keyPrefix}t${key++}`} style={color ? { color } : undefined}>{innerNodes}</span>
       ),
     );
-    pos += open.index + open[0].length + close.index + close[0].length;
+    pos += m.index + m[0].length + close.index + close[0].length;
   }
   return nodes;
 }
@@ -176,7 +200,7 @@ export function StructuredBlock({
           </div>
         );
       }
-      return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text)}</p>;
+      return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text, blockIndex, fill)}</p>;
     case "bullet": {
       const cbSegments = blockIndex !== undefined ? splitCheckboxSegments(block.text) : null;
       if (cbSegments) {
@@ -188,7 +212,7 @@ export function StructuredBlock({
       }
       return (
         <li className="text-sm leading-relaxed text-foreground/90 ml-4 list-disc mb-1">
-          {renderInline(block.text)}
+          {renderInline(block.text, blockIndex, fill)}
         </li>
       );
     }

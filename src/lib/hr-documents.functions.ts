@@ -20,6 +20,7 @@ export type HrDocumentAssignment = {
   employee_id: string;
   template_id: string | null;
   title: string;
+  category: HrDocCategory | null;
   required_signer_roles: string[];
   status: HrAssignmentStatus;
   assigned_by: string;
@@ -99,11 +100,12 @@ export const assignHrDocument = createServerFn({ method: "POST" })
     let title: string;
     let bodyBlocks: HandbookBlock[] | null = null;
     let signerRoles: string[];
+    let category: HrDocCategory | null = null;
 
     if (data.templateId) {
       const { data: tpl, error } = await (supabase as any)
         .from("hr_document_templates")
-        .select("title, body_blocks, signer_roles")
+        .select("title, body_blocks, signer_roles, category")
         .eq("id", data.templateId)
         .maybeSingle();
       if (error) throw error;
@@ -111,6 +113,7 @@ export const assignHrDocument = createServerFn({ method: "POST" })
       title = tpl.title;
       bodyBlocks = tpl.body_blocks;
       signerRoles = tpl.signer_roles ?? [];
+      category = tpl.category ?? null;
     } else {
       title = data.customTitle ?? "Custom document";
       signerRoles = data.customSignerRoles?.length ? data.customSignerRoles : ["Employee Signature"];
@@ -129,6 +132,7 @@ export const assignHrDocument = createServerFn({ method: "POST" })
         employee_id: data.employeeId,
         template_id: data.templateId ?? null,
         title,
+        category,
         body_blocks: bodyBlocks,
         custom_storage_path: data.customStoragePath ?? null,
         custom_content_type: data.customContentType ?? null,
@@ -346,7 +350,7 @@ async function withSignatures(supabase: any, assignments: any[]): Promise<HrDocu
 }
 
 const ASSIGNMENT_COLUMNS =
-  "id, employee_id, template_id, title, required_signer_roles, status, assigned_by, assigned_at, due_date, viewed_at, completed_at, voided_at, void_reason, field_values";
+  "id, employee_id, template_id, title, category, required_signer_roles, status, assigned_by, assigned_at, due_date, viewed_at, completed_at, voided_at, void_reason, field_values";
 
 export const getMyHrDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
