@@ -29,6 +29,7 @@ export type HrDocumentAssignment = {
   completed_at: string | null;
   voided_at: string | null;
   void_reason: string | null;
+  field_values: Record<string, string>;
   signatures: HrDocumentSignature[];
 };
 
@@ -76,6 +77,7 @@ const assignInputSchema = z
     customContentType: z.string().max(120).optional(),
     customSignerRoles: z.array(z.string().min(1).max(120)).max(5).optional(),
     dueDate: z.string().optional(),
+    fieldValues: z.record(z.string().min(1).max(60), z.string().max(2000)).optional(),
   })
   .refine((d) => !!d.templateId !== !!d.customStoragePath, {
     message: "Provide exactly one of templateId or customStoragePath",
@@ -114,6 +116,13 @@ export const assignHrDocument = createServerFn({ method: "POST" })
       signerRoles = data.customSignerRoles?.length ? data.customSignerRoles : ["Employee Signature"];
     }
 
+    // Only non-blank values lock a field — an empty string sent by the form
+    // just means "left blank for now", same rule as fillHrDocumentFields().
+    const initialFieldValues: Record<string, string> = {};
+    for (const [k, v] of Object.entries(data.fieldValues ?? {})) {
+      if (v.trim() !== "") initialFieldValues[k] = v;
+    }
+
     const { data: inserted, error: insErr } = await (supabase as any)
       .from("hr_document_assignments")
       .insert({
@@ -126,6 +135,7 @@ export const assignHrDocument = createServerFn({ method: "POST" })
         required_signer_roles: signerRoles,
         assigned_by: userId,
         due_date: data.dueDate ?? null,
+        field_values: initialFieldValues,
       })
       .select("id")
       .single();
@@ -268,6 +278,59 @@ export const voidHrAssignment = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Once a key has a non-empty value it's permanently locked — silently
+// ignored here rather than erroring, so a manager and employee with the
+// same document open concurrently don't get a confusing failure. This is
+// what lets a manager's write-up details stay un-editable by the employee
+// once filled, without needing per-field role tagging across 53 different
+// document layouts.
+export const fillHrDocumentFields = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        assignmentId: z.string().uuid(),
+        values: z.record(z.string().min(1).max(60), z.string().max(2000)),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: a, error } = await (supabase as any)
+      .from("hr_document_assignments")
+      .select("id, field_values, status")
+      .eq("id", data.assignmentId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!a) throw new Error("Assignment not found");
+    if (a.status === "voided" || a.status === "signed") throw new Error("This document can no longer be edited");
+
+    const existing: Record<string, string> = a.field_values ?? {};
+    const merged = { ...existing };
+    const filledKeys: string[] = [];
+    for (const [key, value] of Object.entries(data.values)) {
+      const current = existing[key];
+      const isLocked = current !== undefined && current !== null && String(current).trim() !== "";
+      if (isLocked) continue;
+      if (value.trim() === "") continue;
+      merged[key] = value;
+      filledKeys.push(key);
+    }
+    if (filledKeys.length === 0) return { ok: true, updated: false };
+
+    const { error: updErr } = await (supabase as any)
+      .from("hr_document_assignments")
+      .update({ field_values: merged })
+      .eq("id", data.assignmentId);
+    if (updErr) throw updErr;
+
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "fill_hr_document_fields", entity: "hr_document_assignment",
+      entity_id: data.assignmentId, payload: { fields: filledKeys },
+    });
+    return { ok: true, updated: true };
+  });
+
 async function withSignatures(supabase: any, assignments: any[]): Promise<HrDocumentAssignment[]> {
   const ids = assignments.map((a) => a.id);
   const { data: sigs } = ids.length
@@ -283,7 +346,7 @@ async function withSignatures(supabase: any, assignments: any[]): Promise<HrDocu
 }
 
 const ASSIGNMENT_COLUMNS =
-  "id, employee_id, template_id, title, required_signer_roles, status, assigned_by, assigned_at, due_date, viewed_at, completed_at, voided_at, void_reason";
+  "id, employee_id, template_id, title, required_signer_roles, status, assigned_by, assigned_at, due_date, viewed_at, completed_at, voided_at, void_reason, field_values";
 
 export const getMyHrDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

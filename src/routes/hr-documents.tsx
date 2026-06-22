@@ -13,10 +13,10 @@ import { useRole } from "@/lib/role";
 import { syncDomains, type SyncDomain } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { renderStructuredBlocks } from "@/components/gotham/StructuredBlocks";
+import { renderStructuredBlocks, type FieldValues } from "@/components/gotham/StructuredBlocks";
 import {
   getMyHrDocuments, getEmployeeHrDocuments, getHrAssignmentDetail, listHrTemplates,
-  assignHrDocument, signHrDocument, markHrDocumentViewed, voidHrAssignment,
+  assignHrDocument, signHrDocument, markHrDocumentViewed, voidHrAssignment, fillHrDocumentFields,
   type HrDocumentAssignment, type HrDocumentTemplate, type HrDocCategory,
 } from "@/lib/hr-documents.functions";
 import { listUsers } from "@/lib/users.functions";
@@ -115,9 +115,11 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
   const markViewedFn = useServerFn(markHrDocumentViewed);
   const signFn = useServerFn(signHrDocument);
   const voidFn = useServerFn(voidHrAssignment);
+  const fillFn = useServerFn(fillHrDocumentFields);
   const [signingRole, setSigningRole] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [draftValues, setDraftValues] = useState<FieldValues>({});
 
   const { data, isLoading } = useQuery<any>({
     queryKey: ["hr-assignment-detail", id],
@@ -147,6 +149,20 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
     onError: (e: any) => toast.error(e?.message ?? "Failed to void"),
   });
 
+  const fillM = useMutation({
+    mutationFn: () => fillFn({ data: { assignmentId: id, values: draftValues } }),
+    onSuccess: () => {
+      toast.success("Answers saved");
+      setDraftValues({});
+      qc.invalidateQueries({ queryKey: ["hr-assignment-detail", id] });
+      syncDomains(qc, ...FANOUT);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
+  });
+
+  const isEditable = data && data.status !== "voided" && data.status !== "signed";
+  const hasUnsavedAnswers = Object.values(draftValues).some((v) => v.trim() !== "");
+
   function canSign(label: string): boolean {
     if (EMPLOYEE_LABEL_RE.test(label)) return data?.employee_id === userId;
     if (DIRECTOR_LABEL_RE.test(label)) return isOwner;
@@ -172,8 +188,22 @@ function AssignmentDetailModal({ id, onClose }: { id: string; onClose: () => voi
             )}
 
             {data.body_blocks && (
-              <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border p-4 mb-4">
-                {renderStructuredBlocks(data.body_blocks)}
+              <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border p-4 mb-2">
+                {renderStructuredBlocks(data.body_blocks, {
+                  fieldValues: data.field_values,
+                  draftValues,
+                  onDraftChange: (key, value) => setDraftValues((prev) => ({ ...prev, [key]: value })),
+                  editable: isEditable,
+                })}
+              </div>
+            )}
+            {isEditable && data.body_blocks && (
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <p className="text-[11px] text-muted-foreground">Gold fields are filled in and locked. Type in the blanks, then save — each answer locks once saved.</p>
+                <button disabled={!hasUnsavedAnswers || fillM.isPending} onClick={() => fillM.mutate()}
+                  className="shrink-0 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
+                  {fillM.isPending ? "Saving…" : "Save answers"}
+                </button>
               </div>
             )}
             {data.fileUrl && (
@@ -255,6 +285,7 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
   const [customFile, setCustomFile] = useState<File | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [fieldValues, setFieldValues] = useState<FieldValues>({});
 
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["users-for-hr-send"],
@@ -273,12 +304,19 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
     return byCat;
   }, [templates, templateQuery]);
 
+  const selectedTemplate = useMemo(() => templates.find((t) => t.id === templateId) ?? null, [templates, templateId]);
+
+  function pickTemplate(t: HrDocumentTemplate) {
+    setTemplateId(t.id);
+    setFieldValues({}); // switching documents clears any in-progress answers for the previous one
+  }
+
   const sendM = useMutation({
     mutationFn: async () => {
       if (!employeeId) throw new Error("Pick an employee");
       if (source === "template") {
         if (!templateId) throw new Error("Pick a document");
-        return assignFn({ data: { employeeId, templateId, dueDate: dueDate || undefined } });
+        return assignFn({ data: { employeeId, templateId, dueDate: dueDate || undefined, fieldValues } });
       }
       if (!customFile) throw new Error("Choose a file to upload");
       if (!customTitle.trim()) throw new Error("Give the document a title");
@@ -346,7 +384,7 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
                     <div className="text-[11px] font-semibold uppercase text-muted-foreground mb-1">{CATEGORY_LABEL[cat as HrDocCategory]}</div>
                     <div className="space-y-1">
                       {list.map((t) => (
-                        <button key={t.id} onClick={() => setTemplateId(t.id)}
+                        <button key={t.id} onClick={() => pickTemplate(t)}
                           className={cn("w-full text-left rounded-md px-2.5 py-1.5 text-sm border",
                             templateId === t.id ? "border-[var(--color-gold)] bg-[var(--color-gold)]/10" : "border-border hover:border-foreground/30")}>
                           {t.title}
@@ -357,6 +395,21 @@ function SendDocumentModal({ defaultEmployeeId, onClose }: { defaultEmployeeId?:
                 ))}
                 {templates.length === 0 && <div className="text-xs text-muted-foreground">No templates available.</div>}
               </div>
+
+              {selectedTemplate && (
+                <div className="mt-3">
+                  <p className="text-[11px] text-muted-foreground mb-1.5">
+                    Fill in anything you know now — these lock immediately once sent and the employee won't be able to change them. Leave the rest blank for the employee to fill in themselves.
+                  </p>
+                  <div className="max-h-56 overflow-y-auto rounded-md border border-border p-3">
+                    {renderStructuredBlocks(selectedTemplate.body_blocks, {
+                      draftValues: fieldValues,
+                      onDraftChange: (key, value) => setFieldValues((prev) => ({ ...prev, [key]: value })),
+                      editable: true,
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

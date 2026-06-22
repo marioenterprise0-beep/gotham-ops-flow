@@ -53,7 +53,60 @@ function isSoleBold(text: string) {
   return /^<b>[\s\S]*<\/b>$/.test(text.trim());
 }
 
-export function StructuredBlock({ block }: { block: HandbookBlock }) {
+// A spot is "fillable" if it's a blank cell/line or a known blank-line
+// convention from the source PDFs (a run of underscores, or a bare
+// "Yes/No" / "Y/N" choice placeholder). Anything more complex (multi-option
+// checkbox rows like "☐ None ☐ Yes") is left as plain text — converting
+// those into real controls reliably would need per-document field tagging,
+// which is out of scope here.
+function isFillablePlaceholder(text: string): boolean {
+  const t = text.trim();
+  if (t === "") return true;
+  if (/^_{3,}$/.test(t)) return true;
+  if (/^(yes\/no|y\/n)$/i.test(t)) return true;
+  return false;
+}
+
+export type FieldValues = Record<string, string>;
+
+export type FillContext = {
+  /** Permanently-saved answers — rendered as locked, read-only text. */
+  fieldValues?: FieldValues;
+  /** Not-yet-saved, in-progress answers — controlled by the caller. */
+  draftValues?: FieldValues;
+  onDraftChange?: (key: string, value: string) => void;
+  /** When false, unfilled blanks render as plain placeholder text (e.g. a signed/voided document, or the read-only Handbook). */
+  editable?: boolean;
+};
+
+function FillSlot({ fieldKey, placeholder, fill, className }: { fieldKey: string; placeholder: string; fill?: FillContext; className?: string }) {
+  const saved = fill?.fieldValues?.[fieldKey];
+  if (saved !== undefined && saved !== null && saved !== "") {
+    return <span className={cn("font-medium text-[var(--color-gold)]", className)}>{saved}</span>;
+  }
+  if (!fill?.editable) {
+    return <span className={cn("text-muted-foreground", className)}>{placeholder}</span>;
+  }
+  return (
+    <input
+      value={fill.draftValues?.[fieldKey] ?? ""}
+      onChange={(e) => fill.onDraftChange?.(fieldKey, e.target.value)}
+      placeholder={placeholder.trim() === "" ? "Type your answer…" : placeholder}
+      className={cn(
+        "w-full min-w-[6rem] bg-secondary border border-[var(--color-gold)]/40 rounded px-1.5 py-0.5 text-sm outline-none focus:border-[var(--color-gold)]",
+        className,
+      )}
+    />
+  );
+}
+
+export function StructuredBlock({
+  block, blockIndex, fill,
+}: {
+  block: HandbookBlock;
+  blockIndex?: number;
+  fill?: FillContext;
+}) {
   switch (block.type) {
     case "heading":
       return (
@@ -65,6 +118,13 @@ export function StructuredBlock({ block }: { block: HandbookBlock }) {
       if (isSoleBold(block.text)) {
         const m = block.text.trim().match(/^<b>([\s\S]*)<\/b>$/);
         return <h4 className="font-semibold text-sm mt-4 mb-1.5">{m ? renderInline(m[1]) : block.text}</h4>;
+      }
+      if (blockIndex !== undefined && isFillablePlaceholder(block.text)) {
+        return (
+          <div className="mb-2">
+            <FillSlot fieldKey={`b${blockIndex}`} placeholder={block.text} fill={fill} />
+          </div>
+        );
       }
       return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text)}</p>;
     case "bullet":
@@ -88,8 +148,12 @@ export function StructuredBlock({ block }: { block: HandbookBlock }) {
               {block.rows.map((row, ri) => (
                 <tr key={ri} className={cn(ri === 0 ? "bg-secondary font-semibold" : ri % 2 ? "bg-card" : "bg-secondary/30")}>
                   {row.map((cell, ci) => (
-                    <td key={ci} className="px-2.5 py-1.5 border-b border-border align-top">
-                      {cell}
+                    <td key={ci} className="px-2.5 py-1.5 border-b border-border align-top min-w-[7rem]">
+                      {ri > 0 && blockIndex !== undefined && isFillablePlaceholder(cell) ? (
+                        <FillSlot fieldKey={`b${blockIndex}_r${ri}_c${ci}`} placeholder={cell} fill={fill} />
+                      ) : (
+                        cell
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -104,9 +168,10 @@ export function StructuredBlock({ block }: { block: HandbookBlock }) {
 }
 
 // Groups consecutive bullet blocks into a single <ul>; everything else
-// renders inline in order. Shared by the Handbook page and the HR document
-// detail view — both render the same HandbookBlock[] shape.
-export function renderStructuredBlocks(blocks: HandbookBlock[]): ReactNode[] {
+// renders inline in order. Shared by the Handbook page (no `fill`, behaves
+// exactly as before) and the HR document detail/send views (pass `fill` to
+// turn blanks into inputs or locked saved-answer text).
+export function renderStructuredBlocks(blocks: HandbookBlock[], fill?: FillContext): ReactNode[] {
   const bullets: HandbookBlock[] = [];
   const out: ReactNode[] = [];
   let key = 0;
@@ -123,15 +188,15 @@ export function renderStructuredBlocks(blocks: HandbookBlock[]): ReactNode[] {
     bullets.length = 0;
   }
 
-  for (const block of blocks) {
-    if (block.type === "other") continue;
+  blocks.forEach((block, blockIndex) => {
+    if (block.type === "other") return;
     if (block.type === "bullet") {
       bullets.push(block);
-      continue;
+      return;
     }
     flushBullets();
-    out.push(<StructuredBlock key={`b-${key++}`} block={block} />);
-  }
+    out.push(<StructuredBlock key={`b-${key++}`} block={block} blockIndex={blockIndex} fill={fill} />);
+  });
   flushBullets();
   return out;
 }
