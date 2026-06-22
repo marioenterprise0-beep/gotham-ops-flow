@@ -962,6 +962,7 @@ export type Database = {
           custom_storage_path: string | null
           due_date: string | null
           employee_id: string
+          field_values: Json
           id: string
           required_signer_roles: string[]
           status: Database["public"]["Enums"]["hr_assignment_status"]
@@ -983,6 +984,7 @@ export type Database = {
           custom_storage_path?: string | null
           due_date?: string | null
           employee_id: string
+          field_values?: Json
           id?: string
           required_signer_roles?: string[]
           status?: Database["public"]["Enums"]["hr_assignment_status"]
@@ -1004,6 +1006,7 @@ export type Database = {
           custom_storage_path?: string | null
           due_date?: string | null
           employee_id?: string
+          field_values?: Json
           id?: string
           required_signer_roles?: string[]
           status?: Database["public"]["Enums"]["hr_assignment_status"]
