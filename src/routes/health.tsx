@@ -55,11 +55,29 @@ function HealthPage() {
   if (!canSee(roleId, "manager")) return <Navigate to="/" />;
   const fetch = useServerFn(getHealthScore);
   const [days, setDays] = useState(1);
+  const [hasSession, setHasSession] = useState(false);
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) setHasSession(!!data.session);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setHasSession(!!session);
+      if (session) qc.invalidateQueries({ queryKey: ["health"] });
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, [qc]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["health", trailerScope, days],
     queryFn: () => fetch({ data: { trailerId: trailerScope ?? null, days } }),
     refetchInterval: 60_000,
+    enabled: hasSession,
   });
 
   return (
