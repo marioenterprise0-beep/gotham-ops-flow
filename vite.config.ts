@@ -19,7 +19,7 @@ export default defineConfig({
       // Lovable's build environment doesn't resolve these from package.json `imports` automatically.
       alias: {
         "#tanstack-start-plugin-adapters": resolve(
-          "node_modules/@tanstack/start-client-core/dist/esm/empty-plugin-adapters.js",
+          "node_modules/@tanstack/start-client-core/dist/esm/fake-entries/plugin-adapters.js",
         ),
         "#tanstack-start-entry": resolve(
           "node_modules/@tanstack/start-client-core/dist/esm/fake-entries/start.js",
