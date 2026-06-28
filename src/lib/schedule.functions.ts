@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 import {
   requireManager as requireManagerRole,
@@ -1019,8 +1020,9 @@ export const claimShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Verify the shift is unassigned
-    const { data: shift } = await supabase
+    // Use admin client to read the shift — crew's RLS scopes schedule_shifts
+    // to their trailer, which would block reading unassigned shifts at other trailers.
+    const { data: shift } = await supabaseAdmin
       .from("schedule_shifts")
       .select("employee_id, trailer_id")
       .eq("id", data.scheduleShiftId)
@@ -1028,8 +1030,8 @@ export const claimShift = createServerFn({ method: "POST" })
     if (!shift) throw new Error("Shift not found");
     if (shift.employee_id) throw new Error("This shift is already assigned");
     // Prevent duplicate pending claim
-    const { data: existing } = await (supabase as any)
-      .from("shift_claim_requests")
+    const { data: existing } = await supabaseAdmin
+      .from("shift_claim_requests" as any)
       .select("id")
       .eq("schedule_shift_id", data.scheduleShiftId)
       .eq("claimant_id", userId)

@@ -1043,7 +1043,6 @@ function ScheduleBoard({
 
       <AnalyticsBar
         totals={totals}
-        scheduleId={scheduleId}
         isMgr={isMgr}
         onSalesTarget={(t) => salesTargetMut.mutate({ id: scheduleId, salesTarget: t })}
       />
@@ -1357,7 +1356,6 @@ function Avatar({ name }: { name: string }) {
 // ============================================================
 function AnalyticsBar({
   totals,
-  scheduleId,
   isMgr,
   onSalesTarget,
 }: {
@@ -1370,7 +1368,6 @@ function AnalyticsBar({
     salesTarget: number | null;
     laborPct: number | null;
   };
-  scheduleId: string;
   isMgr: boolean;
   onSalesTarget: (t: number) => void;
 }) {
