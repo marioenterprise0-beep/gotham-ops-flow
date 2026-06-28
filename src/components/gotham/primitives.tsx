@@ -65,11 +65,12 @@ export function StatusPill({ tone = "neutral", children }: { tone?: Tone; childr
   );
 }
 
-export function MetricStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "gold" | "default" }) {
+export function MetricStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "gold" | "default" | "success" | "danger" }) {
   return (
     <div>
       <div className="label-caps text-muted-foreground">{label}</div>
-      <div className={cn("text-3xl font-semibold tracking-tight mt-1 text-foreground", tone === "gold" && "text-[var(--color-gold)]")}>{value}</div>
+      <div className={cn("text-3xl font-semibold tracking-tight mt-1 text-foreground", tone === "gold" && "text-[var(--color-gold)]", tone === "success" && "text-[var(--color-success)]", tone === "danger" && "text-[var(--color-danger)]")}>{value}</div>
+
       {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
