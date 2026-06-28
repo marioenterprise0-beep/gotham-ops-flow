@@ -1,13 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 import {
   requireManager as requireManagerRole,
   requireOwner as requireOwnerRole,
   requireTabAccess,
 } from "./auth-guards";
-import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const SEGMENT = z.enum(["open", "mid", "close", "custom"]);
@@ -445,6 +443,7 @@ export const transitionSchedule = createServerFn({ method: "POST" })
     // On lock: email every assigned employee their personal shifts
     if (data.action === "lock") {
       try {
+        const { enqueueAlertEmail } = await import("@/lib/email/enqueue.server");
         const { data: sched } = await supabase
           .from("schedules")
           .select("name, start_date, end_date, trailer_id")
@@ -1020,6 +1019,7 @@ export const claimShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Use admin client to read the shift — crew's RLS scopes schedule_shifts
     // to their trailer, which would block reading unassigned shifts at other trailers.
     const { data: shift } = await supabaseAdmin
@@ -1163,6 +1163,8 @@ export const sendShiftReminders = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enqueueAlertEmail } = await import("@/lib/email/enqueue.server");
 
     const reminderFor = data?.reminderFor ?? "tomorrow";
     const targetDate = new Date();

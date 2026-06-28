@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
 
 // Daily shift reminder cron endpoint.
 // pg_cron invokes this at 8 AM and 6 PM UTC (cover morning-of reminders).
@@ -9,6 +8,7 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const { enqueueAlertEmail } = await import("@/lib/email/enqueue.server");
         const expected = process.env.ROLLOVER_DISPATCH_KEY;
         const provided = request.headers.get("x-rollover-key");
         if (!expected || provided !== expected) {

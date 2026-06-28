@@ -51,6 +51,7 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicHooksShiftRemindersRouteImport } from './routes/api/public/hooks/shift-reminders'
 import { Route as ApiPublicHooksEmailQaSelftestRouteImport } from './routes/api/public/hooks/email-qa-selftest'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
 import { Route as ApiPublicHooksDailyDigestRouteImport } from './routes/api/public/hooks/daily-digest'
@@ -270,6 +271,12 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksShiftRemindersRoute =
+  ApiPublicHooksShiftRemindersRouteImport.update({
+    id: '/api/public/hooks/shift-reminders',
+    path: '/api/public/hooks/shift-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksEmailQaSelftestRoute =
   ApiPublicHooksEmailQaSelftestRouteImport.update({
     id: '/api/public/hooks/email-qa-selftest',
@@ -344,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
+  '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -393,6 +401,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
+  '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -443,6 +452,7 @@ export interface FileRoutesById {
   '/api/public/hooks/daily-digest': typeof ApiPublicHooksDailyDigestRoute
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
+  '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -494,6 +504,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
+    | '/api/public/hooks/shift-reminders'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -543,6 +554,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
+    | '/api/public/hooks/shift-reminders'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -592,6 +604,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-digest'
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
+    | '/api/public/hooks/shift-reminders'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -642,6 +655,7 @@ export interface RootRouteChildren {
   ApiPublicHooksDailyDigestRoute: typeof ApiPublicHooksDailyDigestRoute
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
   ApiPublicHooksEmailQaSelftestRoute: typeof ApiPublicHooksEmailQaSelftestRoute
+  ApiPublicHooksShiftRemindersRoute: typeof ApiPublicHooksShiftRemindersRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -945,6 +959,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/shift-reminders': {
+      id: '/api/public/hooks/shift-reminders'
+      path: '/api/public/hooks/shift-reminders'
+      fullPath: '/api/public/hooks/shift-reminders'
+      preLoaderRoute: typeof ApiPublicHooksShiftRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/email-qa-selftest': {
       id: '/api/public/hooks/email-qa-selftest'
       path: '/api/public/hooks/email-qa-selftest'
@@ -1026,6 +1047,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksDailyDigestRoute: ApiPublicHooksDailyDigestRoute,
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
   ApiPublicHooksEmailQaSelftestRoute: ApiPublicHooksEmailQaSelftestRoute,
+  ApiPublicHooksShiftRemindersRoute: ApiPublicHooksShiftRemindersRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
@@ -1035,3 +1057,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
