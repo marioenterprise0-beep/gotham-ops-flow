@@ -16,7 +16,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-rollover-key")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { error } = await supabaseAdmin
           .from("cron_dispatch_config")
-          .upsert({ id: 1, rollover_key: expected, updated_at: new Date().toISOString() });
+          .update({ rollover_key: expected, updated_at: new Date().toISOString() })
+          .eq("id", 1);
         if (error) {
           return new Response(JSON.stringify({ ok: false, error: error.message }), {
             status: 500, headers: { "Content-Type": "application/json" },
