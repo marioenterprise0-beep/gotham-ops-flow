@@ -628,6 +628,27 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_dispatch_config: {
+        Row: {
+          app_url: string
+          id: number
+          rollover_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          app_url: string
+          id?: number
+          rollover_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          app_url?: string
+          id?: number
+          rollover_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_recaps: {
         Row: {
           archive_reason: string | null
