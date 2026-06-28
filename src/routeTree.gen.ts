@@ -51,6 +51,7 @@ import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/l
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
+import { Route as ApiPublicHooksSyncRolloverKeyRouteImport } from './routes/api/public/hooks/sync-rollover-key'
 import { Route as ApiPublicHooksShiftRemindersRouteImport } from './routes/api/public/hooks/shift-reminders'
 import { Route as ApiPublicHooksEmailQaSelftestRouteImport } from './routes/api/public/hooks/email-qa-selftest'
 import { Route as ApiPublicHooksDailyRolloverRouteImport } from './routes/api/public/hooks/daily-rollover'
@@ -271,6 +272,12 @@ const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   path: '/lovable/email/auth/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSyncRolloverKeyRoute =
+  ApiPublicHooksSyncRolloverKeyRouteImport.update({
+    id: '/api/public/hooks/sync-rollover-key',
+    path: '/api/public/hooks/sync-rollover-key',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksShiftRemindersRoute =
   ApiPublicHooksShiftRemindersRouteImport.update({
     id: '/api/public/hooks/shift-reminders',
@@ -352,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
+  '/api/public/hooks/sync-rollover-key': typeof ApiPublicHooksSyncRolloverKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -402,6 +410,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
+  '/api/public/hooks/sync-rollover-key': typeof ApiPublicHooksSyncRolloverKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -453,6 +462,7 @@ export interface FileRoutesById {
   '/api/public/hooks/daily-rollover': typeof ApiPublicHooksDailyRolloverRoute
   '/api/public/hooks/email-qa-selftest': typeof ApiPublicHooksEmailQaSelftestRoute
   '/api/public/hooks/shift-reminders': typeof ApiPublicHooksShiftRemindersRoute
+  '/api/public/hooks/sync-rollover-key': typeof ApiPublicHooksSyncRolloverKeyRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -505,6 +515,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
     | '/api/public/hooks/shift-reminders'
+    | '/api/public/hooks/sync-rollover-key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -555,6 +566,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
     | '/api/public/hooks/shift-reminders'
+    | '/api/public/hooks/sync-rollover-key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -605,6 +617,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/daily-rollover'
     | '/api/public/hooks/email-qa-selftest'
     | '/api/public/hooks/shift-reminders'
+    | '/api/public/hooks/sync-rollover-key'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
@@ -656,6 +669,7 @@ export interface RootRouteChildren {
   ApiPublicHooksDailyRolloverRoute: typeof ApiPublicHooksDailyRolloverRoute
   ApiPublicHooksEmailQaSelftestRoute: typeof ApiPublicHooksEmailQaSelftestRoute
   ApiPublicHooksShiftRemindersRoute: typeof ApiPublicHooksShiftRemindersRoute
+  ApiPublicHooksSyncRolloverKeyRoute: typeof ApiPublicHooksSyncRolloverKeyRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -959,6 +973,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-rollover-key': {
+      id: '/api/public/hooks/sync-rollover-key'
+      path: '/api/public/hooks/sync-rollover-key'
+      fullPath: '/api/public/hooks/sync-rollover-key'
+      preLoaderRoute: typeof ApiPublicHooksSyncRolloverKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/shift-reminders': {
       id: '/api/public/hooks/shift-reminders'
       path: '/api/public/hooks/shift-reminders'
@@ -1048,6 +1069,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksDailyRolloverRoute: ApiPublicHooksDailyRolloverRoute,
   ApiPublicHooksEmailQaSelftestRoute: ApiPublicHooksEmailQaSelftestRoute,
   ApiPublicHooksShiftRemindersRoute: ApiPublicHooksShiftRemindersRoute,
+  ApiPublicHooksSyncRolloverKeyRoute: ApiPublicHooksSyncRolloverKeyRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
