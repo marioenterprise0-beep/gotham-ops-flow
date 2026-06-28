@@ -30,6 +30,7 @@ import { template as announcementPublished } from './announcement-published'
 import { template as criticalAlert } from './critical-alert'
 import { template as dailyDigest } from './daily-digest'
 import { template as nightSummary } from './night-summary'
+import { template as shiftReminder } from './shift-reminder'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -71,4 +72,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'critical-alert': criticalAlert,
   'daily-digest': dailyDigest,
   'night-summary': nightSummary,
+  'shift-reminder': shiftReminder,
 }

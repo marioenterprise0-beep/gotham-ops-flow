@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, CircularProgress, RoleBadge, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import {
-  Activity, AlertTriangle, BellRing, BookOpen, Boxes, Check, ChevronRight, ClipboardList,
+  Activity, AlertTriangle, BellRing, BookOpen, Boxes, CalendarDays, Check, ChevronRight, ClipboardList,
   Clock, Coffee, Download, FileText, FileWarning, Flame, LogIn, LogOut, MapPin,
-  Megaphone, Play, ShieldCheck, Timer, Users, Wallet,
+  Megaphone, Play, ShieldCheck, Timer, TrendingUp, Users, Wallet,
 } from "lucide-react";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { useEffect, useMemo, useState } from "react";
@@ -416,6 +416,54 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
           </div>
         </Card>
       </div>
+
+      {/* 2b · SCHEDULE THIS WEEK */}
+      {stats?.schedule && (
+        <>
+          <SectionHeader
+            eyebrow="This week"
+            title="Schedule"
+            action={<Link to="/schedule" className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">Open schedule</Link>}
+          />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <Card className="p-3">
+              <div className="label-caps text-muted-foreground">Scheduled</div>
+              <div className="font-display text-2xl mt-1">{stats.schedule.scheduledHrs}h</div>
+            </Card>
+            <Card className="p-3">
+              <div className="label-caps text-muted-foreground">Open Shifts</div>
+              <div className={cn("font-display text-2xl mt-1", stats.schedule.openShifts > 0 && "text-[var(--color-warning)]")}>
+                {stats.schedule.openShifts}
+              </div>
+            </Card>
+            <Card className="p-3">
+              <div className="label-caps text-muted-foreground">Proj. Labor</div>
+              <div className="font-display text-2xl mt-1">${stats.schedule.laborCost.toLocaleString()}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="label-caps text-muted-foreground flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" /> Labor %
+              </div>
+              {stats.schedule.laborPct != null ? (
+                <div className={cn(
+                  "font-display text-2xl mt-1",
+                  stats.schedule.laborPct > 35 && "text-[var(--color-danger)]",
+                  stats.schedule.laborPct > 28 && stats.schedule.laborPct <= 35 && "text-[var(--color-warning)]",
+                )}>
+                  {stats.schedule.laborPct}%
+                </div>
+              ) : (
+                <div className="font-display text-2xl mt-1 text-muted-foreground">—</div>
+              )}
+              {!stats.schedule.salesTarget && (
+                <Link to="/schedule" className="text-[10px] text-muted-foreground hover:text-[var(--color-gold)]">
+                  set sales target
+                </Link>
+              )}
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* 3 · MY TASKS */}
       <SectionHeader

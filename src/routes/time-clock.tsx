@@ -17,6 +17,7 @@ import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
 } from "@/lib/timeclock.functions";
+import { listMyScheduleShifts } from "@/lib/schedule.functions";
 import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -55,6 +56,13 @@ function TimeClockPage() {
 
   const { data: active } = useQuery({ queryKey: ["my-active-punch"], queryFn: () => activeFn(), refetchInterval: 30_000 });
   const { data: week } = useQuery({ queryKey: ["my-week"], queryFn: () => weekFn({ data: {} }) });
+
+  const shiftsFn = useServerFn(listMyScheduleShifts);
+  const { data: upcomingShifts = [] } = useQuery<any[]>({
+    queryKey: ["my-shifts"],
+    queryFn: () => shiftsFn({ data: {} }) as Promise<any[]>,
+    enabled: !active,
+  });
 
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
@@ -140,6 +148,23 @@ function TimeClockPage() {
   const elapsed = active?.clock_in_at
     ? Math.max(0, (now.getTime() - new Date(active.clock_in_at).getTime()) / 60000)
     : 0;
+
+  // Next upcoming shift (only relevant when not clocked in)
+  const nextShift = !active
+    ? (upcomingShifts as any[])
+        .filter((s) => s.shift_date >= now.toISOString().slice(0, 10))
+        .sort((a, b) =>
+          a.shift_date !== b.shift_date
+            ? a.shift_date.localeCompare(b.shift_date)
+            : a.start_time.localeCompare(b.start_time),
+        )[0] ?? null
+    : null;
+  const nextShiftStart = nextShift
+    ? new Date(`${nextShift.shift_date}T${nextShift.start_time}`)
+    : null;
+  const minsToWindow = nextShiftStart
+    ? (nextShiftStart.getTime() - now.getTime()) / 60000 - 15
+    : null; // minutes until 15-min window opens
 
   async function getGeo(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
     if (typeof navigator === "undefined" || !navigator.geolocation) return null;
@@ -237,6 +262,57 @@ function TimeClockPage() {
 
       {/* Hidden file input for selfie capture (opens front camera on mobile) */}
       <input ref={selfieRef} type="file" accept="image/*" capture="user" className="hidden" aria-hidden />
+
+      {/* Next shift card — shown when not clocked in */}
+      {!active && nextShift && (
+        <Card className="mt-4 p-4">
+          <div className="label-caps text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Calendar className="h-3 w-3" /> Next Shift
+          </div>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="font-display text-xl">
+                {new Date(nextShift.shift_date + "T00:00:00").toLocaleDateString("en-US", {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </div>
+              <div className="text-sm font-semibold mt-0.5">
+                {(() => {
+                  const [h, m] = nextShift.start_time.split(":").map(Number);
+                  const ampm = h >= 12 ? "PM" : "AM";
+                  const hr = h % 12 || 12;
+                  const [eh, em] = nextShift.end_time.split(":").map(Number);
+                  const eampm = eh >= 12 ? "PM" : "AM";
+                  const ehr = eh % 12 || 12;
+                  return `${hr}:${String(m).padStart(2, "0")} ${ampm} – ${ehr}:${String(em).padStart(2, "0")} ${eampm}`;
+                })()}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5 label-caps">
+                {nextShift.role} · {nextShift.segment}
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              {minsToWindow !== null && minsToWindow > 0 ? (
+                <>
+                  <div className="text-[11px] text-muted-foreground">Clock-in opens in</div>
+                  <div className="font-mono text-sm font-semibold text-[var(--color-gold)]">
+                    {minsToWindow >= 60
+                      ? `${Math.floor(minsToWindow / 60)}h ${Math.round(minsToWindow % 60)}m`
+                      : `${Math.round(minsToWindow)}m`}
+                  </div>
+                </>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--color-success)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+                  Ready to clock in
+                </span>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-6 p-6 text-center">
         <Clock className="h-8 w-8 mx-auto text-[var(--color-gold)]" />

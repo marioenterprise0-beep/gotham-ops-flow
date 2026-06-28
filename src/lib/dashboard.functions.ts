@@ -65,6 +65,39 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { data: crew } = await supabase
       .from("profiles").select("id, display_name").is("archived_at", null).limit(20);
 
+    // Current week schedule stats (Mon–Sun containing today)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const weekStart = monday.toISOString().slice(0, 10);
+    const weekEnd = sunday.toISOString().slice(0, 10);
+
+    const { data: weekShifts } = await supabase
+      .from("schedule_shifts")
+      .select("employee_id, start_time, end_time, schedules!inner(status, sales_target)")
+      .gte("shift_date", weekStart)
+      .lte("shift_date", weekEnd)
+      .is("archived_at", null)
+      .in("schedules.status", ["published", "locked"]);
+
+    let scheduledHrs = 0;
+    let openShifts = 0;
+    let salesTarget: number | null = null;
+    for (const s of weekShifts ?? []) {
+      const [sh, sm] = (s.start_time as string).split(":").map(Number);
+      const [eh, em] = (s.end_time as string).split(":").map(Number);
+      const hrs = (eh * 60 + em - sh * 60 - sm) / 60;
+      scheduledHrs += Math.max(0, hrs);
+      if (!s.employee_id) openShifts++;
+      const st = (s as any).schedules?.sales_target;
+      if (st && !salesTarget) salesTarget = Number(st);
+    }
+    const laborCost = Math.round(scheduledHrs * 17);
+    const laborPct = salesTarget && salesTarget > 0 ? Math.round((laborCost / salesTarget) * 100 * 10) / 10 : null;
+
     return {
       store, shift,
       tasks: { total: totalTasks, done: doneTasks, remaining: Math.max(0, totalTasks - doneTasks) },
@@ -75,5 +108,6 @@ export const getDashboardStats = createServerFn({ method: "GET" })
         items: lowItems.slice(0, 5), // legacy field, kept for existing UI
       },
       crew: crew ?? [],
+      schedule: { scheduledHrs: Math.round(scheduledHrs * 10) / 10, openShifts, laborCost, laborPct, salesTarget, weekStart, weekEnd },
     };
   });

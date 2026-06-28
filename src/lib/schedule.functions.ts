@@ -1149,3 +1149,91 @@ export const myClaimRequests = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+// ---------- Shift reminders ----------
+
+export const sendShiftReminders = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({ reminderFor: z.enum(["today", "tomorrow"]).default("tomorrow") })
+      .optional()
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+
+    const reminderFor = data?.reminderFor ?? "tomorrow";
+    const targetDate = new Date();
+    if (reminderFor === "tomorrow") targetDate.setDate(targetDate.getDate() + 1);
+    const dateStr = targetDate.toISOString().slice(0, 10);
+
+    const { data: shifts } = await supabaseAdmin
+      .from("schedule_shifts")
+      .select(
+        "id, employee_id, shift_date, start_time, end_time, role, segment, schedules!inner(status, trailer_id, trailers(name))",
+      )
+      .eq("shift_date", dateStr)
+      .not("employee_id", "is", null)
+      .in("schedules.status", ["published", "locked"]);
+
+    if (!shifts || shifts.length === 0) return { sent: 0 };
+
+    const byEmployee = new Map<string, typeof shifts>();
+    for (const s of shifts) {
+      const empId = s.employee_id as string;
+      if (!byEmployee.has(empId)) byEmployee.set(empId, []);
+      byEmployee.get(empId)!.push(s);
+    }
+
+    const empIds = Array.from(byEmployee.keys());
+    const { data: profiles } = await supabaseAdmin
+      .from("profiles")
+      .select("id, display_name")
+      .in("id", empIds);
+    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const emailMap = new Map<string, string>(
+      (authUsers?.users ?? []).map((u: any) => [u.id, u.email as string]),
+    );
+    const nameMap = new Map<string, string>(
+      (profiles ?? []).map((p: any) => [p.id as string, (p.display_name ?? "Crew") as string]),
+    );
+
+    let sent = 0;
+    for (const [empId, empShifts] of byEmployee) {
+      const email = emailMap.get(empId);
+      if (!email) continue;
+      const name = nameMap.get(empId) ?? "Crew";
+      const location = (empShifts[0] as any).schedules?.trailers?.name ?? "Gotham Halal";
+      const shiftRows = empShifts
+        .sort((a: any, b: any) => (a.start_time as string).localeCompare(b.start_time as string))
+        .map((s: any) => {
+          const d = new Date((s.shift_date as string) + "T00:00:00");
+          return {
+            date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+            day: d.toLocaleDateString("en-US", { weekday: "short" }),
+            start: s.start_time as string,
+            end: s.end_time as string,
+            role: s.role as string,
+            segment: s.segment as string,
+          };
+        });
+
+      await enqueueAlertEmail({
+        alertId: null,
+        templateName: "shift-reminder",
+        templateData: { recipient_name: name, location, shifts: shiftRows, reminder_for: reminderFor },
+        recipients: [{ user_id: empId, email, display_name: name, role: "crew" as const }],
+        category: "schedule",
+        priority: "normal",
+        subject:
+          reminderFor === "today"
+            ? `You're on today — ${location}`
+            : `Shift tomorrow — ${location}`,
+      });
+      sent++;
+    }
+
+    return { sent, date: dateStr };
+  });
