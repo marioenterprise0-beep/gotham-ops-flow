@@ -297,6 +297,33 @@ export type Database = {
         }
         Relationships: []
       }
+      availability_blocks: {
+        Row: {
+          all_day: boolean
+          block_date: string
+          created_at: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean
+          block_date: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean
+          block_date?: string
+          created_at?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cash_drawer_sessions: {
         Row: {
           archive_reason: string | null
