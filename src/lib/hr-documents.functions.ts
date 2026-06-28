@@ -507,20 +507,29 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
     const { userId } = context;
     const { data: a, error } = await (supabaseAdmin as any)
       .from("hr_document_assignments")
-      .select("id, title, employee_id, status, completed_at")
+      .select("id, title, employee_id, status, completed_at, custom_storage_path")
       .eq("id", data.assignmentId)
       .maybeSingle();
     if (error) throw error;
     if (!a) throw new Error("Assignment not found");
     if (a.status !== "signed") throw new Error("Document is not fully signed yet");
 
-    // Without this, any authenticated user could pass an arbitrary
-    // assignmentId + pdfStoragePath and get hello@/mario@ to receive a
-    // "completed document" email pointing at content they don't control.
-    // Only the assignment's own employee, or a manager/owner, may trigger it.
+    // Only the assignment's own employee, or a manager/owner, may trigger
+    // the compliance email. Defense-in-depth on top of RLS.
     const { data: isMgr } = await supabaseAdmin.rpc("is_manager", { _user_id: userId });
     if (userId !== a.employee_id && !isMgr) {
       throw new Error("Not authorized for this assignment");
+    }
+
+    // Reject attacker-supplied storage paths. The only acceptable values are
+    // the canonical generated path for this assignment, or a manager-curated
+    // custom_storage_path already on the row. This stops a crew member from
+    // pointing the compliance email at arbitrary uploaded files.
+    const canonicalPath = `hr-docs/completed/${data.assignmentId}.pdf`;
+    const allowedPaths = new Set<string>([canonicalPath]);
+    if (a.custom_storage_path) allowedPaths.add(a.custom_storage_path);
+    if (!allowedPaths.has(data.pdfStoragePath)) {
+      throw new Error("Invalid storage path for this assignment");
     }
 
     await (supabaseAdmin as any)
