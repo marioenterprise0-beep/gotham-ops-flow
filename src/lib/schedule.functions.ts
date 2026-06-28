@@ -545,9 +545,9 @@ export const listEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    let profilesQ = supabase
+    let profilesQ = (supabase as any)
       .from("profiles")
-      .select("id, display_name, active, trailer_id")
+      .select("id, display_name, active, trailer_id, weekly_hours")
       .eq("active", true)
       .is("archived_at", null);
     if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
@@ -565,7 +565,7 @@ export const listEmployees = createServerFn({ method: "POST" })
       id: p.id,
       name: p.display_name ?? "Crew",
       roles: roleMap.get(p.id) ?? [],
-      targetHours: 40,
+      targetHours: (p as any).weekly_hours ?? 40,
     }));
   });
 
@@ -965,4 +965,185 @@ export const deleteAvailability = createServerFn({ method: "POST" })
       .eq("block_date", data.blockDate);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+// ---------- Sales target ----------
+
+export const setScheduleSalesTarget = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), salesTarget: z.number().positive() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { error } = await (supabase as any)
+      .from("schedules")
+      .update({ sales_target: data.salesTarget })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Per-employee weekly hours ----------
+
+export const setEmployeeWeeklyHours = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({ employeeId: z.string().uuid(), weeklyHours: z.number().int().min(0).max(80) })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { error } = await (supabase as any)
+      .from("profiles")
+      .update({ weekly_hours: data.weeklyHours })
+      .eq("id", data.employeeId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Open shift claiming ----------
+
+export const claimShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        scheduleShiftId: z.string().uuid(),
+        reason: z.string().max(500).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    // Verify the shift is unassigned
+    const { data: shift } = await supabase
+      .from("schedule_shifts")
+      .select("employee_id, trailer_id")
+      .eq("id", data.scheduleShiftId)
+      .maybeSingle();
+    if (!shift) throw new Error("Shift not found");
+    if (shift.employee_id) throw new Error("This shift is already assigned");
+    // Prevent duplicate pending claim
+    const { data: existing } = await (supabase as any)
+      .from("shift_claim_requests")
+      .select("id")
+      .eq("schedule_shift_id", data.scheduleShiftId)
+      .eq("claimant_id", userId)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (existing) throw new Error("You already have a pending claim for this shift");
+    const { data: row, error } = await (supabase as any)
+      .from("shift_claim_requests")
+      .insert({
+        schedule_shift_id: data.scheduleShiftId,
+        claimant_id: userId,
+        trailer_id: (shift as any).trailer_id ?? null,
+        reason: data.reason ?? null,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    await supabase.from("alerts").insert({
+      type: "schedule_approval",
+      title: "Open shift claim request",
+      description: `A crew member wants to claim an open shift.${data.reason ? ` Reason: ${data.reason}` : ""}`,
+      source_module: "schedule",
+      source_id: row.id,
+      trailer_id: (shift as any).trailer_id ?? null,
+      created_by: userId,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "open",
+    } as any);
+    return row;
+  });
+
+export const listClaimRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ status: z.string().optional() }).optional().parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    let q = (supabase as any)
+      .from("shift_claim_requests")
+      .select("*, schedule_shifts(shift_date, start_time, end_time, role, segment)")
+      .is("archived_at", null)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (data?.status) q = q.eq("status", data.status);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const ids: string[] = Array.from(new Set((rows ?? []).map((r: any) => r.claimant_id as string).filter(Boolean)));
+    let nameMap: Record<string, string> = {};
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ids);
+      nameMap = Object.fromEntries(
+        (profs ?? []).map((p: any) => [p.id, (p as any).display_name ?? "Crew"]),
+      );
+    }
+    return (rows ?? []).map((r: any) => ({ ...r, claimant_name: nameMap[r.claimant_id] ?? "Crew" }));
+  });
+
+export const decideClaimRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        decision: z.enum(["approved", "declined"]),
+        note: z.string().max(500).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { data: claim } = await (supabase as any)
+      .from("shift_claim_requests")
+      .select("claimant_id, schedule_shift_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!claim) throw new Error("Claim not found");
+    const { error } = await (supabase as any)
+      .from("shift_claim_requests")
+      .update({
+        status: data.decision,
+        decided_by: userId,
+        decided_at: new Date().toISOString(),
+        decision_note: data.note ?? null,
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    // On approval, assign the shift to the claimant
+    if (data.decision === "approved") {
+      await supabase
+        .from("schedule_shifts")
+        .update({ employee_id: claim.claimant_id })
+        .eq("id", claim.schedule_shift_id);
+    }
+    return { ok: true };
+  });
+
+export const myClaimRequests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await (supabase as any)
+      .from("shift_claim_requests")
+      .select("*, schedule_shifts(shift_date, start_time, end_time, role, segment)")
+      .is("archived_at", null)
+      .eq("claimant_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });

@@ -21,6 +21,9 @@ import {
   X,
   UserX,
   AlertCircle,
+  Pencil,
+  DollarSign,
+  CalendarCheck,
 } from "lucide-react";
 import { Card, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
@@ -36,6 +39,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -62,6 +66,13 @@ import {
   listAvailabilityForRange,
   upsertAvailability,
   deleteAvailability,
+  setScheduleSalesTarget,
+  setEmployeeWeeklyHours,
+  claimShift,
+  listClaimRequests,
+  decideClaimRequest,
+  myClaimRequests,
+  listMyScheduleShifts,
 } from "@/lib/schedule.functions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { syncDomains } from "@/lib/sync-bus";
@@ -197,12 +208,17 @@ function SchedulePage() {
   return (
     <AppShell>
       <div className="-mx-4 px-4">
-        <Tabs defaultValue="schedule">
+        <Tabs defaultValue={isMgr ? "schedule" : "myshifts"}>
           <div className="flex items-center gap-3 mb-3">
             <TabsList>
+              {!isMgr && (
+                <TabsTrigger value="myshifts" className="flex items-center gap-1.5">
+                  <CalendarCheck className="h-3.5 w-3.5" /> My Shifts
+                </TabsTrigger>
+              )}
               <TabsTrigger value="schedule">Schedule</TabsTrigger>
               <TabsTrigger value="swaps" className="flex items-center gap-1.5">
-                <ArrowLeftRight className="h-3.5 w-3.5" /> Swaps
+                <ArrowLeftRight className="h-3.5 w-3.5" /> Requests
               </TabsTrigger>
             </TabsList>
           </div>
@@ -261,8 +277,14 @@ function SchedulePage() {
             )}
           </TabsContent>
 
+          {!isMgr && (
+            <TabsContent value="myshifts">
+              <MyShiftsPanel />
+            </TabsContent>
+          )}
+
           <TabsContent value="swaps">
-            <SwapRequestsPanel isMgr={isMgr} />
+            <RequestsPanel isMgr={isMgr} />
           </TabsContent>
         </Tabs>
       </div>
@@ -617,6 +639,9 @@ function ScheduleBoard({
   const markUnavail = useServerFn(upsertAvailability);
   const clearUnavail = useServerFn(deleteAvailability);
   const requestSwapFn = useServerFn(requestShiftSwap);
+  const claimShiftFn = useServerFn(claimShift);
+  const setSalesTargetFn = useServerFn(setScheduleSalesTarget);
+  const setWeeklyHoursFn = useServerFn(setEmployeeWeeklyHours);
 
   const { data, isLoading } = useQuery({
     queryKey: ["schedule", scheduleId, trailerScope],
@@ -634,10 +659,16 @@ function ScheduleBoard({
 
   const [editing, setEditing] = useState<any | null>(null);
   const [swapDialogShift, setSwapDialogShift] = useState<any | null>(null);
+  const [claimDialogShift, setClaimDialogShift] = useState<any | null>(null);
   const [availDialog, setAvailDialog] = useState<{
     userId: string;
     date: string;
     existing: any | null;
+  } | null>(null);
+  const [hoursDialog, setHoursDialog] = useState<{
+    empId: string;
+    name: string;
+    current: number;
   } | null>(null);
 
   const invalidate = () => syncDomains(qc, "schedule", "labor");
@@ -692,6 +723,33 @@ function ScheduleBoard({
       toast.success("Swap request sent to manager");
       syncDomains(qc, "swaps");
       setSwapDialogShift(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const claimMut = useMutation({
+    mutationFn: (v: { scheduleShiftId: string; reason?: string }) => claimShiftFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Claim request sent to manager");
+      syncDomains(qc, "schedule", "swaps");
+      setClaimDialogShift(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const salesTargetMut = useMutation({
+    mutationFn: (v: { id: string; salesTarget: number }) => setSalesTargetFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Sales target saved");
+      syncDomains(qc, "schedule");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const weeklyHoursMut = useMutation({
+    mutationFn: (v: { employeeId: string; weeklyHours: number }) =>
+      setWeeklyHoursFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Weekly hours updated");
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      setHoursDialog(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -781,8 +839,10 @@ function ScheduleBoard({
             ),
           )
         : 0;
-    const laborCost = scheduledHrs * 17; // assumed avg
-    return { scheduledHrs, openShifts, otHrs, coveragePct, laborCost };
+    const laborCost = scheduledHrs * 17; // assumed avg $17/hr
+    const salesTarget = (schedule as any)?.sales_target ?? null;
+    const laborPct = salesTarget && salesTarget > 0 ? (laborCost / salesTarget) * 100 : null;
+    return { scheduledHrs, openShifts, otHrs, coveragePct, laborCost, salesTarget, laborPct };
   }, [shifts, days, startStr, endStr]);
 
   if (isLoading || !schedule) {
@@ -866,10 +926,10 @@ function ScheduleBoard({
                         <div className="text-[10px] label-caps text-muted-foreground truncate">
                           {emp.roles.slice(0, 2).join(" · ") || "—"}
                         </div>
-                        <div className="mt-1 flex items-center gap-1.5">
+                        <div className="mt-1 flex items-center gap-1.5 group/hrs">
                           <span
                             className={cn(
-                              "inline-block h-1.5 w-1.5 rounded-full",
+                              "inline-block h-1.5 w-1.5 rounded-full shrink-0",
                               tone === "ok" && "bg-[var(--color-success)]",
                               tone === "warn" && "bg-[var(--color-warning)]",
                               tone === "over" && "bg-[var(--color-danger)]",
@@ -885,6 +945,17 @@ function ScheduleBoard({
                           >
                             {hrs.toFixed(1)} / {target}h
                           </span>
+                          {isMgr && (
+                            <button
+                              onClick={() =>
+                                setHoursDialog({ empId: emp.id, name: emp.name, current: target })
+                              }
+                              className="opacity-0 group-hover/hrs:opacity-100 transition-opacity"
+                              title="Set weekly hours target"
+                            >
+                              <Pencil className="h-2.5 w-2.5 text-muted-foreground hover:text-[var(--color-gold)]" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -928,6 +999,7 @@ function ScheduleBoard({
                         onEdit={(s) => setEditing(s)}
                         onDup={(s) => dupMut.mutate(s.id)}
                         onSwap={(s) => setSwapDialogShift(s)}
+                        onClaim={(s) => setClaimDialogShift(s)}
                       />
                     );
                   })}
@@ -941,6 +1013,8 @@ function ScheduleBoard({
               grid={grid}
               status={status}
               canEdit={canEdit}
+              currentUserId={currentUserId}
+              isMgr={isMgr}
               onAdd={(d) =>
                 setEditing({
                   schedule_id: scheduleId,
@@ -955,6 +1029,7 @@ function ScheduleBoard({
               }
               onEdit={(s) => setEditing(s)}
               onDup={(s) => dupMut.mutate(s.id)}
+              onClaim={(s) => setClaimDialogShift(s)}
             />
 
             {visibleEmployees.length === 0 && (
@@ -966,7 +1041,12 @@ function ScheduleBoard({
         </div>
       </Card>
 
-      <AnalyticsBar totals={totals} />
+      <AnalyticsBar
+        totals={totals}
+        scheduleId={scheduleId}
+        isMgr={isMgr}
+        onSalesTarget={(t) => salesTargetMut.mutate({ id: scheduleId, salesTarget: t })}
+      />
 
       <ShiftEditDialog
         shift={editing}
@@ -986,6 +1066,20 @@ function ScheduleBoard({
         onClose={() => setSwapDialogShift(null)}
         onSubmit={(shiftId, reason) => swapMut.mutate({ scheduleShiftId: shiftId, reason })}
         isPending={swapMut.isPending}
+      />
+
+      <ClaimShiftDialog
+        shift={claimDialogShift}
+        onClose={() => setClaimDialogShift(null)}
+        onSubmit={(shiftId, reason) => claimMut.mutate({ scheduleShiftId: shiftId, reason })}
+        isPending={claimMut.isPending}
+      />
+
+      <WeeklyHoursDialog
+        entry={hoursDialog}
+        onClose={() => setHoursDialog(null)}
+        onSave={(empId, hrs) => weeklyHoursMut.mutate({ employeeId: empId, weeklyHours: hrs })}
+        isPending={weeklyHoursMut.isPending}
       />
 
       <AvailabilityDialog
@@ -1012,6 +1106,7 @@ function Cell({
   onEdit,
   onDup,
   onSwap,
+  onClaim,
 }: {
   canEdit: boolean;
   shifts: any[];
@@ -1025,6 +1120,7 @@ function Cell({
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
   onSwap: (s: any) => void;
+  onClaim?: (s: any) => void;
 }) {
   const locked = status === "locked" || status === "published";
   const canToggleAvail = isOwnRow && !isMgr && !locked;
@@ -1066,6 +1162,7 @@ function Cell({
             onEdit={onEdit}
             onDup={onDup}
             onSwap={onSwap}
+            onClaim={onClaim}
           />
         ))}
         {canEdit && (
@@ -1097,6 +1194,7 @@ function ShiftCard({
   onEdit,
   onDup,
   onSwap,
+  onClaim,
 }: {
   shift: any;
   status: Status;
@@ -1105,6 +1203,7 @@ function ShiftCard({
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
   onSwap: (s: any) => void;
+  onClaim?: (s: any) => void;
 }) {
   const bg = SEG_BG[shift.segment] ?? SEG_BG.custom;
   const fg = SEG_FG[shift.segment] ?? SEG_FG.custom;
@@ -1162,6 +1261,17 @@ function ShiftCard({
               <ArrowLeftRight className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
             </button>
           )}
+          {!shift.employee_id && !canEdit && onClaim && status === "published" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClaim(shift);
+              }}
+              title="Claim this shift"
+            >
+              <CalendarCheck className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
+            </button>
+          )}
         </div>
       </div>
       <div className="text-[10px] label-caps opacity-90 leading-tight mt-0.5 truncate">
@@ -1176,17 +1286,23 @@ function UnassignedRow({
   grid,
   status,
   canEdit,
+  currentUserId,
+  isMgr,
   onAdd,
   onEdit,
   onDup,
+  onClaim,
 }: {
   days: string[];
   grid: Map<string, any[]>;
   status: Status;
   canEdit: boolean;
+  currentUserId: string | null;
+  isMgr: boolean;
   onAdd: (d: string) => void;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onClaim: (s: any) => void;
 }) {
   const hasAny = days.some((d) => (grid.get(`unassigned|${d}`) ?? []).length > 0);
   if (!hasAny && !canEdit) return null;
@@ -1209,13 +1325,14 @@ function UnassignedRow({
             status={status}
             availBlock={null}
             isOwnRow={false}
-            isMgr={canEdit}
-            currentUserId={null}
+            isMgr={isMgr}
+            currentUserId={currentUserId}
             onAdd={() => onAdd(d)}
             onAvailToggle={() => {}}
             onEdit={onEdit}
             onDup={onDup}
             onSwap={() => {}}
+            onClaim={onClaim}
           />
         );
       })}
@@ -1240,6 +1357,9 @@ function Avatar({ name }: { name: string }) {
 // ============================================================
 function AnalyticsBar({
   totals,
+  scheduleId,
+  isMgr,
+  onSalesTarget,
 }: {
   totals: {
     scheduledHrs: number;
@@ -1247,8 +1367,25 @@ function AnalyticsBar({
     otHrs: number;
     coveragePct: number;
     laborCost: number;
+    salesTarget: number | null;
+    laborPct: number | null;
   };
+  scheduleId: string;
+  isMgr: boolean;
+  onSalesTarget: (t: number) => void;
 }) {
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState("");
+
+  const laborPctTone =
+    totals.laborPct == null
+      ? undefined
+      : totals.laborPct > 35
+        ? "danger"
+        : totals.laborPct > 28
+          ? "warning"
+          : undefined;
+
   const items = [
     { label: "Scheduled", value: `${totals.scheduledHrs.toFixed(0)}h` },
     { label: "Coverage", value: `${totals.coveragePct}%` },
@@ -1263,8 +1400,8 @@ function AnalyticsBar({
       tone: totals.openShifts > 0 ? "warning" : undefined,
     },
     { label: "Projected Labor", value: `$${Math.round(totals.laborCost).toLocaleString()}` },
-    { label: "Labor %", value: "—", sub: "set sales target" },
   ];
+
   return (
     <div className="sticky bottom-0 lg:bottom-3 mt-3 z-10">
       <Card className="surface-dark border-[#1C1C1C] text-white p-3">
@@ -1281,9 +1418,67 @@ function AnalyticsBar({
               >
                 {i.value}
               </div>
-              {i.sub && <div className="text-[10px] text-white/40">{i.sub}</div>}
             </div>
           ))}
+
+          {/* Labor % with inline sales target editing */}
+          <div className="min-w-0">
+            <div className="text-[10px] label-caps text-white/50">Labor %</div>
+            {totals.laborPct != null ? (
+              <div
+                className={cn(
+                  "text-lg font-semibold tracking-tight",
+                  laborPctTone === "danger" && "text-[var(--color-danger)]",
+                  laborPctTone === "warning" && "text-[var(--color-warning)]",
+                )}
+              >
+                {totals.laborPct.toFixed(1)}%
+              </div>
+            ) : (
+              <div className="text-lg font-semibold text-white/40">—</div>
+            )}
+            {isMgr && !editingTarget && (
+              <button
+                onClick={() => {
+                  setTargetInput(totals.salesTarget ? String(totals.salesTarget) : "");
+                  setEditingTarget(true);
+                }}
+                className="flex items-center gap-1 text-[10px] text-white/40 hover:text-[var(--color-gold)] transition mt-0.5"
+              >
+                <DollarSign className="h-2.5 w-2.5" />
+                {totals.salesTarget
+                  ? `$${Math.round(totals.salesTarget).toLocaleString()} target`
+                  : "set sales target"}
+              </button>
+            )}
+            {isMgr && editingTarget && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const n = parseFloat(targetInput.replace(/[^0-9.]/g, ""));
+                  if (!isNaN(n) && n > 0) {
+                    onSalesTarget(n);
+                    setEditingTarget(false);
+                  }
+                }}
+                className="flex items-center gap-1 mt-1"
+              >
+                <input
+                  autoFocus
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                  placeholder="e.g. 8000"
+                  className="w-20 text-[11px] bg-white/10 border border-white/20 rounded px-1.5 py-0.5 text-white placeholder-white/30 focus:outline-none focus:border-[var(--color-gold)]"
+                />
+                <button type="submit" className="text-[var(--color-gold)]">
+                  <Check className="h-3 w-3" />
+                </button>
+                <button type="button" onClick={() => setEditingTarget(false)}>
+                  <X className="h-3 w-3 text-white/40" />
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -1669,160 +1864,303 @@ const SWAP_STATUS_TONE: Record<string, "neutral" | "warning" | "success" | "dang
   cancelled: "neutral",
 };
 
-function SwapRequestsPanel({ isMgr }: { isMgr: boolean }) {
+function RequestsPanel({ isMgr }: { isMgr: boolean }) {
   const qc = useQueryClient();
   const { session } = useRole();
   const listMgrFn = useServerFn(listSwapRequests);
   const listMyFn = useServerFn(mySwapRequests);
   const decideFn = useServerFn(decideSwapRequest);
-  const requestFn = useServerFn(requestShiftSwap);
+  const listClaimsFn = useServerFn(listClaimRequests);
+  const myClaimsFn = useServerFn(myClaimRequests);
+  const decideClaimFn = useServerFn(decideClaimRequest);
 
-  const { data: swaps = [], isLoading } = useQuery({
+  const { data: swaps = [], isLoading: swapsLoading } = useQuery({
     queryKey: isMgr ? ["swap-requests"] : ["my-swaps"],
     queryFn: () => (isMgr ? (listMgrFn({ data: {} }) as any) : (listMyFn() as any)),
     enabled: !!session,
   });
 
-  const [showForm, setShowForm] = useState(false);
-  const [schedShiftId, setSchedShiftId] = useState("");
-  const [swapReason, setSwapReason] = useState("");
+  const { data: claims = [], isLoading: claimsLoading } = useQuery({
+    queryKey: isMgr ? ["claim-requests"] : ["my-claims"],
+    queryFn: () =>
+      isMgr ? (listClaimsFn({ data: {} }) as any) : (myClaimsFn() as any),
+    enabled: !!session,
+  });
 
-  const decideMut = useMutation({
+  const swapDecideMut = useMutation({
     mutationFn: (v: { id: string; decision: "approved" | "declined"; note?: string }) =>
       decideFn({ data: v }),
     onSuccess: () => {
       toast.success("Decision saved");
-      syncDomains(qc, "swaps");
+      syncDomains(qc, "swaps", "schedule");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const requestMut = useMutation({
-    mutationFn: () =>
-      requestFn({ data: { scheduleShiftId: schedShiftId, reason: swapReason || undefined } }),
+  const claimDecideMut = useMutation({
+    mutationFn: (v: { id: string; decision: "approved" | "declined"; note?: string }) =>
+      decideClaimFn({ data: v }),
     onSuccess: () => {
-      toast.success("Swap request sent to manager");
-      setShowForm(false);
-      setSchedShiftId("");
-      setSwapReason("");
-      syncDomains(qc, "swaps");
+      toast.success("Decision saved");
+      syncDomains(qc, "swaps", "schedule");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const renderRequestCard = (req: any, type: "swap" | "claim") => {
+    const isSwap = type === "swap";
+    const mutate = isSwap ? swapDecideMut : claimDecideMut;
+    return (
+      <Card key={req.id} className="p-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              {isSwap ? (
+                <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              ) : (
+                <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              )}
+              <span className="text-[10px] label-caps text-muted-foreground">
+                {isSwap ? "swap" : "open shift claim"}
+              </span>
+            </div>
+            <div className="font-semibold text-sm">
+              {isSwap ? (req.requester_name ?? "Me") : (req.claimant_name ?? "Crew")} → shift on{" "}
+              {req.schedule_shifts?.shift_date ?? "—"}
+              {req.schedule_shifts?.start_time
+                ? ` (${fmtTime12(req.schedule_shifts.start_time)}–${fmtTime12(req.schedule_shifts.end_time)})`
+                : ""}
+            </div>
+            {req.reason && (
+              <div className="text-xs text-muted-foreground mt-0.5">"{req.reason}"</div>
+            )}
+            {req.decision_note && (
+              <div className="text-xs text-[var(--color-warning)] mt-0.5">
+                Note: {req.decision_note}
+              </div>
+            )}
+            <div className="text-[10px] label-caps text-muted-foreground mt-1">
+              {new Date(req.created_at).toLocaleDateString()}
+              {req.decided_at && ` · decided ${new Date(req.decided_at).toLocaleDateString()}`}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusPill tone={SWAP_STATUS_TONE[req.status] ?? "neutral"}>{req.status}</StatusPill>
+            {isMgr && req.status === "pending" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => mutate.mutate({ id: req.id, decision: "approved" })}
+                  disabled={mutate.isPending}
+                  className="text-[var(--color-success)] border-[var(--color-success)]"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => mutate.mutate({ id: req.id, decision: "declined" })}
+                  disabled={mutate.isPending}
+                  className="text-[var(--color-danger)] border-[var(--color-danger)]"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  };
+
+  const allRequests = [
+    ...(swaps as any[]).map((r: any) => ({ ...r, _type: "swap" })),
+    ...(claims as any[]).map((r: any) => ({ ...r, _type: "claim" })),
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  const isLoading = swapsLoading || claimsLoading;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="font-display text-lg">{isMgr ? "Swap Requests" : "My Swap Requests"}</div>
-        {!isMgr && (
-          <Button size="sm" onClick={() => setShowForm((v) => !v)} variant="outline">
-            <ArrowLeftRight className="h-3.5 w-3.5 mr-1.5" /> Request Swap
-          </Button>
-        )}
+      <div className="font-display text-lg">
+        {isMgr ? "Swap & Claim Requests" : "My Requests"}
       </div>
 
-      {!isMgr && showForm && (
-        <Card className="p-4 space-y-3">
-          <div className="font-semibold text-sm">New Swap Request</div>
-          <div>
-            <Label>Schedule Shift ID</Label>
-            <Input
-              value={schedShiftId}
-              onChange={(e) => setSchedShiftId(e.target.value)}
-              placeholder="Paste your shift ID from the schedule"
-            />
-            <div className="text-[11px] text-muted-foreground mt-1">
-              Find this in your shift details (hover a shift block).
-            </div>
-          </div>
-          <div>
-            <Label>Reason (optional)</Label>
-            <Textarea
-              value={swapReason}
-              onChange={(e) => setSwapReason(e.target.value)}
-              placeholder="Why do you need to swap this shift?"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => requestMut.mutate()}
-              disabled={!schedShiftId || requestMut.isPending}
-              className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-            >
-              <Send className="h-3.5 w-3.5 mr-1.5" /> Send Request
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </Card>
-      )}
+      {isLoading && <Card className="p-4 text-sm text-muted-foreground">Loading…</Card>}
 
-      {isLoading && <Card>Loading…</Card>}
-
-      {!isLoading && (swaps as any[]).length === 0 && (
+      {!isLoading && allRequests.length === 0 && (
         <Card className="py-10 text-center text-sm text-muted-foreground">
-          No swap requests yet.
+          No requests yet.
         </Card>
       )}
 
       <div className="space-y-2">
-        {(swaps as any[]).map((req: any) => (
-          <Card key={req.id} className="p-3">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div className="min-w-0">
-                <div className="font-semibold text-sm">
-                  {req.requester_name ?? "Me"} → shift on{" "}
-                  {req.schedule_shifts?.shift_date ?? req.shift_date ?? "—"}
-                  {req.schedule_shifts?.start_time
-                    ? ` (${fmtTime12(req.schedule_shifts.start_time)}–${fmtTime12(req.schedule_shifts.end_time)})`
-                    : ""}
-                </div>
-                {req.reason && (
-                  <div className="text-xs text-muted-foreground mt-0.5">"{req.reason}"</div>
-                )}
-                {req.decision_note && (
-                  <div className="text-xs text-[var(--color-warning)] mt-0.5">
-                    Note: {req.decision_note}
-                  </div>
-                )}
-                <div className="text-[10px] label-caps text-muted-foreground mt-1">
-                  {new Date(req.created_at).toLocaleDateString()}
-                  {req.decided_at && ` · decided ${new Date(req.decided_at).toLocaleDateString()}`}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusPill tone={SWAP_STATUS_TONE[req.status] ?? "neutral"}>
-                  {req.status}
-                </StatusPill>
-                {isMgr && req.status === "pending" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => decideMut.mutate({ id: req.id, decision: "approved" })}
-                      disabled={decideMut.isPending}
-                      className="text-[var(--color-success)] border-[var(--color-success)]"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => decideMut.mutate({ id: req.id, decision: "declined" })}
-                      disabled={decideMut.isPending}
-                      className="text-[var(--color-danger)] border-[var(--color-danger)]"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
+        {allRequests.map((r) => renderRequestCard(r, r._type as "swap" | "claim"))}
       </div>
     </div>
+  );
+}
+
+// ============================================================
+function MyShiftsPanel() {
+  const { session } = useRole();
+  const listMyFn = useServerFn(listMyScheduleShifts);
+
+  const { data: shifts = [], isLoading } = useQuery({
+    queryKey: ["my-shifts"],
+    queryFn: () => listMyFn({ data: {} }) as any,
+    enabled: !!session,
+  });
+
+  const upcoming = (shifts as any[])
+    .filter((s: any) => s.shift_date >= new Date().toISOString().slice(0, 10))
+    .sort((a: any, b: any) => a.shift_date.localeCompare(b.shift_date) || a.start_time.localeCompare(b.start_time));
+
+  return (
+    <div className="space-y-3">
+      <div className="font-display text-lg">My Upcoming Shifts</div>
+      {isLoading && <Card className="p-4 text-sm text-muted-foreground">Loading…</Card>}
+      {!isLoading && upcoming.length === 0 && (
+        <Card className="py-10 text-center text-sm text-muted-foreground">
+          No upcoming shifts scheduled.
+        </Card>
+      )}
+      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+        {upcoming.map((s: any) => {
+          const bg = SEG_BG[s.segment] ?? SEG_BG.custom;
+          const fg = SEG_FG[s.segment] ?? SEG_FG.custom;
+          const date = new Date(s.shift_date + "T00:00:00");
+          return (
+            <div
+              key={s.id}
+              className="rounded-xl p-4 space-y-1"
+              style={{ background: bg, color: fg }}
+            >
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">
+                {date.toLocaleDateString("en-US", { weekday: "long" })}
+              </div>
+              <div className="font-display text-xl font-bold">
+                {date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </div>
+              <div className="text-sm font-semibold">
+                {fmtTime12(s.start_time)} – {fmtTime12(s.end_time)}
+              </div>
+              <div className="text-[11px] label-caps opacity-80">
+                {s.role} · {s.segment}
+              </div>
+              {s.break_minutes > 0 && (
+                <div className="text-[11px] opacity-70">{s.break_minutes}m break</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+function ClaimShiftDialog({
+  shift,
+  onClose,
+  onSubmit,
+  isPending,
+}: {
+  shift: any | null;
+  onClose: () => void;
+  onSubmit: (shiftId: string, reason?: string) => void;
+  isPending: boolean;
+}) {
+  const [reason, setReason] = useState("");
+  if (!shift) return null;
+  return (
+    <Dialog open={!!shift} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>Claim Open Shift</DialogTitle>
+          <DialogDescription>
+            {shift.shift_date} · {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)} · {shift.role}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <Label>Reason (optional)</Label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Why do you want this shift?"
+              rows={3}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => onSubmit(shift.id, reason || undefined)}
+            disabled={isPending}
+            className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+          >
+            <Send className="h-3.5 w-3.5 mr-1.5" /> Submit Claim
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================
+function WeeklyHoursDialog({
+  entry,
+  onClose,
+  onSave,
+  isPending,
+}: {
+  entry: { empId: string; name: string; current: number } | null;
+  onClose: () => void;
+  onSave: (empId: string, hrs: number) => void;
+  isPending: boolean;
+}) {
+  const [val, setVal] = useState("");
+  useEffect(() => {
+    if (entry) setVal(String(entry.current));
+  }, [entry]);
+  if (!entry) return null;
+  return (
+    <Dialog open={!!entry} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[320px]">
+        <DialogHeader>
+          <DialogTitle>Weekly Hours Target</DialogTitle>
+          <DialogDescription>{entry.name}</DialogDescription>
+        </DialogHeader>
+        <div className="py-2">
+          <Label>Target hours per week (0–80)</Label>
+          <Input
+            type="number"
+            min={0}
+            max={80}
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              const n = parseInt(val, 10);
+              if (!isNaN(n) && n >= 0 && n <= 80) onSave(entry.empId, n);
+            }}
+            disabled={isPending}
+            className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+          >
+            <Check className="h-3.5 w-3.5 mr-1.5" /> Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

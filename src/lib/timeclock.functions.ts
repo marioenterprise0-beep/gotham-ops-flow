@@ -112,6 +112,25 @@ export const clockIn = createServerFn({ method: "POST" })
         .order("start_time").limit(1).maybeSingle();
       if (todaysShift) scheduleShiftId = todaysShift.id;
     }
+
+    // Early clock-in prevention: block punching in more than 15 minutes before shift start.
+    if (scheduleShiftId) {
+      const { data: shiftInfo } = await supabase
+        .from("schedule_shifts")
+        .select("shift_date, start_time")
+        .eq("id", scheduleShiftId)
+        .maybeSingle();
+      if (shiftInfo) {
+        const shiftStart = new Date(`${shiftInfo.shift_date}T${shiftInfo.start_time}`);
+        const minutesBefore = (shiftStart.getTime() - Date.now()) / 60000;
+        if (minutesBefore > 15) {
+          return {
+            ok: false as const,
+            message: `Your shift doesn't start for ${Math.round(minutesBefore)} more minutes. You can clock in up to 15 minutes early.`,
+          };
+        }
+      }
+    }
     const deviceInfo = {
       ...(data.deviceInfo ?? {}),
       ...(data.lat != null && data.lng != null
