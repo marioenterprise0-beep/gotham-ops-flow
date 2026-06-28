@@ -1915,6 +1915,7 @@ export type Database = {
           trailer_id: string | null
           training_completed_at: string | null
           updated_at: string
+          weekly_hours: number
         }
         Insert: {
           active?: boolean
@@ -1933,6 +1934,7 @@ export type Database = {
           trailer_id?: string | null
           training_completed_at?: string | null
           updated_at?: string
+          weekly_hours?: number
         }
         Update: {
           active?: boolean
@@ -1951,6 +1953,7 @@ export type Database = {
           trailer_id?: string | null
           training_completed_at?: string | null
           updated_at?: string
+          weekly_hours?: number
         }
         Relationships: [
           {
@@ -2131,6 +2134,7 @@ export type Database = {
           notes: string | null
           published_at: string | null
           published_by: string | null
+          sales_target: number | null
           start_date: string
           status: Database["public"]["Enums"]["schedule_status"]
           submitted_at: string | null
@@ -2155,6 +2159,7 @@ export type Database = {
           notes?: string | null
           published_at?: string | null
           published_by?: string | null
+          sales_target?: number | null
           start_date: string
           status?: Database["public"]["Enums"]["schedule_status"]
           submitted_at?: string | null
@@ -2179,6 +2184,7 @@ export type Database = {
           notes?: string | null
           published_at?: string | null
           published_by?: string | null
+          sales_target?: number | null
           start_date?: string
           status?: Database["public"]["Enums"]["schedule_status"]
           submitted_at?: string | null
@@ -2189,6 +2195,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "schedules_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_claim_requests: {
+        Row: {
+          archived_at: string | null
+          claimant_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          reason: string | null
+          schedule_shift_id: string
+          status: string
+          trailer_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          claimant_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          schedule_shift_id: string
+          status?: string
+          trailer_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          claimant_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: string
+          reason?: string | null
+          schedule_shift_id?: string
+          status?: string
+          trailer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_claim_requests_schedule_shift_id_fkey"
+            columns: ["schedule_shift_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shift_claim_requests_trailer_id_fkey"
             columns: ["trailer_id"]
             isOneToOne: false
             referencedRelation: "trailers"
