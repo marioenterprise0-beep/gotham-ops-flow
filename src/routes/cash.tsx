@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock } from "lucide-react";
+import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -18,7 +19,7 @@ import {
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
   attachDrawerClosePdf, getDrawerClosePdfUrl, sendDrawerCloseAlertEmail,
 } from "@/lib/cash.functions";
-import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML } from "@/lib/exports";
+import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML, downloadCSV } from "@/lib/exports";
 import { buildDrawerClosePdf, uploadDrawerClosePdf } from "@/lib/cash-pdf";
 import { supabase } from "@/integrations/supabase/client";
 import { syncDomains } from "@/lib/sync-bus";
@@ -61,6 +62,44 @@ function CashPage() {
   const openCount = drawers.filter((d) => d.open_session).length;
   const cashInDrawers = drawers.reduce((s, d) => s + (d.open_session ? Number(d.open_session.starting_float) : 0), 0);
 
+  // EOD summary — sessions opened or closed today
+  const todayStr = new Date().toLocaleDateString();
+  const todaySessions = sessions.filter((s) => new Date(s.opened_at).toLocaleDateString() === todayStr);
+  const todayClosed = todaySessions.filter((s) => s.status !== "open");
+  const todaySales = todayClosed.reduce((sum, s) => sum + Number(s.total_cash_sales ?? 0), 0);
+  const todayVariance = todayClosed.reduce((sum, s) => sum + Number(s.variance ?? 0), 0);
+  const todayFlagged = todayClosed.filter((s) => s.owner_review === "flagged").length;
+
+  // Variance trend data (last 30 closed sessions, oldest→newest)
+  const trendData = sessions
+    .filter((s) => s.status !== "open" && s.variance != null && s.closed_at)
+    .slice(-30)
+    .map((s) => ({
+      label: new Date(s.closed_at).toLocaleDateString([], { month: "short", day: "numeric" }),
+      variance: Math.round(Number(s.variance) * 100) / 100,
+      drawer: drawers.find((d) => d.id === s.drawer_id)?.name ?? "?",
+    }));
+
+  const exportCSV = () => {
+    const headers = ["Date", "Drawer", "Status", "Opened", "Closed", "Cash Sales", "Float", "Counted", "Variance", "Review"];
+    const rows = sessions.map((s) => {
+      const d = drawers.find((dr) => dr.id === s.drawer_id);
+      return [
+        s.opened_at ? new Date(s.opened_at).toLocaleDateString() : "",
+        d?.name ?? "",
+        s.status,
+        s.opened_at ? new Date(s.opened_at).toLocaleString() : "",
+        s.closed_at ? new Date(s.closed_at).toLocaleString() : "",
+        s.total_cash_sales ?? "",
+        s.starting_float ?? "",
+        s.counted_amount ?? "",
+        s.variance ?? "",
+        s.owner_review ?? "",
+      ];
+    });
+    downloadCSV(`cash-sessions-${new Date().toISOString().slice(0, 10)}`, headers, rows);
+  };
+
   const [addOpen, setAddOpen] = useState(false);
   const [openFor, setOpenFor] = useState<any | null>(null);
   const [closeFor, setCloseFor] = useState<any | null>(null);
@@ -83,6 +122,35 @@ function CashPage() {
           <MetricStat label="Recent Sessions" value={String(sessions.length)} />
         </div>
       </Card>
+
+      {todaySessions.length > 0 && (
+        <Card className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold flex items-center gap-1.5">
+              Today's Summary
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+              {" · "}{todayClosed.length} closed
+              {todaySessions.length - todayClosed.length > 0 && `, ${todaySessions.length - todayClosed.length} open`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricStat label="Cash Sales Today" value={money(todaySales)} tone="gold" />
+            <MetricStat
+              label="Net Variance"
+              value={`${todayVariance >= 0 ? "+" : ""}${money(todayVariance)}`}
+              tone={todayVariance === 0 ? undefined : todayVariance > 0 ? "success" : "danger"}
+            />
+            <MetricStat label="Sessions Today" value={String(todaySessions.length)} />
+            <MetricStat
+              label="Flagged"
+              value={String(todayFlagged)}
+              tone={todayFlagged > 0 ? "danger" : undefined}
+            />
+          </div>
+        </Card>
+      )}
 
       <SectionHeader title="Drawers" action={
         trailerId && isManager ? (
@@ -107,7 +175,46 @@ function CashPage() {
         ))}
       </div>
 
-      <SectionHeader title="Store Activities" />
+      {trendData.length > 1 && (
+        <Card className="mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">Variance Trend</h3>
+            <span className="text-xs text-muted-foreground">Last {trendData.length} closed sessions</span>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={trendData} margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} width={38} />
+              <Tooltip
+                formatter={(v: any) => [`${Number(v) >= 0 ? "+" : ""}$${Math.abs(Number(v)).toFixed(2)}`, "Variance"]}
+                labelFormatter={(l: any, p: any) => `${l} · ${p?.[0]?.payload?.drawer ?? ""}`}
+              />
+              <ReferenceLine y={0} stroke="hsl(var(--border))" />
+              <Bar dataKey="variance" radius={[3, 3, 0, 0]}>
+                {trendData.map((entry, i) => (
+                  <Cell
+                    key={i}
+                    fill={entry.variance === 0 ? "#16a34a" : Math.abs(entry.variance) > 5 ? "#dc2626" : "#d97706"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex gap-4 mt-2 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#16a34a" }} />Exact</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#d97706" }} />Small variance (&lt;$5)</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: "#dc2626" }} />Large variance (&gt;$5)</span>
+          </div>
+        </Card>
+      )}
+
+      <SectionHeader title="Store Activities" action={
+        sessions.length > 0 ? (
+          <Button size="sm" variant="outline" onClick={exportCSV} className="gap-1">
+            <FileDown className="h-4 w-4" /> Export CSV
+          </Button>
+        ) : null
+      } />
       <Card className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
