@@ -766,7 +766,7 @@ function ScheduleBoard({
   });
 
   const schedule = data?.schedule;
-  const shifts = data?.shifts ?? [];
+  const shifts = useMemo(() => data?.shifts ?? [], [data]);
   const days = useMemo(() => rangeDays(startStr, endStr), [startStr, endStr]);
   const status = (schedule?.status ?? "draft") as Status;
   const locked = status === "locked" || status === "published";
@@ -843,7 +843,7 @@ function ScheduleBoard({
     const salesTarget = (schedule as any)?.sales_target ?? null;
     const laborPct = salesTarget && salesTarget > 0 ? (laborCost / salesTarget) * 100 : null;
     return { scheduledHrs, openShifts, otHrs, coveragePct, laborCost, salesTarget, laborPct };
-  }, [shifts, days, startStr, endStr]);
+  }, [shifts, days, startStr, endStr, schedule]);
 
   if (isLoading || !schedule) {
     return (
@@ -1558,7 +1558,6 @@ function ShiftForm({
       setStartTime("11:00");
       setEndTime("19:00");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segment]);
 
   const hrs = hoursBetween(startTime, endTime, breakMinutes);
