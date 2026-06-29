@@ -545,12 +545,17 @@ export const listEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
+    // Show every active employee. When a trailer scope is provided, prefer
+    // people on that trailer plus anyone unassigned, so newly-added users
+    // (who may not be on the scoped trailer yet) still appear in the picker.
     let profilesQ = (supabase as any)
       .from("profiles")
       .select("id, display_name, active, trailer_id, weekly_hours")
       .eq("active", true)
       .is("archived_at", null);
-    if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
+    if (data?.trailerId) {
+      profilesQ = profilesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+    }
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
       supabase.from("user_roles").select("user_id, role"),
@@ -568,6 +573,7 @@ export const listEmployees = createServerFn({ method: "POST" })
       targetHours: (p as any).weekly_hours ?? 40,
     }));
   });
+
 
 // Find a schedule whose range overlaps the given week; create a draft if none.
 export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
