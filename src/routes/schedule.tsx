@@ -1117,7 +1117,7 @@ function ScheduleBoard({
         onSave={(v) => saveMut.mutate(v)}
         onDelete={(id) => delMut.mutate(id)}
         onDuplicate={(id) => {
-          dupMut.mutate(id);
+          dupMut.mutate({ id });
           setEditing(null);
         }}
         canEdit={canEdit}
