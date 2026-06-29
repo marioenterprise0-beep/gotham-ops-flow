@@ -133,7 +133,10 @@ function rangeDays(start: string, end: string) {
 function hoursBetween(a: string, b: string, breakMin: number) {
   const [ah, am] = a.split(":").map(Number);
   const [bh, bm] = b.split(":").map(Number);
-  const mins = bh * 60 + bm - (ah * 60 + am) - breakMin;
+  const startMins = ah * 60 + am;
+  let endMins = bh * 60 + bm;
+  if (endMins <= startMins) endMins += 24 * 60;
+  const mins = endMins - startMins - breakMin;
   return Math.max(0, mins / 60);
 }
 function viewRange(anchor: Date, mode: ViewMode): { start: Date; end: Date } {
@@ -675,21 +678,56 @@ function ScheduleBoard({
     current: number;
   } | null>(null);
 
+  const scheduleQueryMatches = (queryKey: readonly unknown[]) =>
+    Array.isArray(queryKey) && queryKey[0] === "schedule" && queryKey[1] === scheduleId;
+  const upsertShiftInScheduleCache = (saved: any) => {
+    if (!saved?.id) return;
+    qc.setQueriesData(
+      { predicate: (q) => scheduleQueryMatches(q.queryKey) },
+      (current: any) => {
+        if (!current?.schedule) return current;
+        const existing = Array.isArray(current.shifts) ? current.shifts : [];
+        const idx = existing.findIndex((s: any) => s.id === saved.id);
+        const shifts = idx >= 0
+          ? existing.map((s: any) => (s.id === saved.id ? saved : s))
+          : [...existing, saved];
+        shifts.sort((a: any, b: any) =>
+          String(a.shift_date).localeCompare(String(b.shift_date)) ||
+          String(a.start_time).localeCompare(String(b.start_time)),
+        );
+        return { ...current, shifts };
+      },
+    );
+  };
+  const removeShiftFromScheduleCache = (id: string) => {
+    qc.setQueriesData(
+      { predicate: (q) => scheduleQueryMatches(q.queryKey) },
+      (current: any) => {
+        if (!current?.schedule || !Array.isArray(current.shifts)) return current;
+        return { ...current, shifts: current.shifts.filter((s: any) => s.id !== id) };
+      },
+    );
+  };
   const invalidate = () => syncDomains(qc, "schedule", "labor");
   const forceScheduleRefresh = async () => {
     await qc.invalidateQueries({
-      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "schedule",
+      predicate: (q) =>
+        (Array.isArray(q.queryKey) && q.queryKey[0] === "schedule") ||
+        (Array.isArray(q.queryKey) && q.queryKey[0] === "schedule-range"),
     });
     await qc.refetchQueries({
-      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "schedule",
+      predicate: (q) =>
+        (Array.isArray(q.queryKey) && q.queryKey[0] === "schedule") ||
+        (Array.isArray(q.queryKey) && q.queryKey[0] === "schedule-range"),
       type: "active",
     });
   };
 
   const saveMut = useMutation({
     mutationFn: (v: any) => save({ data: v }),
-    onSuccess: async () => {
+    onSuccess: async (saved: any) => {
       toast.success("Shift saved");
+      upsertShiftInScheduleCache(saved);
       invalidate();
       await forceScheduleRefresh();
       setEditing(null);
@@ -698,8 +736,9 @@ function ScheduleBoard({
   });
   const delMut = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: async () => {
+    onSuccess: async (_result, id) => {
       toast.success("Shift removed");
+      removeShiftFromScheduleCache(id);
       invalidate();
       await forceScheduleRefresh();
       setEditing(null);
@@ -710,8 +749,9 @@ function ScheduleBoard({
   const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
     mutationFn: (v: { id: string; targetDate?: string }) => dup({ data: v }),
-    onSuccess: async () => {
+    onSuccess: async (saved: any) => {
       toast.success("Shift duplicated");
+      upsertShiftInScheduleCache(saved);
       invalidate();
       await forceScheduleRefresh();
     },
