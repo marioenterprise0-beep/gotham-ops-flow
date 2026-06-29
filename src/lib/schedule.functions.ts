@@ -894,7 +894,6 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       .select("schedule_shift_id, target_employee_id")
       .eq("id", data.id)
       .maybeSingle();
-    if (!swap) throw new Error("Swap request not found");
     const { error } = await supabase
       .from("shift_swap_requests")
       .update({
@@ -905,10 +904,10 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    if (data.decision === "approved" && swap.target_employee_id) {
+    if (data.decision === "approved" && swap) {
       await supabase
         .from("schedule_shifts")
-        .update({ employee_id: swap.target_employee_id })
+        .update({ employee_id: swap.target_employee_id ?? null })
         .eq("id", swap.schedule_shift_id);
     }
     return { ok: true };
