@@ -681,6 +681,7 @@ function ScheduleBoard({
     onSuccess: () => {
       toast.success("Shift saved");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -690,6 +691,7 @@ function ScheduleBoard({
     onSuccess: () => {
       toast.success("Shift removed");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -699,6 +701,7 @@ function ScheduleBoard({
     onSuccess: () => {
       toast.success("Shift duplicated");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
     },
     onError: (e: any) => toast.error(e.message),
   });
