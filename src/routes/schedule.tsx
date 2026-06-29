@@ -658,6 +658,8 @@ function ScheduleBoard({
   });
 
   const [addedEmployeeIds, setAddedEmployeeIds] = useState<Set<string>>(new Set());
+  // Reset manually-pinned employees when the viewed week changes.
+  useEffect(() => { setAddedEmployeeIds(new Set()); }, [startStr]);
   const [editing, setEditing] = useState<any | null>(null);
   const [swapDialogShift, setSwapDialogShift] = useState<any | null>(null);
   const [claimDialogShift, setClaimDialogShift] = useState<any | null>(null);
@@ -827,10 +829,15 @@ function ScheduleBoard({
   }, [employees, employeesWithShifts, addedEmployeeIds, filterRole]);
 
   // Employees not yet in the grid — shown in the "Add to Schedule" picker.
+  // Respect filterRole so the picker only shows crew matching the active filter.
   const availableToAdd = useMemo(() => {
     const visible = new Set(visibleEmployees.map((e: any) => e.id));
-    return (employees as any[]).filter((e) => !visible.has(e.id));
-  }, [employees, visibleEmployees]);
+    return (employees as any[]).filter(
+      (e) =>
+        !visible.has(e.id) &&
+        (filterRole === "all" || e.roles.includes(filterRole)),
+    );
+  }, [employees, visibleEmployees, filterRole]);
 
   // Analytics
   const totals = useMemo(() => {
