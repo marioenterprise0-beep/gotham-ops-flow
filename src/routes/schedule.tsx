@@ -697,8 +697,10 @@ function ScheduleBoard({
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const [copyShift, setCopyShift] = useState<any | null>(null);
+  const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
-    mutationFn: (id: string) => dup({ data: { id } }),
+    mutationFn: (v: { id: string; targetDate?: string }) => dup({ data: v }),
     onSuccess: () => {
       toast.success("Shift duplicated");
       invalidate();
