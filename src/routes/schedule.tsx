@@ -657,6 +657,7 @@ function ScheduleBoard({
     enabled: !!session,
   });
 
+  const [addedEmployeeIds, setAddedEmployeeIds] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<any | null>(null);
   const [swapDialogShift, setSwapDialogShift] = useState<any | null>(null);
   const [claimDialogShift, setClaimDialogShift] = useState<any | null>(null);
@@ -806,12 +807,30 @@ function ScheduleBoard({
     return m;
   }, [availRows]);
 
+  // Build the set of employee IDs that have at least one shift in this range.
+  const employeesWithShifts = useMemo(() => {
+    const s = new Set<string>();
+    for (const shift of shifts) {
+      if (shift.employee_id && shift.shift_date >= startStr && shift.shift_date <= endStr)
+        s.add(shift.employee_id);
+    }
+    return s;
+  }, [shifts, startStr, endStr]);
+
+  // Only show employees who have shifts in range OR were manually added by the manager.
   const visibleEmployees = useMemo(() => {
-    const list = (employees as any[]).filter(
-      (e) => filterRole === "all" || e.roles.includes(filterRole),
+    return (employees as any[]).filter(
+      (e) =>
+        (filterRole === "all" || e.roles.includes(filterRole)) &&
+        (employeesWithShifts.has(e.id) || addedEmployeeIds.has(e.id)),
     );
-    return list;
-  }, [employees, filterRole]);
+  }, [employees, employeesWithShifts, addedEmployeeIds, filterRole]);
+
+  // Employees not yet in the grid — shown in the "Add to Schedule" picker.
+  const availableToAdd = useMemo(() => {
+    const visible = new Set(visibleEmployees.map((e: any) => e.id));
+    return (employees as any[]).filter((e) => !visible.has(e.id));
+  }, [employees, visibleEmployees]);
 
   // Analytics
   const totals = useMemo(() => {
@@ -860,14 +879,41 @@ function ScheduleBoard({
           {visibleEmployees.length} employees · {days.length} days · {shifts.length} shifts
         </div>
         {canEdit && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => genMut.mutate()}
-            disabled={genMut.isPending}
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Generate Coverage
-          </Button>
+          <div className="flex items-center gap-2">
+            {availableToAdd.length > 0 && (
+              <Select
+                value=""
+                onValueChange={(id) =>
+                  setAddedEmployeeIds((prev) => new Set([...prev, id]))
+                }
+              >
+                <SelectTrigger className="h-9 w-auto gap-1.5 pl-2.5 pr-3 text-sm">
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add to Schedule</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {availableToAdd.map((e: any) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                      {e.roles.length > 0 && (
+                        <span className="ml-1.5 text-muted-foreground text-[11px]">
+                          · {e.roles[0]}
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => genMut.mutate()}
+              disabled={genMut.isPending}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Generate Coverage
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1034,7 +1080,10 @@ function ScheduleBoard({
 
             {visibleEmployees.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No employees match. Add crew in Users or change the role filter.
+                No crew scheduled yet.{" "}
+                {canEdit
+                  ? 'Use "Add to Schedule" above to add employees, or click cells in the Open Shifts row.'
+                  : "A manager will publish shifts soon."}
               </div>
             )}
           </div>
