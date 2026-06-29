@@ -547,13 +547,17 @@ export const listEmployees = createServerFn({ method: "POST" })
     // weekly_hours was added without a GRANT SELECT for authenticated, so the
     // RLS client returns a permission error and an empty employee list. Use
     // supabaseAdmin to bypass column-level grants — same pattern as listUsers.
+    // When a trailer scope is provided the or() below also includes profiles
+    // with no trailer so newly-added users appear in the picker immediately.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let profilesQ = supabaseAdmin
       .from("profiles")
       .select("id, display_name, active, trailer_id, weekly_hours")
       .eq("active", true)
       .is("archived_at", null);
-    if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
+    if (data?.trailerId) {
+      profilesQ = profilesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+    }
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
       supabaseAdmin.from("user_roles").select("user_id, role"),
@@ -571,6 +575,7 @@ export const listEmployees = createServerFn({ method: "POST" })
       targetHours: (p as any).weekly_hours ?? 40,
     }));
   });
+
 
 // Find a schedule whose range overlaps the given week; create a draft if none.
 export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
