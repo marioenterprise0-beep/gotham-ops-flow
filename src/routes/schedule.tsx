@@ -1124,6 +1124,41 @@ function ScheduleBoard({
         employees={employees as any[]}
       />
 
+      {copyShift && (
+        <Dialog open onOpenChange={() => setCopyShift(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Copy shift to another day</DialogTitle>
+              <DialogDescription>
+                Pick the date you want to copy this shift to. The employee and times stay the same.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <input
+                type="date"
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                value={copyDate}
+                onChange={(e) => setCopyDate(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCopyShift(null)}>Cancel</Button>
+              <Button
+                disabled={!copyDate || dupMut.isPending}
+                onClick={() => {
+                  dupMut.mutate(
+                    { id: copyShift.id, targetDate: copyDate },
+                    { onSuccess: () => setCopyShift(null) }
+                  );
+                }}
+              >
+                Copy shift
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       <SwapRequestDialog
         shift={swapDialogShift}
         onClose={() => setSwapDialogShift(null)}
