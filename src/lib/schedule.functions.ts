@@ -544,11 +544,9 @@ export const listEmployees = createServerFn({ method: "POST" })
     z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
   .handler(async ({ context: _ctx, data }) => {
-    // weekly_hours was added without a GRANT SELECT for authenticated, so the
-    // RLS client returns a permission error and an empty employee list. Use
-    // supabaseAdmin to bypass column-level grants — same pattern as listUsers.
-    // When a trailer scope is provided the or() below also includes profiles
-    // with no trailer so newly-added users appear in the picker immediately.
+    // Use supabaseAdmin so managers see ALL active employees regardless of trailer
+    // assignment — same pattern as listUsers. When a trailer scope is provided
+    // the or() below also includes null-trailer profiles so new hires appear immediately.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let profilesQ = supabaseAdmin
       .from("profiles")
@@ -572,7 +570,7 @@ export const listEmployees = createServerFn({ method: "POST" })
       id: p.id,
       name: p.display_name ?? "Crew",
       roles: roleMap.get(p.id) ?? [],
-      targetHours: (p as any).weekly_hours ?? 40,
+      targetHours: p.weekly_hours ?? 40,
     }));
   });
 
@@ -927,7 +925,7 @@ export const listAvailabilityForRange = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ startDate: z.string(), endDate: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    const { data: rows, error } = await (supabase as any)
+    const { data: rows, error } = await supabase
       .from("availability_blocks")
       .select("id, user_id, block_date, all_day, reason")
       .gte("block_date", data.startDate)
@@ -948,7 +946,7 @@ export const upsertAvailability = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { error } = await (supabase as any).from("availability_blocks").upsert(
+    const { error } = await supabase.from("availability_blocks").upsert(
       {
         user_id: userId,
         block_date: data.blockDate,
@@ -966,7 +964,7 @@ export const deleteAvailability = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ blockDate: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("availability_blocks")
       .delete()
       .eq("user_id", userId)
@@ -985,7 +983,7 @@ export const setScheduleSalesTarget = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("schedules")
       .update({ sales_target: data.salesTarget })
       .eq("id", data.id);
@@ -1005,7 +1003,7 @@ export const setEmployeeWeeklyHours = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("profiles")
       .update({ weekly_hours: data.weeklyHours })
       .eq("id", data.employeeId);
@@ -1039,14 +1037,14 @@ export const claimShift = createServerFn({ method: "POST" })
     if (shift.employee_id) throw new Error("This shift is already assigned");
     // Prevent duplicate pending claim
     const { data: existing } = await supabaseAdmin
-      .from("shift_claim_requests" as any)
+      .from("shift_claim_requests")
       .select("id")
       .eq("schedule_shift_id", data.scheduleShiftId)
       .eq("claimant_id", userId)
       .eq("status", "pending")
       .maybeSingle();
     if (existing) throw new Error("You already have a pending claim for this shift");
-    const { data: row, error } = await (supabase as any)
+    const { data: row, error } = await supabase
       .from("shift_claim_requests")
       .insert({
         schedule_shift_id: data.scheduleShiftId,
@@ -1080,7 +1078,7 @@ export const listClaimRequests = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    let q = (supabase as any)
+    let q = supabase
       .from("shift_claim_requests")
       .select("*, schedule_shifts(shift_date, start_time, end_time, role, segment)")
       .is("archived_at", null)
@@ -1117,13 +1115,13 @@ export const decideClaimRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { data: claim } = await (supabase as any)
+    const { data: claim } = await supabase
       .from("shift_claim_requests")
       .select("claimant_id, schedule_shift_id")
       .eq("id", data.id)
       .maybeSingle();
     if (!claim) throw new Error("Claim not found");
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("shift_claim_requests")
       .update({
         status: data.decision,
@@ -1147,7 +1145,7 @@ export const myClaimRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: rows, error } = await (supabase as any)
+    const { data: rows, error } = await supabase
       .from("shift_claim_requests")
       .select("*, schedule_shifts(shift_date, start_time, end_time, role, segment)")
       .is("archived_at", null)

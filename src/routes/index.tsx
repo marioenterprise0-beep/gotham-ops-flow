@@ -515,7 +515,7 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
       </Card>
 
       {/* 5 · INVENTORY RISKS */}
-      <SectionHeader eyebrow="Watch" title="Inventory Risks" action={<Link to="/inventory" search={{}} className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">View inventory</Link>} />
+      <SectionHeader eyebrow="Watch" title="Inventory Risks" action={<Link to="/inventory" search={{ tab: undefined, focus: undefined }} className="label-caps text-foreground/70 hover:text-[var(--color-gold)]">View inventory</Link>} />
       <Card className="p-0 overflow-hidden">
         {lowStock.length === 0 && (
           <div className="p-6 text-center text-sm text-muted-foreground">No items at risk.</div>
