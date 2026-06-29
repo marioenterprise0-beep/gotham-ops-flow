@@ -24,6 +24,7 @@ import {
   Pencil,
   DollarSign,
   CalendarCheck,
+  CalendarPlus,
 } from "lucide-react";
 import { Card, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
@@ -681,6 +682,7 @@ function ScheduleBoard({
     onSuccess: () => {
       toast.success("Shift saved");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -690,15 +692,19 @@ function ScheduleBoard({
     onSuccess: () => {
       toast.success("Shift removed");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
+  const [copyShift, setCopyShift] = useState<any | null>(null);
+  const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
-    mutationFn: (id: string) => dup({ data: { id } }),
+    mutationFn: (v: { id: string; targetDate?: string }) => dup({ data: v }),
     onSuccess: () => {
       toast.success("Shift duplicated");
       invalidate();
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1050,7 +1056,8 @@ function ScheduleBoard({
                           setAvailDialog({ userId: emp.id, date: d, existing: availBlock })
                         }
                         onEdit={(s) => setEditing(s)}
-                        onDup={(s) => dupMut.mutate(s.id)}
+                        onDup={(s) => dupMut.mutate({ id: s.id })}
+                        onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
                         onSwap={(s) => setSwapDialogShift(s)}
                         onClaim={(s) => setClaimDialogShift(s)}
                       />
@@ -1081,7 +1088,8 @@ function ScheduleBoard({
                 })
               }
               onEdit={(s) => setEditing(s)}
-              onDup={(s) => dupMut.mutate(s.id)}
+              onDup={(s) => dupMut.mutate({ id: s.id })}
+              onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
               onClaim={(s) => setClaimDialogShift(s)}
             />
 
@@ -1109,12 +1117,47 @@ function ScheduleBoard({
         onSave={(v) => saveMut.mutate(v)}
         onDelete={(id) => delMut.mutate(id)}
         onDuplicate={(id) => {
-          dupMut.mutate(id);
+          dupMut.mutate({ id });
           setEditing(null);
         }}
         canEdit={canEdit}
         employees={employees as any[]}
       />
+
+      {copyShift && (
+        <Dialog open onOpenChange={() => setCopyShift(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Copy shift to another day</DialogTitle>
+              <DialogDescription>
+                Pick the date you want to copy this shift to. The employee and times stay the same.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <input
+                type="date"
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                value={copyDate}
+                onChange={(e) => setCopyDate(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCopyShift(null)}>Cancel</Button>
+              <Button
+                disabled={!copyDate || dupMut.isPending}
+                onClick={() => {
+                  dupMut.mutate(
+                    { id: copyShift.id, targetDate: copyDate },
+                    { onSuccess: () => setCopyShift(null) }
+                  );
+                }}
+              >
+                Copy shift
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       <SwapRequestDialog
         shift={swapDialogShift}
@@ -1160,6 +1203,7 @@ function Cell({
   onAvailToggle,
   onEdit,
   onDup,
+  onCopy,
   onSwap,
   onClaim,
 }: {
@@ -1174,6 +1218,7 @@ function Cell({
   onAvailToggle: () => void;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onSwap: (s: any) => void;
   onClaim?: (s: any) => void;
 }) {
@@ -1216,6 +1261,7 @@ function Cell({
             isOwnShift={s.employee_id === currentUserId}
             onEdit={onEdit}
             onDup={onDup}
+            onCopy={onCopy}
             onSwap={onSwap}
             onClaim={onClaim}
           />
@@ -1248,6 +1294,7 @@ function ShiftCard({
   isOwnShift,
   onEdit,
   onDup,
+  onCopy,
   onSwap,
   onClaim,
 }: {
@@ -1257,6 +1304,7 @@ function ShiftCard({
   isOwnShift: boolean;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onSwap: (s: any) => void;
   onClaim?: (s: any) => void;
 }) {
@@ -1305,6 +1353,17 @@ function ShiftCard({
               <Copy className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
             </button>
           )}
+          {canEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(shift);
+              }}
+              title="Copy to another day"
+            >
+              <CalendarPlus className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
+            </button>
+          )}
           {isOwnShift && !canEdit && status === "published" && (
             <button
               onClick={(e) => {
@@ -1346,6 +1405,7 @@ function UnassignedRow({
   onAdd,
   onEdit,
   onDup,
+  onCopy,
   onClaim,
 }: {
   days: string[];
@@ -1357,6 +1417,7 @@ function UnassignedRow({
   onAdd: (d: string) => void;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onClaim: (s: any) => void;
 }) {
   const hasAny = days.some((d) => (grid.get(`unassigned|${d}`) ?? []).length > 0);
@@ -1386,6 +1447,7 @@ function UnassignedRow({
             onAvailToggle={() => {}}
             onEdit={onEdit}
             onDup={onDup}
+            onCopy={onCopy}
             onSwap={() => {}}
             onClaim={onClaim}
           />
