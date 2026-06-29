@@ -543,9 +543,12 @@ export const listEmployees = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
-  .handler(async ({ context, data }) => {
-    const { supabase } = context;
-    let profilesQ = (supabase as any)
+  .handler(async ({ context: _ctx, data }) => {
+    // weekly_hours was added without a GRANT SELECT for authenticated, so the
+    // RLS client returns a permission error and an empty employee list. Use
+    // supabaseAdmin to bypass column-level grants — same pattern as listUsers.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let profilesQ = supabaseAdmin
       .from("profiles")
       .select("id, display_name, active, trailer_id, weekly_hours")
       .eq("active", true)
@@ -553,7 +556,7 @@ export const listEmployees = createServerFn({ method: "POST" })
     if (data?.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
-      supabase.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
     ]);
     const roleMap = new Map<string, string[]>();
     for (const r of roles ?? []) {
