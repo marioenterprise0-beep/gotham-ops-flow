@@ -1405,6 +1405,7 @@ function UnassignedRow({
   onAdd,
   onEdit,
   onDup,
+  onCopy,
   onClaim,
 }: {
   days: string[];
@@ -1416,6 +1417,7 @@ function UnassignedRow({
   onAdd: (d: string) => void;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onClaim: (s: any) => void;
 }) {
   const hasAny = days.some((d) => (grid.get(`unassigned|${d}`) ?? []).length > 0);
