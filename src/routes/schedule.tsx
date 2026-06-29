@@ -1088,7 +1088,8 @@ function ScheduleBoard({
                 })
               }
               onEdit={(s) => setEditing(s)}
-              onDup={(s) => dupMut.mutate(s.id)}
+              onDup={(s) => dupMut.mutate({ id: s.id })}
+              onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
               onClaim={(s) => setClaimDialogShift(s)}
             />
 
