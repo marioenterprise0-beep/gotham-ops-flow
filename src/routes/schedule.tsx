@@ -1353,6 +1353,17 @@ function ShiftCard({
               <Copy className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
             </button>
           )}
+          {canEdit && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(shift);
+              }}
+              title="Copy to another day"
+            >
+              <CalendarPlus className="h-3 w-3" style={{ color: isDraft ? bg : fg }} />
+            </button>
+          )}
           {isOwnShift && !canEdit && status === "published" && (
             <button
               onClick={(e) => {
