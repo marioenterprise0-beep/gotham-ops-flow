@@ -1218,6 +1218,7 @@ function Cell({
   onAvailToggle: () => void;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onSwap: (s: any) => void;
   onClaim?: (s: any) => void;
 }) {
