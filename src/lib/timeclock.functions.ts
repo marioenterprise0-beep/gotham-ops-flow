@@ -201,13 +201,16 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can configure trailer geofences.");
-    const { error } = await supabase.from("trailers").update({
+    // Use supabaseAdmin for the write — geofence columns are not granted to authenticated
+    // and the trailers UPDATE policy allows any manager, so we enforce owner-only at app layer above.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("trailers").update({
       geofence_lat: data.lat,
       geofence_lng: data.lng,
       geofence_radius_m: data.radiusM,
     }).eq("id", data.trailerId);
     if (error) throw new Error(error.message);
-    const { data: rows, error: readErr } = await supabase.rpc("get_trailer_geofence", { _trailer_id: data.trailerId });
+    const { data: rows, error: readErr } = await supabaseAdmin.rpc("get_trailer_geofence", { _trailer_id: data.trailerId });
     if (readErr) throw new Error(readErr.message);
     return rows?.[0] ?? null;
   });
