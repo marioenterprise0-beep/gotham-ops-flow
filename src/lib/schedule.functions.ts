@@ -889,6 +889,12 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    const { data: swap } = await supabase
+      .from("shift_swap_requests")
+      .select("schedule_shift_id, target_employee_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!swap) throw new Error("Swap request not found");
     const { error } = await supabase
       .from("shift_swap_requests")
       .update({
@@ -899,6 +905,12 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (data.decision === "approved" && swap.target_employee_id) {
+      await supabase
+        .from("schedule_shifts")
+        .update({ employee_id: swap.target_employee_id })
+        .eq("id", swap.schedule_shift_id);
+    }
     return { ok: true };
   });
 
