@@ -676,23 +676,32 @@ function ScheduleBoard({
   } | null>(null);
 
   const invalidate = () => syncDomains(qc, "schedule", "labor");
+  const forceScheduleRefresh = async () => {
+    await qc.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "schedule",
+    });
+    await qc.refetchQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "schedule",
+      type: "active",
+    });
+  };
 
   const saveMut = useMutation({
     mutationFn: (v: any) => save({ data: v }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Shift saved");
       invalidate();
-      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      await forceScheduleRefresh();
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
   const delMut = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Shift removed");
       invalidate();
-      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      await forceScheduleRefresh();
       setEditing(null);
     },
     onError: (e: any) => toast.error(e.message),
@@ -701,10 +710,10 @@ function ScheduleBoard({
   const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
     mutationFn: (v: { id: string; targetDate?: string }) => dup({ data: v }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Shift duplicated");
       invalidate();
-      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      await forceScheduleRefresh();
     },
     onError: (e: any) => toast.error(e.message),
   });
