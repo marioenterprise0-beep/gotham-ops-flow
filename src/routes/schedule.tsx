@@ -1203,6 +1203,7 @@ function Cell({
   onAvailToggle,
   onEdit,
   onDup,
+  onCopy,
   onSwap,
   onClaim,
 }: {
