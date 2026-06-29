@@ -1447,6 +1447,7 @@ function UnassignedRow({
             onAvailToggle={() => {}}
             onEdit={onEdit}
             onDup={onDup}
+            onCopy={onCopy}
             onSwap={() => {}}
             onClaim={onClaim}
           />
