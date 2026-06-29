@@ -24,6 +24,7 @@ import {
   Pencil,
   DollarSign,
   CalendarCheck,
+  CalendarPlus,
 } from "lucide-react";
 import { Card, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
