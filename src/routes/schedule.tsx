@@ -1056,7 +1056,8 @@ function ScheduleBoard({
                           setAvailDialog({ userId: emp.id, date: d, existing: availBlock })
                         }
                         onEdit={(s) => setEditing(s)}
-                        onDup={(s) => dupMut.mutate(s.id)}
+                        onDup={(s) => dupMut.mutate({ id: s.id })}
+                        onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
                         onSwap={(s) => setSwapDialogShift(s)}
                         onClaim={(s) => setClaimDialogShift(s)}
                       />
