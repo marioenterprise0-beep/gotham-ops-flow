@@ -1049,7 +1049,7 @@ export const claimShift = createServerFn({ method: "POST" })
       .insert({
         schedule_shift_id: data.scheduleShiftId,
         claimant_id: userId,
-        trailer_id: (shift as any).trailer_id ?? null,
+        trailer_id: shift.trailer_id ?? null,
         reason: data.reason ?? null,
       })
       .select("*")
@@ -1061,7 +1061,7 @@ export const claimShift = createServerFn({ method: "POST" })
       description: `A crew member wants to claim an open shift.${data.reason ? ` Reason: ${data.reason}` : ""}`,
       source_module: "schedule",
       source_id: row.id,
-      trailer_id: (shift as any).trailer_id ?? null,
+      trailer_id: shift.trailer_id ?? null,
       created_by: userId,
       assigned_role: "manager",
       priority: "normal",
