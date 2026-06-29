@@ -1,0 +1,1 @@
+GRANT SELECT (weekly_hours) ON public.profiles TO authenticated;
