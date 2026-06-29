@@ -1294,6 +1294,7 @@ function ShiftCard({
   isOwnShift,
   onEdit,
   onDup,
+  onCopy,
   onSwap,
   onClaim,
 }: {
@@ -1303,6 +1304,7 @@ function ShiftCard({
   isOwnShift: boolean;
   onEdit: (s: any) => void;
   onDup: (s: any) => void;
+  onCopy: (s: any) => void;
   onSwap: (s: any) => void;
   onClaim?: (s: any) => void;
 }) {
