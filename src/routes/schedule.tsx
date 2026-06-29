@@ -1261,6 +1261,7 @@ function Cell({
             isOwnShift={s.employee_id === currentUserId}
             onEdit={onEdit}
             onDup={onDup}
+            onCopy={onCopy}
             onSwap={onSwap}
             onClaim={onClaim}
           />
