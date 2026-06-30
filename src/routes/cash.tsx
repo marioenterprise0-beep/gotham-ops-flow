@@ -703,6 +703,12 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
             </Card>
           )}
 
+          {isOwner && s.status !== "open" && (
+            <EditDrawerSessionInline session={s} onSaved={() => { refetch(); onChanged(); }} />
+          )}
+
+
+
           <div>
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-semibold">Cash Drops ({drops.length})</h4>
