@@ -294,9 +294,11 @@ export const upsertShift = createServerFn({ method: "POST" })
       repeat_weekly: data.repeatWeekly,
       created_by: userId,
     };
-    const q = data.id
-      ? supabase.from("schedule_shifts").update(row).eq("id", data.id).select("*").maybeSingle()
-      : supabase.from("schedule_shifts").insert({ id: shiftId, ...row }).select("*").maybeSingle();
+    const q = supabase
+      .from("schedule_shifts")
+      .upsert({ id: shiftId, ...row }, { onConflict: "id" })
+      .select("*")
+      .maybeSingle();
     const { data: saved, error } = await q;
     if (error) throw new Error(error.message);
     if (saved) return saved;
