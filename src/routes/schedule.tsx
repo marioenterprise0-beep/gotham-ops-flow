@@ -1457,11 +1457,12 @@ function Cell({
         {canToggleAvail && !availBlock && (
           <button
             onClick={onAvailToggle}
-            className="w-full text-[11px] text-blue-400 hover:text-blue-600 py-1 rounded-md border border-dashed border-blue-200 hover:border-blue-400 transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+            className="w-full text-[11px] text-blue-600 hover:text-blue-700 py-1 rounded-md border border-dashed border-blue-300 hover:border-blue-500 transition"
           >
             Mark unavailable
           </button>
         )}
+
       </div>
     </div>
   );
