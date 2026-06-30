@@ -665,17 +665,72 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       .select("*")
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (row) return row;
-    // RLS may hide the RETURNING row — re-fetch by the natural key.
-    const { data: refetched } = await supabase
-      .from("schedules")
-      .select("*")
-      .eq("start_date", data.startDate)
-      .eq("end_date", data.endDate)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    return refetched;
+    let created = row;
+    if (!created) {
+      // RLS may hide the RETURNING row — re-fetch by the natural key.
+      const { data: refetched } = await supabase
+        .from("schedules")
+        .select("*")
+        .eq("start_date", data.startDate)
+        .eq("end_date", data.endDate)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      created = refetched;
+    }
+
+    // Seed from prior week's repeat_weekly=true shifts (+7 days).
+    if (created) {
+      const shiftDays = (iso: string, delta: number) => {
+        const d = new Date(iso + "T00:00:00Z");
+        d.setUTCDate(d.getUTCDate() + delta);
+        return d.toISOString().slice(0, 10);
+      };
+      const priorStart = shiftDays(data.startDate, -7);
+      const priorEnd = shiftDays(data.endDate, -7);
+      const { data: priorShifts } = await supabase
+        .from("schedule_shifts")
+        .select(
+          "employee_id, trailer_id, role, segment, shift_date, start_time, end_time, break_minutes, notes, repeat_weekly",
+        )
+        .eq("repeat_weekly", true)
+        .is("archived_at", null)
+        .gte("shift_date", priorStart)
+        .lte("shift_date", priorEnd);
+      if (priorShifts && priorShifts.length > 0) {
+        const { data: existingShifts } = await supabase
+          .from("schedule_shifts")
+          .select("shift_date, segment, employee_id")
+          .eq("schedule_id", created.id);
+        const taken = new Set<string>(
+          (existingShifts ?? []).map(
+            (r: any) => `${r.shift_date}|${r.segment}|${r.employee_id ?? "null"}`,
+          ),
+        );
+        const newRows = priorShifts
+          .map((s: any) => ({
+            schedule_id: created.id,
+            employee_id: s.employee_id,
+            trailer_id: s.trailer_id,
+            role: s.role,
+            segment: s.segment,
+            shift_date: shiftDays(s.shift_date, 7),
+            start_time: s.start_time,
+            end_time: s.end_time,
+            break_minutes: s.break_minutes ?? 30,
+            notes: s.notes ?? null,
+            repeat_weekly: true,
+            created_by: userId,
+          }))
+          .filter(
+            (r) => !taken.has(`${r.shift_date}|${r.segment}|${r.employee_id ?? "null"}`),
+          );
+        if (newRows.length > 0) {
+          await supabase.from("schedule_shifts").insert(newRows);
+        }
+      }
+    }
+    return created;
   });
 
 export const duplicateShift = createServerFn({ method: "POST" })
