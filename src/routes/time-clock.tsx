@@ -613,8 +613,10 @@ function fromLocalInputValue(s: string): string {
 
 function ManagePunchesPanel() {
   const qc = useQueryClient();
-  const { isManager } = useRole();
+  const { roles } = useRole();
+  const isManager = roles.includes("owner") || roles.includes("manager");
   if (!isManager) return null;
+
 
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
