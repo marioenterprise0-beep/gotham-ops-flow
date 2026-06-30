@@ -394,7 +394,9 @@ function TimeClockPage() {
       </Tabs>
 
       <MyHistory />
+      <ManagePunchesPanel />
       <div className="h-6" />
+
 
       <AlertDialog open={!!geoBlock} onOpenChange={(o) => !o && setGeoBlock(null)}>
         <AlertDialogContent>
