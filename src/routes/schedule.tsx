@@ -725,6 +725,23 @@ function ScheduleBoard({
 
   const saveMut = useMutation({
     mutationFn: (v: any) => save({ data: v }),
+    onMutate: async (v: any) => {
+      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
+      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+        if (!old) return old;
+        const patch = {
+          schedule_id: v.scheduleId, employee_id: v.employeeId ?? null,
+          trailer_id: v.trailerId ?? null, role: v.role, segment: v.segment,
+          shift_date: v.shiftDate, start_time: v.startTime, end_time: v.endTime,
+          break_minutes: v.breakMinutes ?? 30, notes: v.notes ?? null,
+          repeat_weekly: v.repeatWeekly ?? false, archived_at: null,
+        };
+        if (v.id) return { ...old, shifts: old.shifts.map((s: any) => s.id === v.id ? { ...s, ...patch } : s) };
+        return { ...old, shifts: [...old.shifts, { ...patch, id: `temp-${Date.now()}`, created_at: new Date().toISOString() }] };
+      });
+      return { prev };
+    },
     onSuccess: async (saved: any) => {
       toast.success("Shift saved");
       upsertShiftInScheduleCache(saved);
@@ -732,10 +749,22 @@ function ScheduleBoard({
       await forceScheduleRefresh();
       setEditing(null);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any, _v: any, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      toast.error(e.message);
+    },
   });
   const delMut = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
+      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+        if (!old) return old;
+        return { ...old, shifts: old.shifts.filter((s: any) => s.id !== id) };
+      });
+      return { prev };
+    },
     onSuccess: async (_result, id) => {
       toast.success("Shift removed");
       removeShiftFromScheduleCache(id);
@@ -743,19 +772,36 @@ function ScheduleBoard({
       await forceScheduleRefresh();
       setEditing(null);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any, _v: any, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      toast.error(e.message);
+    },
   });
   const [copyShift, setCopyShift] = useState<any | null>(null);
   const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
     mutationFn: (v: { id: string; targetDate?: string }) => dup({ data: v }),
+    onMutate: async (v: { id: string; targetDate?: string }) => {
+      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
+      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+        if (!old) return old;
+        const src = old.shifts.find((s: any) => s.id === v.id);
+        if (!src) return old;
+        return { ...old, shifts: [...old.shifts, { ...src, id: `temp-${Date.now()}`, shift_date: v.targetDate ?? src.shift_date, created_at: new Date().toISOString() }] };
+      });
+      return { prev };
+    },
     onSuccess: async (saved: any) => {
       toast.success("Shift duplicated");
       upsertShiftInScheduleCache(saved);
       invalidate();
       await forceScheduleRefresh();
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any, _v: any, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      toast.error(e.message);
+    },
   });
   const availMut = useMutation({
     mutationFn: (v: { blockDate: string; reason?: string }) => markUnavail({ data: v }),
