@@ -33,6 +33,36 @@ type Mapping = {
   subject: (alert: any, ctx: any) => string
   recipients: (alert: any, sb: any) => Promise<Recipient[]>
   buildData: (alert: any, ctx: any) => Promise<Record<string, unknown>>
+  buildDataFor?: (alert: any, ctx: any, recipient: Recipient) => Promise<Record<string, unknown>>
+}
+
+function fmtDateLabel(ymd: string | null | undefined): string {
+  if (!ymd) return ''
+  // ymd is YYYY-MM-DD from the DB; parse without timezone shift
+  const [y, m, d] = ymd.split('-').map(Number)
+  if (!y || !m || !d) return ymd
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+function fmtTimeLabel(hms: string | null | undefined): string {
+  if (!hms) return ''
+  const [hStr, mStr] = hms.split(':')
+  const h = Number(hStr); const m = Number(mStr ?? 0)
+  if (Number.isNaN(h)) return hms
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = ((h + 11) % 12) + 1
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+function shiftMinutes(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0
+  let mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (mins <= 0) mins += 24 * 60 // overnight
+  return mins
 }
 
 function admin() {
@@ -383,27 +413,40 @@ async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | nu
     .select('name, start_date, end_date')
     .eq('id', alert.source_id)
     .maybeSingle()
+  const weekRange = sched
+    ? `${fmtDateLabel(sched.start_date)} – ${fmtDateLabel(sched.end_date)}`
+    : ''
+  // Load all shifts once; filter per-recipient below.
+  const { data: allShifts } = await sb
+    .from('schedule_shifts')
+    .select('shift_date, start_time, end_time, role, employee_id')
+    .eq('schedule_id', alert.source_id)
+    .order('shift_date', { ascending: true })
+    .order('start_time', { ascending: true })
   return {
     template: 'schedule-published',
     category: 'schedule',
-    subject: (_a, ctx) => `Schedule published — ${ctx.trailer.name}`,
+    subject: (_a, ctx) => `Your schedule is published — ${ctx.trailer.name}`,
     recipients: async () => getCrewForTrailer(alert.trailer_id),
-    buildData: async (_a, ctx) => {
-      const { data: shifts } = await sb
-        .from('schedule_shifts')
-        .select('shift_date, start_time, end_time, role')
-        .eq('schedule_id', alert.source_id)
-        .order('shift_date', { ascending: true })
-        .limit(50)
+    buildData: async (_a, ctx) => ({
+      trailer_name: ctx.trailer.name,
+      week_range: weekRange,
+      location: ctx.trailer.name,
+      schedule_id: alert.source_id,
+      cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
+    }),
+    buildDataFor: async (_a, _ctx, recipient) => {
+      const mine = (allShifts ?? []).filter((s: any) => s.employee_id === recipient.user_id)
+      const totalMinutes = mine.reduce((sum: number, s: any) => sum + shiftMinutes(s.start_time, s.end_time), 0)
+      const hours = Math.round((totalMinutes / 60) * 10) / 10
       return {
-        trailer_name: ctx.trailer.name,
-        week_range: sched ? `${sched.start_date} → ${sched.end_date}` : '',
-        location: ctx.trailer.name,
-        shifts: (shifts ?? []).map((s: any) => ({
-          date: s.shift_date, start: s.start_time, end: s.end_time, role: s.role,
+        shifts: mine.map((s: any) => ({
+          date: fmtDateLabel(s.shift_date),
+          start: fmtTimeLabel(s.start_time),
+          end: fmtTimeLabel(s.end_time),
+          role: s.role,
         })),
-        schedule_id: alert.source_id,
-        cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
+        total_hours: hours,
       }
     },
   }
@@ -577,6 +620,9 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
             alertId,
             templateName: mapping.template,
             templateData: await mapping.buildData(alert, ctx),
+            templateDataFor: mapping.buildDataFor
+              ? (r) => mapping.buildDataFor!(alert, ctx, r)
+              : undefined,
             recipients,
             category: mapping.category,
             priority: alert.priority,

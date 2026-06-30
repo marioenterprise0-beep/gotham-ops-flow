@@ -22,9 +22,13 @@ const Email = ({ recipient_name, week_range, location, shifts = [], total_hours,
     <DataTable>
       <DataRow label="Week" value={week_range ?? '—'} emphasis />
       <DataRow label="Location" value={location ?? '—'} />
-      <DataRow label="Total hours" value={total_hours != null ? `${total_hours} hrs` : '—'} emphasis />
+      <DataRow
+        label="Total hours"
+        value={total_hours != null && Number(total_hours) > 0 ? `${total_hours} hrs` : 'No shifts assigned'}
+        emphasis
+      />
     </DataTable>
-    {shifts.length > 0 && (
+    {shifts.length > 0 ? (
       <DataTable>
         {shifts.map((s, i) => (
           <DataRow
@@ -34,6 +38,10 @@ const Email = ({ recipient_name, week_range, location, shifts = [], total_hours,
           />
         ))}
       </DataTable>
+    ) : (
+      <Text style={styles.text}>
+        You aren't on the schedule this week. If that's not right, message your manager.
+      </Text>
     )}
     <OpenGothamButton path="/schedule" label="Open Schedule" />
   </BrandLayout>

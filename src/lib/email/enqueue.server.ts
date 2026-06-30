@@ -54,6 +54,8 @@ export interface EnqueueAlertEmailInput {
   alertId: string | null
   templateName: string
   templateData: Record<string, unknown>
+  /** Optional per-recipient template data merged on top of templateData. */
+  templateDataFor?: (recipient: Recipient) => Promise<Record<string, unknown>> | Record<string, unknown>
   recipients: Recipient[]
   category: Category
   priority?: 'critical' | 'high' | 'normal' | 'low'
@@ -148,8 +150,10 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
     }
 
     // Render template
+    const perRecipient = input.templateDataFor ? await input.templateDataFor(recipient) : {}
     const templateData = {
       ...input.templateData,
+      ...perRecipient,
       recipient_name: recipient.display_name,
       recipient_email: recipient.email,
     }
