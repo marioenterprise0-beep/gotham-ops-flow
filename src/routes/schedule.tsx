@@ -77,6 +77,8 @@ import {
 } from "@/lib/schedule.functions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { syncDomains } from "@/lib/sync-bus";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/schedule")({ component: SchedulePage });
 
