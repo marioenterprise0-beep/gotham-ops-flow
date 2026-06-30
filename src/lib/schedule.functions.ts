@@ -6,6 +6,7 @@ import {
   requireOwner as requireOwnerRole,
   requireTabAccess,
 } from "./auth-guards";
+import { DEFAULT_TRAILER_TZ, zonedDateToUtcISO } from "./timezone";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const SEGMENT = z.enum(["open", "mid", "close", "custom"]);
@@ -242,22 +243,35 @@ export const getSchedule = createServerFn({ method: "POST" })
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
     // Pull punches in the schedule window so the grid can show actual clocked hours
-    // alongside scheduled hours per employee.
+    // alongside scheduled hours per employee. The window is anchored to the
+    // trailer's local timezone so the same day boundaries are used regardless
+    // of where the viewer's device is.
     let punches: Array<{
       employee_id: string;
       clock_in_at: string;
       clock_out_at: string | null;
     }> = [];
+    let timezone: string = DEFAULT_TRAILER_TZ;
+    if (schedule?.trailer_id) {
+      const { data: tr } = await supabase
+        .from("trailers")
+        .select("timezone")
+        .eq("id", schedule.trailer_id)
+        .maybeSingle();
+      if (tr?.timezone) timezone = tr.timezone as string;
+    }
     if (schedule?.start_date && schedule?.end_date) {
+      const startISO = zonedDateToUtcISO(schedule.start_date as string, timezone, false);
+      const endISO = zonedDateToUtcISO(schedule.end_date as string, timezone, true);
       const { data: pRows } = await supabase
         .from("time_punches")
         .select("employee_id, clock_in_at, clock_out_at")
         .is("archived_at", null)
-        .gte("clock_in_at", `${schedule.start_date}T00:00:00`)
-        .lte("clock_in_at", `${schedule.end_date}T23:59:59`);
+        .gte("clock_in_at", startISO)
+        .lte("clock_in_at", endISO);
       punches = (pRows ?? []) as typeof punches;
     }
-    return { schedule, shifts: shifts ?? [], punches };
+    return { schedule, shifts: shifts ?? [], punches, timezone };
   });
 
 
