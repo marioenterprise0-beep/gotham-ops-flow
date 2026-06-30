@@ -273,12 +273,9 @@ export const upsertShift = createServerFn({ method: "POST" })
       .eq("id", data.scheduleId)
       .maybeSingle();
     if (sched?.status === "locked" || sched?.status === "published") {
-      const { data: isOwner } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "owner",
-      });
-      if (!isOwner) throw new Error("Schedule is locked");
+      throw new Error("Schedule is locked — unlock it before making changes");
     }
+
     const shiftId = data.id ?? crypto.randomUUID();
     const row = {
       schedule_id: data.scheduleId,
@@ -315,9 +312,19 @@ export const deleteShift = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    const { data: existing } = await supabase
+      .from("schedule_shifts")
+      .select("schedule_id, schedules!inner(status)")
+      .eq("id", data.id)
+      .maybeSingle();
+    const st = (existing as any)?.schedules?.status;
+    if (st === "locked" || st === "published") {
+      throw new Error("Schedule is locked — unlock it before making changes");
+    }
     const { error } = await supabase.from("schedule_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+
   });
 
 export const transitionSchedule = createServerFn({ method: "POST" })
@@ -653,11 +660,15 @@ export const duplicateShift = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     const { data: src, error } = await supabase
       .from("schedule_shifts")
-      .select("*")
+      .select("*, schedules!inner(status)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    const { id, created_at, updated_at, ...rest } = src as any;
+    const st = (src as any)?.schedules?.status;
+    if (st === "locked" || st === "published") {
+      throw new Error("Schedule is locked — unlock it before making changes");
+    }
+    const { id, created_at, updated_at, schedules: _sch, ...rest } = src as any;
     const newId = crypto.randomUUID();
     const insertRow = {
       id: newId,
@@ -666,6 +677,7 @@ export const duplicateShift = createServerFn({ method: "POST" })
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
       created_by: userId,
     };
+
     const { data: saved, error: e2 } = await supabase
       .from("schedule_shifts")
       .insert(insertRow)
