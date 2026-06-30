@@ -211,7 +211,7 @@ export const deleteSchedule = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const getSchedule = createServerFn({ method: "GET" })
+export const getSchedule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
@@ -279,6 +279,7 @@ export const upsertShift = createServerFn({ method: "POST" })
       });
       if (!isOwner) throw new Error("Schedule is locked");
     }
+    const shiftId = data.id ?? crypto.randomUUID();
     const row = {
       schedule_id: data.scheduleId,
       employee_id: data.employeeId,
@@ -295,28 +296,15 @@ export const upsertShift = createServerFn({ method: "POST" })
     };
     const q = data.id
       ? supabase.from("schedule_shifts").update(row).eq("id", data.id).select("*").maybeSingle()
-      : supabase.from("schedule_shifts").insert(row).select("*").maybeSingle();
+      : supabase.from("schedule_shifts").insert({ id: shiftId, ...row }).select("*").maybeSingle();
     const { data: saved, error } = await q;
     if (error) throw new Error(error.message);
     if (saved) return saved;
     // RLS may hide the RETURNING row even though the write succeeded — re-fetch.
-    if (data.id) {
-      const { data: refetched } = await supabase
-        .from("schedule_shifts").select("*").eq("id", data.id).maybeSingle();
-      if (refetched) return refetched;
-    } else {
-      const { data: latest } = await supabase
-        .from("schedule_shifts").select("*")
-        .eq("schedule_id", data.scheduleId)
-        .eq("shift_date", data.shiftDate)
-        .eq("start_time", data.startTime)
-        .eq("end_time", data.endTime)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latest) return latest;
-    }
-    return { id: data.id ?? null, ...row };
+    const { data: refetched } = await supabase
+      .from("schedule_shifts").select("*").eq("id", shiftId).maybeSingle();
+    if (refetched) return refetched;
+    return { id: shiftId, ...row };
   });
 
 export const deleteShift = createServerFn({ method: "POST" })
@@ -668,7 +656,9 @@ export const duplicateShift = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     const { id, created_at, updated_at, ...rest } = src as any;
+    const newId = crypto.randomUUID();
     const insertRow = {
+      id: newId,
       ...rest,
       shift_date: data.targetDate ?? src.shift_date,
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
@@ -680,7 +670,13 @@ export const duplicateShift = createServerFn({ method: "POST" })
       .select("*")
       .maybeSingle();
     if (e2) throw new Error(e2.message);
-    return saved ?? { ...insertRow };
+    if (saved) return saved;
+    const { data: refetched } = await supabase
+      .from("schedule_shifts")
+      .select("*")
+      .eq("id", newId)
+      .maybeSingle();
+    return refetched ?? insertRow;
   });
 
 // Auto-coverage: for each day of the schedule, ensure one open/mid/close
