@@ -79,6 +79,7 @@ export const clockIn = createServerFn({ method: "POST" })
     // computed distance/name is ever returned to the client below.
     const trailerId = profile?.trailer_id ?? null;
     if (trailerId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: trailer } = await supabaseAdmin.from("trailers")
         .select("geofence_lat, geofence_lng, geofence_radius_m, name")
         .eq("id", trailerId).maybeSingle();
