@@ -909,6 +909,30 @@ function ScheduleBoard({
     return m;
   }, [shifts, startStr, endStr]);
 
+  // Actual clocked hours per employee in the visible range.
+  // Open punches (no clock_out_at) count up to "now" so an in-progress shift is reflected live.
+  const clockedMap = useMemo(() => {
+    const m = new Map<string, number>();
+    const punches = (data?.punches ?? []) as Array<{
+      employee_id: string;
+      clock_in_at: string;
+      clock_out_at: string | null;
+    }>;
+    const startMs = new Date(startStr + "T00:00:00").getTime();
+    const endMs = new Date(endStr + "T23:59:59").getTime();
+    const nowMs = Date.now();
+    for (const p of punches) {
+      if (!p.employee_id || !p.clock_in_at) continue;
+      const inMs = new Date(p.clock_in_at).getTime();
+      if (inMs < startMs || inMs > endMs) continue;
+      const outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : nowMs;
+      const hrs = Math.max(0, (outMs - inMs) / 3_600_000);
+      m.set(p.employee_id, (m.get(p.employee_id) ?? 0) + hrs);
+    }
+    return m;
+  }, [data, startStr, endStr]);
+
+
   // Group shifts by employee+date (string key)
   const grid = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -1082,6 +1106,7 @@ function ScheduleBoard({
             {/* Body rows */}
             {visibleEmployees.map((emp: any) => {
               const hrs = hoursMap.get(emp.id) ?? 0;
+              const clocked = clockedMap.get(emp.id) ?? 0;
               const target = emp.targetHours ?? 40;
               const ratio = target > 0 ? hrs / target : 0;
               const tone = hrs > target ? "over" : ratio > 0.9 ? "warn" : "ok";
@@ -1115,6 +1140,7 @@ function ScheduleBoard({
                               tone === "warn" && "text-[var(--color-warning)]",
                               tone === "over" && "text-[var(--color-danger)]",
                             )}
+                            title="Scheduled / weekly target"
                           >
                             {hrs.toFixed(1)} / {target}h
                           </span>
@@ -1130,9 +1156,17 @@ function ScheduleBoard({
                             </button>
                           )}
                         </div>
+                        <div
+                          className="mt-0.5 flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground"
+                          title="Actual clocked hours this week (open punches count to now)"
+                        >
+                          <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0 bg-[var(--color-gold)]" />
+                          <span>{clocked.toFixed(1)}h clocked</span>
+                        </div>
                       </div>
                     </div>
                   </div>
+
                   {days.map((d) => {
                     const cellShifts = grid.get(`${emp.id}|${d}`) ?? [];
                     const availBlock = availMap.get(`${emp.id}|${d}`) ?? null;
