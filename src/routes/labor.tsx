@@ -31,8 +31,9 @@ function fmtH(min: number) {
 }
 
 function weekStartOf(d: Date): string {
+  // Payroll week: Monday → Sunday
   const dt = new Date(d);
-  const back = (dt.getDay() + 1) % 7;
+  const back = (dt.getDay() + 6) % 7;
   dt.setDate(dt.getDate() - back);
   dt.setHours(0, 0, 0, 0);
   return dt.toISOString().slice(0, 10);
@@ -71,7 +72,7 @@ function LaborPage() {
     <AppShell>
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="label-caps text-muted-foreground">Payroll week · Sat – Fri</div>
+          <div className="label-caps text-muted-foreground">Payroll week · Mon – Sun</div>
           <h1 className="font-display text-3xl text-foreground">LABOR</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -483,7 +484,7 @@ function exportLaborPDF(weekStart: string, rangeLabel: string, dash: any) {
   ]);
   const html = `
     <h1>Labor — Week of ${escapeHTML(rangeLabel)}</h1>
-    <div class="meta">Week start ${escapeHTML(weekStart)} · Payroll Sat–Fri</div>
+    <div class="meta">Week start ${escapeHTML(weekStart)} · Payroll Mon–Sun</div>
     ${kpiBlock([
       { label: "Scheduled", value: (dash.totals.scheduled / 60).toFixed(1) + "h" },
       { label: "Worked", value: (dash.totals.worked / 60).toFixed(1) + "h" },

@@ -65,16 +65,16 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { data: crew } = await supabase
       .from("profiles").select("id, display_name").is("archived_at", null).limit(20);
 
-    // Current payroll week: Saturday → Friday
+    // Current payroll week: Monday → Sunday
     const today = new Date();
     const dow = today.getDay(); // 0=Sun..6=Sat
-    const back = (dow + 1) % 7; // days since most-recent Saturday
-    const satStart = new Date(today);
-    satStart.setDate(today.getDate() - back);
-    const friEnd = new Date(satStart);
-    friEnd.setDate(satStart.getDate() + 6);
-    const weekStart = satStart.toISOString().slice(0, 10);
-    const weekEnd = friEnd.toISOString().slice(0, 10);
+    const back = (dow + 6) % 7; // days since most-recent Monday
+    const monStart = new Date(today);
+    monStart.setDate(today.getDate() - back);
+    const sunEnd = new Date(monStart);
+    sunEnd.setDate(monStart.getDate() + 6);
+    const weekStart = monStart.toISOString().slice(0, 10);
+    const weekEnd = sunEnd.toISOString().slice(0, 10);
 
     const { data: weekShifts } = await supabase
       .from("schedule_shifts")
