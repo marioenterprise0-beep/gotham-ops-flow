@@ -108,7 +108,7 @@ function InventoryPage() {
   const visibleTabs = TABS.filter((t) => {
     if (t.key === "approvals") return isManager;
     if (t.key === "configuration") return isManager;
-    if (t.key === "orders") return isManager;
+    // Orders is open to all crew — anyone working a shift can submit an order.
     return true;
   });
 
@@ -152,7 +152,7 @@ function InventoryPage() {
 
       {tab === "live-counts"   && <LiveCountsTab />}
       {tab === "count-guide"   && <InventoryGuideView />}
-      {tab === "orders"        && isManager && <OrdersTab onEditDetails={(itemId) => changeTab("configuration", { focus: itemId })} />}
+      {tab === "orders"        && <OrdersTab onEditDetails={(itemId) => isManager && changeTab("configuration", { focus: itemId })} />}
       {tab === "approvals"     && isManager && <InventoryChangesView />}
       {tab === "configuration" && isManager && <OrderGuideView focusItemId={search.focus ?? null} />}
     </AppShell>

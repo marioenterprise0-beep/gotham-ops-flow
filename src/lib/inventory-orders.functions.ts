@@ -36,9 +36,9 @@ export const createInventoryOrder = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { isManager } = await getRoles(supabase, userId);
-    if (!isManager) throw new Error("Manager role required");
-    await requireTabAccess(supabase, userId, "order-guide", "edit");
+    // Any authenticated crew member may create/submit an inventory order
+    // for their trailer. Approval still requires owner (see decideInventoryOrder).
+
 
 
     let trailerId = data.trailerId ?? null;
