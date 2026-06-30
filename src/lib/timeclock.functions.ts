@@ -601,3 +601,195 @@ export const restoreTimeOff = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ---------------------------------------------------------------------------
+// Manager / Owner punch management — manual clock in/out + edit any punch.
+// Used by the Time Clock "Manage punches" panel so owners can correct missed
+// punches and adjust existing ones without going through the request workflow.
+// ---------------------------------------------------------------------------
+
+// Synthesize a geo payload that satisfies the enforce_clock_in_geofence trigger
+// when a manager is entering a punch manually (no real device location).
+async function buildManagerGeoPayload(supabase: any, trailerId: string | null) {
+  const base: Record<string, any> = { manual_entry: true };
+  if (!trailerId) return base;
+  const { data } = await supabase
+    .from("trailers")
+    .select("geofence_lat, geofence_lng")
+    .eq("id", trailerId)
+    .maybeSingle();
+  if (data?.geofence_lat != null && data?.geofence_lng != null) {
+    base.geo = { lat: data.geofence_lat, lng: data.geofence_lng, accuracy: 0, source: "manager_override" };
+  }
+  return base;
+}
+
+export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().optional().nullable() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    let q = supabase
+      .from("profiles")
+      .select("id, display_name, email, trailer_id, archived_at")
+      .is("archived_at", null)
+      .order("display_name", { ascending: true });
+    if (data.trailerId) q = q.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const listPunchesForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    employeeId: z.string().uuid().optional().nullable(),
+    trailerId: z.string().uuid().optional().nullable(),
+    startDate: z.string(),
+    endDate: z.string(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    let q = supabase
+      .from("time_punches")
+      .select("id, employee_id, trailer_id, clock_in_at, clock_out_at, break_minutes, status, notes, schedule_shift_id")
+      .is("archived_at", null)
+      .gte("clock_in_at", new Date(data.startDate + "T00:00:00").toISOString())
+      .lt("clock_in_at", new Date(data.endDate + "T23:59:59.999").toISOString())
+      .order("clock_in_at", { ascending: false })
+      .limit(500);
+    if (data.employeeId) q = q.eq("employee_id", data.employeeId);
+    if (data.trailerId) q = q.eq("trailer_id", data.trailerId);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const managerClockInEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    employeeId: z.string().uuid(),
+    trailerId: z.string().uuid().optional().nullable(),
+    clockInAt: z.string().datetime(),
+    clockOutAt: z.string().datetime().optional().nullable(),
+    breakMinutes: z.number().int().min(0).max(480).optional(),
+    notes: z.string().max(1000).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+
+    // Resolve a trailer if none provided (employee's home trailer).
+    let trailerId = data.trailerId ?? null;
+    if (!trailerId) {
+      const { data: prof } = await supabase
+        .from("profiles").select("trailer_id").eq("id", data.employeeId).maybeSingle();
+      trailerId = prof?.trailer_id ?? null;
+    }
+
+    // Block creating a second open punch for the same employee.
+    if (!data.clockOutAt) {
+      const { data: existing } = await supabase
+        .from("time_punches").select("id")
+        .eq("employee_id", data.employeeId).eq("status", "open")
+        .is("archived_at", null).limit(1).maybeSingle();
+      if (existing) throw new Error("Employee already has an open punch. Close it first or set a clock-out time.");
+    }
+
+    const device_info = await buildManagerGeoPayload(supabase, trailerId);
+    const insertRow: any = {
+      employee_id: data.employeeId,
+      trailer_id: trailerId,
+      clock_in_at: data.clockInAt,
+      clock_out_at: data.clockOutAt ?? null,
+      status: data.clockOutAt ? "closed" : "open",
+      break_minutes: data.breakMinutes ?? 0,
+      notes: data.notes ? `[Manager entry] ${data.notes}` : "[Manager entry]",
+      device_info,
+      created_by: userId,
+    };
+    const { data: row, error } = await supabase.from("time_punches").insert(insertRow).select("*").single();
+    if (error) throw new Error(error.message);
+
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "manager_clock_in", entity: "time_punch", entity_id: row.id,
+      payload: { for_employee: data.employeeId, clock_in_at: data.clockInAt, clock_out_at: data.clockOutAt ?? null },
+    } as any);
+    return row;
+  });
+
+export const managerClockOutEmployee = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    punchId: z.string().uuid().optional(),
+    employeeId: z.string().uuid().optional(),
+    clockOutAt: z.string().datetime(),
+    breakMinutes: z.number().int().min(0).max(480).optional(),
+    notes: z.string().max(1000).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+    let punchId = data.punchId;
+    if (!punchId) {
+      if (!data.employeeId) throw new Error("punchId or employeeId required");
+      const { data: open } = await supabase.from("time_punches").select("id")
+        .eq("employee_id", data.employeeId).eq("status", "open").is("archived_at", null)
+        .order("clock_in_at", { ascending: false }).limit(1).maybeSingle();
+      if (!open) throw new Error("No open punch found for this employee.");
+      punchId = open.id;
+    }
+    const patch: any = { clock_out_at: data.clockOutAt, status: "closed" };
+    if (data.breakMinutes !== undefined) patch.break_minutes = data.breakMinutes;
+    if (data.notes) patch.notes = `[Manager close] ${data.notes}`;
+    const { data: row, error } = await supabase.from("time_punches").update(patch).eq("id", punchId).select("*").single();
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "manager_clock_out", entity: "time_punch", entity_id: row.id,
+      payload: { clock_out_at: data.clockOutAt, break_minutes: data.breakMinutes ?? null },
+    } as any);
+    return row;
+  });
+
+export const managerEditPunch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    clockInAt: z.string().datetime().optional(),
+    clockOutAt: z.string().datetime().nullable().optional(),
+    breakMinutes: z.number().int().min(0).max(480).optional(),
+    status: z.enum(["open", "closed", "auto_closed"]).optional(),
+    notes: z.string().max(1000).optional().nullable(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertManager(supabase, userId);
+
+    const patch: Record<string, any> = {};
+    if (data.clockInAt !== undefined) patch.clock_in_at = data.clockInAt;
+    if (data.clockOutAt !== undefined) patch.clock_out_at = data.clockOutAt;
+    if (data.breakMinutes !== undefined) patch.break_minutes = data.breakMinutes;
+    if (data.notes !== undefined) patch.notes = data.notes;
+    if (data.status !== undefined) {
+      patch.status = data.status;
+    } else if (data.clockOutAt !== undefined) {
+      patch.status = data.clockOutAt ? "closed" : "open";
+    }
+    if (Object.keys(patch).length === 0) throw new Error("No changes provided");
+
+    // Validate: if both timestamps present, end must be >= start.
+    if (patch.clock_in_at && patch.clock_out_at) {
+      if (new Date(patch.clock_out_at).getTime() < new Date(patch.clock_in_at).getTime()) {
+        throw new Error("Clock-out time must be after clock-in time.");
+      }
+    }
+
+    const { data: row, error } = await supabase.from("time_punches").update(patch as any).eq("id", data.id).select("*").single();
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId, action: "manager_edit_punch", entity: "time_punch", entity_id: row.id, payload: patch,
+    } as any);
+    return row;
+  });
