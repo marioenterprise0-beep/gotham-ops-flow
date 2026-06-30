@@ -413,27 +413,40 @@ async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | nu
     .select('name, start_date, end_date')
     .eq('id', alert.source_id)
     .maybeSingle()
+  const weekRange = sched
+    ? `${fmtDateLabel(sched.start_date)} – ${fmtDateLabel(sched.end_date)}`
+    : ''
+  // Load all shifts once; filter per-recipient below.
+  const { data: allShifts } = await sb
+    .from('schedule_shifts')
+    .select('shift_date, start_time, end_time, role, employee_id')
+    .eq('schedule_id', alert.source_id)
+    .order('shift_date', { ascending: true })
+    .order('start_time', { ascending: true })
   return {
     template: 'schedule-published',
     category: 'schedule',
-    subject: (_a, ctx) => `Schedule published — ${ctx.trailer.name}`,
+    subject: (_a, ctx) => `Your schedule is published — ${ctx.trailer.name}`,
     recipients: async () => getCrewForTrailer(alert.trailer_id),
-    buildData: async (_a, ctx) => {
-      const { data: shifts } = await sb
-        .from('schedule_shifts')
-        .select('shift_date, start_time, end_time, role')
-        .eq('schedule_id', alert.source_id)
-        .order('shift_date', { ascending: true })
-        .limit(50)
+    buildData: async (_a, ctx) => ({
+      trailer_name: ctx.trailer.name,
+      week_range: weekRange,
+      location: ctx.trailer.name,
+      schedule_id: alert.source_id,
+      cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
+    }),
+    buildDataFor: async (_a, _ctx, recipient) => {
+      const mine = (allShifts ?? []).filter((s: any) => s.employee_id === recipient.user_id)
+      const totalMinutes = mine.reduce((sum: number, s: any) => sum + shiftMinutes(s.start_time, s.end_time), 0)
+      const hours = Math.round((totalMinutes / 60) * 10) / 10
       return {
-        trailer_name: ctx.trailer.name,
-        week_range: sched ? `${sched.start_date} → ${sched.end_date}` : '',
-        location: ctx.trailer.name,
-        shifts: (shifts ?? []).map((s: any) => ({
-          date: s.shift_date, start: s.start_time, end: s.end_time, role: s.role,
+        shifts: mine.map((s: any) => ({
+          date: fmtDateLabel(s.shift_date),
+          start: fmtTimeLabel(s.start_time),
+          end: fmtTimeLabel(s.end_time),
+          role: s.role,
         })),
-        schedule_id: alert.source_id,
-        cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
+        total_hours: hours,
       }
     },
   }
