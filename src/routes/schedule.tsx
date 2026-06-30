@@ -82,6 +82,7 @@ export const Route = createFileRoute("/schedule")({ component: SchedulePage });
 
 type Status = "draft" | "submitted" | "approved" | "locked" | "published";
 type ViewMode = "day" | "week" | "twoweek" | "month";
+type ScheduleTab = "schedule" | "myshifts" | "swaps";
 
 const STATUS_TONE: Record<Status, "neutral" | "warning" | "success" | "danger" | "info"> = {
   draft: "neutral",
@@ -176,6 +177,12 @@ function SchedulePage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [mode, setMode] = useState<ViewMode>("week");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<ScheduleTab>("schedule");
+
+  useEffect(() => {
+    if (isMgr && activeTab === "myshifts") setActiveTab("schedule");
+    if (!isMgr && roleId && activeTab === "schedule") setActiveTab("myshifts");
+  }, [activeTab, isMgr, roleId]);
 
   const { start, end } = useMemo(() => viewRange(anchor, mode), [anchor, mode]);
   const startStr = fmt(start),
@@ -212,7 +219,7 @@ function SchedulePage() {
   return (
     <AppShell>
       <div className="-mx-4 px-4">
-        <Tabs defaultValue={isMgr ? "schedule" : "myshifts"}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ScheduleTab)}>
           <div className="flex items-center gap-3 mb-3">
             <TabsList>
               {!isMgr && (
@@ -708,7 +715,7 @@ function ScheduleBoard({
       },
     );
   };
-  const invalidate = () => syncDomains(qc, "schedule", "labor");
+  const invalidateLabor = () => syncDomains(qc, "labor");
   const forceScheduleRefresh = async () => {
     await qc.invalidateQueries({
       predicate: (q) =>
@@ -744,9 +751,9 @@ function ScheduleBoard({
     },
     onSuccess: async (saved: any) => {
       toast.success("Shift saved");
-      upsertShiftInScheduleCache(saved);
-      invalidate();
       await forceScheduleRefresh();
+      upsertShiftInScheduleCache(saved);
+      invalidateLabor();
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
@@ -767,9 +774,9 @@ function ScheduleBoard({
     },
     onSuccess: async (_result, id) => {
       toast.success("Shift removed");
-      removeShiftFromScheduleCache(id);
-      invalidate();
       await forceScheduleRefresh();
+      removeShiftFromScheduleCache(id);
+      invalidateLabor();
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
@@ -794,9 +801,9 @@ function ScheduleBoard({
     },
     onSuccess: async (saved: any) => {
       toast.success("Shift duplicated");
-      upsertShiftInScheduleCache(saved);
-      invalidate();
       await forceScheduleRefresh();
+      upsertShiftInScheduleCache(saved);
+      invalidateLabor();
     },
     onError: (e: any, _v: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
@@ -863,7 +870,7 @@ function ScheduleBoard({
       if (r.inserted > 0)
         toast.success(`Generated ${r.inserted} open shift${r.inserted === 1 ? "" : "s"}`);
       else toast.info("Coverage already in place — no new shifts to add");
-      invalidate();
+      syncDomains(qc, "schedule", "labor");
       qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Generate coverage failed"),
