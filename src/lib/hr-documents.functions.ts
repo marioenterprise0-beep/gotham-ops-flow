@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+// Note: supabaseAdmin is imported dynamically inside handler bodies below to
+// keep the service-role client out of the client bundle / module scope.
 import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
 import type { Recipient } from "@/lib/email/recipients.server";
 import { z } from "zod";
