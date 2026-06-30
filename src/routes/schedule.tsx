@@ -77,6 +77,7 @@ import {
 } from "@/lib/schedule.functions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { syncDomains } from "@/lib/sync-bus";
+import { DEFAULT_TRAILER_TZ, zonedDateToUtcMs } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/client";
 
 
