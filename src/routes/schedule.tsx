@@ -77,6 +77,8 @@ import {
 } from "@/lib/schedule.functions";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { syncDomains } from "@/lib/sync-bus";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/schedule")({ component: SchedulePage });
 
@@ -671,6 +673,46 @@ function ScheduleBoard({
   const [addedEmployeeIds, setAddedEmployeeIds] = useState<Set<string>>(new Set());
   // Reset manually-pinned employees when the viewed week changes.
   useEffect(() => { setAddedEmployeeIds(new Set()); }, [startStr]);
+
+  // Realtime: refetch the schedule cache whenever a punch or shift changes
+  // anywhere in the visible week — keeps clocked-hours and shift edits in sync
+  // across all devices without a manual refresh.
+  useEffect(() => {
+    if (!scheduleId || !startStr || !endStr) return;
+    let pending = false;
+    const refresh = () => {
+      if (pending) return;
+      pending = true;
+      // Coalesce bursts (e.g. clock-in writes audit + punch rows).
+      setTimeout(() => {
+        pending = false;
+        qc.invalidateQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      }, 350);
+    };
+    const channel = supabase
+      .channel(`schedule-live-${scheduleId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "time_punches" },
+        (payload: any) => {
+          const row = (payload.new ?? payload.old) as { clock_in_at?: string } | null;
+          const inAt = row?.clock_in_at;
+          if (!inAt) return refresh();
+          const d = inAt.slice(0, 10);
+          if (d >= startStr && d <= endStr) refresh();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "schedule_shifts", filter: `schedule_id=eq.${scheduleId}` },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [scheduleId, trailerScope, startStr, endStr, qc]);
+
   const [editing, setEditing] = useState<any | null>(null);
   const [swapDialogShift, setSwapDialogShift] = useState<any | null>(null);
   const [claimDialogShift, setClaimDialogShift] = useState<any | null>(null);
