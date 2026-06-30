@@ -610,10 +610,11 @@ export const restoreTimeOff = createServerFn({ method: "POST" })
 
 // Synthesize a geo payload that satisfies the enforce_clock_in_geofence trigger
 // when a manager is entering a punch manually (no real device location).
-async function buildManagerGeoPayload(supabase: any, trailerId: string | null) {
+async function buildManagerGeoPayload(_supabase: any, trailerId: string | null) {
   const base: Record<string, any> = { manual_entry: true };
   if (!trailerId) return base;
-  const { data } = await supabase
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
     .from("trailers")
     .select("geofence_lat, geofence_lng")
     .eq("id", trailerId)
