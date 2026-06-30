@@ -485,6 +485,7 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
     // pattern, just via the admin client to close that specific gap.
     let fileUrl: string | null = null;
     if (a.custom_storage_path) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: signed } = await supabaseAdmin.storage
         .from("gotham-photos")
         .createSignedUrl(a.custom_storage_path, 60 * 60);
