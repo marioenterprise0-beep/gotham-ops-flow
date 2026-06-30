@@ -1001,35 +1001,19 @@ function ScheduleBoard({
     return m;
   }, [availRows]);
 
-  // Build the set of employee IDs that have at least one shift in this range.
-  const employeesWithShifts = useMemo(() => {
-    const s = new Set<string>();
-    for (const shift of shifts) {
-      if (shift.employee_id && shift.shift_date >= startStr && shift.shift_date <= endStr)
-        s.add(shift.employee_id);
-    }
-    return s;
-  }, [shifts, startStr, endStr]);
-
-  // Only show employees who have shifts in range OR were manually added by the manager.
+  // Show every employee associated with the trailer in the grid so crew can
+  // see themselves and mark unavailability even when they have no shifts
+  // yet. Managers can still narrow with the role filter.
   const visibleEmployees = useMemo(() => {
     return (employees as any[]).filter(
-      (e) =>
-        (filterRole === "all" || e.roles.includes(filterRole)) &&
-        (employeesWithShifts.has(e.id) || addedEmployeeIds.has(e.id)),
+      (e) => filterRole === "all" || e.roles.includes(filterRole),
     );
-  }, [employees, employeesWithShifts, addedEmployeeIds, filterRole]);
+  }, [employees, filterRole]);
 
-  // Employees not yet in the grid — shown in the "Add to Schedule" picker.
-  // Respect filterRole so the picker only shows crew matching the active filter.
-  const availableToAdd = useMemo(() => {
-    const visible = new Set(visibleEmployees.map((e: any) => e.id));
-    return (employees as any[]).filter(
-      (e) =>
-        !visible.has(e.id) &&
-        (filterRole === "all" || e.roles.includes(filterRole)),
-    );
-  }, [employees, visibleEmployees, filterRole]);
+  // Manager-only "Add to Schedule" picker is now redundant since everyone
+  // shows by default. Keep an empty list so the existing UI hides itself.
+  const availableToAdd = useMemo(() => [] as any[], []);
+
 
   // Analytics
   const totals = useMemo(() => {
