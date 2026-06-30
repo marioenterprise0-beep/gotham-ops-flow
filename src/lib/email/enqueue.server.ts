@@ -54,6 +54,8 @@ export interface EnqueueAlertEmailInput {
   alertId: string | null
   templateName: string
   templateData: Record<string, unknown>
+  /** Optional per-recipient template data merged on top of templateData. */
+  templateDataFor?: (recipient: Recipient) => Promise<Record<string, unknown>> | Record<string, unknown>
   recipients: Recipient[]
   category: Category
   priority?: 'critical' | 'high' | 'normal' | 'low'
