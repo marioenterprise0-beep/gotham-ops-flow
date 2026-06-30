@@ -33,6 +33,36 @@ type Mapping = {
   subject: (alert: any, ctx: any) => string
   recipients: (alert: any, sb: any) => Promise<Recipient[]>
   buildData: (alert: any, ctx: any) => Promise<Record<string, unknown>>
+  buildDataFor?: (alert: any, ctx: any, recipient: Recipient) => Promise<Record<string, unknown>>
+}
+
+function fmtDateLabel(ymd: string | null | undefined): string {
+  if (!ymd) return ''
+  // ymd is YYYY-MM-DD from the DB; parse without timezone shift
+  const [y, m, d] = ymd.split('-').map(Number)
+  if (!y || !m || !d) return ymd
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+function fmtTimeLabel(hms: string | null | undefined): string {
+  if (!hms) return ''
+  const [hStr, mStr] = hms.split(':')
+  const h = Number(hStr); const m = Number(mStr ?? 0)
+  if (Number.isNaN(h)) return hms
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = ((h + 11) % 12) + 1
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+function shiftMinutes(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0
+  let mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (mins <= 0) mins += 24 * 60 // overnight
+  return mins
 }
 
 function admin() {
