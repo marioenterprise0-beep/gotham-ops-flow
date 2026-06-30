@@ -34,10 +34,15 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const start = new Date(ws + "T00:00:00");
     const end = new Date(start); end.setDate(end.getDate() + 7);
 
-    let profilesQ = supabase.from("profiles").select("id, display_name, trailer_id, active").eq("active", true).is("archived_at", null);
-    if (data.trailerId) profilesQ = profilesQ.eq("trailer_id", data.trailerId);
-    const { data: profiles } = await profilesQ;
-    const empIds = (profiles ?? []).map((p: any) => p.id);
+    // Always load all active profiles for display names; do NOT filter by
+    // trailer here. We seed the employee map from actual shifts/punches in
+    // scope so anyone scheduled or punched-in at this trailer shows up, even
+    // if their profiles.trailer_id is null or assigned elsewhere.
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, trailer_id, active")
+      .is("archived_at", null);
+    const profMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
 
     let punchesQ = supabase.from("time_punches").select("*").is("archived_at", null)
       .gte("clock_in_at", start.toISOString())
@@ -61,22 +66,28 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       punchesQ, shiftsQ, corrQ, timeoffQ,
     ]);
 
-    // Seed employee map from profiles so every scoped employee appears
     const empMap = new Map<string, { id: string; name: string; trailerId: string | null; scheduledMin: number; workedMin: number; flags: string[]; openPunch: boolean }>();
-    for (const p of profiles ?? []) {
-      empMap.set((p as any).id, {
-        id: (p as any).id, name: (p as any).display_name ?? "Crew", trailerId: (p as any).trailer_id ?? null,
-        scheduledMin: 0, workedMin: 0, flags: [], openPunch: false,
-      });
-    }
-    const ensure = (id: string) => empMap.get(id);
+    const seedEmp = (id: string) => {
+      if (!id || empMap.has(id)) return empMap.get(id);
+      const p = profMap.get(id);
+      const row = {
+        id,
+        name: p?.display_name ?? "Crew",
+        trailerId: p?.trailer_id ?? null,
+        scheduledMin: 0, workedMin: 0, flags: [] as string[], openPunch: false,
+      };
+      empMap.set(id, row);
+      return row;
+    };
 
     for (const s of shifts ?? []) {
       if (!s.employee_id) continue;
-      const e = ensure(s.employee_id); if (!e) continue;
+      const e = seedEmp(s.employee_id); if (!e) continue;
       const [sh, sm] = (s.start_time as string).split(":").map(Number);
       const [eh, em] = (s.end_time as string).split(":").map(Number);
-      const mins = (eh * 60 + em) - (sh * 60 + sm) - (s.break_minutes ?? 0);
+      let mins = (eh * 60 + em) - (sh * 60 + sm);
+      if (mins <= 0) mins += 24 * 60; // overnight
+      mins -= (s.break_minutes ?? 0);
       e.scheduledMin += Math.max(0, mins);
     }
 
@@ -85,7 +96,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
 
     let missedClockOuts = 0;
     for (const p of punches ?? []) {
-      const e = ensure(p.employee_id); if (!e) continue;
+      const e = seedEmp(p.employee_id); if (!e) continue;
       if (p.clock_out_at) {
         const diff = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
         e.workedMin += Math.max(0, diff - (p.break_minutes ?? 0));
@@ -102,6 +113,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       if (e.scheduledMin > 0 && e.workedMin === 0) e.flags.push("no_show");
       return { ...e, diffMin: diff };
     }).sort((a, b) => a.name.localeCompare(b.name));
+
 
 
     const totals = employees.reduce((acc, e) => ({
