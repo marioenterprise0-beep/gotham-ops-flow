@@ -298,6 +298,31 @@ function UsersTab() {
                 ) : <div />}
               </div>
 
+              {isOwner && !isArchived && (
+                <div className="px-4 pb-3 -mt-1 flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Pay rate</span>
+                  <span className="text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.25}
+                    defaultValue={u.pay_rate ?? ""}
+                    placeholder="0.00"
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === "" ? null : Number(raw);
+                      const prev = u.pay_rate == null ? null : Number(u.pay_rate);
+                      if (next === prev) return;
+                      if (next != null && (!Number.isFinite(next) || next < 0)) { toast.error("Invalid rate"); return; }
+                      payRateMut.mutate({ userId: u.id, payRate: next });
+                    }}
+                    className="h-7 w-24 rounded-md border border-border bg-card px-2 text-xs"
+                  />
+                  <span className="text-muted-foreground">/ hr</span>
+                </div>
+              )}
+
+
               {isOwner && open && (
                 <div className="px-4 pb-4 border-t border-border bg-[var(--color-muted)]/30">
                   {isUserOwner ? (
