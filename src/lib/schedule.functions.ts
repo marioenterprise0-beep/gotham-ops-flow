@@ -591,10 +591,13 @@ export const listEmployees = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
-  .handler(async ({ context: _ctx, data }) => {
-    // Use supabaseAdmin so managers see ALL active employees regardless of trailer
-    // assignment — same pattern as listUsers. When a trailer scope is provided
-    // the or() below also includes null-trailer profiles so new hires appear immediately.
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    // Manager-only: this returns the cross-trailer employee roster via supabaseAdmin
+    // (bypassing RLS), so it must not be callable by crew. Crew-facing shift
+    // claims/swaps query through the authenticated client where RLS scopes to
+    // the user's own trailer.
+    await requireManager(supabase, userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let profilesQ = supabaseAdmin
       .from("profiles")
