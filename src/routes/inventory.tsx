@@ -108,7 +108,7 @@ function InventoryPage() {
   const visibleTabs = TABS.filter((t) => {
     if (t.key === "approvals") return isManager;
     if (t.key === "configuration") return isManager;
-    if (t.key === "orders") return isManager;
+    // Orders is open to all crew — anyone working a shift can submit an order.
     return true;
   });
 
