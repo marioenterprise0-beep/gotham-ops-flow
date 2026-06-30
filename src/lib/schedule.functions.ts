@@ -223,16 +223,18 @@ export const getSchedule = createServerFn({ method: "GET" })
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    let shiftsQ = supabase
+    // Return every shift on this schedule. Trailer scoping happens at the
+    // schedule-picker level; once a schedule is open, filtering shifts by
+    // trailer caused freshly-saved shifts (whose trailer_id is auto-filled
+    // from the employee's profile by a DB trigger) to drop out of the board
+    // on refetch — they would appear optimistically and then disappear.
+    const shiftsQ = supabase
       .from("schedule_shifts")
       .select("*")
       .eq("schedule_id", data.id)
       .is("archived_at", null)
       .order("shift_date")
       .order("start_time");
-    // Include null-trailer shifts (e.g. generated coverage with no trailer scope)
-    // alongside the scoped ones so they don't get hidden from the board.
-    if (data.trailerId) shiftsQ = shiftsQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
     const [{ data: schedule, error: sErr }, { data: shifts, error: shErr }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
       shiftsQ,
