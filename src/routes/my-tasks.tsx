@@ -7,6 +7,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { toast } from "sonner";
 
@@ -28,7 +29,12 @@ function MyTasks() {
   const qc = useQueryClient();
   const listFn = useServerFn(listMyTasks);
   const { data: tasks = [] } = useQuery<Task[]>({
-    queryKey: ["my-tasks"], queryFn: () => listFn() as Promise<Task[]>,
+    queryKey: ["my-tasks"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return [];
+      return listFn() as Promise<Task[]>;
+    },
   });
 
   const completeFn = useServerFn(completeTask);

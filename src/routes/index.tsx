@@ -89,7 +89,11 @@ function CrewView({ stats, role, roleId, userName }: { stats: any; role: any; ro
   const listTasksFn = useServerFn(listMyTasks);
   const { data: myTasks = [] } = useQuery<Task[]>({
     queryKey: ["my-tasks"],
-    queryFn: () => listTasksFn() as Promise<Task[]>,
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return [];
+      return listTasksFn() as Promise<Task[]>;
+    },
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -329,7 +333,11 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
   const listTasksFn = useServerFn(listMyTasks);
   const { data: myTasks = [] } = useQuery<Task[]>({
     queryKey: ["my-tasks"],
-    queryFn: () => listTasksFn() as Promise<Task[]>,
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return [];
+      return listTasksFn() as Promise<Task[]>;
+    },
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
