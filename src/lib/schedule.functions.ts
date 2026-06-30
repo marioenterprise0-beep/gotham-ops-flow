@@ -660,11 +660,15 @@ export const duplicateShift = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     const { data: src, error } = await supabase
       .from("schedule_shifts")
-      .select("*")
+      .select("*, schedules!inner(status)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    const { id, created_at, updated_at, ...rest } = src as any;
+    const st = (src as any)?.schedules?.status;
+    if (st === "locked" || st === "published") {
+      throw new Error("Schedule is locked — unlock it before making changes");
+    }
+    const { id, created_at, updated_at, schedules: _sch, ...rest } = src as any;
     const newId = crypto.randomUUID();
     const insertRow = {
       id: newId,
@@ -673,6 +677,7 @@ export const duplicateShift = createServerFn({ method: "POST" })
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
       created_by: userId,
     };
+
     const { data: saved, error: e2 } = await supabase
       .from("schedule_shifts")
       .insert(insertRow)
