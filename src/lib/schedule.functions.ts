@@ -641,16 +641,33 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Pick the most recent overlapping schedule
+    // Pick the overlapping schedule that covers the most days in the requested
+    // view. This keeps existing Sun→Sat built schedules visible after the UI
+    // switched to Mon→Sun; otherwise the newer next-week schedule can overlap
+    // by one Sunday and incorrectly "steal" the current week view.
     const { data: existing, error: e1 } = await supabase
       .from("schedules")
       .select("*")
+      .is("archived_at", null)
       .lte("start_date", data.endDate)
       .gte("end_date", data.startDate)
-      .order("created_at", { ascending: false })
-      .limit(1);
+      .order("start_date", { ascending: false });
     if (e1) throw new Error(e1.message);
-    if (existing && existing.length > 0) return existing[0];
+    if (existing && existing.length > 0) {
+      const toDay = (iso: string) => Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
+      const reqStart = toDay(data.startDate);
+      const reqEnd = toDay(data.endDate);
+      const overlapDays = (row: any) => {
+        const start = Math.max(reqStart, toDay(row.start_date));
+        const end = Math.min(reqEnd, toDay(row.end_date));
+        return Math.max(0, end - start + 1);
+      };
+      return [...existing].sort((a: any, b: any) => {
+        const byOverlap = overlapDays(b) - overlapDays(a);
+        if (byOverlap !== 0) return byOverlap;
+        return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+      })[0];
+    }
     if (!data.autoCreate) return null;
     await requireManager(supabase, userId);
     const name = data.name ?? `Week of ${data.startDate}`;
