@@ -731,7 +731,11 @@ function ScheduleBoard({
   };
 
   const saveMut = useMutation({
-    mutationFn: (v: any) => save({ data: v }),
+    mutationFn: (v: any) => {
+      if (locked) return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
+      return save({ data: v });
+    },
+
     onMutate: async (v: any) => {
       await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
