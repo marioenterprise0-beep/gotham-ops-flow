@@ -676,9 +676,9 @@ export const duplicateShift = createServerFn({ method: "POST" })
       .from("schedule_shifts")
       .insert(insertRow)
       .select("*")
-      .single();
+      .maybeSingle();
     if (e2) throw new Error(e2.message);
-    return saved;
+    return saved ?? { ...insertRow };
   });
 
 // Auto-coverage: for each day of the schedule, ensure one open/mid/close
