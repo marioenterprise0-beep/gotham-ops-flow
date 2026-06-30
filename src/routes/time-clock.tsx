@@ -778,8 +778,12 @@ function PunchFormDialog({
   onSubmit: (vals: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: "open" | "closed" | "auto_closed" }) => Promise<void>;
 }) {
   const [employee, setEmployee] = useState(initial.employee_id);
-  const [inAt, setInAt] = useState(toLocalInputValue(initial.clock_in_at));
-  const [outAt, setOutAt] = useState(toLocalInputValue(initial.clock_out_at));
+  const initIn = splitLocal(initial.clock_in_at);
+  const initOut = splitLocal(initial.clock_out_at);
+  const [inDate, setInDate] = useState(initIn.date);
+  const [inTime, setInTime] = useState(initIn.time);
+  const [outDate, setOutDate] = useState(initOut.date);
+  const [outTime, setOutTime] = useState(initOut.time);
   const [breakMin, setBreakMin] = useState(initial.break_minutes ?? 0);
   const [notes, setNotes] = useState(initial.notes ?? "");
   const [status, setStatus] = useState<string>(initial.status ?? (initial.clock_out_at ? "closed" : "open"));
@@ -787,13 +791,18 @@ function PunchFormDialog({
 
   async function submit() {
     if (requireEmployee && !employee) { toast.error("Pick an employee"); return; }
-    if (!inAt) { toast.error("Clock-in time required"); return; }
+    if (!inDate || !inTime) { toast.error("Clock-in date and time required"); return; }
+    const clockIn = joinLocal(inDate, inTime);
+    const hasOut = Boolean(outDate && outTime);
+    if ((outDate && !outTime) || (!outDate && outTime)) {
+      toast.error("Clock-out needs both date and time (or leave both blank)"); return;
+    }
     setBusy(true);
     try {
       await onSubmit({
         employee_id: employee,
-        clock_in_at: fromLocalInputValue(inAt),
-        clock_out_at: outAt ? fromLocalInputValue(outAt) : null,
+        clock_in_at: clockIn,
+        clock_out_at: hasOut ? joinLocal(outDate, outTime) : null,
         break_minutes: Number(breakMin) || 0,
         notes,
         status: status as any,
@@ -817,9 +826,25 @@ function PunchFormDialog({
               </select>
             </div>
           )}
+          <div className="space-y-2">
+            <Label>Clock in</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={inDate} onChange={(e) => setInDate(e.target.value)} /></div>
+              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={inTime} onChange={(e) => setInTime(e.target.value)} /></div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Clock out <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span></Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
+              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+            </div>
+            {(outDate || outTime) && (
+              <button type="button" className="text-xs text-muted-foreground underline"
+                onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Clock in</Label><Input type="datetime-local" value={inAt} onChange={(e) => setInAt(e.target.value)} /></div>
-            <div><Label>Clock out (leave blank to keep open)</Label><Input type="datetime-local" value={outAt} onChange={(e) => setOutAt(e.target.value)} /></div>
             <div><Label>Break (min)</Label><Input type="number" min={0} max={480} value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} /></div>
             {!requireEmployee && (
               <div>
@@ -835,6 +860,7 @@ function PunchFormDialog({
           </div>
           <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         </div>
+
         <AlertDialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
