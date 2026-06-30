@@ -909,6 +909,30 @@ function ScheduleBoard({
     return m;
   }, [shifts, startStr, endStr]);
 
+  // Actual clocked hours per employee in the visible range.
+  // Open punches (no clock_out_at) count up to "now" so an in-progress shift is reflected live.
+  const clockedMap = useMemo(() => {
+    const m = new Map<string, number>();
+    const punches = (data?.punches ?? []) as Array<{
+      employee_id: string;
+      clock_in_at: string;
+      clock_out_at: string | null;
+    }>;
+    const startMs = new Date(startStr + "T00:00:00").getTime();
+    const endMs = new Date(endStr + "T23:59:59").getTime();
+    const nowMs = Date.now();
+    for (const p of punches) {
+      if (!p.employee_id || !p.clock_in_at) continue;
+      const inMs = new Date(p.clock_in_at).getTime();
+      if (inMs < startMs || inMs > endMs) continue;
+      const outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : nowMs;
+      const hrs = Math.max(0, (outMs - inMs) / 3_600_000);
+      m.set(p.employee_id, (m.get(p.employee_id) ?? 0) + hrs);
+    }
+    return m;
+  }, [data, startStr, endStr]);
+
+
   // Group shifts by employee+date (string key)
   const grid = useMemo(() => {
     const m = new Map<string, any[]>();
