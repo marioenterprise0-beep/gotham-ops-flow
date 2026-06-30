@@ -1075,3 +1075,58 @@ function OpenDrawerDialog({ drawer, onClose, onSaved }: { drawer: any; onClose: 
   );
 }
 
+function EditDrawerSessionInline({ session, onSaved }: { session: any; onSaved: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [startingFloat, setStartingFloat] = useState<string>(String(session.starting_float ?? 0));
+  const [sales, setSales] = useState<string>(String(session.total_cash_sales ?? 0));
+  const [counted, setCounted] = useState<string>(String(session.counted_amount ?? 0));
+  const [reason, setReason] = useState<string>(session.variance_reason ?? "");
+  const [note, setNote] = useState("");
+  const editFn = useServerFn(editDrawerSession);
+  const mu = useMutation({
+    mutationFn: () => editFn({ data: {
+      sessionId: session.id,
+      startingFloat: Number(startingFloat),
+      totalCashSales: Number(sales),
+      countedAmount: Number(counted),
+      varianceReason: reason || null,
+      editNote: note || undefined,
+    }}),
+    onSuccess: () => { toast.success("Drawer session updated"); setOpen(false); onSaved(); },
+    onError: (e: any) => toast.error(e?.message ?? "Failed"),
+  });
+  const previewExpected = Number(startingFloat || 0) + Number(sales || 0);
+  const previewVariance = Number(counted || 0) - previewExpected;
+
+  return (
+    <Card goldAccent>
+      <div className="flex items-center justify-between">
+        <h4 className="font-semibold">Owner Edit</h4>
+        <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)}>
+          {open ? "Cancel" : "Edit submitted values"}
+        </Button>
+      </div>
+      {open && (
+        <div className="space-y-3 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div><Label>Starting Float</Label><Input type="number" step="0.01" value={startingFloat} onChange={(e) => setStartingFloat(e.target.value)} /></div>
+            <div><Label>Total Cash Sales</Label><Input type="number" step="0.01" value={sales} onChange={(e) => setSales(e.target.value)} /></div>
+            <div><Label>Actual Cash Counted</Label><Input type="number" step="0.01" value={counted} onChange={(e) => setCounted(e.target.value)} /></div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            New Expected: <b>{money(previewExpected)}</b> · New Variance: <b>{previewVariance >= 0 ? "+" : ""}{money(previewVariance)}</b>
+          </div>
+          <div><Label>Variance Reason / Notes</Label><Textarea rows={2} maxLength={2000} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <div><Label>Audit Note (why are you editing?)</Label><Textarea rows={2} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Recorded in the audit log" /></div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => mu.mutate()} disabled={mu.isPending}>
+              {mu.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+
