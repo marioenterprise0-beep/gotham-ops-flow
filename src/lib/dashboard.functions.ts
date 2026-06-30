@@ -65,37 +65,52 @@ export const getDashboardStats = createServerFn({ method: "GET" })
     const { data: crew } = await supabase
       .from("profiles").select("id, display_name").is("archived_at", null).limit(20);
 
-    // Current week schedule stats (Mon–Sun containing today)
+    // Current payroll week: Saturday → Friday
     const today = new Date();
-    const dayOfWeek = today.getDay(); // 0=Sun
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const weekStart = monday.toISOString().slice(0, 10);
-    const weekEnd = sunday.toISOString().slice(0, 10);
+    const dow = today.getDay(); // 0=Sun..6=Sat
+    const back = (dow + 1) % 7; // days since most-recent Saturday
+    const satStart = new Date(today);
+    satStart.setDate(today.getDate() - back);
+    const friEnd = new Date(satStart);
+    friEnd.setDate(satStart.getDate() + 6);
+    const weekStart = satStart.toISOString().slice(0, 10);
+    const weekEnd = friEnd.toISOString().slice(0, 10);
 
     const { data: weekShifts } = await supabase
       .from("schedule_shifts")
-      .select("employee_id, start_time, end_time, schedules!inner(status, sales_target)")
+      .select("employee_id, start_time, end_time, break_minutes, schedules!inner(status, sales_target)")
       .gte("shift_date", weekStart)
       .lte("shift_date", weekEnd)
       .is("archived_at", null)
       .in("schedules.status", ["published", "locked"]);
 
+    // Pay rates for assigned employees so labor cost reflects real wages.
+    const empIds = Array.from(new Set((weekShifts ?? []).map((s: any) => s.employee_id).filter(Boolean))) as string[];
+    const rateMap = new Map<string, number>();
+    if (empIds.length > 0) {
+      const { data: rates } = await supabase
+        .from("profiles").select("id, pay_rate").in("id", empIds);
+      for (const r of rates ?? []) rateMap.set((r as any).id, Number((r as any).pay_rate ?? 0));
+    }
+
     let scheduledHrs = 0;
     let openShifts = 0;
+    let laborCost = 0;
     let salesTarget: number | null = null;
     for (const s of weekShifts ?? []) {
       const [sh, sm] = (s.start_time as string).split(":").map(Number);
       const [eh, em] = (s.end_time as string).split(":").map(Number);
-      const hrs = (eh * 60 + em - sh * 60 - sm) / 60;
-      scheduledHrs += Math.max(0, hrs);
-      if (!s.employee_id) openShifts++;
+      let mins = (eh * 60 + em) - (sh * 60 + sm);
+      if (mins <= 0) mins += 24 * 60; // overnight
+      mins -= Number((s as any).break_minutes ?? 0);
+      const hrs = Math.max(0, mins / 60);
+      if (!s.employee_id) { openShifts++; continue; } // exclude open shifts from hours/cost
+      scheduledHrs += hrs;
+      laborCost += hrs * (rateMap.get(s.employee_id as string) ?? 0);
       const st = (s as any).schedules?.sales_target;
       if (st && !salesTarget) salesTarget = Number(st);
     }
-    const laborCost = Math.round(scheduledHrs * 17);
+    laborCost = Math.round(laborCost);
     const laborPct = salesTarget && salesTarget > 0 ? Math.round((laborCost / salesTarget) * 100 * 10) / 10 : null;
 
     return {
