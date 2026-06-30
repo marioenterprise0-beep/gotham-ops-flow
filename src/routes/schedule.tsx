@@ -82,6 +82,7 @@ export const Route = createFileRoute("/schedule")({ component: SchedulePage });
 
 type Status = "draft" | "submitted" | "approved" | "locked" | "published";
 type ViewMode = "day" | "week" | "twoweek" | "month";
+type ScheduleTab = "schedule" | "myshifts" | "swaps";
 
 const STATUS_TONE: Record<Status, "neutral" | "warning" | "success" | "danger" | "info"> = {
   draft: "neutral",
@@ -176,6 +177,12 @@ function SchedulePage() {
   const [anchor, setAnchor] = useState<Date>(() => new Date());
   const [mode, setMode] = useState<ViewMode>("week");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<ScheduleTab>("schedule");
+
+  useEffect(() => {
+    if (isMgr && activeTab === "myshifts") setActiveTab("schedule");
+    if (!isMgr && roleId && activeTab === "schedule") setActiveTab("myshifts");
+  }, [activeTab, isMgr, roleId]);
 
   const { start, end } = useMemo(() => viewRange(anchor, mode), [anchor, mode]);
   const startStr = fmt(start),
@@ -212,7 +219,7 @@ function SchedulePage() {
   return (
     <AppShell>
       <div className="-mx-4 px-4">
-        <Tabs defaultValue={isMgr ? "schedule" : "myshifts"}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ScheduleTab)}>
           <div className="flex items-center gap-3 mb-3">
             <TabsList>
               {!isMgr && (
