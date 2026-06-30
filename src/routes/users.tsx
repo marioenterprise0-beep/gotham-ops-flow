@@ -116,6 +116,7 @@ function UsersTab() {
   const archiveFn = useServerFn(archiveUser);
   const restoreFn = useServerFn(restoreUser);
   const hardDeleteFn = useServerFn(hardDeleteUser);
+  const setPayRateFn = useServerFn(setUserPayRate);
 
   const [showArchived, setShowArchived] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
