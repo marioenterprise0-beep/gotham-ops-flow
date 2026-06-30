@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+// Note: supabaseAdmin is imported dynamically inside handler bodies below to
+// keep the service-role client out of the client bundle / module scope.
 import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
 import type { Recipient } from "@/lib/email/recipients.server";
 import { z } from "zod";
@@ -484,6 +485,7 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
     // pattern, just via the admin client to close that specific gap.
     let fileUrl: string | null = null;
     if (a.custom_storage_path) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: signed } = await supabaseAdmin.storage
         .from("gotham-photos")
         .createSignedUrl(a.custom_storage_path, 60 * 60);
@@ -505,6 +507,7 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) }).parse(d))
   .handler(async ({ context, data }) => {
     const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: a, error } = await (supabaseAdmin as any)
       .from("hr_document_assignments")
       .select("id, title, employee_id, status, completed_at, custom_storage_path")
