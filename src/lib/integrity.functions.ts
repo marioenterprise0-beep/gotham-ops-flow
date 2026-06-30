@@ -98,11 +98,12 @@ export const runIntegritySweep = createServerFn({ method: "GET" })
 
     const shiftsBadTime = shifts.filter((s: any) => {
       if (!s.start_time || !s.end_time) return true;
-      return String(s.end_time) <= String(s.start_time);
+      // Overnight shifts (end < start) are valid — only flag zero-length.
+      return String(s.end_time) === String(s.start_time);
     });
     pushIssue(issues, {
       category: "schedule", severity: "warning", code: "shift_bad_time",
-      message: "Shifts with end time before start time (or missing times).",
+      message: "Shifts with missing times or zero-length duration.",
       count: shiftsBadTime.length,
       sampleIds: shiftsBadTime.slice(0, 5).map((s: any) => s.id),
     });
