@@ -614,6 +614,20 @@ function toLocalInputValue(iso: string | null | undefined): string {
 function fromLocalInputValue(s: string): string {
   return new Date(s).toISOString();
 }
+function splitLocal(iso: string | null | undefined): { date: string; time: string } {
+  if (!iso) return { date: "", time: "" };
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+function joinLocal(date: string, time: string): string {
+  if (!date || !time) return "";
+  return new Date(`${date}T${time}:00`).toISOString();
+}
+
 
 function ManagePunchesPanel() {
   const qc = useQueryClient();
