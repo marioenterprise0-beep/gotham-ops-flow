@@ -596,3 +596,229 @@ function MyHistory() {
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// ManagePunchesPanel — owner/manager UI to manually clock employees in/out
+// and edit any existing punch. Visible only to managers/owners.
+// ---------------------------------------------------------------------------
+function toLocalInputValue(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function fromLocalInputValue(s: string): string {
+  return new Date(s).toISOString();
+}
+
+function ManagePunchesPanel() {
+  const qc = useQueryClient();
+  const { isManager } = useRole();
+  if (!isManager) return null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const [startDate, setStartDate] = useState(weekAgo);
+  const [endDate, setEndDate] = useState(today);
+  const [employeeId, setEmployeeId] = useState<string>("");
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+
+  const empFn = useServerFn(listEmployeesForPunchAdmin);
+  const punchesFn = useServerFn(listPunchesForAdmin);
+  const inFn = useServerFn(managerClockInEmployee);
+  const outFn = useServerFn(managerClockOutEmployee);
+  const editFn = useServerFn(managerEditPunch);
+
+  const { data: employees = [] } = useQuery<any[]>({
+    queryKey: ["mgr-punch-employees"],
+    queryFn: () => empFn({ data: {} }) as Promise<any[]>,
+  });
+  const { data: punches = [], refetch } = useQuery<any[]>({
+    queryKey: ["mgr-punches", employeeId, startDate, endDate],
+    queryFn: () => punchesFn({ data: { employeeId: employeeId || null, startDate, endDate } }) as Promise<any[]>,
+  });
+
+  const empName = (id: string | null) => employees.find((e) => e.id === id)?.display_name ?? "—";
+
+  function refresh() {
+    refetch();
+    syncDomains(qc, "timeclock", "labor");
+  }
+
+  return (
+    <>
+      <SectionHeader eyebrow="Manager tools" title="MANAGE EMPLOYEE PUNCHES" />
+      <Card className="p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <Label>Employee</Label>
+            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
+              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+              <option value="">All employees</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.display_name || e.email}</option>)}
+            </select>
+          </div>
+          <div><Label>From</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
+          <div><Label>To</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+          <div className="flex items-end"><Button className="w-full" onClick={() => setAdding(true)}>Add punch</Button></div>
+        </div>
+
+        <div className="border rounded-md divide-y divide-border">
+          {punches.length === 0 && <div className="p-3 text-sm text-muted-foreground">No punches in range.</div>}
+          {punches.map((p) => {
+            const start = new Date(p.clock_in_at);
+            const end = p.clock_out_at ? new Date(p.clock_out_at) : null;
+            const minutes = end ? Math.max(0, (end.getTime() - start.getTime()) / 60000 - (p.break_minutes ?? 0)) : 0;
+            return (
+              <div key={p.id} className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{empName(p.employee_id)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {start.toLocaleString()} → {end ? end.toLocaleString() : <span className="text-[var(--color-gold)] font-semibold">OPEN</span>}
+                    {end && <> · {fmtDuration(minutes)} worked · break {p.break_minutes ?? 0}m</>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <StatusPill tone={p.status === "open" ? "warning" : p.status === "auto_closed" ? "danger" : "success"}>{p.status}</StatusPill>
+                  {p.status === "open" && (
+                    <Button size="sm" variant="outline" onClick={async () => {
+                      try {
+                        await outFn({ data: { punchId: p.id, clockOutAt: new Date().toISOString() } });
+                        toast.success("Clocked out"); refresh();
+                      } catch (e: any) { toast.error(e.message); }
+                    }}>Clock out now</Button>
+                  )}
+                  <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {adding && (
+        <PunchFormDialog
+          title="Add punch"
+          employees={employees}
+          initial={{ employee_id: "", clock_in_at: new Date().toISOString(), clock_out_at: null, break_minutes: 0, notes: "" }}
+          requireEmployee
+          onClose={() => setAdding(false)}
+          onSubmit={async (vals) => {
+            await inFn({ data: {
+              employeeId: vals.employee_id,
+              clockInAt: vals.clock_in_at,
+              clockOutAt: vals.clock_out_at || null,
+              breakMinutes: vals.break_minutes,
+              notes: vals.notes || undefined,
+            } });
+            toast.success("Punch created"); setAdding(false); refresh();
+          }}
+        />
+      )}
+      {editing && (
+        <PunchFormDialog
+          title={`Edit punch · ${empName(editing.employee_id)}`}
+          employees={employees}
+          initial={{
+            employee_id: editing.employee_id,
+            clock_in_at: editing.clock_in_at,
+            clock_out_at: editing.clock_out_at,
+            break_minutes: editing.break_minutes ?? 0,
+            notes: editing.notes ?? "",
+            status: editing.status,
+          }}
+          onClose={() => setEditing(null)}
+          onSubmit={async (vals) => {
+            await editFn({ data: {
+              id: editing.id,
+              clockInAt: vals.clock_in_at,
+              clockOutAt: vals.clock_out_at || null,
+              breakMinutes: vals.break_minutes,
+              notes: vals.notes ?? null,
+              status: vals.status,
+            } });
+            toast.success("Punch updated"); setEditing(null); refresh();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function PunchFormDialog({
+  title, employees, initial, requireEmployee, onClose, onSubmit,
+}: {
+  title: string;
+  employees: any[];
+  initial: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: string };
+  requireEmployee?: boolean;
+  onClose: () => void;
+  onSubmit: (vals: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: "open" | "closed" | "auto_closed" }) => Promise<void>;
+}) {
+  const [employee, setEmployee] = useState(initial.employee_id);
+  const [inAt, setInAt] = useState(toLocalInputValue(initial.clock_in_at));
+  const [outAt, setOutAt] = useState(toLocalInputValue(initial.clock_out_at));
+  const [breakMin, setBreakMin] = useState(initial.break_minutes ?? 0);
+  const [notes, setNotes] = useState(initial.notes ?? "");
+  const [status, setStatus] = useState<string>(initial.status ?? (initial.clock_out_at ? "closed" : "open"));
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (requireEmployee && !employee) { toast.error("Pick an employee"); return; }
+    if (!inAt) { toast.error("Clock-in time required"); return; }
+    setBusy(true);
+    try {
+      await onSubmit({
+        employee_id: employee,
+        clock_in_at: fromLocalInputValue(inAt),
+        clock_out_at: outAt ? fromLocalInputValue(outAt) : null,
+        break_minutes: Number(breakMin) || 0,
+        notes,
+        status: status as any,
+      });
+    } catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <AlertDialog open onOpenChange={(o) => !o && onClose()}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle></AlertDialogHeader>
+        <div className="space-y-3">
+          {requireEmployee && (
+            <div>
+              <Label>Employee</Label>
+              <select value={employee} onChange={(e) => setEmployee(e.target.value)}
+                className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+                <option value="">Select employee…</option>
+                {employees.map((e) => <option key={e.id} value={e.id}>{e.display_name || e.email}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Clock in</Label><Input type="datetime-local" value={inAt} onChange={(e) => setInAt(e.target.value)} /></div>
+            <div><Label>Clock out (leave blank to keep open)</Label><Input type="datetime-local" value={outAt} onChange={(e) => setOutAt(e.target.value)} /></div>
+            <div><Label>Break (min)</Label><Input type="number" min={0} max={480} value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} /></div>
+            {!requireEmployee && (
+              <div>
+                <Label>Status</Label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)}
+                  className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+                  <option value="open">Open</option>
+                  <option value="closed">Closed</option>
+                  <option value="auto_closed">Auto-closed</option>
+                </select>
+              </div>
+            )}
+          </div>
+          <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        </div>
+        <AlertDialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
