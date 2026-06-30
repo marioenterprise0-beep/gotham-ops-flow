@@ -631,9 +631,12 @@ function joinLocal(date: string, time: string): string {
 
 function ManagePunchesPanel() {
   const qc = useQueryClient();
-  const { roles } = useRole();
-  const isOwner = roles.includes("owner");
+  const { roleId, actualRoleId } = useRole();
+  // Owner-only. Hide while impersonating another role so the section
+  // accurately reflects the active view.
+  const isOwner = roleId === "owner" && actualRoleId === "owner";
   if (!isOwner) return null;
+
 
 
   const today = new Date().toISOString().slice(0, 10);

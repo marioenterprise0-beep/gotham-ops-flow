@@ -256,28 +256,33 @@ function SchedulePage() {
             />
 
             {!schedule ? (
-              <Card className="mt-3">
-                <div className="py-10 text-center">
-                  <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-                  <div className="font-display text-lg">No schedule for this range</div>
-                  <div className="text-sm text-muted-foreground mt-1 mb-4">
-                    {rangeLabel(start, end, mode)}
-                  </div>
-                  {isMgr ? (
-                    <Button
-                      onClick={() => createMut.mutate()}
-                      disabled={createMut.isPending}
-                      className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
-                    </Button>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">
-                      A manager will publish one soon.
+              <>
+                <Card className="mt-3">
+                  <div className="py-8 text-center">
+                    <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+                    <div className="font-display text-lg">No schedule for this range</div>
+                    <div className="text-sm text-muted-foreground mt-1 mb-4">
+                      {rangeLabel(start, end, mode)}
                     </div>
-                  )}
-                </div>
-              </Card>
+                    {isMgr ? (
+                      <Button
+                        onClick={() => createMut.mutate()}
+                        disabled={createMut.isPending}
+                        className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
+                      </Button>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">
+                        A manager will publish one soon. You can still mark days you're unavailable below.
+                      </div>
+                    )}
+                  </div>
+                </Card>
+                {!isMgr && (
+                  <MyAvailabilityCalendar startStr={startStr} endStr={endStr} />
+                )}
+              </>
             ) : (
               <ScheduleBoard
                 scheduleId={schedule.id}
@@ -289,6 +294,7 @@ function SchedulePage() {
                 trailerScope={trailerScope}
               />
             )}
+
           </TabsContent>
 
           {!isMgr && (
@@ -1001,35 +1007,19 @@ function ScheduleBoard({
     return m;
   }, [availRows]);
 
-  // Build the set of employee IDs that have at least one shift in this range.
-  const employeesWithShifts = useMemo(() => {
-    const s = new Set<string>();
-    for (const shift of shifts) {
-      if (shift.employee_id && shift.shift_date >= startStr && shift.shift_date <= endStr)
-        s.add(shift.employee_id);
-    }
-    return s;
-  }, [shifts, startStr, endStr]);
-
-  // Only show employees who have shifts in range OR were manually added by the manager.
+  // Show every employee associated with the trailer in the grid so crew can
+  // see themselves and mark unavailability even when they have no shifts
+  // yet. Managers can still narrow with the role filter.
   const visibleEmployees = useMemo(() => {
     return (employees as any[]).filter(
-      (e) =>
-        (filterRole === "all" || e.roles.includes(filterRole)) &&
-        (employeesWithShifts.has(e.id) || addedEmployeeIds.has(e.id)),
+      (e) => filterRole === "all" || e.roles.includes(filterRole),
     );
-  }, [employees, employeesWithShifts, addedEmployeeIds, filterRole]);
+  }, [employees, filterRole]);
 
-  // Employees not yet in the grid — shown in the "Add to Schedule" picker.
-  // Respect filterRole so the picker only shows crew matching the active filter.
-  const availableToAdd = useMemo(() => {
-    const visible = new Set(visibleEmployees.map((e: any) => e.id));
-    return (employees as any[]).filter(
-      (e) =>
-        !visible.has(e.id) &&
-        (filterRole === "all" || e.roles.includes(filterRole)),
-    );
-  }, [employees, visibleEmployees, filterRole]);
+  // Manager-only "Add to Schedule" picker is now redundant since everyone
+  // shows by default. Keep an empty list so the existing UI hides itself.
+  const availableToAdd = useMemo(() => [] as any[], []);
+
 
   // Analytics
   const totals = useMemo(() => {
@@ -1473,11 +1463,12 @@ function Cell({
         {canToggleAvail && !availBlock && (
           <button
             onClick={onAvailToggle}
-            className="w-full text-[11px] text-blue-400 hover:text-blue-600 py-1 rounded-md border border-dashed border-blue-200 hover:border-blue-400 transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+            className="w-full text-[11px] text-blue-600 hover:text-blue-700 py-1 rounded-md border border-dashed border-blue-300 hover:border-blue-500 transition"
           >
             Mark unavailable
           </button>
         )}
+
       </div>
     </div>
   );
@@ -2092,6 +2083,102 @@ function SwapRequestDialog({
     </Dialog>
   );
 }
+
+// ============================================================
+// MyAvailabilityCalendar — standalone day picker shown to crew when
+// no schedule exists for the range, so they can still flag days off.
+// ============================================================
+function MyAvailabilityCalendar({ startStr, endStr }: { startStr: string; endStr: string }) {
+  const qc = useQueryClient();
+  const { session } = useRole();
+  const userId = session?.user?.id ?? null;
+  const fetchAvail = useServerFn(listAvailabilityForRange);
+  const markUnavail = useServerFn(upsertAvailability);
+  const clearUnavail = useServerFn(deleteAvailability);
+  const [dlg, setDlg] = useState<{ date: string; existing: any | null } | null>(null);
+
+  const { data: rows = [] } = useQuery({
+    queryKey: ["availability", startStr, endStr],
+    queryFn: () => fetchAvail({ data: { startDate: startStr, endDate: endStr } }),
+    enabled: !!session,
+  });
+  const mine = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const b of rows as any[]) if (b.user_id === userId) m.set(b.block_date, b);
+    return m;
+  }, [rows, userId]);
+  const days = useMemo(() => rangeDays(startStr, endStr), [startStr, endStr]);
+
+  const markMut = useMutation({
+    mutationFn: (v: { blockDate: string; reason?: string }) => markUnavail({ data: v }),
+    onSuccess: () => {
+      toast.success("Marked unavailable");
+      qc.invalidateQueries({ queryKey: ["availability"] });
+      setDlg(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+  const clearMut = useMutation({
+    mutationFn: (blockDate: string) => clearUnavail({ data: { blockDate } }),
+    onSuccess: () => {
+      toast.success("Availability cleared");
+      qc.invalidateQueries({ queryKey: ["availability"] });
+      setDlg(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <>
+      <Card className="mt-3 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="font-display text-base">My Availability</div>
+            <div className="text-xs text-muted-foreground">Tap a day to flag yourself unavailable.</div>
+          </div>
+          <UserX className="h-4 w-4 text-blue-600" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+          {days.map((d) => {
+            const dt = new Date(d + "T00:00:00");
+            const block = mine.get(d) ?? null;
+            const isOff = !!block;
+            return (
+              <button
+                key={d}
+                onClick={() => setDlg({ date: d, existing: block })}
+                className={cn(
+                  "rounded-md border p-2 text-left transition",
+                  isOff
+                    ? "bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200"
+                    : "bg-background border-border hover:border-[var(--color-gold)]",
+                )}
+              >
+                <div className="text-[10px] label-caps text-muted-foreground">
+                  {dt.toLocaleDateString([], { weekday: "short" })}
+                </div>
+                <div className="text-sm font-semibold">
+                  {dt.toLocaleDateString([], { month: "short", day: "numeric" })}
+                </div>
+                <div className="text-[10px] mt-1">
+                  {isOff ? (block.reason ? `Off · ${block.reason}` : "Off") : "Available"}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+      <AvailabilityDialog
+        entry={dlg ? { userId: userId ?? "", date: dlg.date, existing: dlg.existing } : null}
+        onClose={() => setDlg(null)}
+        onMark={(date, reason) => markMut.mutate({ blockDate: date, reason })}
+        onRemove={(date) => clearMut.mutate(date)}
+        isPending={markMut.isPending || clearMut.isPending}
+      />
+    </>
+  );
+}
+
 
 // ============================================================
 // Availability Toggle Dialog
