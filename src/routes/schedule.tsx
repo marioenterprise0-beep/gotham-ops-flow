@@ -961,14 +961,19 @@ function ScheduleBoard({
       clock_in_at: string;
       clock_out_at: string | null;
     }>;
-    const startMs = new Date(startStr + "T00:00:00").getTime();
-    const endMs = new Date(endStr + "T23:59:59").getTime();
+    const tz = (data as any)?.timezone || DEFAULT_TRAILER_TZ;
+    // Anchor the visible window to the trailer's local timezone so every
+    // device computes the same start/end boundaries.
+    const startMs = zonedDateToUtcMs(startStr, tz, false);
+    const endMs = zonedDateToUtcMs(endStr, tz, true);
     const nowMs = Date.now();
     for (const p of punches) {
       if (!p.employee_id || !p.clock_in_at) continue;
       const inMs = new Date(p.clock_in_at).getTime();
       if (inMs < startMs || inMs > endMs) continue;
       const outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : nowMs;
+      // Duration math uses absolute UTC instants — an hour is an hour
+      // regardless of the viewer's timezone or daylight-savings shifts.
       const hrs = Math.max(0, (outMs - inMs) / 3_600_000);
       m.set(p.employee_id, (m.get(p.employee_id) ?? 0) + hrs);
     }
