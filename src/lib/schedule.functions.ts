@@ -614,12 +614,15 @@ export const listEmployees = createServerFn({ method: "POST" })
       arr.push((r as any).role);
       roleMap.set((r as any).user_id, arr);
     }
-    return (profiles ?? []).map((p: any) => ({
-      id: p.id,
-      name: p.display_name ?? "Crew",
-      roles: roleMap.get(p.id) ?? [],
-      targetHours: p.weekly_hours ?? 40,
-    }));
+    return (profiles ?? [])
+      // Owners are not scheduled — the schedule is for managers and crew only.
+      .filter((p: any) => !(roleMap.get(p.id) ?? []).includes("owner"))
+      .map((p: any) => ({
+        id: p.id,
+        name: p.display_name ?? "Crew",
+        roles: roleMap.get(p.id) ?? [],
+        targetHours: p.weekly_hours ?? 40,
+      }));
   });
 
 
