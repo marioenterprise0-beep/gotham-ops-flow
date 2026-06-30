@@ -292,11 +292,29 @@ export const upsertShift = createServerFn({ method: "POST" })
       created_by: userId,
     };
     const q = data.id
-      ? supabase.from("schedule_shifts").update(row).eq("id", data.id).select("*").single()
-      : supabase.from("schedule_shifts").insert(row).select("*").single();
+      ? supabase.from("schedule_shifts").update(row).eq("id", data.id).select("*").maybeSingle()
+      : supabase.from("schedule_shifts").insert(row).select("*").maybeSingle();
     const { data: saved, error } = await q;
     if (error) throw new Error(error.message);
-    return saved;
+    if (saved) return saved;
+    // RLS may hide the RETURNING row even though the write succeeded — re-fetch.
+    if (data.id) {
+      const { data: refetched } = await supabase
+        .from("schedule_shifts").select("*").eq("id", data.id).maybeSingle();
+      if (refetched) return refetched;
+    } else {
+      const { data: latest } = await supabase
+        .from("schedule_shifts").select("*")
+        .eq("schedule_id", data.scheduleId)
+        .eq("shift_date", data.shiftDate)
+        .eq("start_time", data.startTime)
+        .eq("end_time", data.endTime)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest) return latest;
+    }
+    return { id: data.id ?? null, ...row };
   });
 
 export const deleteShift = createServerFn({ method: "POST" })
