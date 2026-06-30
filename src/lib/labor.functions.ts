@@ -387,9 +387,27 @@ export const listAllRequests = createServerFn({ method: "POST" })
       supabase.from("profiles").select("id, display_name"),
     ]);
     const pmap = new Map<string, string>((profiles ?? []).map((p: any) => [p.id, p.display_name ?? "Crew"]));
+
+    // Fetch current punch snapshots so the review UI can show what's on record
+    // vs what the employee is requesting.
+    const punchIds = (corrections ?? []).map((c: any) => c.punch_id).filter(Boolean) as string[];
+    const punchMap = new Map<string, any>();
+    if (punchIds.length > 0) {
+      const { data: punches } = await supabase
+        .from("time_punches")
+        .select("id, clock_in_at, clock_out_at, break_minutes, status")
+        .in("id", punchIds);
+      for (const p of punches ?? []) punchMap.set((p as any).id, p);
+    }
+
     const enrich = (rows: any[]) => rows.map((r) => ({ ...r, employee_name: pmap.get(r.employee_id) ?? "Crew" }));
+    const enrichCorrections = (rows: any[]) => rows.map((r) => ({
+      ...r,
+      employee_name: pmap.get(r.employee_id) ?? "Crew",
+      current_punch: r.punch_id ? (punchMap.get(r.punch_id) ?? null) : null,
+    }));
     return {
-      corrections: enrich(corrections ?? []),
+      corrections: enrichCorrections(corrections ?? []),
       timeoff: enrich(timeoff ?? []),
       notes: enrich(notes ?? []),
     };

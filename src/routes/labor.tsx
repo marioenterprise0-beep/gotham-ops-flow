@@ -276,7 +276,7 @@ function CorrectionRow({ c, isOwner }: { c: any; isOwner: boolean }) {
   const [editing, setEditing] = useState(false);
   const [inVal, setInVal] = useState(toLocalInput(c.requested_in));
   const [outVal, setOutVal] = useState(toLocalInput(c.requested_out));
-  const [brk, setBrk] = useState<number>(0);
+  const [brk, setBrk] = useState<number>(c.current_punch?.break_minutes ?? 0);
   const [note, setNote] = useState("");
 
   const m = useMutation({
@@ -294,19 +294,27 @@ function CorrectionRow({ c, isOwner }: { c: any; isOwner: boolean }) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const cp = c.current_punch;
+
   return (
     <div className="p-3.5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-0.5">
           <div className="text-sm font-semibold">{c.employee_name} · {c.type.replace(/_/g, " ")}</div>
           <div className="text-xs text-muted-foreground">For {c.for_date} · {c.reason}</div>
-          {(c.requested_in || c.requested_out) && (
+          {cp && (
             <div className="text-xs text-muted-foreground">
+              On record: {new Date(cp.clock_in_at).toLocaleString()} → {cp.clock_out_at ? new Date(cp.clock_out_at).toLocaleString() : <span className="text-[var(--color-warning)]">open</span>}
+              {" "}· break {cp.break_minutes ?? 0}m
+            </div>
+          )}
+          {(c.requested_in || c.requested_out) && (
+            <div className="text-xs font-medium text-[var(--color-gold)]">
               Requested: {c.requested_in ? new Date(c.requested_in).toLocaleString() : "—"} → {c.requested_out ? new Date(c.requested_out).toLocaleString() : "—"}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <StatusPill tone={c.status === "approved" ? "success" : c.status === "declined" ? "danger" : "warning"}>{c.status}</StatusPill>
           {c.status === "pending" && isOwner && !editing && (
             <Button size="sm" variant="outline" onClick={() => setEditing(true)}>Review &amp; edit</Button>
@@ -316,12 +324,12 @@ function CorrectionRow({ c, isOwner }: { c: any; isOwner: boolean }) {
       </div>
 
       {editing && isOwner && (
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border border-border bg-[var(--color-muted)]/30 p-3">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-md border border-border bg-secondary/30 p-3">
           <div><Label className="text-xs">Clock in</Label><Input type="datetime-local" value={inVal} onChange={(e) => setInVal(e.target.value)} /></div>
           <div><Label className="text-xs">Clock out</Label><Input type="datetime-local" value={outVal} onChange={(e) => setOutVal(e.target.value)} /></div>
           <div><Label className="text-xs">Break (min)</Label><Input type="number" min={0} value={brk} onChange={(e) => setBrk(Number(e.target.value))} /></div>
-          <div><Label className="text-xs">Note</Label><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional decision note" /></div>
-          <div className="sm:col-span-2 flex gap-2">
+          <div><Label className="text-xs">Note (optional)</Label><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason for your adjustment" /></div>
+          <div className="sm:col-span-2 flex gap-2 flex-wrap">
             <Button size="sm" onClick={() => m.mutate("approved")} disabled={m.isPending}><Check className="h-3.5 w-3.5 mr-1" /> Approve with these times</Button>
             <Button size="sm" variant="outline" onClick={() => m.mutate("declined")} disabled={m.isPending}><X className="h-3.5 w-3.5 mr-1" /> Decline</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={m.isPending}>Cancel</Button>

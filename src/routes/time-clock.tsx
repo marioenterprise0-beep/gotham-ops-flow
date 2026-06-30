@@ -632,9 +632,8 @@ function joinLocal(date: string, time: string): string {
 function ManagePunchesPanel() {
   const qc = useQueryClient();
   const { roles } = useRole();
-  const isManager = roles.includes("owner") || roles.includes("manager");
   const isOwner = roles.includes("owner");
-  if (!isManager) return null;
+  if (!isOwner) return null;
 
 
   const today = new Date().toISOString().slice(0, 10);
@@ -669,7 +668,7 @@ function ManagePunchesPanel() {
 
   return (
     <>
-      <SectionHeader eyebrow="Manager tools" title="MANAGE EMPLOYEE PUNCHES" />
+      <SectionHeader eyebrow="Owner tools" title="MANAGE EMPLOYEE PUNCHES" />
       <Card className="p-4 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div>

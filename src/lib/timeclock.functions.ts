@@ -631,7 +631,7 @@ export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().optional().nullable() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     let q = supabase
       .from("profiles")
       .select("id, display_name, email, trailer_id, archived_at")
@@ -653,7 +653,7 @@ export const listPunchesForAdmin = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     let q = supabase
       .from("time_punches")
       .select("id, employee_id, trailer_id, clock_in_at, clock_out_at, break_minutes, status, notes, schedule_shift_id")
@@ -681,7 +681,7 @@ export const managerClockInEmployee = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
 
     // Resolve a trailer if none provided (employee's home trailer).
     let trailerId = data.trailerId ?? null;
@@ -733,7 +733,7 @@ export const managerClockOutEmployee = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
     let punchId = data.punchId;
     if (!punchId) {
       if (!data.employeeId) throw new Error("punchId or employeeId required");
