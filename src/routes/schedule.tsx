@@ -1427,9 +1427,9 @@ function ShiftCard({
   const isDraft = status === "draft" || status === "submitted";
   const isLocked = status === "locked" || status === "published";
 
-  // Pattern overlay for locked
+  // Subtle stripe overlay for locked — kept faint so shift text stays legible
   const lockedBg = isLocked
-    ? `repeating-linear-gradient(45deg, ${bg}, ${bg} 6px, rgba(255,255,255,0.18) 6px, rgba(255,255,255,0.18) 9px)`
+    ? `repeating-linear-gradient(45deg, ${bg}, ${bg} 14px, rgba(0,0,0,0.06) 14px, rgba(0,0,0,0.06) 16px)`
     : bg;
 
   return (
@@ -1442,7 +1442,7 @@ function ShiftCard({
       }}
       className={cn(
         "w-full text-left rounded-md px-2 py-1.5 transition relative",
-        canEdit ? "cursor-pointer hover:brightness-110" : "cursor-default opacity-90",
+        canEdit ? "cursor-pointer hover:brightness-110" : "cursor-default",
         isDraft && "border-2 border-dashed",
       )}
       style={{
@@ -1451,6 +1451,7 @@ function ShiftCard({
         borderColor: bg,
       }}
     >
+
       <div className="flex items-center justify-between gap-1">
         <div className="text-[11px] font-semibold leading-tight">
           {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)}
