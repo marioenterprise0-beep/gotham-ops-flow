@@ -113,9 +113,11 @@ const SEG_FG: Record<string, string> = {
 
 // ---------- date helpers ----------
 function startOfWeek(d: Date) {
+  // Week: Monday → Sunday
   const x = new Date(d);
-  const day = x.getDay(); // Sun=0
-  x.setDate(x.getDate() - day);
+  const day = x.getDay(); // Sun=0..Sat=6
+  const back = (day + 6) % 7;
+  x.setDate(x.getDate() - back);
   x.setHours(0, 0, 0, 0);
   return x;
 }
