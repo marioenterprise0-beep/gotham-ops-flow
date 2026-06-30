@@ -72,7 +72,7 @@ function LaborPage() {
     <AppShell>
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="label-caps text-muted-foreground">Payroll week · Sat – Fri</div>
+          <div className="label-caps text-muted-foreground">Payroll week · Mon – Sun</div>
           <h1 className="font-display text-3xl text-foreground">LABOR</h1>
         </div>
         <div className="flex items-center gap-2">
