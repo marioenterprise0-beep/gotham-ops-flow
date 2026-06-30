@@ -507,6 +507,7 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) }).parse(d))
   .handler(async ({ context, data }) => {
     const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: a, error } = await (supabaseAdmin as any)
       .from("hr_document_assignments")
       .select("id, title, employee_id, status, completed_at, custom_storage_path")
