@@ -766,7 +766,11 @@ function ScheduleBoard({
     },
   });
   const delMut = useMutation({
-    mutationFn: (id: string) => remove({ data: { id } }),
+    mutationFn: (id: string) => {
+      if (locked) return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
+      return remove({ data: { id } });
+    },
+
     onMutate: async (id: string) => {
       await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
       const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
