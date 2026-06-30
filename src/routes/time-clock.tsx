@@ -913,12 +913,14 @@ function ClockOutPickerDialog({
 }
 
 function PunchFormDialog({
-  title, employees, initial, requireEmployee, onClose, onSubmit,
+  title, employees, initial, requireEmployee, hideClockOut, requireClockOut, onClose, onSubmit,
 }: {
   title: string;
   employees: any[];
   initial: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: string };
   requireEmployee?: boolean;
+  hideClockOut?: boolean;
+  requireClockOut?: boolean;
   onClose: () => void;
   onSubmit: (vals: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: "open" | "closed" | "auto_closed" }) => Promise<void>;
 }) {
@@ -938,9 +940,12 @@ function PunchFormDialog({
     if (requireEmployee && !employee) { toast.error("Pick an employee"); return; }
     if (!inDate || !inTime) { toast.error("Clock-in date and time required"); return; }
     const clockIn = joinLocal(inDate, inTime);
-    const hasOut = Boolean(outDate && outTime);
-    if ((outDate && !outTime) || (!outDate && outTime)) {
-      toast.error("Clock-out needs both date and time (or leave both blank)"); return;
+    const hasOut = !hideClockOut && Boolean(outDate && outTime);
+    if (!hideClockOut) {
+      if (requireClockOut && !hasOut) { toast.error("Clock-out date and time required"); return; }
+      if ((outDate && !outTime) || (!outDate && outTime)) {
+        toast.error("Clock-out needs both date and time"); return;
+      }
     }
     setBusy(true);
     try {
@@ -955,6 +960,7 @@ function PunchFormDialog({
     } catch (e: any) { toast.error(e.message); }
     finally { setBusy(false); }
   }
+
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && onClose()}>
