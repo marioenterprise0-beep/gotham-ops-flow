@@ -16,7 +16,10 @@ import {
 import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
+  listEmployeesForPunchAdmin, listPunchesForAdmin,
+  managerClockInEmployee, managerClockOutEmployee, managerEditPunch,
 } from "@/lib/timeclock.functions";
+
 import { listMyScheduleShifts } from "@/lib/schedule.functions";
 import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
