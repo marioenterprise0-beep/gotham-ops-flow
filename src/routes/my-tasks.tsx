@@ -7,6 +7,7 @@ import { Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 import { listMyTasks, completeTask } from "@/lib/tasks.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { toast } from "sonner";
 
