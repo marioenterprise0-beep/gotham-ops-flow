@@ -6,6 +6,7 @@ import {
   requireOwner as requireOwnerRole,
   requireTabAccess,
 } from "./auth-guards";
+import { DEFAULT_TRAILER_TZ, zonedDateToUtcISO } from "./timezone";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const SEGMENT = z.enum(["open", "mid", "close", "custom"]);
