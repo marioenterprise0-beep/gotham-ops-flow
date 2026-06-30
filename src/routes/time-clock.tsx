@@ -619,6 +619,7 @@ function ManagePunchesPanel() {
   const qc = useQueryClient();
   const { roles } = useRole();
   const isManager = roles.includes("owner") || roles.includes("manager");
+  const isOwner = roles.includes("owner");
   if (!isManager) return null;
 
 
