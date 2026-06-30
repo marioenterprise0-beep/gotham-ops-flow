@@ -984,17 +984,19 @@ function PunchFormDialog({
               <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={inTime} onChange={(e) => setInTime(e.target.value)} /></div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Clock out <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span></Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
-              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+          {!hideClockOut && (
+            <div className="space-y-2">
+              <Label>Clock out {!requireClockOut && <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span>}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
+                <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+              </div>
+              {!requireClockOut && (outDate || outTime) && (
+                <button type="button" className="text-xs text-muted-foreground underline"
+                  onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
+              )}
             </div>
-            {(outDate || outTime) && (
-              <button type="button" className="text-xs text-muted-foreground underline"
-                onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
-            )}
-          </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Break (min)</Label><Input type="number" min={0} max={480} value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} /></div>
             {!requireEmployee && (
