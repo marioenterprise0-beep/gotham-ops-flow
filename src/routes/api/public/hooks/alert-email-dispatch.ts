@@ -620,6 +620,9 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
             alertId,
             templateName: mapping.template,
             templateData: await mapping.buildData(alert, ctx),
+            templateDataFor: mapping.buildDataFor
+              ? (r) => mapping.buildDataFor!(alert, ctx, r)
+              : undefined,
             recipients,
             category: mapping.category,
             priority: alert.priority,
