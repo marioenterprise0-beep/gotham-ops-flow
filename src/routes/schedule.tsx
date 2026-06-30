@@ -881,7 +881,7 @@ function ScheduleBoard({
   const days = useMemo(() => rangeDays(startStr, endStr), [startStr, endStr]);
   const status = (schedule?.status ?? "draft") as Status;
   const locked = status === "locked" || status === "published";
-  const canEdit = isMgr && (!locked || isOwner);
+  const canEdit = isMgr && !locked;
 
   // Hours per employee within the visible range
   const hoursMap = useMemo(() => {
