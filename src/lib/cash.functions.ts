@@ -355,7 +355,7 @@ export const editDrawerSession = createServerFn({ method: "POST" })
     };
     if (data.varianceReason !== undefined) patch.variance_reason = data.varianceReason;
 
-    const { error } = await supabase.from("cash_drawer_sessions").update(patch).eq("id", data.sessionId);
+    const { error } = await supabase.from("cash_drawer_sessions").update(patch as any).eq("id", data.sessionId);
     if (error) throw error;
 
     await supabase.from("audit_log").insert({
