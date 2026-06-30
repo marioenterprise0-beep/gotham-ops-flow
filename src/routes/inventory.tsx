@@ -152,7 +152,7 @@ function InventoryPage() {
 
       {tab === "live-counts"   && <LiveCountsTab />}
       {tab === "count-guide"   && <InventoryGuideView />}
-      {tab === "orders"        && isManager && <OrdersTab onEditDetails={(itemId) => changeTab("configuration", { focus: itemId })} />}
+      {tab === "orders"        && <OrdersTab onEditDetails={(itemId) => isManager && changeTab("configuration", { focus: itemId })} />}
       {tab === "approvals"     && isManager && <InventoryChangesView />}
       {tab === "configuration" && isManager && <OrderGuideView focusItemId={search.focus ?? null} />}
     </AppShell>
