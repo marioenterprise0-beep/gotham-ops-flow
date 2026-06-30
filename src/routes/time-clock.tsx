@@ -696,7 +696,7 @@ function ManagePunchesPanel() {
                       } catch (e: any) { toast.error(e.message); }
                     }}>Clock out now</Button>
                   )}
-                  <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
+                  {isOwner && <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>}
                 </div>
               </div>
             );
