@@ -241,8 +241,25 @@ export const getSchedule = createServerFn({ method: "POST" })
     ]);
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
-    return { schedule, shifts: shifts ?? [] };
+    // Pull punches in the schedule window so the grid can show actual clocked hours
+    // alongside scheduled hours per employee.
+    let punches: Array<{
+      employee_id: string;
+      clock_in_at: string;
+      clock_out_at: string | null;
+    }> = [];
+    if (schedule?.start_date && schedule?.end_date) {
+      const { data: pRows } = await supabase
+        .from("time_punches")
+        .select("employee_id, clock_in_at, clock_out_at")
+        .is("archived_at", null)
+        .gte("clock_in_at", `${schedule.start_date}T00:00:00`)
+        .lte("clock_in_at", `${schedule.end_date}T23:59:59`);
+      punches = (pRows ?? []) as typeof punches;
+    }
+    return { schedule, shifts: shifts ?? [], punches };
   });
+
 
 export const upsertShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
