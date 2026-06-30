@@ -1,0 +1,1 @@
+ALTER TABLE public.time_punches ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id);

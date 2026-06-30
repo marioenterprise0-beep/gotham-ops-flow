@@ -3188,6 +3188,7 @@ export type Database = {
           clock_in_at: string
           clock_out_at: string | null
           created_at: string
+          created_by: string | null
           device_info: Json | null
           edited_at: string | null
           edited_by: string | null
@@ -3207,6 +3208,7 @@ export type Database = {
           clock_in_at?: string
           clock_out_at?: string | null
           created_at?: string
+          created_by?: string | null
           device_info?: Json | null
           edited_at?: string | null
           edited_by?: string | null
@@ -3226,6 +3228,7 @@ export type Database = {
           clock_in_at?: string
           clock_out_at?: string | null
           created_at?: string
+          created_by?: string | null
           device_info?: Json | null
           edited_at?: string | null
           edited_by?: string | null
