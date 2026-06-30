@@ -1931,6 +1931,7 @@ export type Database = {
           id: string
           is_super_admin: boolean
           last_login_at: string | null
+          pay_rate: number | null
           sop_accepted_at: string | null
           store_id: string | null
           trailer_id: string | null
@@ -1950,6 +1951,7 @@ export type Database = {
           id: string
           is_super_admin?: boolean
           last_login_at?: string | null
+          pay_rate?: number | null
           sop_accepted_at?: string | null
           store_id?: string | null
           trailer_id?: string | null
@@ -1969,6 +1971,7 @@ export type Database = {
           id?: string
           is_super_admin?: boolean
           last_login_at?: string | null
+          pay_rate?: number | null
           sop_accepted_at?: string | null
           store_id?: string | null
           trailer_id?: string | null
