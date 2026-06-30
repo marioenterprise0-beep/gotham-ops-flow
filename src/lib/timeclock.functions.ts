@@ -765,7 +765,7 @@ export const managerEditPunch = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertOwner(supabase, userId);
 
     const patch: Record<string, any> = {};
     if (data.clockInAt !== undefined) patch.clock_in_at = data.clockInAt;
