@@ -10,7 +10,7 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
-  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser,
+  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser, setUserPayRate,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
 import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
@@ -116,6 +116,7 @@ function UsersTab() {
   const archiveFn = useServerFn(archiveUser);
   const restoreFn = useServerFn(restoreUser);
   const hardDeleteFn = useServerFn(hardDeleteUser);
+  const setPayRateFn = useServerFn(setUserPayRate);
 
   const [showArchived, setShowArchived] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
@@ -154,6 +155,11 @@ function UsersTab() {
   const activeMut = useMutation({
     mutationFn: (v: { userId: string; active: boolean }) => setActiveFn({ data: v }),
     onSuccess: (_d, v) => { toast.success(v.active ? "Access restored" : "Access disabled"); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const payRateMut = useMutation({
+    mutationFn: (v: { userId: string; payRate: number | null }) => setPayRateFn({ data: v }),
+    onSuccess: () => { toast.success("Pay rate updated"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
   const archiveMut = useMutation({
@@ -291,6 +297,31 @@ function UsersTab() {
                   </button>
                 ) : <div />}
               </div>
+
+              {isOwner && !isArchived && (
+                <div className="px-4 pb-3 -mt-1 flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Pay rate</span>
+                  <span className="text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.25}
+                    defaultValue={u.pay_rate ?? ""}
+                    placeholder="0.00"
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === "" ? null : Number(raw);
+                      const prev = u.pay_rate == null ? null : Number(u.pay_rate);
+                      if (next === prev) return;
+                      if (next != null && (!Number.isFinite(next) || next < 0)) { toast.error("Invalid rate"); return; }
+                      payRateMut.mutate({ userId: u.id, payRate: next });
+                    }}
+                    className="h-7 w-24 rounded-md border border-border bg-card px-2 text-xs"
+                  />
+                  <span className="text-muted-foreground">/ hr</span>
+                </div>
+              )}
+
 
               {isOwner && open && (
                 <div className="px-4 pb-4 border-t border-border bg-[var(--color-muted)]/30">

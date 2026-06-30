@@ -157,7 +157,7 @@ export const listUsers = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("profiles")
       .select(
-        "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at",
+        "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at, pay_rate",
       );
     if (!includeArchived) q = q.is("archived_at", null);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }, { data: trailers }] =
@@ -378,6 +378,33 @@ export const setUserTrailer = createServerFn({ method: "POST" })
       entity: "user",
       entity_id: data.userId,
       payload: { trailer_id: data.trailerId },
+    });
+    return { ok: true };
+  });
+
+export const setUserPayRate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      userId: z.string().uuid(),
+      payRate: z.number().min(0).max(999.99).nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId); // owner-only via requireOwner alias
+    await assertCanActOnTarget(supabase, userId, data.userId);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ pay_rate: data.payRate })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "user_pay_rate_changed",
+      entity: "user",
+      entity_id: data.userId,
+      payload: { pay_rate: data.payRate },
     });
     return { ok: true };
   });

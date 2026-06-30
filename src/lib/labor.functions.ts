@@ -201,16 +201,26 @@ export const decideCorrection = createServerFn({ method: "POST" })
     id: z.string().uuid(),
     decision: z.enum(["approved", "declined", "info_requested"]),
     note: z.string().max(500).optional(),
+    requestedIn: z.string().datetime().nullable().optional(),
+    requestedOut: z.string().datetime().nullable().optional(),
+    breakMinutes: z.number().int().min(0).max(480).nullable().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireOwner(supabase, userId);
-    const { data: row, error } = await supabase.from("time_corrections").update({
+
+    // Allow the owner to adjust the requested punch values before approving.
+    const updatePatch: any = {
       status: data.decision,
       decided_by: userId,
       decided_at: new Date().toISOString(),
       decision_note: data.note ?? null,
-    }).eq("id", data.id).select("*").single();
+    };
+    if (data.requestedIn !== undefined) updatePatch.requested_in = data.requestedIn;
+    if (data.requestedOut !== undefined) updatePatch.requested_out = data.requestedOut;
+
+    const { data: row, error } = await supabase.from("time_corrections")
+      .update(updatePatch).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
 
     if (data.decision === "approved") {
@@ -219,6 +229,7 @@ export const decideCorrection = createServerFn({ method: "POST" })
         const patch: any = { status: "edited", edited_by: userId, edited_at: new Date().toISOString() };
         if (row.requested_in) patch.clock_in_at = row.requested_in;
         if (row.requested_out) { patch.clock_out_at = row.requested_out; patch.status = "closed"; }
+        if (data.breakMinutes != null) patch.break_minutes = data.breakMinutes;
         await supabase.from("time_punches").update(patch).eq("id", row.punch_id);
       } else if (row.requested_in) {
         await supabase.from("time_punches").insert({
@@ -228,6 +239,7 @@ export const decideCorrection = createServerFn({ method: "POST" })
           clock_in_at: row.requested_in,
           clock_out_at: row.requested_out ?? null,
           status: row.requested_out ? "closed" : "open",
+          break_minutes: data.breakMinutes ?? 0,
           edited_by: userId,
           edited_at: new Date().toISOString(),
         });
