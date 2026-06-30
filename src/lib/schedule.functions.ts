@@ -630,9 +630,19 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
         created_by: userId,
       })
       .select("*")
-      .single();
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return row;
+    if (row) return row;
+    // RLS may hide the RETURNING row — re-fetch by the natural key.
+    const { data: refetched } = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("start_date", data.startDate)
+      .eq("end_date", data.endDate)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return refetched;
   });
 
 export const duplicateShift = createServerFn({ method: "POST" })
@@ -666,9 +676,9 @@ export const duplicateShift = createServerFn({ method: "POST" })
       .from("schedule_shifts")
       .insert(insertRow)
       .select("*")
-      .single();
+      .maybeSingle();
     if (e2) throw new Error(e2.message);
-    return saved;
+    return saved ?? { ...insertRow };
   });
 
 // Auto-coverage: for each day of the schedule, ensure one open/mid/close
