@@ -4,9 +4,10 @@ import { z } from "zod";
 import { requireManager as requireManagerRole, requireOwner as requireOwnerRole, requireTabAccess } from "./auth-guards";
 
 function weekStartOf(d: Date): string {
+  // Payroll week: Monday → Sunday
   const dt = new Date(d);
-  const dow = dt.getDay();
-  const back = (dow + 1) % 7;
+  const dow = dt.getDay(); // 0=Sun..6=Sat
+  const back = (dow + 6) % 7; // days since most-recent Monday
   dt.setDate(dt.getDate() - back);
   dt.setHours(0, 0, 0, 0);
   return dt.toISOString().slice(0, 10);
