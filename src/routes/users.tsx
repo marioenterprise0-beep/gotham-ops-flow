@@ -157,6 +157,11 @@ function UsersTab() {
     onSuccess: (_d, v) => { toast.success(v.active ? "Access restored" : "Access disabled"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const payRateMut = useMutation({
+    mutationFn: (v: { userId: string; payRate: number | null }) => setPayRateFn({ data: v }),
+    onSuccess: () => { toast.success("Pay rate updated"); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const archiveMut = useMutation({
     mutationFn: (v: { userId: string; reason?: string }) => archiveFn({ data: v }),
     onSuccess: () => { toast.success("User archived"); setRemoveTarget(null); setDepReport(null); setRemoveReason(""); refresh(); },
