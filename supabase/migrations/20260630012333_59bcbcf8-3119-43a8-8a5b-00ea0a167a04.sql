@@ -1,0 +1,1 @@
+CREATE POLICY "punches insert manager" ON public.time_punches FOR INSERT TO authenticated WITH CHECK (public.is_manager(auth.uid()));
