@@ -382,6 +382,33 @@ export const setUserTrailer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setUserPayRate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      userId: z.string().uuid(),
+      payRate: z.number().min(0).max(999.99).nullable(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId); // owner-only via requireOwner alias
+    await assertCanActOnTarget(supabase, userId, data.userId);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ pay_rate: data.payRate })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "user_pay_rate_changed",
+      entity: "user",
+      entity_id: data.userId,
+      payload: { pay_rate: data.payRate },
+    });
+    return { ok: true };
+  });
+
 // Owners can act on anyone except other super-admins (only super-admins can act on super-admins).
 // is_super_admin() reads profiles.is_super_admin -- the single source of
 // truth for this flag, on both the DB and app side.
