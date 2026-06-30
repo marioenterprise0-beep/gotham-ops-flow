@@ -31,8 +31,9 @@ function fmtH(min: number) {
 }
 
 function weekStartOf(d: Date): string {
+  // Payroll week: Monday → Sunday
   const dt = new Date(d);
-  const back = (dt.getDay() + 1) % 7;
+  const back = (dt.getDay() + 6) % 7;
   dt.setDate(dt.getDate() - back);
   dt.setHours(0, 0, 0, 0);
   return dt.toISOString().slice(0, 10);
