@@ -117,8 +117,10 @@ function LaborPage() {
                 ? "danger" : e.flags.includes("overtime") ? "warning" : "success";
               return (
                 <button key={e.id}
-                  onClick={() => setSelectedEmp(e.id === selectedEmp ? null : e.id)}
-                  className={cn("w-full text-left p-3.5 flex items-center justify-between gap-3 hover:bg-secondary/50", i && "border-t border-border")}>
+                  onClick={() => isOwner && setSelectedEmp(e.id === selectedEmp ? null : e.id)}
+                  disabled={!isOwner}
+                  title={isOwner ? "View / edit punches" : "Owner only"}
+                  className={cn("w-full text-left p-3.5 flex items-center justify-between gap-3", isOwner ? "hover:bg-secondary/50 cursor-pointer" : "cursor-default", i && "border-t border-border")}>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">{e.name}</div>
                     <div className="text-xs text-muted-foreground">
@@ -135,7 +137,7 @@ function LaborPage() {
               );
             })}
           </Card>
-          {selectedEmp && <EmployeeDrawer userId={selectedEmp} weekStart={weekStart} isOwner={isOwner} onClose={() => setSelectedEmp(null)} />}
+          {isOwner && selectedEmp && <EmployeeDrawer userId={selectedEmp} weekStart={weekStart} isOwner={isOwner} onClose={() => setSelectedEmp(null)} />}
         </TabsContent>
 
         <TabsContent value="corrections">
