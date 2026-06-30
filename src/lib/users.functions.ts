@@ -157,7 +157,7 @@ export const listUsers = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("profiles")
       .select(
-        "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at",
+        "id, display_name, trailer_id, last_login_at, sop_accepted_at, training_completed_at, active, archived_at, archive_reason, created_at, pay_rate",
       );
     if (!includeArchived) q = q.is("archived_at", null);
     const [{ data: profiles, error: pErr }, { data: roles, error: rErr }, { data: trailers }] =
