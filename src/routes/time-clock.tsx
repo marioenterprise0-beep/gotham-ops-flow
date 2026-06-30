@@ -619,6 +619,7 @@ function ManagePunchesPanel() {
   const qc = useQueryClient();
   const { roles } = useRole();
   const isManager = roles.includes("owner") || roles.includes("manager");
+  const isOwner = roles.includes("owner");
   if (!isManager) return null;
 
 
@@ -695,7 +696,7 @@ function ManagePunchesPanel() {
                       } catch (e: any) { toast.error(e.message); }
                     }}>Clock out now</Button>
                   )}
-                  <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
+                  {isOwner && <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>}
                 </div>
               </div>
             );
