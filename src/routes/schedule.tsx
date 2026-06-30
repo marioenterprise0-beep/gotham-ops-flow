@@ -184,7 +184,8 @@ function SchedulePage() {
 
   useEffect(() => {
     if (isMgr && activeTab === "myshifts") setActiveTab("schedule");
-    if (!isMgr && roleId && activeTab === "schedule") setActiveTab("myshifts");
+    // Crew can freely browse the Schedule tab (read-only) — don't redirect
+    // them away. They need it to see assigned days and mark unavailability.
   }, [activeTab, isMgr, roleId]);
 
   const { start, end } = useMemo(() => viewRange(anchor, mode), [anchor, mode]);
@@ -193,9 +194,11 @@ function SchedulePage() {
 
   const findOrCreate = useServerFn(getOrCreateScheduleForRange);
   const { data: schedule, refetch: refetchSched } = useQuery({
-    queryKey: ["schedule-range", startStr, endStr, trailerScope],
+    queryKey: ["schedule-range", startStr, endStr, trailerScope, isMgr],
     queryFn: () =>
-      findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: false } }),
+      // Managers/owners auto-create a blank draft on landing so the grid is
+      // always present for crew to view and mark unavailability against.
+      findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: isMgr } }),
     enabled: !!session,
   });
 
