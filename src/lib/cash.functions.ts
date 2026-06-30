@@ -318,6 +318,69 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Owner-only edit of a submitted (closed/pending) drawer session.
+// Recomputes expected and variance from inputs so totals stay consistent.
+export const editDrawerSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    sessionId: z.string().uuid(),
+    startingFloat: z.number().min(0).optional(),
+    totalCashSales: z.number().min(0).optional(),
+    countedAmount: z.number().min(0).optional(),
+    varianceReason: z.string().max(2000).nullable().optional(),
+    editNote: z.string().max(1000).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    if (!isOwner) throw new Error("Only the owner can edit submitted drawer sessions.");
+
+    const { data: sess, error: se } = await supabase
+      .from("cash_drawer_sessions").select("*").eq("id", data.sessionId).single();
+    if (se) throw se;
+    if (sess.status === "open") throw new Error("Session is still open — close it first.");
+
+    const starting = data.startingFloat ?? Number(sess.starting_float);
+    const sales = data.totalCashSales ?? Number(sess.total_cash_sales ?? 0);
+    const counted = data.countedAmount ?? Number(sess.counted_amount ?? 0);
+    const expected = starting + sales;
+    const variance = counted - expected;
+
+    const patch: Record<string, any> = {
+      starting_float: starting,
+      total_cash_sales: sales,
+      counted_amount: counted,
+      expected_amount: expected,
+      variance,
+    };
+    if (data.varianceReason !== undefined) patch.variance_reason = data.varianceReason;
+
+    const { error } = await supabase.from("cash_drawer_sessions").update(patch).eq("id", data.sessionId);
+    if (error) throw error;
+
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "cash.session.edit",
+      entity: "cash_drawer_session",
+      entity_id: data.sessionId,
+      payload: {
+        before: {
+          starting_float: sess.starting_float,
+          total_cash_sales: sess.total_cash_sales,
+          counted_amount: sess.counted_amount,
+          expected_amount: sess.expected_amount,
+          variance: sess.variance,
+          variance_reason: sess.variance_reason,
+        },
+        after: patch,
+        note: data.editNote ?? null,
+      },
+    });
+
+    return { ok: true, expected, variance };
+  });
+
+
 
 // ---------------------------------------------------------------------------
 // Phase 6 — canonical archive/restore + dependency scan for cash domain
