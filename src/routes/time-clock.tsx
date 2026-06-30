@@ -644,7 +644,7 @@ function ManagePunchesPanel() {
   const [startDate, setStartDate] = useState(weekAgo);
   const [endDate, setEndDate] = useState(today);
   const [employeeId, setEmployeeId] = useState<string>("");
-  const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState<null | "clock_in" | "clock_out" | "add_shift">(null);
   const [editing, setEditing] = useState<any | null>(null);
 
   const empFn = useServerFn(listEmployeesForPunchAdmin);
@@ -663,6 +663,8 @@ function ManagePunchesPanel() {
   });
 
   const empName = (id: string | null) => employees.find((e) => e.id === id)?.display_name ?? "—";
+  const openPunches = punches.filter((p) => p.status === "open");
+  const employeesNotClockedIn = employees.filter((e) => !openPunches.some((p) => p.employee_id === e.id));
 
   function refresh() {
     refetch();
@@ -672,10 +674,62 @@ function ManagePunchesPanel() {
   return (
     <>
       <SectionHeader eyebrow="Owner tools" title="MANAGE EMPLOYEE PUNCHES" />
-      <Card className="p-4 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <Card className="p-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <button
+            onClick={() => setMode("clock_in")}
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition">
+            <div className="text-sm font-semibold">Clock in employee</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Start a shift for someone who forgot to clock in.</div>
+          </button>
+          <button
+            onClick={() => setMode("clock_out")}
+            disabled={openPunches.length === 0}
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition disabled:opacity-50 disabled:cursor-not-allowed">
+            <div className="text-sm font-semibold">Clock out employee</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {openPunches.length === 0 ? "No employees currently clocked in." : `${openPunches.length} currently open`}
+            </div>
+          </button>
+          <button
+            onClick={() => setMode("add_shift")}
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition">
+            <div className="text-sm font-semibold">Add completed shift</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Log a full shift after the fact (forgot to clock out).</div>
+          </button>
+        </div>
+
+        {openPunches.length > 0 && (
+          <div className="rounded-lg border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-3">
+            <div className="text-xs uppercase tracking-wide text-[var(--color-gold)] font-semibold mb-2">Currently clocked in</div>
+            <div className="space-y-2">
+              {openPunches.map((p) => {
+                const start = new Date(p.clock_in_at);
+                const live = Math.max(0, (Date.now() - start.getTime()) / 60000 - (p.break_minutes ?? 0));
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{empName(p.employee_id)}</div>
+                      <div className="text-xs text-muted-foreground">Since {start.toLocaleTimeString()} · {fmtDuration(live)} so far</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={async () => {
+                        try { await outFn({ data: { punchId: p.id, clockOutAt: new Date().toISOString() } });
+                          toast.success("Clocked out"); refresh();
+                        } catch (e: any) { toast.error(e.message); }
+                      }}>Clock out now</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(p)}>Edit</Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border">
           <div>
-            <Label>Employee</Label>
+            <Label>Filter employee</Label>
             <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
               className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
               <option value="">All employees</option>
@@ -684,7 +738,6 @@ function ManagePunchesPanel() {
           </div>
           <div><Label>From</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
           <div><Label>To</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
-          <div className="flex items-end"><Button className="w-full" onClick={() => setAdding(true)}>Add punch</Button></div>
         </div>
 
         <div className="border rounded-md divide-y divide-border">
@@ -704,15 +757,7 @@ function ManagePunchesPanel() {
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusPill tone={p.status === "open" ? "warning" : p.status === "auto_closed" ? "danger" : "success"}>{p.status}</StatusPill>
-                  {p.status === "open" && (
-                    <Button size="sm" variant="outline" onClick={async () => {
-                      try {
-                        await outFn({ data: { punchId: p.id, clockOutAt: new Date().toISOString() } });
-                        toast.success("Clocked out"); refresh();
-                      } catch (e: any) { toast.error(e.message); }
-                    }}>Clock out now</Button>
-                  )}
-                  {isOwner && <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>}
+                  <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
                 </div>
               </div>
             );
@@ -720,13 +765,51 @@ function ManagePunchesPanel() {
         </div>
       </Card>
 
-      {adding && (
+      {mode === "clock_in" && (
         <PunchFormDialog
-          title="Add punch"
-          employees={employees}
+          title="Clock in employee"
+          employees={employeesNotClockedIn}
           initial={{ employee_id: "", clock_in_at: new Date().toISOString(), clock_out_at: null, break_minutes: 0, notes: "" }}
           requireEmployee
-          onClose={() => setAdding(false)}
+          hideClockOut
+          onClose={() => setMode(null)}
+          onSubmit={async (vals) => {
+            await inFn({ data: {
+              employeeId: vals.employee_id,
+              clockInAt: vals.clock_in_at,
+              clockOutAt: null,
+              breakMinutes: 0,
+              notes: vals.notes || undefined,
+            } });
+            toast.success("Clocked in"); setMode(null); refresh();
+          }}
+        />
+      )}
+      {mode === "clock_out" && (
+        <ClockOutPickerDialog
+          openPunches={openPunches}
+          empName={empName}
+          onClose={() => setMode(null)}
+          onSubmit={async (punchId, clockOutAt) => {
+            await outFn({ data: { punchId, clockOutAt } });
+            toast.success("Clocked out"); setMode(null); refresh();
+          }}
+        />
+      )}
+      {mode === "add_shift" && (
+        <PunchFormDialog
+          title="Add completed shift"
+          employees={employees}
+          initial={{
+            employee_id: "",
+            clock_in_at: new Date(Date.now() - 8 * 3600 * 1000).toISOString(),
+            clock_out_at: new Date().toISOString(),
+            break_minutes: 0,
+            notes: "",
+          }}
+          requireEmployee
+          requireClockOut
+          onClose={() => setMode(null)}
           onSubmit={async (vals) => {
             await inFn({ data: {
               employeeId: vals.employee_id,
@@ -735,7 +818,7 @@ function ManagePunchesPanel() {
               breakMinutes: vals.break_minutes,
               notes: vals.notes || undefined,
             } });
-            toast.success("Punch created"); setAdding(false); refresh();
+            toast.success("Shift added"); setMode(null); refresh();
           }}
         />
       )}
@@ -769,13 +852,75 @@ function ManagePunchesPanel() {
   );
 }
 
+function ClockOutPickerDialog({
+  openPunches, empName, onClose, onSubmit,
+}: {
+  openPunches: any[];
+  empName: (id: string | null) => string;
+  onClose: () => void;
+  onSubmit: (punchId: string, clockOutAt: string) => Promise<void>;
+}) {
+  const [punchId, setPunchId] = useState(openPunches[0]?.id ?? "");
+  const nowSplit = splitLocal(new Date().toISOString());
+  const [outDate, setOutDate] = useState(nowSplit.date);
+  const [outTime, setOutTime] = useState(nowSplit.time);
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    if (!punchId) { toast.error("Pick an employee"); return; }
+    if (!outDate || !outTime) { toast.error("Clock-out time required"); return; }
+    setBusy(true);
+    try { await onSubmit(punchId, joinLocal(outDate, outTime)); }
+    catch (e: any) { toast.error(e.message); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <AlertDialog open onOpenChange={(o) => !o && onClose()}>
+      <AlertDialogContent className="max-w-lg">
+        <AlertDialogHeader><AlertDialogTitle>Clock out employee</AlertDialogTitle></AlertDialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Employee (currently clocked in)</Label>
+            <select value={punchId} onChange={(e) => setPunchId(e.target.value)}
+              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+              {openPunches.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {empName(p.employee_id)} · in since {new Date(p.clock_in_at).toLocaleTimeString()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Clock out at</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
+              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+            </div>
+            <button type="button" className="text-xs text-muted-foreground underline"
+              onClick={() => { const n = splitLocal(new Date().toISOString()); setOutDate(n.date); setOutTime(n.time); }}>
+              Use current time
+            </button>
+          </div>
+        </div>
+        <AlertDialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Clock out"}</Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function PunchFormDialog({
-  title, employees, initial, requireEmployee, onClose, onSubmit,
+  title, employees, initial, requireEmployee, hideClockOut, requireClockOut, onClose, onSubmit,
 }: {
   title: string;
   employees: any[];
   initial: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: string };
   requireEmployee?: boolean;
+  hideClockOut?: boolean;
+  requireClockOut?: boolean;
   onClose: () => void;
   onSubmit: (vals: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: "open" | "closed" | "auto_closed" }) => Promise<void>;
 }) {
@@ -795,9 +940,12 @@ function PunchFormDialog({
     if (requireEmployee && !employee) { toast.error("Pick an employee"); return; }
     if (!inDate || !inTime) { toast.error("Clock-in date and time required"); return; }
     const clockIn = joinLocal(inDate, inTime);
-    const hasOut = Boolean(outDate && outTime);
-    if ((outDate && !outTime) || (!outDate && outTime)) {
-      toast.error("Clock-out needs both date and time (or leave both blank)"); return;
+    const hasOut = !hideClockOut && Boolean(outDate && outTime);
+    if (!hideClockOut) {
+      if (requireClockOut && !hasOut) { toast.error("Clock-out date and time required"); return; }
+      if ((outDate && !outTime) || (!outDate && outTime)) {
+        toast.error("Clock-out needs both date and time"); return;
+      }
     }
     setBusy(true);
     try {
@@ -812,6 +960,7 @@ function PunchFormDialog({
     } catch (e: any) { toast.error(e.message); }
     finally { setBusy(false); }
   }
+
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && onClose()}>
@@ -835,17 +984,19 @@ function PunchFormDialog({
               <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={inTime} onChange={(e) => setInTime(e.target.value)} /></div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Clock out <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span></Label>
-            <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
-              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+          {!hideClockOut && (
+            <div className="space-y-2">
+              <Label>Clock out {!requireClockOut && <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span>}</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
+                <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+              </div>
+              {!requireClockOut && (outDate || outTime) && (
+                <button type="button" className="text-xs text-muted-foreground underline"
+                  onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
+              )}
             </div>
-            {(outDate || outTime) && (
-              <button type="button" className="text-xs text-muted-foreground underline"
-                onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
-            )}
-          </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div><Label>Break (min)</Label><Input type="number" min={0} max={480} value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} /></div>
             {!requireEmployee && (
