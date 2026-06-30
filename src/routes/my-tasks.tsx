@@ -28,7 +28,12 @@ function MyTasks() {
   const qc = useQueryClient();
   const listFn = useServerFn(listMyTasks);
   const { data: tasks = [] } = useQuery<Task[]>({
-    queryKey: ["my-tasks"], queryFn: () => listFn() as Promise<Task[]>,
+    queryKey: ["my-tasks"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return [];
+      return listFn() as Promise<Task[]>;
+    },
   });
 
   const completeFn = useServerFn(completeTask);
