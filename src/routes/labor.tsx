@@ -484,7 +484,7 @@ function exportLaborPDF(weekStart: string, rangeLabel: string, dash: any) {
   ]);
   const html = `
     <h1>Labor — Week of ${escapeHTML(rangeLabel)}</h1>
-    <div class="meta">Week start ${escapeHTML(weekStart)} · Payroll Sat–Fri</div>
+    <div class="meta">Week start ${escapeHTML(weekStart)} · Payroll Mon–Sun</div>
     ${kpiBlock([
       { label: "Scheduled", value: (dash.totals.scheduled / 60).toFixed(1) + "h" },
       { label: "Worked", value: (dash.totals.worked / 60).toFixed(1) + "h" },
