@@ -150,8 +150,10 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
     }
 
     // Render template
+    const perRecipient = input.templateDataFor ? await input.templateDataFor(recipient) : {}
     const templateData = {
       ...input.templateData,
+      ...perRecipient,
       recipient_name: recipient.display_name,
       recipient_email: recipient.email,
     }
