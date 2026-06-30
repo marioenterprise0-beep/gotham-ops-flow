@@ -632,12 +632,7 @@ function joinLocal(date: string, time: string): string {
 function ManagePunchesPanel() {
   const qc = useQueryClient();
   const { roleId, actualRoleId } = useRole();
-  // Owner-only. Hide while impersonating another role so the section
-  // accurately reflects the active view.
   const isOwner = roleId === "owner" && actualRoleId === "owner";
-  if (!isOwner) return null;
-
-
 
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
@@ -656,11 +651,15 @@ function ManagePunchesPanel() {
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["mgr-punch-employees"],
     queryFn: () => empFn({ data: {} }) as Promise<any[]>,
+    enabled: isOwner,
   });
   const { data: punches = [], refetch } = useQuery<any[]>({
     queryKey: ["mgr-punches", employeeId, startDate, endDate],
     queryFn: () => punchesFn({ data: { employeeId: employeeId || null, startDate, endDate } }) as Promise<any[]>,
+    enabled: isOwner,
   });
+
+  if (!isOwner) return null;
 
   const empName = (id: string | null) => employees.find((e) => e.id === id)?.display_name ?? "—";
   const openPunches = punches.filter((p) => p.status === "open");
