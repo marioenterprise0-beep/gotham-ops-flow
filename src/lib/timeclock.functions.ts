@@ -144,6 +144,7 @@ export const clockIn = createServerFn({ method: "POST" })
       clock_in_at: new Date().toISOString(),
       status: "open",
       device_info: Object.keys(deviceInfo).length ? deviceInfo : null,
+      created_by: userId,
     }).select("*").single();
     if (error) {
       if (
