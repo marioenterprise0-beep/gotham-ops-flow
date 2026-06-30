@@ -10,7 +10,7 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import {
   listTrailers, generateInvite, listInvitesV2, disableInvite, deleteInvite,
   listUsers, setUserRole, setUserTrailer, setUserActive, listAccessLogs, amISuperAdmin,
-  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser,
+  scanUserDependencies, archiveUser, restoreUser, hardDeleteUser, setUserPayRate,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
 import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
