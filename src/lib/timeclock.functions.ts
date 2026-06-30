@@ -633,7 +633,8 @@ export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    let q = supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
       .from("profiles")
       .select("id, display_name, email, trailer_id, archived_at")
       .is("archived_at", null)
