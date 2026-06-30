@@ -273,12 +273,9 @@ export const upsertShift = createServerFn({ method: "POST" })
       .eq("id", data.scheduleId)
       .maybeSingle();
     if (sched?.status === "locked" || sched?.status === "published") {
-      const { data: isOwner } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "owner",
-      });
-      if (!isOwner) throw new Error("Schedule is locked");
+      throw new Error("Schedule is locked — unlock it before making changes");
     }
+
     const shiftId = data.id ?? crypto.randomUUID();
     const row = {
       schedule_id: data.scheduleId,
