@@ -312,9 +312,19 @@ export const deleteShift = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
+    const { data: existing } = await supabase
+      .from("schedule_shifts")
+      .select("schedule_id, schedules!inner(status)")
+      .eq("id", data.id)
+      .maybeSingle();
+    const st = (existing as any)?.schedules?.status;
+    if (st === "locked" || st === "published") {
+      throw new Error("Schedule is locked — unlock it before making changes");
+    }
     const { error } = await supabase.from("schedule_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+
   });
 
 export const transitionSchedule = createServerFn({ method: "POST" })
