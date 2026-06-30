@@ -224,7 +224,11 @@ function TimeClockPage() {
   const tasksFn = useServerFn(listMyTasks);
   const { data: myTasks = [] } = useQuery<any[]>({
     queryKey: ["my-tasks"],
-    queryFn: () => tasksFn() as Promise<any[]>,
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.access_token) return [];
+      return tasksFn() as Promise<any[]>;
+    },
     refetchInterval: 30_000,
   });
   const incompleteTasks = myTasks.filter((t: any) => t.status !== "done" && t.status !== "signed_off" && t.status !== "missed");
