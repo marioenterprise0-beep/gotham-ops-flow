@@ -17,6 +17,7 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
+  editDrawerSession,
   attachDrawerClosePdf, getDrawerClosePdfUrl, sendDrawerCloseAlertEmail,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML, downloadCSV } from "@/lib/exports";
