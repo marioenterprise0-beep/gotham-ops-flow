@@ -786,7 +786,7 @@ export const managerEditPunch = createServerFn({ method: "POST" })
       }
     }
 
-    const { data: row, error } = await supabase.from("time_punches").update(patch).eq("id", data.id).select("*").single();
+    const { data: row, error } = await supabase.from("time_punches").update(patch as any).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "manager_edit_punch", entity: "time_punch", entity_id: row.id, payload: patch,
