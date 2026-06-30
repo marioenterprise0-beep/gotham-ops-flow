@@ -256,28 +256,33 @@ function SchedulePage() {
             />
 
             {!schedule ? (
-              <Card className="mt-3">
-                <div className="py-10 text-center">
-                  <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-                  <div className="font-display text-lg">No schedule for this range</div>
-                  <div className="text-sm text-muted-foreground mt-1 mb-4">
-                    {rangeLabel(start, end, mode)}
-                  </div>
-                  {isMgr ? (
-                    <Button
-                      onClick={() => createMut.mutate()}
-                      disabled={createMut.isPending}
-                      className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
-                    </Button>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">
-                      A manager will publish one soon.
+              <>
+                <Card className="mt-3">
+                  <div className="py-8 text-center">
+                    <CalIcon className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+                    <div className="font-display text-lg">No schedule for this range</div>
+                    <div className="text-sm text-muted-foreground mt-1 mb-4">
+                      {rangeLabel(start, end, mode)}
                     </div>
-                  )}
-                </div>
-              </Card>
+                    {isMgr ? (
+                      <Button
+                        onClick={() => createMut.mutate()}
+                        disabled={createMut.isPending}
+                        className="bg-[var(--color-gold)] text-[var(--color-gold-foreground)] hover:opacity-90"
+                      >
+                        <Plus className="h-4 w-4 mr-1.5" /> Create Draft for This Range
+                      </Button>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">
+                        A manager will publish one soon. You can still mark days you're unavailable below.
+                      </div>
+                    )}
+                  </div>
+                </Card>
+                {!isMgr && (
+                  <MyAvailabilityCalendar startStr={startStr} endStr={endStr} />
+                )}
+              </>
             ) : (
               <ScheduleBoard
                 scheduleId={schedule.id}
@@ -289,6 +294,7 @@ function SchedulePage() {
                 trailerScope={trailerScope}
               />
             )}
+
           </TabsContent>
 
           {!isMgr && (
