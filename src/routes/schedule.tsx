@@ -708,7 +708,7 @@ function ScheduleBoard({
       },
     );
   };
-  const invalidate = () => syncDomains(qc, "schedule", "labor");
+  const invalidateLabor = () => syncDomains(qc, "labor");
   const forceScheduleRefresh = async () => {
     await qc.invalidateQueries({
       predicate: (q) =>
@@ -744,9 +744,9 @@ function ScheduleBoard({
     },
     onSuccess: async (saved: any) => {
       toast.success("Shift saved");
-      upsertShiftInScheduleCache(saved);
-      invalidate();
       await forceScheduleRefresh();
+      upsertShiftInScheduleCache(saved);
+      invalidateLabor();
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
@@ -767,9 +767,9 @@ function ScheduleBoard({
     },
     onSuccess: async (_result, id) => {
       toast.success("Shift removed");
-      removeShiftFromScheduleCache(id);
-      invalidate();
       await forceScheduleRefresh();
+      removeShiftFromScheduleCache(id);
+      invalidateLabor();
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
@@ -794,9 +794,9 @@ function ScheduleBoard({
     },
     onSuccess: async (saved: any) => {
       toast.success("Shift duplicated");
-      upsertShiftInScheduleCache(saved);
-      invalidate();
       await forceScheduleRefresh();
+      upsertShiftInScheduleCache(saved);
+      invalidateLabor();
     },
     onError: (e: any, _v: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
@@ -863,7 +863,7 @@ function ScheduleBoard({
       if (r.inserted > 0)
         toast.success(`Generated ${r.inserted} open shift${r.inserted === 1 ? "" : "s"}`);
       else toast.info("Coverage already in place — no new shifts to add");
-      invalidate();
+      syncDomains(qc, "schedule", "labor");
       qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Generate coverage failed"),
