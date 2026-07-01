@@ -28,6 +28,10 @@ function shiftDate(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function dateOrdinal(iso: string): number {
+  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
+}
+
 function punchMinutes(p: any): number {
   const inMs = new Date(p.clock_in_at).getTime();
   if (!Number.isFinite(inMs)) return 0;
@@ -64,6 +68,32 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const startISO = zonedDateToUtcISO(ws, timezone, false);
     const endISO = zonedDateToUtcISO(endExclusiveDate, timezone, false);
 
+    // Match the Schedule page: when two schedules overlap the Mon→Sun view,
+    // count only the schedule with the most overlap so scheduled hours are not
+    // double-counted by an older locked week plus a newer draft week.
+    let schedulesQ = supabase
+      .from("schedules")
+      .select("id, start_date, end_date, created_at")
+      .is("archived_at", null)
+      .lte("start_date", endDate)
+      .gte("end_date", ws)
+      .order("start_date", { ascending: false });
+    if (data.trailerId) schedulesQ = schedulesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+    const { data: schedules } = await schedulesQ;
+    const selectedSchedule = (schedules ?? []).length > 0
+      ? [...(schedules ?? [])].sort((a: any, b: any) => {
+          const reqStart = dateOrdinal(ws);
+          const reqEnd = dateOrdinal(endDate);
+          const overlap = (row: any) => Math.max(
+            0,
+            Math.min(reqEnd, dateOrdinal(row.end_date)) - Math.max(reqStart, dateOrdinal(row.start_date)) + 1,
+          );
+          const byOverlap = overlap(b) - overlap(a);
+          if (byOverlap !== 0) return byOverlap;
+          return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+        })[0]
+      : null;
+
     // Always load all active profiles for display names; do NOT filter by
     // trailer here. We seed the employee map from actual shifts/punches in
     // scope so anyone scheduled or punched-in at this trailer shows up, even
@@ -82,6 +112,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .gte("shift_date", ws)
       .lt("shift_date", endExclusiveDate);
+    if (selectedSchedule?.id) shiftsQ = shiftsQ.eq("schedule_id", selectedSchedule.id);
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
     let timeoffQ = supabase.from("time_off_requests").select("*").is("archived_at", null).eq("status", "pending");
 
