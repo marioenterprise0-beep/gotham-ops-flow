@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager as requireManagerRole, requireOwner as requireOwnerRole, requireTabAccess } from "./auth-guards";
+import { DEFAULT_TRAILER_TZ, zonedDateToUtcISO } from "./timezone";
 
 function weekStartOf(d: Date): string {
   // Payroll week: Monday → Sunday
@@ -21,6 +22,27 @@ async function requireOwner(supabase: any, userId: string) {
   await requireOwnerRole(supabase, userId);
 }
 
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function dateOrdinal(iso: string): number {
+  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
+}
+
+function punchMinutes(p: any): number {
+  const inMs = new Date(p.clock_in_at).getTime();
+  if (!Number.isFinite(inMs)) return 0;
+  let outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : Date.now();
+  if (!Number.isFinite(outMs)) return 0;
+  // Owner-entered overnight punches can have the clock-out time earlier than
+  // clock-in when only the time was corrected. Treat that as next-day close.
+  while (outMs < inMs) outMs += 24 * 60 * 60 * 1000;
+  return Math.max(0, (outMs - inMs) / 60000 - (p.break_minutes ?? 0));
+}
+
 export const getLaborDashboard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
@@ -32,8 +54,42 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
 
     const ws = data.weekStart ?? weekStartOf(new Date());
-    const start = new Date(ws + "T00:00:00");
-    const end = new Date(start); end.setDate(end.getDate() + 7);
+    const endDate = shiftDate(ws, 6);
+    const endExclusiveDate = shiftDate(ws, 7);
+    let timezone = DEFAULT_TRAILER_TZ;
+    if (data.trailerId) {
+      const { data: tr } = await supabase
+        .from("trailers")
+        .select("timezone")
+        .eq("id", data.trailerId)
+        .maybeSingle();
+      if (tr?.timezone) timezone = tr.timezone as string;
+    }
+    const startISO = zonedDateToUtcISO(ws, timezone, false);
+    const endISO = zonedDateToUtcISO(endExclusiveDate, timezone, false);
+
+    let schedulesQ = supabase
+      .from("schedules")
+      .select("id, start_date, end_date, created_at")
+      .is("archived_at", null)
+      .lte("start_date", endDate)
+      .gte("end_date", ws)
+      .order("start_date", { ascending: false });
+    if (data.trailerId) schedulesQ = schedulesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+    const { data: schedules } = await schedulesQ;
+    const selectedSchedule = (schedules ?? []).length > 0
+      ? [...(schedules ?? [])].sort((a: any, b: any) => {
+          const reqStart = dateOrdinal(ws);
+          const reqEnd = dateOrdinal(endDate);
+          const overlap = (row: any) => Math.max(
+            0,
+            Math.min(reqEnd, dateOrdinal(row.end_date)) - Math.max(reqStart, dateOrdinal(row.start_date)) + 1,
+          );
+          const byOverlap = overlap(b) - overlap(a);
+          if (byOverlap !== 0) return byOverlap;
+          return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+        })[0]
+      : null;
 
     // Always load all active profiles for display names; do NOT filter by
     // trailer here. We seed the employee map from actual shifts/punches in
@@ -46,13 +102,14 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const profMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
 
     let punchesQ = supabase.from("time_punches").select("*").is("archived_at", null)
-      .gte("clock_in_at", start.toISOString())
-      .lt("clock_in_at", end.toISOString());
+      .gte("clock_in_at", startISO)
+      .lt("clock_in_at", endISO);
     let shiftsQ = supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
       .is("schedules.archived_at", null)
       .is("archived_at", null)
       .gte("shift_date", ws)
-      .lt("shift_date", end.toISOString().slice(0, 10));
+      .lt("shift_date", endExclusiveDate);
+    if (selectedSchedule?.id) shiftsQ = shiftsQ.eq("schedule_id", selectedSchedule.id);
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
     let timeoffQ = supabase.from("time_off_requests").select("*").is("archived_at", null).eq("status", "pending");
 
@@ -99,11 +156,11 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     for (const p of punches ?? []) {
       const e = seedEmp(p.employee_id); if (!e) continue;
       if (p.clock_out_at) {
-        const diff = (new Date(p.clock_out_at).getTime() - new Date(p.clock_in_at).getTime()) / 60000;
-        e.workedMin += Math.max(0, diff - (p.break_minutes ?? 0));
+        e.workedMin += punchMinutes(p);
       } else {
         const ageH = (Date.now() - new Date(p.clock_in_at).getTime()) / 3600000;
         e.openPunch = true;
+        e.workedMin += punchMinutes(p);
         if (ageH > 16) { missedClockOuts++; e.flags.push("missed_clock_out"); }
       }
     }
@@ -111,7 +168,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     const employees = Array.from(empMap.values()).map((e) => {
       const diff = e.workedMin - e.scheduledMin;
       if (e.workedMin > 40 * 60) e.flags.push("overtime");
-      if (e.scheduledMin > 0 && e.workedMin === 0) e.flags.push("no_show");
+      if (e.scheduledMin > 0 && e.workedMin === 0 && !e.openPunch) e.flags.push("no_show");
       return { ...e, diffMin: diff };
     }).sort((a, b) => a.name.localeCompare(b.name));
 
