@@ -161,7 +161,7 @@ function LaborPage() {
                       </div>
                     )}
                   </div>
-                  <StatusPill tone={status as any}>{status === "success" ? "OK" : status === "warning" ? "Review" : "Needs review"}</StatusPill>
+                  <StatusPill tone={status as any}>{status === "success" ? "Resolved" : status === "warning" ? "Review" : "Needs review"}</StatusPill>
                 </button>
               );
             })}
