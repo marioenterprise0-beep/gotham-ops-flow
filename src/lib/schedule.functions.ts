@@ -593,13 +593,19 @@ export const listEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Manager-only: this returns the cross-trailer employee roster via supabaseAdmin
-    // (bypassing RLS), so it must not be callable by crew. Crew-facing shift
-    // claims/swaps query through the authenticated client where RLS scopes to
-    // the user's own trailer.
-    await requireManager(supabase, userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let profilesQ = supabaseAdmin
+    // Managers get the cross-trailer roster via admin (bypasses RLS).
+    // Crew get a read-only, RLS-scoped list so they can see coworkers on
+    // their own schedule (same trailer per profiles RLS). No pay/PII columns.
+    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
+    const useAdmin = !!isMgr;
+
+    let client: any = supabase;
+    if (useAdmin) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      client = supabaseAdmin;
+    }
+
+    let profilesQ = client
       .from("profiles")
       .select("id, display_name, active, trailer_id, weekly_hours")
       .eq("active", true)
@@ -609,7 +615,7 @@ export const listEmployees = createServerFn({ method: "POST" })
     }
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
-      supabaseAdmin.from("user_roles").select("user_id, role"),
+      client.from("user_roles").select("user_id, role"),
     ]);
     const roleMap = new Map<string, string[]>();
     for (const r of roles ?? []) {
@@ -627,6 +633,7 @@ export const listEmployees = createServerFn({ method: "POST" })
         targetHours: p.weekly_hours ?? 40,
       }));
   });
+
 
 
 // Find a schedule whose range overlaps the given week; create a draft if none.

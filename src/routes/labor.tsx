@@ -1,7 +1,9 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, StatusPill } from "@/components/gotham/primitives";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,7 @@ function LaborPage() {
   const { roleId, trailerScope } = useRole();
   if (roleId !== "owner" && roleId !== "manager") return <Navigate to="/" />;
   const isOwner = roleId === "owner";
+  const qc = useQueryClient();
 
   const [weekStart, setWeekStart] = useState(() => weekStartOf(new Date()));
   const [selectedEmp, setSelectedEmp] = useState<string | null>(null);
@@ -63,6 +66,31 @@ function LaborPage() {
     queryKey: ["labor-reqs", trailerScope],
     queryFn: () => reqFn({ data: { trailerId: trailerScope ?? null } }),
   });
+
+  // Realtime: any punch / correction / time-off / schedule change refreshes
+  // the labor dashboard live across devices.
+  useEffect(() => {
+    let pending = false;
+    const refresh = () => {
+      if (pending) return;
+      pending = true;
+      setTimeout(() => {
+        pending = false;
+        qc.invalidateQueries({ queryKey: ["labor-dash"] });
+        qc.invalidateQueries({ queryKey: ["labor-reqs"] });
+        qc.invalidateQueries({ queryKey: ["emp-week"] });
+      }, 350);
+    };
+    const channel = supabase
+      .channel("labor-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "time_punches" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "time_corrections" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "time_off_requests" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "schedule_shifts" }, refresh)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [qc]);
+
 
   const weekEnd = new Date(weekStart + "T00:00:00");
   weekEnd.setDate(weekEnd.getDate() + 6);
