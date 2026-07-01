@@ -1860,16 +1860,17 @@ function ShiftForm({
   // Quick templates
   useEffect(() => {
     if (segment === "open") {
-      setStartTime("09:00");
-      setEndTime("14:00");
+      setStartTime("10:00");
+      setEndTime("16:00");
     } else if (segment === "close") {
       setStartTime("16:00");
-      setEndTime("23:00");
+      setEndTime("00:00");
     } else if (segment === "mid") {
       setStartTime("11:00");
       setEndTime("19:00");
     }
   }, [segment]);
+
 
   const hrs = hoursBetween(startTime, endTime, breakMinutes);
 

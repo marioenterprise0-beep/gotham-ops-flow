@@ -33,12 +33,27 @@ type Task = {
 const PHASES = ["opening", "mid", "closing", "emergency"] as const;
 type Phase = (typeof PHASES)[number];
 
+// Operating windows (local time, 24h). Opening 10a–4p, Closing 4p–12a.
+const PHASE_WINDOWS: Record<Phase, { label: string; startHour: number; endHour: number } | null> = {
+  opening: { label: "10:00 AM – 4:00 PM", startHour: 10, endHour: 16 },
+  mid: { label: "12:00 PM – 6:00 PM", startHour: 12, endHour: 18 },
+  closing: { label: "4:00 PM – 12:00 AM", startHour: 16, endHour: 24 },
+  emergency: null,
+};
+
+function phaseForHour(h: number): Phase {
+  if (h >= 10 && h < 16) return "opening";
+  if (h >= 16 || h < 2) return "closing";
+  return "mid";
+}
+
 function Operations() {
   const qc = useQueryClient();
   const { roleId, trailerScope, trailers } = useRole();
   const isManager = roleId === "owner" || roleId === "manager";
   const isOwner = roleId === "owner";
-  const [phase, setPhase] = useState<Phase>("opening");
+  const [phase, setPhase] = useState<Phase>(() => phaseForHour(new Date().getHours()));
+
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
@@ -172,13 +187,19 @@ function Operations() {
           <button key={p}
             onClick={() => { setPhase(p); if (shift?.id) ensureM.mutate(p); }}
             className={cn(
-              "rounded-lg px-2 py-2.5 text-xs font-semibold uppercase tracking-[1.2px] border transition",
+              "rounded-lg px-2 py-2 text-xs font-semibold uppercase tracking-[1.2px] border transition flex flex-col items-center gap-0.5",
               p === phase ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
             )}>
-            {p}
+            <span>{p}</span>
+            {PHASE_WINDOWS[p] && (
+              <span className="text-[10px] font-normal normal-case tracking-normal opacity-70">
+                {PHASE_WINDOWS[p]!.label}
+              </span>
+            )}
           </button>
         ))}
       </div>
+
 
       <ChecklistSessionForm shiftId={shift.id} phase={phase} trailerId={activeTrailer ?? null} />
 
