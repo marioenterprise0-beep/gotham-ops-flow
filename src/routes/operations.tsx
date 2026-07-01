@@ -187,13 +187,19 @@ function Operations() {
           <button key={p}
             onClick={() => { setPhase(p); if (shift?.id) ensureM.mutate(p); }}
             className={cn(
-              "rounded-lg px-2 py-2.5 text-xs font-semibold uppercase tracking-[1.2px] border transition",
+              "rounded-lg px-2 py-2 text-xs font-semibold uppercase tracking-[1.2px] border transition flex flex-col items-center gap-0.5",
               p === phase ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground",
             )}>
-            {p}
+            <span>{p}</span>
+            {PHASE_WINDOWS[p] && (
+              <span className="text-[10px] font-normal normal-case tracking-normal opacity-70">
+                {PHASE_WINDOWS[p]!.label}
+              </span>
+            )}
           </button>
         ))}
       </div>
+
 
       <ChecklistSessionForm shiftId={shift.id} phase={phase} trailerId={activeTrailer ?? null} />
 
