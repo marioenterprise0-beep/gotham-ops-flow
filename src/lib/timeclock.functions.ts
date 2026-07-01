@@ -627,6 +627,66 @@ async function buildManagerGeoPayload(_supabase: any, trailerId: string | null) 
   return base;
 }
 
+function addDayIfBefore(clockInAt: string, clockOutAt: string | null | undefined): string | null {
+  if (!clockOutAt) return clockOutAt ?? null;
+  const inMs = new Date(clockInAt).getTime();
+  const out = new Date(clockOutAt);
+  if (!Number.isFinite(inMs) || !Number.isFinite(out.getTime())) return clockOutAt;
+  while (out.getTime() < inMs) out.setUTCDate(out.getUTCDate() + 1);
+  return out.toISOString();
+}
+
+async function findMatchingScheduleShift(
+  supabase: any,
+  employeeId: string,
+  trailerId: string | null,
+  clockInAt: string,
+) {
+  const d = new Date(clockInAt);
+  if (!Number.isFinite(d.getTime())) return null;
+  const day = d.toISOString().slice(0, 10);
+  const prev = new Date(d); prev.setUTCDate(prev.getUTCDate() - 1);
+  const next = new Date(d); next.setUTCDate(next.getUTCDate() + 1);
+  let q = supabase
+    .from("schedule_shifts")
+    .select("id, shift_date, start_time, end_time, schedules!inner(archived_at)")
+    .is("archived_at", null)
+    .is("schedules.archived_at", null)
+    .eq("employee_id", employeeId)
+    .gte("shift_date", prev.toISOString().slice(0, 10))
+    .lte("shift_date", next.toISOString().slice(0, 10));
+  if (trailerId) q = q.eq("trailer_id", trailerId);
+  const { data: rows } = await q;
+  const inMs = d.getTime();
+  const candidates = (rows ?? []).map((s: any) => {
+    const startMs = new Date(`${s.shift_date}T${s.start_time}`).getTime();
+    return { id: s.id, diff: Math.abs(startMs - inMs) };
+  }).sort((a: any, b: any) => a.diff - b.diff);
+  return candidates[0]?.id ?? null;
+}
+
+async function resolveTimeAlertsForPunch(supabase: any, userId: string, punch: any) {
+  if (!punch?.id) return;
+  const ids = [punch.id, punch.schedule_shift_id].filter(Boolean);
+  if (ids.length === 0) return;
+  const { data: alerts } = await supabase
+    .from("alerts")
+    .select("id")
+    .in("type", ["missed_clock_in", "missed_clock_out"])
+    .in("source_id", ids)
+    .in("status", ["open", "pending"]);
+  if (!alerts || alerts.length === 0) return;
+  await supabase
+    .from("alerts")
+    .update({
+      status: "resolved",
+      resolved_by: userId,
+      resolved_at: new Date().toISOString(),
+      resolution: "Punch corrected",
+    } as any)
+    .in("id", alerts.map((a: any) => a.id));
+}
+
 export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().optional().nullable() }).parse(d))
@@ -703,12 +763,15 @@ export const managerClockInEmployee = createServerFn({ method: "POST" })
     }
 
     const device_info = await buildManagerGeoPayload(supabase, trailerId);
+    const clockOutAt = addDayIfBefore(data.clockInAt, data.clockOutAt);
+    const scheduleShiftId = await findMatchingScheduleShift(supabase, data.employeeId, trailerId, data.clockInAt);
     const insertRow: any = {
       employee_id: data.employeeId,
       trailer_id: trailerId,
+      schedule_shift_id: scheduleShiftId,
       clock_in_at: data.clockInAt,
-      clock_out_at: data.clockOutAt ?? null,
-      status: data.clockOutAt ? "closed" : "open",
+      clock_out_at: clockOutAt,
+      status: clockOutAt ? "closed" : "open",
       break_minutes: data.breakMinutes ?? 0,
       notes: data.notes ? `[Manager entry] ${data.notes}` : "[Manager entry]",
       device_info,
@@ -716,10 +779,11 @@ export const managerClockInEmployee = createServerFn({ method: "POST" })
     };
     const { data: row, error } = await supabase.from("time_punches").insert(insertRow).select("*").single();
     if (error) throw new Error(error.message);
+    await resolveTimeAlertsForPunch(supabase, userId, row);
 
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "manager_clock_in", entity: "time_punch", entity_id: row.id,
-      payload: { for_employee: data.employeeId, clock_in_at: data.clockInAt, clock_out_at: data.clockOutAt ?? null },
+      payload: { for_employee: data.employeeId, clock_in_at: data.clockInAt, clock_out_at: clockOutAt },
     } as any);
     return row;
   });
@@ -745,11 +809,17 @@ export const managerClockOutEmployee = createServerFn({ method: "POST" })
       if (!open) throw new Error("No open punch found for this employee.");
       punchId = open.id;
     }
-    const patch: any = { clock_out_at: data.clockOutAt, status: "closed" };
+    const { data: existingPunch } = await supabase
+      .from("time_punches")
+      .select("clock_in_at")
+      .eq("id", punchId)
+      .maybeSingle();
+    const patch: any = { clock_out_at: addDayIfBefore(existingPunch?.clock_in_at ?? data.clockOutAt, data.clockOutAt), status: "closed" };
     if (data.breakMinutes !== undefined) patch.break_minutes = data.breakMinutes;
     if (data.notes) patch.notes = `[Manager close] ${data.notes}`;
     const { data: row, error } = await supabase.from("time_punches").update(patch).eq("id", punchId).select("*").single();
     if (error) throw new Error(error.message);
+    await resolveTimeAlertsForPunch(supabase, userId, row);
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "manager_clock_out", entity: "time_punch", entity_id: row.id,
       payload: { clock_out_at: data.clockOutAt, break_minutes: data.breakMinutes ?? null },
@@ -783,15 +853,30 @@ export const managerEditPunch = createServerFn({ method: "POST" })
     }
     if (Object.keys(patch).length === 0) throw new Error("No changes provided");
 
-    // Validate: if both timestamps present, end must be >= start.
-    if (patch.clock_in_at && patch.clock_out_at) {
-      if (new Date(patch.clock_out_at).getTime() < new Date(patch.clock_in_at).getTime()) {
+    const { data: existingPunch } = await supabase
+      .from("time_punches")
+      .select("employee_id, trailer_id, clock_in_at, schedule_shift_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    const finalClockIn = patch.clock_in_at ?? existingPunch?.clock_in_at;
+    if (data.clockOutAt !== undefined && finalClockIn) {
+      patch.clock_out_at = addDayIfBefore(finalClockIn, data.clockOutAt);
+    }
+    if (!patch.schedule_shift_id && existingPunch?.employee_id && finalClockIn && !existingPunch.schedule_shift_id) {
+      const matchedShift = await findMatchingScheduleShift(supabase, existingPunch.employee_id, existingPunch.trailer_id ?? null, finalClockIn);
+      if (matchedShift) patch.schedule_shift_id = matchedShift;
+    }
+
+    // Validate: if both timestamps present, end must be >= start after overnight normalization.
+    if (finalClockIn && patch.clock_out_at) {
+      if (new Date(patch.clock_out_at).getTime() < new Date(finalClockIn).getTime()) {
         throw new Error("Clock-out time must be after clock-in time.");
       }
     }
 
     const { data: row, error } = await supabase.from("time_punches").update(patch as any).eq("id", data.id).select("*").single();
     if (error) throw new Error(error.message);
+    await resolveTimeAlertsForPunch(supabase, userId, row);
     await supabase.from("audit_log").insert({
       actor_id: userId, action: "manager_edit_punch", entity: "time_punch", entity_id: row.id, payload: patch,
     } as any);
