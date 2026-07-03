@@ -17,7 +17,7 @@ import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
   listEmployeesForPunchAdmin, listPunchesForAdmin,
-  managerClockInEmployee, managerClockOutEmployee, managerEditPunch,
+  managerClockInEmployee, managerClockOutEmployee, managerEditPunch, managerDeletePunch,
 } from "@/lib/timeclock.functions";
 
 import { listMyScheduleShifts } from "@/lib/schedule.functions";
@@ -647,6 +647,19 @@ function ManagePunchesPanel() {
   const inFn = useServerFn(managerClockInEmployee);
   const outFn = useServerFn(managerClockOutEmployee);
   const editFn = useServerFn(managerEditPunch);
+  const delFn = useServerFn(managerDeletePunch);
+
+  async function handleDeletePunch(p: any) {
+    const who = employees.find((e) => e.id === p.employee_id)?.display_name ?? "this employee";
+    const when = new Date(p.clock_in_at).toLocaleString();
+    if (!window.confirm(`Delete punch for ${who} starting ${when}?\n\nThis removes it from labor hours. This cannot be undone from the UI.`)) return;
+    try {
+      await delFn({ data: { id: p.id } });
+      toast.success("Punch deleted");
+      refetch();
+      syncDomains(qc, "timeclock", "labor");
+    } catch (e: any) { toast.error(e.message); }
+  }
 
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["mgr-punch-employees"],
@@ -757,6 +770,7 @@ function ManagePunchesPanel() {
                 <div className="flex items-center gap-2">
                   <StatusPill tone={p.status === "open" ? "warning" : p.status === "auto_closed" ? "danger" : "success"}>{p.status}</StatusPill>
                   <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeletePunch(p)}>Delete</Button>
                 </div>
               </div>
             );

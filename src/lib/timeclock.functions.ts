@@ -885,3 +885,37 @@ export const managerEditPunch = createServerFn({ method: "POST" })
     } as any);
     return row;
   });
+
+export const managerDeletePunch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    id: z.string().uuid(),
+    reason: z.string().max(500).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertOwner(supabase, userId);
+    const { data: existing } = await supabase
+      .from("time_punches")
+      .select("id, employee_id, clock_in_at, clock_out_at, status, break_minutes")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (!existing) throw new Error("Punch not found");
+    const { error } = await supabase
+      .from("time_punches")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? "Owner deleted punch",
+      } as any)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "manager_delete_punch",
+      entity: "time_punch",
+      entity_id: data.id,
+      payload: { reason: data.reason ?? null, snapshot: existing },
+    } as any);
+    return { ok: true };
+  });
