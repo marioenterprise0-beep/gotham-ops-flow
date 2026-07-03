@@ -647,6 +647,19 @@ function ManagePunchesPanel() {
   const inFn = useServerFn(managerClockInEmployee);
   const outFn = useServerFn(managerClockOutEmployee);
   const editFn = useServerFn(managerEditPunch);
+  const delFn = useServerFn(managerDeletePunch);
+
+  async function handleDeletePunch(p: any) {
+    const who = employees.find((e) => e.id === p.employee_id)?.display_name ?? "this employee";
+    const when = new Date(p.clock_in_at).toLocaleString();
+    if (!window.confirm(`Delete punch for ${who} starting ${when}?\n\nThis removes it from labor hours. This cannot be undone from the UI.`)) return;
+    try {
+      await delFn({ data: { id: p.id } });
+      toast.success("Punch deleted");
+      refetch();
+      syncDomains(qc, "timeclock", "labor");
+    } catch (e: any) { toast.error(e.message); }
+  }
 
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ["mgr-punch-employees"],
