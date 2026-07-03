@@ -216,47 +216,106 @@ function EmployeeDrawer({ userId, weekStart, isOwner, onClose }: { userId: strin
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const punches = (data?.punches ?? []) as any[];
+
+  const byDay = new Map<string, any[]>();
+  for (const p of punches) {
+    const key = new Date(p.clock_in_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(p);
+  }
+
+  const punchMinutes = (p: any) => {
+    const inMs = new Date(p.clock_in_at).getTime();
+    let outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : Date.now();
+    while (outMs < inMs) outMs += 24 * 60 * 60 * 1000;
+    return Math.max(0, (outMs - inMs) / 60000 - (p.break_minutes ?? 0));
+  };
+
+  const auditFlags = (p: any): { label: string; tone: "success" | "warning" | "danger" }[] => {
+    const flags: { label: string; tone: "success" | "warning" | "danger" }[] = [];
+    if (!p.clock_out_at) flags.push({ label: "Open", tone: "warning" });
+    if (p.status === "auto_closed") flags.push({ label: "Auto-closed at scheduled end", tone: "warning" });
+    if (p.status === "edited") flags.push({ label: "Owner edited", tone: "success" });
+    if (typeof p.notes === "string" && /grace/i.test(p.notes)) flags.push({ label: "Grace applied", tone: "warning" });
+    return flags;
+  };
+
   return (
     <Card className="mt-4 p-4">
       <div className="flex items-center justify-between">
-        <div className="font-display text-lg">Punches</div>
+        <div className="font-display text-lg">Daily breakdown</div>
         <Button variant="ghost" size="sm" onClick={onClose}>Close</Button>
       </div>
-      {(data?.punches ?? []).length === 0 && <div className="text-sm text-muted-foreground py-3">No punches this week.</div>}
-      {(data?.punches ?? []).map((p: any) => {
-        const isEdit = editing === p.id;
+      <div className="text-xs text-muted-foreground mt-1">
+        Auditable per-day log: start, end, break, auto-close events, and final duration.
+      </div>
+      {punches.length === 0 && <div className="text-sm text-muted-foreground py-3">No punches this week.</div>}
+      {Array.from(byDay.entries()).map(([day, list]) => {
+        const dayTotal = list.reduce((s, p) => s + punchMinutes(p), 0);
+        const hasOpen = list.some((p) => !p.clock_out_at);
         return (
-          <div key={p.id} className="border-t border-border py-3 text-sm">
-            {!isEdit ? (
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-medium">{new Date(p.clock_in_at).toLocaleString()} → {p.clock_out_at ? new Date(p.clock_out_at).toLocaleString() : "—"}</div>
-                  <div className="text-xs text-muted-foreground">Break {p.break_minutes}m · {p.status}</div>
-                </div>
-                {isOwner && (
-                  <Button size="sm" variant="outline" onClick={() => {
-                    setEditing(p.id);
-                    setDraft({
-                      in: new Date(p.clock_in_at).toISOString().slice(0, 16),
-                      out: p.clock_out_at ? new Date(p.clock_out_at).toISOString().slice(0, 16) : "",
-                      brk: p.break_minutes ?? 0,
-                      reason: "",
-                    });
-                  }}>Edit</Button>
-                )}
+          <div key={day} className="border-t border-border py-3">
+            <div className="flex items-center justify-between text-sm">
+              <div className="font-semibold">{day}</div>
+              <div className={cn("font-mono text-xs", hasOpen && "text-[var(--color-warning)]")}>
+                {fmtH(dayTotal)}{hasOpen ? " (running)" : ""}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>Clock in</Label><Input type="datetime-local" value={draft.in} onChange={(e) => setDraft({ ...draft, in: e.target.value })} /></div>
-                <div><Label>Clock out</Label><Input type="datetime-local" value={draft.out} onChange={(e) => setDraft({ ...draft, out: e.target.value })} /></div>
-                <div><Label>Break (min)</Label><Input type="number" value={draft.brk} onChange={(e) => setDraft({ ...draft, brk: Number(e.target.value) })} /></div>
-                <div><Label>Reason</Label><Input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></div>
-                <div className="col-span-2 flex gap-2">
-                  <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-                </div>
-              </div>
-            )}
+            </div>
+            <div className="mt-2 space-y-2">
+              {list.map((p) => {
+                const isEdit = editing === p.id;
+                const dur = punchMinutes(p);
+                const flags = auditFlags(p);
+                return (
+                  <div key={p.id} className="rounded-md border border-border bg-secondary/20 p-2.5">
+                    {!isEdit ? (
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 text-xs space-y-1">
+                          <div className="font-mono">
+                            <span className="text-muted-foreground">In</span> {new Date(p.clock_in_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                            <span className="mx-2 text-muted-foreground">→</span>
+                            <span className="text-muted-foreground">Out</span> {p.clock_out_at ? new Date(p.clock_out_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—"}
+                            <span className="mx-2 text-muted-foreground">·</span>
+                            <span className="text-muted-foreground">Break</span> {p.break_minutes ?? 0}m
+                            <span className="mx-2 text-muted-foreground">·</span>
+                            <span className="text-foreground font-semibold">Duration {fmtH(dur)}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 items-center">
+                            <StatusPill tone={p.status === "closed" ? "success" : p.status === "auto_closed" ? "warning" : p.status === "edited" ? "success" : "warning"}>{p.status}</StatusPill>
+                            {flags.map((f) => <StatusPill key={f.label} tone={f.tone}>{f.label}</StatusPill>)}
+                            {p.edited_at && <span className="text-[10px] text-muted-foreground">edited {new Date(p.edited_at).toLocaleString()}</span>}
+                          </div>
+                          {p.notes && <div className="text-[11px] text-muted-foreground whitespace-pre-wrap">{p.notes}</div>}
+                        </div>
+                        {isOwner && (
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditing(p.id);
+                            setDraft({
+                              in: new Date(p.clock_in_at).toISOString().slice(0, 16),
+                              out: p.clock_out_at ? new Date(p.clock_out_at).toISOString().slice(0, 16) : "",
+                              brk: p.break_minutes ?? 0,
+                              reason: "",
+                            });
+                          }}>Edit</Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><Label>Clock in</Label><Input type="datetime-local" value={draft.in} onChange={(e) => setDraft({ ...draft, in: e.target.value })} /></div>
+                        <div><Label>Clock out</Label><Input type="datetime-local" value={draft.out} onChange={(e) => setDraft({ ...draft, out: e.target.value })} /></div>
+                        <div><Label>Break (min)</Label><Input type="number" value={draft.brk} onChange={(e) => setDraft({ ...draft, brk: Number(e.target.value) })} /></div>
+                        <div><Label>Reason</Label><Input value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} /></div>
+                        <div className="col-span-2 flex gap-2">
+                          <Button size="sm" onClick={() => saveM.mutate()} disabled={saveM.isPending}>Save</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}
