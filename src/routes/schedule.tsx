@@ -971,6 +971,7 @@ function ScheduleBoard({
       employee_id: string;
       clock_in_at: string;
       clock_out_at: string | null;
+      break_minutes: number | null;
     }>;
     const tz = (data as any)?.timezone || DEFAULT_TRAILER_TZ;
     // Anchor the visible window to the trailer's local timezone so every
@@ -985,7 +986,8 @@ function ScheduleBoard({
       const outMs = p.clock_out_at ? new Date(p.clock_out_at).getTime() : nowMs;
       // Duration math uses absolute UTC instants — an hour is an hour
       // regardless of the viewer's timezone or daylight-savings shifts.
-      const hrs = Math.max(0, (outMs - inMs) / 3_600_000);
+      // Subtract break minutes to match the Labor page's calculation.
+      const hrs = Math.max(0, (outMs - inMs) / 3_600_000 - (p.break_minutes ?? 0) / 60);
       m.set(p.employee_id, (m.get(p.employee_id) ?? 0) + hrs);
     }
     return m;
