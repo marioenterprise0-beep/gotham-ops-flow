@@ -17,7 +17,7 @@ import {
   clockIn, clockOut, getMyActivePunch, getMyWeek,
   submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
   listEmployeesForPunchAdmin, listPunchesForAdmin,
-  managerClockInEmployee, managerClockOutEmployee, managerEditPunch,
+  managerClockInEmployee, managerClockOutEmployee, managerEditPunch, managerDeletePunch,
 } from "@/lib/timeclock.functions";
 
 import { listMyScheduleShifts } from "@/lib/schedule.functions";
