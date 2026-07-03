@@ -28,9 +28,6 @@ function shiftDate(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function dateOrdinal(iso: string): number {
-  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
-}
 
 function punchMinutes(p: any): number {
   const inMs = new Date(p.clock_in_at).getTime();
