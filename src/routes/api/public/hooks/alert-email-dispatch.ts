@@ -595,15 +595,22 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
         const ctx = { trailer, creator }
 
         try {
-          // Default fan-out: every active employee at the alert's trailer whose
-          // role is enabled for this category (plus owners). The per-mapping
-          // resolver above is still used as a safety floor (e.g. owners-only
-          // when there's no trailer attached). We union the two so owners
-          // narrowing role policy never *removes* the originally intended audience.
-          const [base, location] = await Promise.all([
-            mapping.recipients(alert, sb),
-            getLocationRecipientsForCategory(alert.trailer_id, mapping.category),
-          ])
+          // Only fan out to the full trailer roster for categories that are
+          // meaningfully everyone's business (their own schedule, HR docs,
+          // training, announcements). Operational alerts — missed clock-in /
+          // clock-out, drawer close / variance, cash drops, inventory,
+          // checklist failures — stay narrow (managers + owners) so a coworker
+          // no-show doesn't email the whole crew.
+          const CREW_FANOUT_CATEGORIES: Category[] = [
+            'schedule',
+            'announcements',
+            'training',
+            'hr_documents',
+          ]
+          const base = await mapping.recipients(alert, sb)
+          const location = CREW_FANOUT_CATEGORIES.includes(mapping.category)
+            ? await getLocationRecipientsForCategory(alert.trailer_id, mapping.category)
+            : []
           const seen = new Set<string>()
           const recipients = [...base, ...location].filter((r) =>
             seen.has(r.user_id) ? false : (seen.add(r.user_id), true),

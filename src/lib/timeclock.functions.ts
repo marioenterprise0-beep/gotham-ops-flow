@@ -92,8 +92,11 @@ export const clockIn = createServerFn({ method: "POST" })
         }
         const radius = trailer.geofence_radius_m ?? 25;
         const dist = distanceMeters(data.lat, data.lng, trailer.geofence_lat, trailer.geofence_lng);
-        // Allow GPS accuracy (capped) as edge tolerance so a good reading near the boundary isn't rejected.
-        const tolerance = Math.min(50, data.accuracy ?? 0);
+        // Trailer GPS drifts a lot inside a metal box — GPS accuracy often
+        // reports 30–80 m even when the phone is standing at the window.
+        // Allow the phone's reported accuracy AND a 50 m floor as edge
+        // tolerance so a good reading right at the trailer isn't rejected.
+        const tolerance = Math.max(50, data.accuracy ?? 0);
         if (dist - tolerance > radius) {
           return {
             ok: false as const,
