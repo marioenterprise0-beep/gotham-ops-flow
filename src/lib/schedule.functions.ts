@@ -257,6 +257,7 @@ export const getSchedule = createServerFn({ method: "POST" })
       employee_id: string;
       clock_in_at: string;
       clock_out_at: string | null;
+      break_minutes: number | null;
     }> = [];
     let timezone: string = DEFAULT_TRAILER_TZ;
     if (schedule?.trailer_id) {
@@ -272,7 +273,7 @@ export const getSchedule = createServerFn({ method: "POST" })
       const endISO = zonedDateToUtcISO(schedule.end_date as string, timezone, true);
       const { data: pRows } = await supabase
         .from("time_punches")
-        .select("employee_id, clock_in_at, clock_out_at")
+        .select("employee_id, clock_in_at, clock_out_at, break_minutes")
         .is("archived_at", null)
         .gte("clock_in_at", startISO)
         .lte("clock_in_at", endISO);
