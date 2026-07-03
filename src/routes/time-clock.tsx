@@ -770,6 +770,7 @@ function ManagePunchesPanel() {
                 <div className="flex items-center gap-2">
                   <StatusPill tone={p.status === "open" ? "warning" : p.status === "auto_closed" ? "danger" : "success"}>{p.status}</StatusPill>
                   <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeletePunch(p)}>Delete</Button>
                 </div>
               </div>
             );
