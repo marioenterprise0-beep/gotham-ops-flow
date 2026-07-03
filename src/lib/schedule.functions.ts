@@ -236,12 +236,19 @@ export const getSchedule = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("shift_date")
       .order("start_time");
-    const [{ data: schedule, error: sErr }, { data: shifts, error: shErr }] = await Promise.all([
+    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, { data: ownerRoles }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
       shiftsQ,
+      supabase.from("user_roles").select("user_id").eq("role", "owner"),
     ]);
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
+    // Owners aren't scheduled — hide any legacy owner-assigned shifts so the
+    // grid matches listEmployees (which already excludes owners from the roster).
+    const ownerIds = new Set((ownerRoles ?? []).map((r: any) => r.user_id));
+    const shifts = (shiftsRaw ?? []).filter(
+      (s: any) => !s.employee_id || !ownerIds.has(s.employee_id),
+    );
     // Pull punches in the schedule window so the grid can show actual clocked hours
     // alongside scheduled hours per employee. The window is anchored to the
     // trailer's local timezone so the same day boundaries are used regardless
