@@ -28,9 +28,6 @@ function shiftDate(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function dateOrdinal(iso: string): number {
-  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
-}
 
 function punchMinutes(p: any): number {
   const inMs = new Date(p.clock_in_at).getTime();
@@ -71,28 +68,21 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     // Match the Schedule page: when two schedules overlap the Mon→Sun view,
     // count only the schedule with the most overlap so scheduled hours are not
     // double-counted by an older locked week plus a newer draft week.
+    // Load all schedules (published or locked) touching the payroll week so
+    // that a Mon–Sun window spanning two adjacent published schedules counts
+    // shifts from both. We dedupe overlapping shifts below by
+    // (employee, date, start, end, trailer) so a locked + newer draft that
+    // both cover the same day don't double-count.
     let schedulesQ = supabase
       .from("schedules")
-      .select("id, start_date, end_date, created_at")
+      .select("id, start_date, end_date, status, created_at")
       .is("archived_at", null)
+      .in("status", ["published", "locked"])
       .lte("start_date", endDate)
-      .gte("end_date", ws)
-      .order("start_date", { ascending: false });
+      .gte("end_date", ws);
     if (data.trailerId) schedulesQ = schedulesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
     const { data: schedules } = await schedulesQ;
-    const selectedSchedule = (schedules ?? []).length > 0
-      ? [...(schedules ?? [])].sort((a: any, b: any) => {
-          const reqStart = dateOrdinal(ws);
-          const reqEnd = dateOrdinal(endDate);
-          const overlap = (row: any) => Math.max(
-            0,
-            Math.min(reqEnd, dateOrdinal(row.end_date)) - Math.max(reqStart, dateOrdinal(row.start_date)) + 1,
-          );
-          const byOverlap = overlap(b) - overlap(a);
-          if (byOverlap !== 0) return byOverlap;
-          return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
-        })[0]
-      : null;
+    const scheduleIds = (schedules ?? []).map((s: any) => s.id);
 
     // Always load all active profiles for display names; do NOT filter by
     // trailer here. We seed the employee map from actual shifts/punches in
@@ -107,12 +97,12 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
     let punchesQ = supabase.from("time_punches").select("*").is("archived_at", null)
       .gte("clock_in_at", startISO)
       .lt("clock_in_at", endISO);
-    let shiftsQ = supabase.from("schedule_shifts").select("*, schedules!inner(archived_at)")
-      .is("schedules.archived_at", null)
+    let shiftsQ = supabase.from("schedule_shifts").select("*")
       .is("archived_at", null)
       .gte("shift_date", ws)
       .lt("shift_date", endExclusiveDate);
-    if (selectedSchedule?.id) shiftsQ = shiftsQ.eq("schedule_id", selectedSchedule.id);
+    if (scheduleIds.length > 0) shiftsQ = shiftsQ.in("schedule_id", scheduleIds);
+    else shiftsQ = shiftsQ.eq("schedule_id", "00000000-0000-0000-0000-000000000000");
     let corrQ = supabase.from("time_corrections").select("*").is("archived_at", null).eq("status", "pending");
     let timeoffQ = supabase.from("time_off_requests").select("*").is("archived_at", null).eq("status", "pending");
 
@@ -123,9 +113,19 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       timeoffQ = timeoffQ.eq("trailer_id", data.trailerId);
     }
 
-    const [{ data: punches }, { data: shifts }, { data: corrections }, { data: timeoff }] = await Promise.all([
+    const [{ data: punches }, { data: shiftsRaw }, { data: corrections }, { data: timeoff }] = await Promise.all([
       punchesQ, shiftsQ, corrQ, timeoffQ,
     ]);
+
+    // Dedupe: same employee/day/time/trailer scheduled in two overlapping
+    // published schedules should count once, not twice.
+    const seenShift = new Set<string>();
+    const shifts = (shiftsRaw ?? []).filter((s: any) => {
+      const k = `${s.employee_id ?? "open"}|${s.shift_date}|${s.start_time}|${s.end_time}|${s.trailer_id ?? ""}`;
+      if (seenShift.has(k)) return false;
+      seenShift.add(k);
+      return true;
+    });
 
     const empMap = new Map<string, { id: string; name: string; trailerId: string | null; scheduledMin: number; workedMin: number; flags: string[]; openPunch: boolean }>();
     const seedEmp = (id: string) => {
@@ -151,6 +151,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
       mins -= (s.break_minutes ?? 0);
       e.scheduledMin += Math.max(0, mins);
     }
+
 
     let openShifts = 0;
     for (const s of shifts ?? []) if (!s.employee_id) openShifts++;
