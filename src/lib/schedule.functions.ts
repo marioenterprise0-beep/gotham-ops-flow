@@ -278,7 +278,7 @@ export const getSchedule = createServerFn({ method: "POST" })
         .lte("clock_in_at", endISO);
       punches = (pRows ?? []) as typeof punches;
     }
-    return { schedule, shifts: shifts ?? [], punches, timezone };
+    return { schedule, shifts, punches, timezone };
   });
 
 
