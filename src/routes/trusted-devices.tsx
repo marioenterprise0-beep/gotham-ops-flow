@@ -16,7 +16,7 @@ import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import {
   listKioskDevices, registerKioskDevice, revokeKioskDevice, renameKioskDevice,
-  setKioskDeviceRequired, getKioskSettings,
+  setKioskDeviceRequired, getKioskSettings, reissueKioskDeviceToken,
 } from "@/lib/kiosk.functions";
 import { listTrailerGeofences } from "@/lib/timeclock.functions";
 import { Tablet, Copy, Check, ShieldAlert, ShieldCheck } from "lucide-react";
@@ -61,6 +61,7 @@ export function TrustedDevicesManager() {
   const registerFn = useServerFn(registerKioskDevice);
   const revokeFn = useServerFn(revokeKioskDevice);
   const renameFn = useServerFn(renameKioskDevice);
+  const reissueFn = useServerFn(reissueKioskDeviceToken);
   const setRequiredFn = useServerFn(setKioskDeviceRequired);
 
   const devices = useQuery({ queryKey: ["kiosk", "devices"], queryFn: () => listFn() });
@@ -92,6 +93,16 @@ export function TrustedDevicesManager() {
     },
   });
 
+  const reinstall = useMutation({
+    mutationFn: async (deviceId: string) => reissueFn({ data: { deviceId } }),
+    onSuccess: (res, deviceId) => {
+      const device = devices.data?.find((d: any) => d.id === deviceId);
+      setIssued({ token: res.token, label: device?.label ?? "Kiosk iPad", deviceId });
+      qc.invalidateQueries({ queryKey: ["kiosk", "devices"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to reinstall device"),
+  });
+
   const rename = useMutation({
     mutationFn: async ({ id, label }: { id: string; label: string }) => renameFn({ data: { deviceId: id, label } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["kiosk", "devices"] }),
@@ -108,8 +119,11 @@ export function TrustedDevicesManager() {
   const installOnThisDevice = () => {
     if (!issued) return;
     localStorage.setItem(TOKEN_KEY, issued.token);
-    toast.success("Installed. Open /kiosk in Safari or add to Home Screen.");
+    const kioskUrl = new URL("/kiosk", window.location.origin);
+    kioskUrl.searchParams.set("token", issued.token);
+    toast.success("Installed. Opening kiosk…");
     setIssued(null);
+    window.location.assign(kioskUrl.toString());
   };
 
   const trailerName = (id: string) => trailers.data?.find((t: any) => t.id === id)?.name ?? id.slice(0, 8);
@@ -177,15 +191,23 @@ export function TrustedDevicesManager() {
                   </div>
                 </div>
                 {!d.revoked_at && (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      if (confirm(`Revoke "${d.label}"? It will stop accepting punches immediately.`)) {
-                        revoke.mutate(d.id);
-                      }
-                    }}
-                  >Revoke</Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={reinstall.isPending}
+                      onClick={() => reinstall.mutate(d.id)}
+                    >Reinstall</Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        if (confirm(`Revoke "${d.label}"? It will stop accepting punches immediately.`)) {
+                          revoke.mutate(d.id);
+                        }
+                      }}
+                    >Revoke</Button>
+                  </div>
                 )}
               </div>
             ))}
@@ -239,9 +261,9 @@ export function TrustedDevicesManager() {
       <Dialog open={!!issued} onOpenChange={(o) => !o && setIssued(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Device registered — save this token now</DialogTitle>
+            <DialogTitle>{issued?.label} is ready</DialogTitle>
             <DialogDescription>
-              This is the only time this token will be shown. Install it on this iPad, or copy it if you're setting it up elsewhere.
+              Tap install on this iPad to store the kiosk pass and open kiosk mode.
             </DialogDescription>
           </DialogHeader>
           {issued && (
