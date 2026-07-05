@@ -236,19 +236,31 @@ export const getSchedule = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("shift_date")
       .order("start_time");
-    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, { data: ownerRoles }] = await Promise.all([
+    // Use admin for the profile/role lookup so RLS on user_roles doesn't hide
+    // owners from crew (which would let owner-assigned shifts leak through).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, { data: ownerRoles }, { data: hiddenProfiles }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
       shiftsQ,
-      supabase.from("user_roles").select("user_id").eq("role", "owner"),
+      supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner"),
+      supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .or("active.eq.false,archived_at.not.is.null"),
     ]);
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
-    // Owners aren't scheduled — hide any legacy owner-assigned shifts so the
-    // grid matches listEmployees (which already excludes owners from the roster).
-    const ownerIds = new Set((ownerRoles ?? []).map((r: any) => r.user_id));
+    // Hide shifts assigned to owners or to disabled/archived employees so the
+    // grid matches listEmployees (which already excludes them from the roster)
+    // and so old records from disabled users never leak into anyone's view.
+    const hiddenIds = new Set<string>([
+      ...(ownerRoles ?? []).map((r: any) => r.user_id),
+      ...(hiddenProfiles ?? []).map((p: any) => p.id),
+    ]);
     const shifts = (shiftsRaw ?? []).filter(
-      (s: any) => !s.employee_id || !ownerIds.has(s.employee_id),
+      (s: any) => !s.employee_id || !hiddenIds.has(s.employee_id),
     );
+
     // Pull punches in the schedule window so the grid can show actual clocked hours
     // alongside scheduled hours per employee. The window is anchored to the
     // trailer's local timezone so the same day boundaries are used regardless
