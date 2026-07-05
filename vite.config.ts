@@ -15,6 +15,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [mcpPlugin()],
     resolve: {
       // Explicit aliases for TanStack Start's package `imports` map entries (#-prefixed paths).
       // Lovable's build environment doesn't resolve these from package.json `imports` automatically.
