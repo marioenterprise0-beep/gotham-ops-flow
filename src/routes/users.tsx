@@ -118,6 +118,19 @@ function UsersTab() {
   const restoreFn = useServerFn(restoreUser);
   const hardDeleteFn = useServerFn(hardDeleteUser);
   const setPayRateFn = useServerFn(setUserPayRate);
+  const setPinFn = useServerFn(setEmployeePin);
+  const listPinsFn = useServerFn(listEmployeePinStatus);
+  const { data: pinList = [] } = useQuery({
+    queryKey: ["employee-pins"],
+    queryFn: () => listPinsFn(),
+    enabled: isOwner,
+  });
+  const pinSet = new Set(pinList.map((p: any) => p.userId));
+  const pinMut = useMutation({
+    mutationFn: (v: { employeeId: string; pin: string }) => setPinFn({ data: v }),
+    onSuccess: () => { toast.success("PIN updated"); qc.invalidateQueries({ queryKey: ["employee-pins"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [showArchived, setShowArchived] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
