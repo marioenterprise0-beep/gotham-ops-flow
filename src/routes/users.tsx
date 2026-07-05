@@ -13,7 +13,8 @@ import {
   scanUserDependencies, archiveUser, restoreUser, hardDeleteUser, setUserPayRate,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
-import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
+import { setEmployeePin, listEmployeePinStatus } from "@/lib/kiosk.functions";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { syncDomains } from "@/lib/sync-bus";
@@ -117,6 +118,19 @@ function UsersTab() {
   const restoreFn = useServerFn(restoreUser);
   const hardDeleteFn = useServerFn(hardDeleteUser);
   const setPayRateFn = useServerFn(setUserPayRate);
+  const setPinFn = useServerFn(setEmployeePin);
+  const listPinsFn = useServerFn(listEmployeePinStatus);
+  const { data: pinList = [] } = useQuery({
+    queryKey: ["employee-pins"],
+    queryFn: () => listPinsFn(),
+    enabled: isOwner,
+  });
+  const pinSet = new Set(pinList.map((p: any) => p.userId));
+  const pinMut = useMutation({
+    mutationFn: (v: { employeeId: string; pin: string }) => setPinFn({ data: v }),
+    onSuccess: () => { toast.success("PIN updated"); qc.invalidateQueries({ queryKey: ["employee-pins"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [showArchived, setShowArchived] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
@@ -321,6 +335,32 @@ function UsersTab() {
                   <span className="text-muted-foreground">/ hr</span>
                 </div>
               )}
+
+              {isOwner && !isArchived && (
+                <div className="px-4 pb-3 -mt-1 flex items-center gap-2 text-xs">
+                  <KeyRound className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Kiosk PIN</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    placeholder={pinSet.has(u.id) ? "••••" : "Not set"}
+                    defaultValue=""
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (!v) return;
+                      if (!/^\d{4}$/.test(v)) { toast.error("PIN must be 4 digits"); return; }
+                      pinMut.mutate({ employeeId: u.id, pin: v });
+                      e.target.value = "";
+                    }}
+                    className="h-7 w-20 rounded-md border border-border bg-card px-2 text-xs font-mono tracking-widest"
+                  />
+                  {pinSet.has(u.id) && <span className="text-green-500 text-xs">✓ set</span>}
+                </div>
+              )}
+
+
 
 
               {isOwner && open && (

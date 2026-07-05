@@ -7,7 +7,7 @@ import { useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { EmbeddedProvider } from "@/components/gotham/EmbedShell";
-import { Users as UsersIcon, KeyRound, MapPin, ScrollText, HeartPulse, Shield, ChevronRight, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Users as UsersIcon, KeyRound, MapPin, ScrollText, HeartPulse, Shield, ChevronRight, Sparkles, SlidersHorizontal, Tablet } from "lucide-react";
 
 import { UsersPage } from "@/routes/users";
 import { PermissionsPage } from "@/routes/permissions";
@@ -15,8 +15,9 @@ import { LocationRequests } from "@/routes/location-requests";
 import { AuditPage } from "@/routes/audit";
 import { ChangeLogPage } from "@/routes/change-log";
 import { DataHealthPage } from "@/routes/data-health";
+import { Link } from "@tanstack/react-router";
 
-type TabKey = "people" | "roles" | "permissions" | "locations" | "activity" | "system";
+type TabKey = "people" | "roles" | "permissions" | "locations" | "devices" | "activity" | "system";
 
 // Admin is OWNER ONLY. Managers operate, owners govern.
 const TABS: { key: TabKey; label: string; icon: any; blurb: string }[] = [
@@ -24,6 +25,7 @@ const TABS: { key: TabKey; label: string; icon: any; blurb: string }[] = [
   { key: "roles",       label: "Roles",         icon: Shield,       blurb: "Role templates and defaults" },
   { key: "permissions", label: "Permissions",   icon: KeyRound,     blurb: "Tab access matrix (advanced)" },
   { key: "locations",   label: "Locations",     icon: MapPin,       blurb: "Approve location access requests" },
+  { key: "devices",     label: "Kiosk Devices", icon: Tablet,       blurb: "Trusted iPads for clock in/out" },
   { key: "activity",    label: "Activity",      icon: ScrollText,   blurb: "Audit log and change history" },
   { key: "system",      label: "System Health", icon: HeartPulse,   blurb: "Data integrity and platform health" },
 ];
@@ -107,6 +109,21 @@ function AdminPage() {
         {tab === "roles" && <RolesTab roleId={roleId} />}
         {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
+        {tab === "devices" && (
+          <Card>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="font-semibold flex items-center gap-2"><Tablet className="h-4 w-4" /> Trusted Kiosk Devices</div>
+                <div className="text-sm text-muted-foreground mt-1">
+                  Register the trailer iPad so employees can only clock in/out from an approved device.
+                </div>
+              </div>
+              <Link to="/trusted-devices" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
+                Open <ChevronRight className="h-3 w-3" />
+              </Link>
+            </div>
+          </Card>
+        )}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}
       </EmbeddedProvider>

@@ -264,6 +264,7 @@ export type Database = {
           created_at: string
           email_enabled: boolean
           id: string
+          kiosk_device_required: boolean
           manager_self_approval: boolean
           rollover_enabled: boolean
           rollover_hour: number
@@ -276,6 +277,7 @@ export type Database = {
           created_at?: string
           email_enabled?: boolean
           id?: string
+          kiosk_device_required?: boolean
           manager_self_approval?: boolean
           rollover_enabled?: boolean
           rollover_hour?: number
@@ -288,6 +290,7 @@ export type Database = {
           created_at?: string
           email_enabled?: boolean
           id?: string
+          kiosk_device_required?: boolean
           manager_self_approval?: boolean
           rollover_enabled?: boolean
           rollover_hour?: number
@@ -880,6 +883,30 @@ export type Database = {
           id?: string
           token?: string
           used_at?: string | null
+        }
+        Relationships: []
+      }
+      employee_pins: {
+        Row: {
+          created_at: string
+          pin_hash: string
+          set_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          pin_hash: string
+          set_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          pin_hash?: string
+          set_by?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -3188,6 +3215,7 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           break_minutes: number
+          clock_device_id: string | null
           clock_in_at: string
           clock_out_at: string | null
           created_at: string
@@ -3208,6 +3236,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           break_minutes?: number
+          clock_device_id?: string | null
           clock_in_at?: string
           clock_out_at?: string | null
           created_at?: string
@@ -3228,6 +3257,7 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           break_minutes?: number
+          clock_device_id?: string | null
           clock_in_at?: string
           clock_out_at?: string | null
           created_at?: string
@@ -3243,7 +3273,15 @@ export type Database = {
           trailer_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "time_punches_clock_device_id_fkey"
+            columns: ["clock_device_id"]
+            isOneToOne: false
+            referencedRelation: "trusted_clock_devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trailers: {
         Row: {
@@ -3289,6 +3327,59 @@ export type Database = {
           timezone?: string
         }
         Relationships: []
+      }
+      trusted_clock_devices: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          created_at: string
+          id: string
+          label: string
+          last_used_at: string | null
+          last_used_ip: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          token_hash: string
+          trailer_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          created_at?: string
+          id?: string
+          label: string
+          last_used_at?: string | null
+          last_used_ip?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token_hash: string
+          trailer_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          last_used_ip?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          token_hash?: string
+          trailer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trusted_clock_devices_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -3497,6 +3588,7 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id?: string }; Returns: boolean }
+      kiosk_device_required: { Args: never; Returns: boolean }
       list_trailer_geofences: {
         Args: never
         Returns: {

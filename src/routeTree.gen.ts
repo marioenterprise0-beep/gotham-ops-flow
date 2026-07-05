@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as TrustedDevicesRouteImport } from './routes/trusted-devices'
 import { Route as TimeClockRouteImport } from './routes/time-clock'
 import { Route as SopsRouteImport } from './routes/sops'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -26,6 +27,7 @@ import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LocationRequestsRouteImport } from './routes/location-requests'
 import { Route as LaborRouteImport } from './routes/labor'
+import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
 import { Route as InventoryChangesRouteImport } from './routes/inventory-changes'
 import { Route as InventoryRouteImport } from './routes/inventory'
@@ -67,6 +69,11 @@ import { Route as ApiPublicHooksAlertEmailDispatchRouteImport } from './routes/a
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrustedDevicesRoute = TrustedDevicesRouteImport.update({
+  id: '/trusted-devices',
+  path: '/trusted-devices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TimeClockRoute = TimeClockRouteImport.update({
@@ -147,6 +154,11 @@ const LocationRequestsRoute = LocationRequestsRouteImport.update({
 const LaborRoute = LaborRouteImport.update({
   id: '/labor',
   path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KioskRoute = KioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryGuideRoute = InventoryGuideRouteImport.update({
@@ -368,6 +380,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -384,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -424,6 +438,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -440,6 +455,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -481,6 +497,7 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -497,6 +514,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -539,6 +557,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -555,6 +574,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -595,6 +615,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -611,6 +632,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -651,6 +673,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -667,6 +690,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -708,6 +732,7 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   InventoryChangesRoute: typeof InventoryChangesRoute
   InventoryGuideRoute: typeof InventoryGuideRoute
+  KioskRoute: typeof KioskRoute
   LaborRoute: typeof LaborRoute
   LocationRequestsRoute: typeof LocationRequestsRoute
   MaintenanceRoute: typeof MaintenanceRoute
@@ -724,6 +749,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
   TimeClockRoute: typeof TimeClockRoute
+  TrustedDevicesRoute: typeof TrustedDevicesRoute
   UsersRoute: typeof UsersRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -752,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trusted-devices': {
+      id: '/trusted-devices'
+      path: '/trusted-devices'
+      fullPath: '/trusted-devices'
+      preLoaderRoute: typeof TrustedDevicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/time-clock': {
@@ -864,6 +897,13 @@ declare module '@tanstack/react-router' {
       path: '/labor'
       fullPath: '/labor'
       preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kiosk': {
+      id: '/kiosk'
+      path: '/kiosk'
+      fullPath: '/kiosk'
+      preLoaderRoute: typeof KioskRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory-guide': {
@@ -1148,6 +1188,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   InventoryChangesRoute: InventoryChangesRoute,
   InventoryGuideRoute: InventoryGuideRoute,
+  KioskRoute: KioskRoute,
   LaborRoute: LaborRoute,
   LocationRequestsRoute: LocationRequestsRoute,
   MaintenanceRoute: MaintenanceRoute,
@@ -1164,6 +1205,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
   TimeClockRoute: TimeClockRoute,
+  TrustedDevicesRoute: TrustedDevicesRoute,
   UsersRoute: UsersRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
