@@ -26,6 +26,7 @@ import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LocationRequestsRouteImport } from './routes/location-requests'
 import { Route as LaborRouteImport } from './routes/labor'
+import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as InventoryGuideRouteImport } from './routes/inventory-guide'
 import { Route as InventoryChangesRouteImport } from './routes/inventory-changes'
 import { Route as InventoryRouteImport } from './routes/inventory'
@@ -147,6 +148,11 @@ const LocationRequestsRoute = LocationRequestsRouteImport.update({
 const LaborRoute = LaborRouteImport.update({
   id: '/labor',
   path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KioskRoute = KioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryGuideRoute = InventoryGuideRouteImport.update({
@@ -368,6 +374,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -424,6 +431,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -481,6 +489,7 @@ export interface FileRoutesById {
   '/inventory': typeof InventoryRoute
   '/inventory-changes': typeof InventoryChangesRoute
   '/inventory-guide': typeof InventoryGuideRoute
+  '/kiosk': typeof KioskRoute
   '/labor': typeof LaborRoute
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
@@ -539,6 +548,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -595,6 +605,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -651,6 +662,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/inventory-changes'
     | '/inventory-guide'
+    | '/kiosk'
     | '/labor'
     | '/location-requests'
     | '/maintenance'
@@ -708,6 +720,7 @@ export interface RootRouteChildren {
   InventoryRoute: typeof InventoryRoute
   InventoryChangesRoute: typeof InventoryChangesRoute
   InventoryGuideRoute: typeof InventoryGuideRoute
+  KioskRoute: typeof KioskRoute
   LaborRoute: typeof LaborRoute
   LocationRequestsRoute: typeof LocationRequestsRoute
   MaintenanceRoute: typeof MaintenanceRoute
@@ -864,6 +877,13 @@ declare module '@tanstack/react-router' {
       path: '/labor'
       fullPath: '/labor'
       preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kiosk': {
+      id: '/kiosk'
+      path: '/kiosk'
+      fullPath: '/kiosk'
+      preLoaderRoute: typeof KioskRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory-guide': {
@@ -1148,6 +1168,7 @@ const rootRouteChildren: RootRouteChildren = {
   InventoryRoute: InventoryRoute,
   InventoryChangesRoute: InventoryChangesRoute,
   InventoryGuideRoute: InventoryGuideRoute,
+  KioskRoute: KioskRoute,
   LaborRoute: LaborRoute,
   LocationRequestsRoute: LocationRequestsRoute,
   MaintenanceRoute: MaintenanceRoute,
