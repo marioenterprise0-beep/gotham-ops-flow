@@ -31,15 +31,15 @@ export const Route = createFileRoute("/trusted-devices")({
 });
 
 function TrustedDevicesPage() {
-  const { roleId, loading } = useRole();
-  if (loading) {
+  const { actualRoleId, loading, session } = useRole();
+  if (loading || (session && !actualRoleId)) {
     return (
       <AppShell>
         <Card>Loading…</Card>
       </AppShell>
     );
   }
-  if (roleId !== "owner") return <Navigate to="/" />;
+  if (actualRoleId !== "owner") return <Navigate to="/" />;
   return (
     <AppShell>
       <Inner />
