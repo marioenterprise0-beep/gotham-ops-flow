@@ -800,23 +800,34 @@ export const duplicateShift = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     const { data: src, error } = await supabase
       .from("schedule_shifts")
-      .select("*, schedules!inner(status)")
+      .select("*, schedules!inner(status, start_date, end_date)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    const st = (src as any)?.schedules?.status;
+    const sch = (src as any)?.schedules ?? {};
+    const st = sch.status;
     if (st === "locked" || st === "published") {
       throw new Error("Schedule is locked — unlock it before making changes");
     }
     const { id, created_at, updated_at, schedules: _sch, ...rest } = src as any;
+    const newDate = data.targetDate ?? src.shift_date;
+    // Copy/paste across weeks would orphan the shift (grid queries by
+    // schedule_id, Shifts tab queries by date). Reject and let the caller
+    // open the target week first.
+    if (sch.start_date && (newDate < sch.start_date || newDate > sch.end_date)) {
+      throw new Error(
+        `Target date ${newDate} is outside this schedule's week (${sch.start_date} → ${sch.end_date}). Open the correct week and duplicate there.`,
+      );
+    }
     const newId = crypto.randomUUID();
     const insertRow = {
       id: newId,
       ...rest,
-      shift_date: data.targetDate ?? src.shift_date,
+      shift_date: newDate,
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
       created_by: userId,
     };
+
 
     const { data: saved, error: e2 } = await supabase
       .from("schedule_shifts")
