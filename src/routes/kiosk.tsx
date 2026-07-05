@@ -11,7 +11,6 @@ import { Clock, LogIn, LogOut, ArrowLeft, Delete, CheckCircle2, XCircle } from "
 const TOKEN_KEY = "gotham:kiosk-device-token:v1";
 
 export const Route = createFileRoute("/kiosk")({
-  ssr: false,
   component: KioskPage,
   head: () => ({ meta: [{ title: "Gotham Halal · Kiosk" }] }),
 });
