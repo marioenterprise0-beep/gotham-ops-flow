@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -39,7 +39,13 @@ function TrustedDevicesPage() {
       </AppShell>
     );
   }
-  if (roleId !== "owner") return <Navigate to="/" />;
+  if (roleId !== "owner") {
+    return (
+      <AppShell>
+        <Card>Owner access required.</Card>
+      </AppShell>
+    );
+  }
   return (
     <AppShell>
       <Inner />
