@@ -15,6 +15,7 @@ import { LocationRequests } from "@/routes/location-requests";
 import { AuditPage } from "@/routes/audit";
 import { ChangeLogPage } from "@/routes/change-log";
 import { DataHealthPage } from "@/routes/data-health";
+import { TrustedDevicesManager } from "@/routes/trusted-devices";
 
 type TabKey = "people" | "roles" | "permissions" | "locations" | "devices" | "activity" | "system";
 
@@ -109,19 +110,7 @@ function AdminPage() {
         {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
         {tab === "devices" && (
-          <Card>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="font-semibold flex items-center gap-2"><Tablet className="h-4 w-4" /> Trusted Kiosk Devices</div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Register the trailer iPad so employees can only clock in/out from an approved device.
-                </div>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => navigate({ to: "/trusted-devices" })}>
-                Open <ChevronRight className="h-3 w-3" />
-              </Button>
-            </div>
-          </Card>
+          <TrustedDevicesManager />
         )}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}
