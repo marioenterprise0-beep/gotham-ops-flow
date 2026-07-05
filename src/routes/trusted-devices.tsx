@@ -24,6 +24,7 @@ import { Tablet, Copy, Check, ShieldAlert, ShieldCheck } from "lucide-react";
 const TOKEN_KEY = "gotham:kiosk-device-token:v1";
 
 export const Route = createFileRoute("/trusted-devices")({
+  ssr: false,
   beforeLoad: requireAuthBeforeLoad,
   component: TrustedDevicesPage,
   head: () => ({ meta: [{ title: "Trusted Devices · Gotham Halal" }] }),
