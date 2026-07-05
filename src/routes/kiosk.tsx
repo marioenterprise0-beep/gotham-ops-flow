@@ -11,19 +11,32 @@ import { Clock, LogIn, LogOut, ArrowLeft, Delete, CheckCircle2, XCircle } from "
 const TOKEN_KEY = "gotham:kiosk-device-token:v1";
 
 export const Route = createFileRoute("/kiosk")({
-  ssr: false,
   component: KioskPage,
   head: () => ({ meta: [{ title: "Gotham Halal · Kiosk" }] }),
 });
 
 function KioskPage() {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    setToken(localStorage.getItem(TOKEN_KEY));
+    try {
+      const url = new URL(window.location.href);
+      const installToken = url.searchParams.get("token") ?? url.searchParams.get("deviceToken");
+      if (installToken) {
+        localStorage.setItem(TOKEN_KEY, installToken);
+        url.searchParams.delete("token");
+        url.searchParams.delete("deviceToken");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+        setToken(installToken);
+        return;
+      }
+      setToken(localStorage.getItem(TOKEN_KEY));
+    } catch {
+      setToken(null);
+    }
   }, []);
 
-  if (token === null) {
+  if (token === undefined) {
     return <FullScreenCenter><div className="text-white/60">Loading…</div></FullScreenCenter>;
   }
   if (!token) return <NotRegistered />;
