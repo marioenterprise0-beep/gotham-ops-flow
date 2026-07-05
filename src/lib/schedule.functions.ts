@@ -308,11 +308,19 @@ export const upsertShift = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     const { data: sched } = await supabase
       .from("schedules")
-      .select("status")
+      .select("status, start_date, end_date")
       .eq("id", data.scheduleId)
       .maybeSingle();
     if (sched?.status === "locked" || sched?.status === "published") {
       throw new Error("Schedule is locked — unlock it before making changes");
+    }
+    // Prevent shifts whose date falls outside the parent schedule's week —
+    // otherwise the manager's grid (scoped to schedule_id) and the crew's
+    // Shifts tab (scoped to date) disagree about what's on the calendar.
+    if (sched && (data.shiftDate < sched.start_date || data.shiftDate > sched.end_date)) {
+      throw new Error(
+        `Shift date ${data.shiftDate} is outside this schedule's week (${sched.start_date} → ${sched.end_date}). Open the correct week and try again.`,
+      );
     }
 
     const shiftId = data.id ?? crypto.randomUUID();
@@ -601,21 +609,23 @@ export const listEmployees = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Managers get the cross-trailer roster via admin (bypasses RLS).
-    // Crew get a read-only, RLS-scoped list so they can see coworkers on
-    // their own schedule (same trailer per profiles RLS). No pay/PII columns.
-    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
-    const useAdmin = !!isMgr;
+    // Determine caller role. Crew view must hide owners AND managers so
+    // co-workers only see fellow crew on the schedule/shift grid.
+    const [{ data: isMgrRow }, { data: isOwnerRow }] = await Promise.all([
+      supabase.rpc("is_manager", { _user_id: userId }),
+      supabase.rpc("has_role", { _user_id: userId, _role: "owner" }),
+    ]);
+    const isMgr = !!isMgrRow;
+    const isOwner = !!isOwnerRow;
 
-    let client: any = supabase;
-    if (useAdmin) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      client = supabaseAdmin;
-    }
+    // Always use admin for the role lookup so filtering is reliable —
+    // RLS on user_roles hides other users' rows from crew, which caused
+    // owners/managers to leak into the crew's employee list.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    let profilesQ = client
+    let profilesQ = supabaseAdmin
       .from("profiles")
-      .select("id, display_name, active, trailer_id, weekly_hours")
+      .select("id, display_name, active, trailer_id, weekly_hours, archived_at")
       .eq("active", true)
       .is("archived_at", null);
     if (data?.trailerId) {
@@ -623,7 +633,7 @@ export const listEmployees = createServerFn({ method: "POST" })
     }
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       profilesQ,
-      client.from("user_roles").select("user_id, role"),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
     ]);
     const roleMap = new Map<string, string[]>();
     for (const r of roles ?? []) {
@@ -632,8 +642,14 @@ export const listEmployees = createServerFn({ method: "POST" })
       roleMap.set((r as any).user_id, arr);
     }
     return (profiles ?? [])
-      // Owners are not scheduled — the schedule is for managers and crew only.
-      .filter((p: any) => !(roleMap.get(p.id) ?? []).includes("owner"))
+      .filter((p: any) => {
+        const rs = roleMap.get(p.id) ?? [];
+        // Owners are never on the schedule.
+        if (rs.includes("owner")) return false;
+        // For crew, also hide managers — they only see fellow crew.
+        if (!isMgr && !isOwner && rs.includes("manager")) return false;
+        return true;
+      })
       .map((p: any) => ({
         id: p.id,
         name: p.display_name ?? "Crew",
