@@ -60,6 +60,8 @@ const MODE_TABS: Record<WorkspaceMode, string[]> = {
   owner: ALL_TABS.filter((t) => t.key !== "health").map((t) => t.key),
 };
 
+const HIDDEN_OWNER_PATHS = ["/trusted-devices"];
+
 const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: typeof HardHat }> = {
   crew:    { label: "Crew",    tagline: "I came to work.",   icon: HardHat },
   manager: { label: "Manager", tagline: "I run this shift.", icon: Briefcase },
@@ -134,6 +136,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const pathAllowed =
     pathname === "/auth" ||
     pathname === "/" ||
+    (isOwner && HIDDEN_OWNER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) ||
     Array.from(allowedPaths).some((p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")));
   if (session && !pathAllowed) {
     return <Navigate to="/" />;
