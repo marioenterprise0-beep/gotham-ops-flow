@@ -308,11 +308,19 @@ export const upsertShift = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     const { data: sched } = await supabase
       .from("schedules")
-      .select("status")
+      .select("status, start_date, end_date")
       .eq("id", data.scheduleId)
       .maybeSingle();
     if (sched?.status === "locked" || sched?.status === "published") {
       throw new Error("Schedule is locked — unlock it before making changes");
+    }
+    // Prevent shifts whose date falls outside the parent schedule's week —
+    // otherwise the manager's grid (scoped to schedule_id) and the crew's
+    // Shifts tab (scoped to date) disagree about what's on the calendar.
+    if (sched && (data.shiftDate < sched.start_date || data.shiftDate > sched.end_date)) {
+      throw new Error(
+        `Shift date ${data.shiftDate} is outside this schedule's week (${sched.start_date} → ${sched.end_date}). Open the correct week and try again.`,
+      );
     }
 
     const shiftId = data.id ?? crypto.randomUUID();
