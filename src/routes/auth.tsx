@@ -17,6 +17,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { session, loading } = useRole();
   const nav = useNavigate();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +27,13 @@ function AuthPage() {
   const [needsVerify, setNeedsVerify] = useState<string | null>(null);
 
   if (loading) return <FullScreen>Loading…</FullScreen>;
-  if (session) return <Navigate to="/" />;
+  if (session) {
+    if (next) {
+      if (typeof window !== "undefined") window.location.replace(next);
+      return <FullScreen>Redirecting…</FullScreen>;
+    }
+    return <Navigate to="/" />;
+  }
 
   const resendVerification = async () => {
     if (!needsVerify) return;
