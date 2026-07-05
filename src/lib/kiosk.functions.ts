@@ -115,6 +115,25 @@ export const revokeKioskDevice = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const reissueKioskDeviceToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ deviceId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    if (!isOwner) throw new Error("Only owners can reinstall kiosk devices.");
+
+    const token = generateToken();
+    const hash = await bcrypt.hash(token, 10);
+    const { error } = await supabase
+      .from("trusted_clock_devices")
+      .update({ token_hash: hash, revoked_at: null, revoked_by: null })
+      .eq("id", data.deviceId);
+    if (error) throw new Error(error.message);
+
+    return { token };
+  });
+
 export const renameKioskDevice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
