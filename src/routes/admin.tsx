@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
@@ -74,7 +74,7 @@ function AdminPage() {
 
   if (loading || !session || !roleId) return <AppShell><Card>Loading…</Card></AppShell>;
   // Owner-only — managers should never reach this screen.
-  if (!isOwner) return <Navigate to="/" />;
+  if (!isOwner) return <AppShell><Card>Owner access required.</Card></AppShell>;
 
   function choose(next: TabKey) {
     setTab(next);
