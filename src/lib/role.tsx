@@ -162,8 +162,11 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
     await supabase.auth.signOut();
   };
+
 
   const actualPrimary = pickPrimary(roles);
   const isActualOwner = actualPrimary === "owner";
