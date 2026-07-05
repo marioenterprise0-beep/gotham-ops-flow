@@ -103,7 +103,11 @@ function AuthPage() {
           }
           throw new Error(m);
         }
-        nav({ to: "/" });
+        if (next) {
+          window.location.replace(next);
+        } else {
+          nav({ to: "/" });
+        }
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
