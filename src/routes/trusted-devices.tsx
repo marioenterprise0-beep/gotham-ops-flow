@@ -48,12 +48,12 @@ function TrustedDevicesPage() {
   }
   return (
     <AppShell>
-      <Inner />
+      <TrustedDevicesManager />
     </AppShell>
   );
 }
 
-function Inner() {
+export function TrustedDevicesManager() {
   const qc = useQueryClient();
   const listFn = useServerFn(listKioskDevices);
   const trailersFn = useServerFn(listTrailerGeofences);
