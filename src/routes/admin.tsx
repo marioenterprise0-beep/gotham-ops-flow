@@ -41,7 +41,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminPage() {
-  const { roleId, loading } = useRole();
+  const { roleId, loading, session } = useRole();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const isOwner = roleId === "owner";
@@ -71,7 +71,7 @@ function AdminPage() {
     try { localStorage.setItem(ADMIN_TAB_KEY, tab); } catch {}
   }, [tab]);
 
-  if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
+  if (loading || (session && !roleId)) return <AppShell><Card>Loading…</Card></AppShell>;
   // Owner-only — managers should never reach this screen.
   if (!isOwner) return <Navigate to="/" />;
 
