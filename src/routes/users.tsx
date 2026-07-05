@@ -336,6 +336,32 @@ function UsersTab() {
                 </div>
               )}
 
+              {isOwner && !isArchived && (
+                <div className="px-4 pb-3 -mt-1 flex items-center gap-2 text-xs">
+                  <KeyRound className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-muted-foreground">Kiosk PIN</span>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="\d{4}"
+                    maxLength={4}
+                    placeholder={pinSet.has(u.id) ? "••••" : "Not set"}
+                    defaultValue=""
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      if (!v) return;
+                      if (!/^\d{4}$/.test(v)) { toast.error("PIN must be 4 digits"); return; }
+                      pinMut.mutate({ employeeId: u.id, pin: v });
+                      e.target.value = "";
+                    }}
+                    className="h-7 w-20 rounded-md border border-border bg-card px-2 text-xs font-mono tracking-widest"
+                  />
+                  {pinSet.has(u.id) && <span className="text-green-500 text-xs">✓ set</span>}
+                </div>
+              )}
+
+
+
 
               {isOwner && open && (
                 <div className="px-4 pb-4 border-t border-border bg-[var(--color-muted)]/30">
