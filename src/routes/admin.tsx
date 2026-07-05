@@ -15,7 +15,6 @@ import { LocationRequests } from "@/routes/location-requests";
 import { AuditPage } from "@/routes/audit";
 import { ChangeLogPage } from "@/routes/change-log";
 import { DataHealthPage } from "@/routes/data-health";
-import { Link } from "@tanstack/react-router";
 
 type TabKey = "people" | "roles" | "permissions" | "locations" | "devices" | "activity" | "system";
 
@@ -118,9 +117,9 @@ function AdminPage() {
                   Register the trailer iPad so employees can only clock in/out from an approved device.
                 </div>
               </div>
-              <Link to="/trusted-devices" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
+              <Button size="sm" variant="outline" onClick={() => navigate({ to: "/trusted-devices" })}>
                 Open <ChevronRight className="h-3 w-3" />
-              </Link>
+              </Button>
             </div>
           </Card>
         )}
