@@ -102,7 +102,7 @@ function Inner() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-4">
-      <SectionHeader title="Trusted Devices" subtitle="Kiosk iPads authorized to clock employees in/out." />
+      <SectionHeader title="Trusted Devices" eyebrow="Kiosk iPads authorized to clock employees in/out" />
 
       <Card>
         <div className="flex items-center justify-between gap-4 p-2">
