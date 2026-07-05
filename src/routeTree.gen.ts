@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as TrustedDevicesRouteImport } from './routes/trusted-devices'
 import { Route as TimeClockRouteImport } from './routes/time-clock'
 import { Route as SopsRouteImport } from './routes/sops'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -68,6 +69,11 @@ import { Route as ApiPublicHooksAlertEmailDispatchRouteImport } from './routes/a
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrustedDevicesRoute = TrustedDevicesRouteImport.update({
+  id: '/trusted-devices',
+  path: '/trusted-devices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TimeClockRoute = TimeClockRouteImport.update({
@@ -391,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -448,6 +455,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -506,6 +514,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
+  '/trusted-devices': typeof TrustedDevicesRoute
   '/users': typeof UsersRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -565,6 +574,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -622,6 +632,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -679,6 +690,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sops'
     | '/time-clock'
+    | '/trusted-devices'
     | '/users'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
@@ -737,6 +749,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SopsRoute: typeof SopsRoute
   TimeClockRoute: typeof TimeClockRoute
+  TrustedDevicesRoute: typeof TrustedDevicesRoute
   UsersRoute: typeof UsersRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -765,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trusted-devices': {
+      id: '/trusted-devices'
+      path: '/trusted-devices'
+      fullPath: '/trusted-devices'
+      preLoaderRoute: typeof TrustedDevicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/time-clock': {
@@ -1185,6 +1205,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SopsRoute: SopsRoute,
   TimeClockRoute: TimeClockRoute,
+  TrustedDevicesRoute: TrustedDevicesRoute,
   UsersRoute: UsersRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
