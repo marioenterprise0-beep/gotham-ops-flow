@@ -13,7 +13,8 @@ import {
   scanUserDependencies, archiveUser, restoreUser, hardDeleteUser, setUserPayRate,
 } from "@/lib/users.functions";
 import { listAllTabPermissions, setTabPermission } from "@/lib/permissions.functions";
-import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw } from "lucide-react";
+import { setEmployeePin, listEmployeePinStatus } from "@/lib/kiosk.functions";
+import { Copy, Plus, Trash2, Ban, Shield, Check, X, ChevronDown, Archive, RotateCcw, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { syncDomains } from "@/lib/sync-bus";
