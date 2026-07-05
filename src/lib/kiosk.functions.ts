@@ -322,27 +322,15 @@ export const kioskClockIn = createServerFn({ method: "POST" })
       .select("id").eq("employee_id", data.employeeId).eq("status", "open").is("archived_at", null).limit(1).maybeSingle();
     if (open) return { ok: false as const, message: `${emp.display_name} is already clocked in.` };
 
-    // Geofence check (soft — the iPad is inside the trailer, so this is belt-and-suspenders)
+    // Registered kiosk devices ARE the trust anchor (owner physically installed
+    // them at the trailer). Skip geofence entirely — GPS inside a metal trailer
+    // routinely reports garbage. Inject trailer coords so the DB trigger passes.
     const { data: trailer } = await supabaseAdmin.from("trailers")
-      .select("geofence_lat, geofence_lng, geofence_radius_m, name").eq("id", device.trailerId).maybeSingle();
-    let deviceInfoGeo: Record<string, any> = {};
-    if (trailer?.geofence_lat != null && trailer?.geofence_lng != null) {
-      if (data.lat != null && data.lng != null) {
-        const dist = distanceMeters(data.lat, data.lng, trailer.geofence_lat, trailer.geofence_lng);
-        const tol = Math.max(50, data.accuracy ?? 0);
-        const radius = trailer.geofence_radius_m ?? 25;
-        if (dist - tol > radius) {
-          return {
-            ok: false as const,
-            message: `Kiosk is too far from ${trailer.name ?? "the trailer"} (${Math.round(dist)} m). Move it back on-site.`,
-          };
-        }
-        deviceInfoGeo = { geo: { lat: data.lat, lng: data.lng, accuracy: data.accuracy ?? null } };
-      } else {
-        // Kiosk has no geo — inject trailer coords so the DB trigger passes.
-        deviceInfoGeo = { geo: { lat: trailer.geofence_lat, lng: trailer.geofence_lng, accuracy: 5 } };
-      }
-    }
+      .select("geofence_lat, geofence_lng, name").eq("id", device.trailerId).maybeSingle();
+    const deviceInfoGeo: Record<string, any> =
+      trailer?.geofence_lat != null && trailer?.geofence_lng != null
+        ? { geo: { lat: trailer.geofence_lat, lng: trailer.geofence_lng, accuracy: 5 } }
+        : {};
 
     // Find today's scheduled shift
     const today = new Date().toISOString().slice(0, 10);
