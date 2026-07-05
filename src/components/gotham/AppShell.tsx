@@ -127,7 +127,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
-  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
