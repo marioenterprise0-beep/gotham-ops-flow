@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : "",
+  }),
   head: () => ({ meta: [{ title: "Sign in · Gotham OS" }] }),
   component: AuthPage,
 });
@@ -14,6 +17,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { session, loading } = useRole();
   const nav = useNavigate();
+  const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +27,13 @@ function AuthPage() {
   const [needsVerify, setNeedsVerify] = useState<string | null>(null);
 
   if (loading) return <FullScreen>Loading…</FullScreen>;
-  if (session) return <Navigate to="/" />;
+  if (session) {
+    if (next) {
+      if (typeof window !== "undefined") window.location.replace(next);
+      return <FullScreen>Redirecting…</FullScreen>;
+    }
+    return <Navigate to="/" />;
+  }
 
   const resendVerification = async () => {
     if (!needsVerify) return;
@@ -93,7 +103,11 @@ function AuthPage() {
           }
           throw new Error(m);
         }
-        nav({ to: "/" });
+        if (next) {
+          window.location.replace(next);
+        } else {
+          nav({ to: "/" });
+        }
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");

@@ -5,6 +5,7 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 import { resolve } from "path";
 
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    plugins: [mcpPlugin()],
     resolve: {
       // Explicit aliases for TanStack Start's package `imports` map entries (#-prefixed paths).
       // Lovable's build environment doesn't resolve these from package.json `imports` automatically.

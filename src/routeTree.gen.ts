@@ -21,6 +21,7 @@ import { Route as PermissionsRouteImport } from './routes/permissions'
 import { Route as OrderGuideRouteImport } from './routes/order-guide'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MyTasksRouteImport } from './routes/my-tasks'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LocationRequestsRouteImport } from './routes/location-requests'
@@ -45,7 +46,11 @@ import { Route as AlertsRouteImport } from './routes/alerts'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -117,6 +122,11 @@ const OperationsRoute = OperationsRouteImport.update({
 const MyTasksRoute = MyTasksRouteImport.update({
   id: '/my-tasks',
   path: '/my-tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManagerRoute = ManagerRouteImport.update({
@@ -239,9 +249,32 @@ const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
   id: '/lovable/email/suppression',
   path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailTransactionalSendRoute =
@@ -339,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
+  '/mcp': typeof McpRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
@@ -351,7 +385,11 @@ export interface FileRoutesByFullPath {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
   '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
@@ -390,6 +428,7 @@ export interface FileRoutesByTo {
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
+  '/mcp': typeof McpRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
@@ -402,7 +441,11 @@ export interface FileRoutesByTo {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
   '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
@@ -442,6 +485,7 @@ export interface FileRoutesById {
   '/location-requests': typeof LocationRequestsRoute
   '/maintenance': typeof MaintenanceRoute
   '/manager': typeof ManagerRoute
+  '/mcp': typeof McpRoute
   '/my-tasks': typeof MyTasksRoute
   '/operations': typeof OperationsRoute
   '/order-guide': typeof OrderGuideRoute
@@ -454,7 +498,11 @@ export interface FileRoutesById {
   '/sops': typeof SopsRoute
   '/time-clock': typeof TimeClockRoute
   '/users': typeof UsersRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/api/public/hooks/alert-email-dispatch': typeof ApiPublicHooksAlertEmailDispatchRoute
   '/api/public/hooks/archive-purge': typeof ApiPublicHooksArchivePurgeRoute
@@ -495,6 +543,7 @@ export interface FileRouteTypes {
     | '/location-requests'
     | '/maintenance'
     | '/manager'
+    | '/mcp'
     | '/my-tasks'
     | '/operations'
     | '/order-guide'
@@ -507,7 +556,11 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
     | '/api/public/hooks/archive-purge'
@@ -546,6 +599,7 @@ export interface FileRouteTypes {
     | '/location-requests'
     | '/maintenance'
     | '/manager'
+    | '/mcp'
     | '/my-tasks'
     | '/operations'
     | '/order-guide'
@@ -558,7 +612,11 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
     | '/api/public/hooks/archive-purge'
@@ -597,6 +655,7 @@ export interface FileRouteTypes {
     | '/location-requests'
     | '/maintenance'
     | '/manager'
+    | '/mcp'
     | '/my-tasks'
     | '/operations'
     | '/order-guide'
@@ -609,7 +668,11 @@ export interface FileRouteTypes {
     | '/sops'
     | '/time-clock'
     | '/users'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/email/unsubscribe'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/lovable/email/suppression'
     | '/api/public/hooks/alert-email-dispatch'
     | '/api/public/hooks/archive-purge'
@@ -649,6 +712,7 @@ export interface RootRouteChildren {
   LocationRequestsRoute: typeof LocationRequestsRoute
   MaintenanceRoute: typeof MaintenanceRoute
   ManagerRoute: typeof ManagerRoute
+  McpRoute: typeof McpRoute
   MyTasksRoute: typeof MyTasksRoute
   OperationsRoute: typeof OperationsRoute
   OrderGuideRoute: typeof OrderGuideRoute
@@ -661,7 +725,11 @@ export interface RootRouteChildren {
   SopsRoute: typeof SopsRoute
   TimeClockRoute: typeof TimeClockRoute
   UsersRoute: typeof UsersRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksAlertEmailDispatchRoute: typeof ApiPublicHooksAlertEmailDispatchRoute
   ApiPublicHooksArchivePurgeRoute: typeof ApiPublicHooksArchivePurgeRoute
@@ -761,6 +829,13 @@ declare module '@tanstack/react-router' {
       path: '/my-tasks'
       fullPath: '/my-tasks'
       preLoaderRoute: typeof MyTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manager': {
@@ -931,11 +1006,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/suppression': {
       id: '/lovable/email/suppression'
       path: '/lovable/email/suppression'
       fullPath: '/lovable/email/suppression'
       preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/transactional/send': {
@@ -1049,6 +1152,7 @@ const rootRouteChildren: RootRouteChildren = {
   LocationRequestsRoute: LocationRequestsRoute,
   MaintenanceRoute: MaintenanceRoute,
   ManagerRoute: ManagerRoute,
+  McpRoute: McpRoute,
   MyTasksRoute: MyTasksRoute,
   OperationsRoute: OperationsRoute,
   OrderGuideRoute: OrderGuideRoute,
@@ -1061,7 +1165,12 @@ const rootRouteChildren: RootRouteChildren = {
   SopsRoute: SopsRoute,
   TimeClockRoute: TimeClockRoute,
   UsersRoute: UsersRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksAlertEmailDispatchRoute: ApiPublicHooksAlertEmailDispatchRoute,
   ApiPublicHooksArchivePurgeRoute: ApiPublicHooksArchivePurgeRoute,
@@ -1079,3 +1188,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
