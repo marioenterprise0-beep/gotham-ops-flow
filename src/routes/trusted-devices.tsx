@@ -32,7 +32,7 @@ export const Route = createFileRoute("/trusted-devices")({
 
 function TrustedDevicesPage() {
   const { actualRoleId, roleId, loading, session } = useRole();
-  if (loading || (session && !actualRoleId && !roleId)) {
+  if (loading || !session || (!actualRoleId && !roleId)) {
     return (
       <AppShell>
         <Card>Loading…</Card>

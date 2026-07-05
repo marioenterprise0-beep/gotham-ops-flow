@@ -71,7 +71,7 @@ function AdminPage() {
     try { localStorage.setItem(ADMIN_TAB_KEY, tab); } catch {}
   }, [tab]);
 
-  if (loading || (session && !roleId)) return <AppShell><Card>Loading…</Card></AppShell>;
+  if (loading || !session || !roleId) return <AppShell><Card>Loading…</Card></AppShell>;
   // Owner-only — managers should never reach this screen.
   if (!isOwner) return <Navigate to="/" />;
 
