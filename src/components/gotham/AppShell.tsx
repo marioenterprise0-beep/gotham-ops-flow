@@ -60,6 +60,8 @@ const MODE_TABS: Record<WorkspaceMode, string[]> = {
   owner: ALL_TABS.filter((t) => t.key !== "health").map((t) => t.key),
 };
 
+const HIDDEN_OWNER_PATHS = ["/trusted-devices"];
+
 const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: typeof HardHat }> = {
   crew:    { label: "Crew",    tagline: "I came to work.",   icon: HardHat },
   manager: { label: "Manager", tagline: "I run this shift.", icon: Briefcase },
@@ -127,13 +129,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
   // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
-  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
   const pathAllowed =
     pathname === "/auth" ||
     pathname === "/" ||
+    HIDDEN_OWNER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     Array.from(allowedPaths).some((p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")));
   if (session && !pathAllowed) {
     return <Navigate to="/" />;

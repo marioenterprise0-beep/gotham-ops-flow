@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -31,16 +31,29 @@ export const Route = createFileRoute("/trusted-devices")({
 });
 
 function TrustedDevicesPage() {
-  const { roleId } = useRole();
-  if (roleId !== "owner") return <Navigate to="/" />;
+  const { roleId, loading, session } = useRole();
+  if (loading || !session || !roleId) {
+    return (
+      <AppShell>
+        <Card>Loading…</Card>
+      </AppShell>
+    );
+  }
+  if (roleId !== "owner") {
+    return (
+      <AppShell>
+        <Card>Owner access required.</Card>
+      </AppShell>
+    );
+  }
   return (
     <AppShell>
-      <Inner />
+      <TrustedDevicesManager />
     </AppShell>
   );
 }
 
-function Inner() {
+export function TrustedDevicesManager() {
   const qc = useQueryClient();
   const listFn = useServerFn(listKioskDevices);
   const trailersFn = useServerFn(listTrailerGeofences);

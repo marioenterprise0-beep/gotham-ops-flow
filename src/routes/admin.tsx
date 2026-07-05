@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
@@ -15,7 +15,7 @@ import { LocationRequests } from "@/routes/location-requests";
 import { AuditPage } from "@/routes/audit";
 import { ChangeLogPage } from "@/routes/change-log";
 import { DataHealthPage } from "@/routes/data-health";
-import { Link } from "@tanstack/react-router";
+import { TrustedDevicesManager } from "@/routes/trusted-devices";
 
 type TabKey = "people" | "roles" | "permissions" | "locations" | "devices" | "activity" | "system";
 
@@ -42,7 +42,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 function AdminPage() {
-  const { roleId, loading } = useRole();
+  const { roleId, loading, session } = useRole();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const isOwner = roleId === "owner";
@@ -72,9 +72,9 @@ function AdminPage() {
     try { localStorage.setItem(ADMIN_TAB_KEY, tab); } catch {}
   }, [tab]);
 
-  if (loading) return <AppShell><Card>Loading…</Card></AppShell>;
+  if (loading || !session || !roleId) return <AppShell><Card>Loading…</Card></AppShell>;
   // Owner-only — managers should never reach this screen.
-  if (!isOwner) return <Navigate to="/" />;
+  if (!isOwner) return <AppShell><Card>Owner access required.</Card></AppShell>;
 
   function choose(next: TabKey) {
     setTab(next);
@@ -110,19 +110,7 @@ function AdminPage() {
         {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
         {tab === "devices" && (
-          <Card>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="font-semibold flex items-center gap-2"><Tablet className="h-4 w-4" /> Trusted Kiosk Devices</div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Register the trailer iPad so employees can only clock in/out from an approved device.
-                </div>
-              </div>
-              <Link to="/trusted-devices" className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:border-[var(--color-gold)]">
-                Open <ChevronRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </Card>
+          <TrustedDevicesManager />
         )}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}
