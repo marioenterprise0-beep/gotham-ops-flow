@@ -136,7 +136,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const pathAllowed =
     pathname === "/auth" ||
     pathname === "/" ||
-    (isOwner && HIDDEN_OWNER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) ||
+    HIDDEN_OWNER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     Array.from(allowedPaths).some((p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")));
   if (session && !pathAllowed) {
     return <Navigate to="/" />;
