@@ -377,7 +377,7 @@ export const kioskClockOut = createServerFn({ method: "POST" })
       .order("clock_in_at", { ascending: false }).limit(1).maybeSingle();
     if (!open) return { ok: false as const, message: `${emp.display_name} is not clocked in.` };
 
-    const patch: Record<string, any> = {
+    const patch: { clock_out_at: string; status: "closed"; break_minutes?: number } = {
       clock_out_at: new Date().toISOString(),
       status: "closed",
     };
