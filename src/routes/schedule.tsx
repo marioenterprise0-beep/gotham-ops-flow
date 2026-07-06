@@ -667,9 +667,10 @@ function ScheduleBoard({
   const claimShiftFn = useServerFn(claimShift);
   const setSalesTargetFn = useServerFn(setScheduleSalesTarget);
   const setWeeklyHoursFn = useServerFn(setEmployeeWeeklyHours);
+  const scheduleCacheKey = ["schedule", scheduleId, trailerScope, startStr, endStr] as const;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["schedule", scheduleId, trailerScope],
+    queryKey: scheduleCacheKey,
     queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null, startDate: startStr, endDate: endStr } }),
   });
   const { data: employees = [] } = useQuery({
@@ -791,9 +792,9 @@ function ScheduleBoard({
     },
 
     onMutate: async (v: any) => {
-      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
-      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
-      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+      await qc.cancelQueries({ queryKey: scheduleCacheKey });
+      const prev = qc.getQueryData(scheduleCacheKey);
+      qc.setQueryData(scheduleCacheKey, (old: any) => {
         if (!old) return old;
         const patch = {
           schedule_id: v.scheduleId, employee_id: v.employeeId ?? null,
@@ -815,7 +816,7 @@ function ScheduleBoard({
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
-      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(scheduleCacheKey, ctx.prev);
       toast.error(e.message);
     },
   });
@@ -826,9 +827,9 @@ function ScheduleBoard({
     },
 
     onMutate: async (id: string) => {
-      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
-      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
-      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+      await qc.cancelQueries({ queryKey: scheduleCacheKey });
+      const prev = qc.getQueryData(scheduleCacheKey);
+      qc.setQueryData(scheduleCacheKey, (old: any) => {
         if (!old) return old;
         return { ...old, shifts: old.shifts.filter((s: any) => s.id !== id) };
       });
@@ -842,7 +843,7 @@ function ScheduleBoard({
       setEditing(null);
     },
     onError: (e: any, _v: any, ctx: any) => {
-      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(scheduleCacheKey, ctx.prev);
       toast.error(e.message);
     },
   });
@@ -855,9 +856,9 @@ function ScheduleBoard({
     },
 
     onMutate: async (v: { id: string; targetDate?: string }) => {
-      await qc.cancelQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
-      const prev = qc.getQueryData(["schedule", scheduleId, trailerScope]);
-      qc.setQueryData(["schedule", scheduleId, trailerScope], (old: any) => {
+      await qc.cancelQueries({ queryKey: scheduleCacheKey });
+      const prev = qc.getQueryData(scheduleCacheKey);
+      qc.setQueryData(scheduleCacheKey, (old: any) => {
         if (!old) return old;
         const src = old.shifts.find((s: any) => s.id === v.id);
         if (!src) return old;
@@ -872,7 +873,7 @@ function ScheduleBoard({
       invalidateLabor();
     },
     onError: (e: any, _v: any, ctx: any) => {
-      if (ctx?.prev) qc.setQueryData(["schedule", scheduleId, trailerScope], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(scheduleCacheKey, ctx.prev);
       toast.error(e.message);
     },
   });
@@ -937,7 +938,7 @@ function ScheduleBoard({
         toast.success(`Generated ${r.inserted} open shift${r.inserted === 1 ? "" : "s"}`);
       else toast.info("Coverage already in place — no new shifts to add");
       syncDomains(qc, "schedule", "labor");
-      qc.refetchQueries({ queryKey: ["schedule", scheduleId, trailerScope] });
+      qc.refetchQueries({ queryKey: ["schedule", scheduleId] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Generate coverage failed"),
   });
