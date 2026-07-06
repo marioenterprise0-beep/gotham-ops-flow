@@ -338,9 +338,9 @@ export const getSchedule = createServerFn({ method: "POST" })
         .maybeSingle();
       if (tr?.timezone) timezone = tr.timezone as string;
     }
-    if ((data.startDate && data.endDate) || (schedule?.start_date && schedule?.end_date)) {
-      const visibleStart = data.startDate ?? (schedule.start_date as string);
-      const visibleEnd = data.endDate ?? (schedule.end_date as string);
+    const visibleStart = data.startDate ?? (schedule?.start_date as string | undefined);
+    const visibleEnd = data.endDate ?? (schedule?.end_date as string | undefined);
+    if (visibleStart && visibleEnd) {
       const startISO = zonedDateToUtcISO(visibleStart, timezone, false);
       const endISO = zonedDateToUtcISO(visibleEnd, timezone, true);
       const { data: pRows } = await supabase
