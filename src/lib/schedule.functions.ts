@@ -944,8 +944,13 @@ export const duplicateShift = createServerFn({ method: "POST" })
       schedule_id: targetScheduleId,
       shift_date: newDate,
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
+      // Never inherit repeat_weekly on a duplicate — that flag is what makes
+      // new-week seeding recreate the shift every week. Duplicating a shift
+      // must produce a one-off copy unless the user opts in explicitly.
+      repeat_weekly: false,
       created_by: userId,
     };
+
 
 
     const { data: saved, error: e2 } = await supabase
