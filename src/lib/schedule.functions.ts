@@ -787,6 +787,20 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
         })[0];
       }
     }
+    // Fallback for legacy Sun→Sat rows after the UI moved to Mon→Sun: the
+    // requested week may be exactly one day after the stored schedule range.
+    const { data: legacyRows, error: legacyErr } = await supabase
+      .from("schedules")
+      .select("*")
+      .is("archived_at", null)
+      .lte("start_date", addDaysIso(data.endDate, -1))
+      .gte("end_date", addDaysIso(data.startDate, -1))
+      .order("start_date", { ascending: false });
+    if (legacyErr) throw new Error(legacyErr.message);
+    const legacyMatch = ((legacyRows ?? []) as any[])
+      .filter((row) => overlapDays(row, data.startDate, data.endDate) > 0)
+      .sort((a, b) => overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate))[0];
+    if (legacyMatch) return legacyMatch;
     if (!data.autoCreate) return null;
     await requireManager(supabase, userId);
     const name = data.name ?? `Week of ${data.startDate}`;
