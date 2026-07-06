@@ -848,15 +848,37 @@ export const duplicateShift = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!destSchedule) {
-        throw new Error(
-          `No schedule exists for the week of ${newDate}. Create that week's schedule first, then duplicate.`,
-        );
-      }
-      if (destSchedule.status === "locked" || destSchedule.status === "published") {
+      let destId: string | null = destSchedule?.id ?? null;
+      if (!destId) {
+        // Auto-create a draft schedule for the target week, aligned to the
+        // source schedule's week boundaries (shift by whole weeks).
+        const msPerDay = 86400000;
+        const srcStart = new Date(`${sch.start_date}T00:00:00Z`).getTime();
+        const target = new Date(`${newDate}T00:00:00Z`).getTime();
+        const weeksOffset = Math.floor((target - srcStart) / (7 * msPerDay));
+        const newStartMs = srcStart + weeksOffset * 7 * msPerDay;
+        const newEndMs = newStartMs + 6 * msPerDay;
+        const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+        const newStart = iso(newStartMs);
+        const newEnd = iso(newEndMs);
+        const { data: createdSch, error: csErr } = await supabase
+          .from("schedules")
+          .insert({
+            name: `Week of ${newStart}`,
+            trailer_id: (rest as any).trailer_id,
+            start_date: newStart,
+            end_date: newEnd,
+            status: "draft",
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        if (csErr) throw new Error(csErr.message);
+        destId = createdSch.id;
+      } else if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
         throw new Error("Target week's schedule is locked — unlock it before duplicating there.");
       }
-      targetScheduleId = destSchedule.id;
+      targetScheduleId = destId;
     }
     const newId = crypto.randomUUID();
     const insertRow = {
