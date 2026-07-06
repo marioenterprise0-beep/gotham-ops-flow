@@ -670,7 +670,7 @@ function ScheduleBoard({
 
   const { data, isLoading } = useQuery({
     queryKey: ["schedule", scheduleId, trailerScope],
-    queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null } }),
+    queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null, startDate: startStr, endDate: endStr } }),
   });
   const { data: employees = [] } = useQuery({
     queryKey: ["employees", trailerScope],
