@@ -219,23 +219,13 @@ export const getSchedule = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         trailerId: z.string().uuid().nullable().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    // Return every shift on this schedule. Trailer scoping happens at the
-    // schedule-picker level; once a schedule is open, filtering shifts by
-    // trailer caused freshly-saved shifts (whose trailer_id is auto-filled
-    // from the employee's profile by a DB trigger) to drop out of the board
-    // on refetch — they would appear optimistically and then disappear.
-    const shiftsQ = supabase
-      .from("schedule_shifts")
-      .select("*")
-      .eq("schedule_id", data.id)
-      .is("archived_at", null)
-      .order("shift_date")
-      .order("start_time");
     // Managers/owners see the full grid (including shifts assigned to other
     // owners or to disabled employees) so they can audit and clean up.
     // Crew get the filtered view so old/owner records never leak into theirs.
@@ -248,8 +238,46 @@ export const getSchedule = createServerFn({ method: "POST" })
       (r: any) => r.role === "owner" || r.role === "manager",
     );
 
-    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
-      supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
+    const { data: schedule, error: sErr } = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (sErr) throw new Error(sErr.message);
+
+    let scheduleIds = [data.id];
+    if (data.startDate && data.endDate) {
+      let schedulesQ = supabase
+        .from("schedules")
+        .select("id")
+        .is("archived_at", null)
+        .lte("start_date", data.endDate)
+        .gte("end_date", data.startDate);
+      if (data.trailerId) {
+        schedulesQ = schedulesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+      }
+      const { data: visibleSchedules, error: vsErr } = await schedulesQ;
+      if (vsErr) throw new Error(vsErr.message);
+      scheduleIds = Array.from(
+        new Set([data.id, ...((visibleSchedules ?? []) as Array<{ id: string }>).map((s) => s.id)]),
+      );
+    }
+
+    // Return every visible shift for the board's date range, even when older
+    // schedules were created with a different week boundary. Filtering by only
+    // the selected schedule_id made Sundays appear deleted whenever adjacent
+    // schedules overlapped the manager's Mon→Sun view.
+    let shiftsQ = supabase
+      .from("schedule_shifts")
+      .select("*")
+      .in("schedule_id", scheduleIds)
+      .is("archived_at", null);
+    if (data.startDate && data.endDate) {
+      shiftsQ = shiftsQ.gte("shift_date", data.startDate).lte("shift_date", data.endDate);
+    }
+    shiftsQ = shiftsQ.order("shift_date").order("start_time");
+
+    const [{ data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
       shiftsQ,
       isPrivileged
         ? Promise.resolve({ data: [] as Array<{ user_id: string }> })
@@ -261,7 +289,6 @@ export const getSchedule = createServerFn({ method: "POST" })
             .select("id")
             .or("active.eq.false,archived_at.not.is.null"),
     ]);
-    if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
     const hiddenIds = new Set<string>([
       ...(((ownerRolesRes as any).data ?? []) as any[]).map((r) => r.user_id),
@@ -338,18 +365,30 @@ export const upsertShift = createServerFn({ method: "POST" })
     if (sched?.status === "locked" || sched?.status === "published") {
       throw new Error("Schedule is locked — unlock it before making changes");
     }
-    // Prevent shifts whose date falls outside the parent schedule's week —
-    // otherwise the manager's grid (scoped to schedule_id) and the crew's
-    // Shifts tab (scoped to date) disagree about what's on the calendar.
+    let targetScheduleId = data.scheduleId;
     if (sched && (data.shiftDate < sched.start_date || data.shiftDate > sched.end_date)) {
-      throw new Error(
-        `Shift date ${data.shiftDate} is outside this schedule's week (${sched.start_date} → ${sched.end_date}). Open the correct week and try again.`,
-      );
+      let destQ = supabase
+        .from("schedules")
+        .select("id, status")
+        .is("archived_at", null)
+        .lte("start_date", data.shiftDate)
+        .gte("end_date", data.shiftDate)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (data.trailerId) {
+        destQ = destQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+      }
+      const { data: destSchedule, error: destErr } = await destQ.maybeSingle();
+      if (destErr) throw new Error(destErr.message);
+      if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
+        throw new Error("Target week's schedule is locked — unlock it before making changes there.");
+      }
+      targetScheduleId = destSchedule?.id ?? data.scheduleId;
     }
 
     const shiftId = data.id ?? crypto.randomUUID();
     const row = {
-      schedule_id: data.scheduleId,
+      schedule_id: targetScheduleId,
       employee_id: data.employeeId,
       trailer_id: data.trailerId ?? null,
       role: data.role,
@@ -839,47 +878,24 @@ export const duplicateShift = createServerFn({ method: "POST" })
     // that owns the target date (same trailer) so it doesn't orphan.
     let targetScheduleId: string = (rest as any).schedule_id;
     if (sch.start_date && (newDate < sch.start_date || newDate > sch.end_date)) {
-      const { data: destSchedule } = await supabase
+      let destQ = supabase
         .from("schedules")
         .select("id, status, trailer_id")
         .lte("start_date", newDate)
         .gte("end_date", newDate)
         .is("archived_at", null)
-        .or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+      if ((rest as any).trailer_id) {
+        destQ = destQ.or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`);
+      }
+      const { data: destSchedule, error: destErr } = await destQ.maybeSingle();
+      if (destErr) throw new Error(destErr.message);
       let destId: string | null = destSchedule?.id ?? null;
-      if (!destId) {
-        // Auto-create a draft schedule for the target week, aligned to the
-        // source schedule's week boundaries (shift by whole weeks).
-        const msPerDay = 86400000;
-        const srcStart = new Date(`${sch.start_date}T00:00:00Z`).getTime();
-        const target = new Date(`${newDate}T00:00:00Z`).getTime();
-        const weeksOffset = Math.floor((target - srcStart) / (7 * msPerDay));
-        const newStartMs = srcStart + weeksOffset * 7 * msPerDay;
-        const newEndMs = newStartMs + 6 * msPerDay;
-        const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-        const newStart = iso(newStartMs);
-        const newEnd = iso(newEndMs);
-        const { data: createdSch, error: csErr } = await supabase
-          .from("schedules")
-          .insert({
-            name: `Week of ${newStart}`,
-            trailer_id: (rest as any).trailer_id,
-            start_date: newStart,
-            end_date: newEnd,
-            status: "draft",
-            created_by: userId,
-          })
-          .select("id")
-          .single();
-        if (csErr) throw new Error(csErr.message);
-        destId = createdSch.id;
-      } else if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
+      if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
         throw new Error("Target week's schedule is locked — unlock it before duplicating there.");
       }
-      targetScheduleId = destId;
+      targetScheduleId = destId ?? targetScheduleId;
     }
     const newId = crypto.randomUUID();
     const insertRow = {
