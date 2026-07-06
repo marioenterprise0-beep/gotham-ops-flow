@@ -236,30 +236,42 @@ export const getSchedule = createServerFn({ method: "POST" })
       .is("archived_at", null)
       .order("shift_date")
       .order("start_time");
-    // Use admin for the profile/role lookup so RLS on user_roles doesn't hide
-    // owners from crew (which would let owner-assigned shifts leak through).
+    // Managers/owners see the full grid (including shifts assigned to other
+    // owners or to disabled employees) so they can audit and clean up.
+    // Crew get the filtered view so old/owner records never leak into theirs.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, { data: ownerRoles }, { data: hiddenProfiles }] = await Promise.all([
+    const { data: callerRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const isPrivileged = (callerRoles ?? []).some(
+      (r: any) => r.role === "owner" || r.role === "manager",
+    );
+
+    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
       supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
       shiftsQ,
-      supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner"),
-      supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .or("active.eq.false,archived_at.not.is.null"),
+      isPrivileged
+        ? Promise.resolve({ data: [] as Array<{ user_id: string }> })
+        : supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner"),
+      isPrivileged
+        ? Promise.resolve({ data: [] as Array<{ id: string }> })
+        : supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .or("active.eq.false,archived_at.not.is.null"),
     ]);
     if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
-    // Hide shifts assigned to owners or to disabled/archived employees so the
-    // grid matches listEmployees (which already excludes them from the roster)
-    // and so old records from disabled users never leak into anyone's view.
     const hiddenIds = new Set<string>([
-      ...(ownerRoles ?? []).map((r: any) => r.user_id),
-      ...(hiddenProfiles ?? []).map((p: any) => p.id),
+      ...(((ownerRolesRes as any).data ?? []) as any[]).map((r) => r.user_id),
+      ...(((hiddenProfilesRes as any).data ?? []) as any[]).map((p) => p.id),
     ]);
-    const shifts = (shiftsRaw ?? []).filter(
-      (s: any) => !s.employee_id || !hiddenIds.has(s.employee_id),
-    );
+    const shifts = isPrivileged
+      ? (shiftsRaw ?? [])
+      : (shiftsRaw ?? []).filter(
+          (s: any) => !s.employee_id || !hiddenIds.has(s.employee_id),
+        );
 
     // Pull punches in the schedule window so the grid can show actual clocked hours
     // alongside scheduled hours per employee. The window is anchored to the
