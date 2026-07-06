@@ -1,0 +1,1 @@
+REVOKE UPDATE (pay_rate, weekly_hours, active, store_id, trailer_id, is_super_admin, archived_at, archived_by, archive_reason) ON public.profiles FROM authenticated;
