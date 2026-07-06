@@ -835,18 +835,34 @@ export const duplicateShift = createServerFn({ method: "POST" })
     }
     const { id, created_at, updated_at, schedules: _sch, ...rest } = src as any;
     const newDate = data.targetDate ?? src.shift_date;
-    // Copy/paste across weeks would orphan the shift (grid queries by
-    // schedule_id, Shifts tab queries by date). Reject and let the caller
-    // open the target week first.
+    // If pasting outside the source week, re-parent the copy to the schedule
+    // that owns the target date (same trailer) so it doesn't orphan.
+    let targetScheduleId: string = (rest as any).schedule_id;
     if (sch.start_date && (newDate < sch.start_date || newDate > sch.end_date)) {
-      throw new Error(
-        `Target date ${newDate} is outside this schedule's week (${sch.start_date} → ${sch.end_date}). Open the correct week and duplicate there.`,
-      );
+      const { data: destSchedule } = await supabase
+        .from("schedules")
+        .select("id, status")
+        .eq("trailer_id", (rest as any).trailer_id)
+        .lte("start_date", newDate)
+        .gte("end_date", newDate)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!destSchedule) {
+        throw new Error(
+          `No schedule exists for the week of ${newDate}. Create that week's schedule first, then duplicate.`,
+        );
+      }
+      if (destSchedule.status === "locked" || destSchedule.status === "published") {
+        throw new Error("Target week's schedule is locked — unlock it before duplicating there.");
+      }
+      targetScheduleId = destSchedule.id;
     }
     const newId = crypto.randomUUID();
     const insertRow = {
       id: newId,
       ...rest,
+      schedule_id: targetScheduleId,
       shift_date: newDate,
       employee_id: data.targetEmployeeId !== undefined ? data.targetEmployeeId : src.employee_id,
       created_by: userId,
