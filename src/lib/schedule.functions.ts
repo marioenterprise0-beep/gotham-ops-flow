@@ -779,13 +779,13 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       const overlapping = (existing as any[]).filter(
         (row) => overlapDays(row, data.startDate, data.endDate) > 0,
       );
-      if (overlapping.length === 0 && !data.autoCreate) return null;
-      if (overlapping.length === 0) return null;
-      return overlapping.sort((a: any, b: any) => {
-        const byOverlap = overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate);
-        if (byOverlap !== 0) return byOverlap;
-        return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
-      })[0];
+      if (overlapping.length > 0) {
+        return overlapping.sort((a: any, b: any) => {
+          const byOverlap = overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate);
+          if (byOverlap !== 0) return byOverlap;
+          return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+        })[0];
+      }
     }
     if (!data.autoCreate) return null;
     await requireManager(supabase, userId);
