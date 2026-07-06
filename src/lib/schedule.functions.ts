@@ -772,11 +772,16 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       .select("*")
       .is("archived_at", null)
       .lte("start_date", data.endDate)
-      .gte("end_date", data.startDate)
+      .gte("end_date", addDaysIso(data.startDate, -1))
       .order("start_date", { ascending: false });
     if (e1) throw new Error(e1.message);
     if (existing && existing.length > 0) {
-      return [...existing].sort((a: any, b: any) => {
+      const overlapping = (existing as any[]).filter(
+        (row) => overlapDays(row, data.startDate, data.endDate) > 0,
+      );
+      if (overlapping.length === 0 && !data.autoCreate) return null;
+      if (overlapping.length === 0) return null;
+      return overlapping.sort((a: any, b: any) => {
         const byOverlap = overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate);
         if (byOverlap !== 0) return byOverlap;
         return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
