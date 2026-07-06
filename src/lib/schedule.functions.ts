@@ -841,10 +841,11 @@ export const duplicateShift = createServerFn({ method: "POST" })
     if (sch.start_date && (newDate < sch.start_date || newDate > sch.end_date)) {
       const { data: destSchedule } = await supabase
         .from("schedules")
-        .select("id, status")
-        .eq("trailer_id", (rest as any).trailer_id)
+        .select("id, status, trailer_id")
         .lte("start_date", newDate)
         .gte("end_date", newDate)
+        .is("archived_at", null)
+        .or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
