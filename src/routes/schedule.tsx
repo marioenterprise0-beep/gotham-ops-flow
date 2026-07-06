@@ -197,10 +197,15 @@ function SchedulePage() {
   const findOrCreate = useServerFn(getOrCreateScheduleForRange);
   const { data: schedule, refetch: refetchSched } = useQuery({
     queryKey: ["schedule-range", startStr, endStr, trailerScope, isMgr],
-    queryFn: () =>
+    queryFn: async () => {
       // Managers/owners auto-create a blank draft on landing so the grid is
       // always present for crew to view and mark unavailability against.
-      findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: isMgr } }),
+      const exact = await findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: false } });
+      if (exact) return exact;
+      const legacy = await findOrCreate({ data: { startDate: fmt(addDays(start, -1)), endDate: fmt(addDays(end, -1)), autoCreate: false } });
+      if (legacy) return legacy;
+      return findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: isMgr } });
+    },
     enabled: !!session,
   });
 
