@@ -10,6 +10,44 @@ import { DEFAULT_TRAILER_TZ, zonedDateToUtcISO } from "./timezone";
 
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const SEGMENT = z.enum(["open", "mid", "close", "custom"]);
+const MS_PER_DAY = 86_400_000;
+
+function isoToDay(iso: string) {
+  return Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / MS_PER_DAY);
+}
+
+function dayToIso(day: number) {
+  return new Date(day * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+function addDaysIso(iso: string, days: number) {
+  return dayToIso(isoToDay(iso) + days);
+}
+
+function effectiveScheduleWindow(row: { start_date: string; end_date: string }) {
+  const startDay = isoToDay(row.start_date);
+  const endDay = isoToDay(row.end_date);
+  const startsOnSunday = new Date(`${row.start_date}T00:00:00Z`).getUTCDay() === 0;
+  // Existing schedules were originally created Sun→Sat. The UI is now Mon→Sun,
+  // so treat those legacy rows as the Mon→Sun week that follows their stored
+  // Sunday start. Newer Monday-start schedules use their stored dates as-is.
+  if (startsOnSunday && endDay - startDay === 6) {
+    return { start_date: addDaysIso(row.start_date, 1), end_date: addDaysIso(row.end_date, 1) };
+  }
+  return { start_date: row.start_date, end_date: row.end_date };
+}
+
+function scheduleCoversDate(row: { start_date: string; end_date: string }, iso: string) {
+  const win = effectiveScheduleWindow(row);
+  return iso >= win.start_date && iso <= win.end_date;
+}
+
+function overlapDays(row: { start_date: string; end_date: string }, reqStart: string, reqEnd: string) {
+  const win = effectiveScheduleWindow(row);
+  const start = Math.max(isoToDay(reqStart), isoToDay(win.start_date));
+  const end = Math.min(isoToDay(reqEnd), isoToDay(win.end_date));
+  return Math.max(0, end - start + 1);
+}
 
 async function requireManager(supabase: any, userId: string) {
   await requireManagerRole(supabase, userId);
@@ -219,23 +257,13 @@ export const getSchedule = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         trailerId: z.string().uuid().nullable().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    // Return every shift on this schedule. Trailer scoping happens at the
-    // schedule-picker level; once a schedule is open, filtering shifts by
-    // trailer caused freshly-saved shifts (whose trailer_id is auto-filled
-    // from the employee's profile by a DB trigger) to drop out of the board
-    // on refetch — they would appear optimistically and then disappear.
-    const shiftsQ = supabase
-      .from("schedule_shifts")
-      .select("*")
-      .eq("schedule_id", data.id)
-      .is("archived_at", null)
-      .order("shift_date")
-      .order("start_time");
     // Managers/owners see the full grid (including shifts assigned to other
     // owners or to disabled employees) so they can audit and clean up.
     // Crew get the filtered view so old/owner records never leak into theirs.
@@ -248,8 +276,27 @@ export const getSchedule = createServerFn({ method: "POST" })
       (r: any) => r.role === "owner" || r.role === "manager",
     );
 
-    const [{ data: schedule, error: sErr }, { data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
-      supabase.from("schedules").select("*").eq("id", data.id).maybeSingle(),
+    const { data: schedule, error: sErr } = await supabase
+      .from("schedules")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (sErr) throw new Error(sErr.message);
+
+    // Keep the board tied to the selected schedule. Legacy Sun→Sat schedules
+    // are treated as Mon→Sun in the write/copy logic, so their Sunday rows stay
+    // with this schedule instead of being pulled from an adjacent draft.
+    let shiftsQ = supabase
+      .from("schedule_shifts")
+      .select("*")
+      .eq("schedule_id", data.id)
+      .is("archived_at", null);
+    if (data.startDate && data.endDate) {
+      shiftsQ = shiftsQ.gte("shift_date", data.startDate).lte("shift_date", data.endDate);
+    }
+    shiftsQ = shiftsQ.order("shift_date").order("start_time");
+
+    const [{ data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
       shiftsQ,
       isPrivileged
         ? Promise.resolve({ data: [] as Array<{ user_id: string }> })
@@ -261,7 +308,6 @@ export const getSchedule = createServerFn({ method: "POST" })
             .select("id")
             .or("active.eq.false,archived_at.not.is.null"),
     ]);
-    if (sErr) throw new Error(sErr.message);
     if (shErr) throw new Error(shErr.message);
     const hiddenIds = new Set<string>([
       ...(((ownerRolesRes as any).data ?? []) as any[]).map((r) => r.user_id),
@@ -292,9 +338,11 @@ export const getSchedule = createServerFn({ method: "POST" })
         .maybeSingle();
       if (tr?.timezone) timezone = tr.timezone as string;
     }
-    if (schedule?.start_date && schedule?.end_date) {
-      const startISO = zonedDateToUtcISO(schedule.start_date as string, timezone, false);
-      const endISO = zonedDateToUtcISO(schedule.end_date as string, timezone, true);
+    const visibleStart = data.startDate ?? (schedule?.start_date as string | undefined);
+    const visibleEnd = data.endDate ?? (schedule?.end_date as string | undefined);
+    if (visibleStart && visibleEnd) {
+      const startISO = zonedDateToUtcISO(visibleStart, timezone, false);
+      const endISO = zonedDateToUtcISO(visibleEnd, timezone, true);
       const { data: pRows } = await supabase
         .from("time_punches")
         .select("employee_id, clock_in_at, clock_out_at, break_minutes")
@@ -338,18 +386,34 @@ export const upsertShift = createServerFn({ method: "POST" })
     if (sched?.status === "locked" || sched?.status === "published") {
       throw new Error("Schedule is locked — unlock it before making changes");
     }
-    // Prevent shifts whose date falls outside the parent schedule's week —
-    // otherwise the manager's grid (scoped to schedule_id) and the crew's
-    // Shifts tab (scoped to date) disagree about what's on the calendar.
-    if (sched && (data.shiftDate < sched.start_date || data.shiftDate > sched.end_date)) {
-      throw new Error(
-        `Shift date ${data.shiftDate} is outside this schedule's week (${sched.start_date} → ${sched.end_date}). Open the correct week and try again.`,
-      );
+    let targetScheduleId = data.scheduleId;
+    if (sched && !scheduleCoversDate(sched as any, data.shiftDate)) {
+      let candidatesQ = supabase
+        .from("schedules")
+        .select("id, status, trailer_id, start_date, end_date, created_at")
+        .is("archived_at", null)
+        .lte("start_date", data.shiftDate)
+        .gte("end_date", addDaysIso(data.shiftDate, -1));
+      if (data.trailerId) {
+        candidatesQ = candidatesQ.or(`trailer_id.eq.${data.trailerId},trailer_id.is.null`);
+      }
+      const { data: candidateSchedules, error: destErr } = await candidatesQ;
+      if (destErr) throw new Error(destErr.message);
+      const destSchedule = ((candidateSchedules ?? []) as any[])
+        .filter((row) => scheduleCoversDate(row, data.shiftDate))
+        .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
+      if (!destSchedule) {
+        throw new Error("No schedule covers that date. Open or create that week's schedule first.");
+      }
+      if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
+        throw new Error("Target week's schedule is locked — unlock it before making changes there.");
+      }
+      targetScheduleId = destSchedule.id;
     }
 
     const shiftId = data.id ?? crypto.randomUUID();
     const row = {
-      schedule_id: data.scheduleId,
+      schedule_id: targetScheduleId,
       employee_id: data.employeeId,
       trailer_id: data.trailerId ?? null,
       role: data.role,
@@ -708,24 +772,35 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       .select("*")
       .is("archived_at", null)
       .lte("start_date", data.endDate)
-      .gte("end_date", data.startDate)
+      .gte("end_date", addDaysIso(data.startDate, -1))
       .order("start_date", { ascending: false });
     if (e1) throw new Error(e1.message);
     if (existing && existing.length > 0) {
-      const toDay = (iso: string) => Math.floor(new Date(`${iso}T00:00:00Z`).getTime() / 86400000);
-      const reqStart = toDay(data.startDate);
-      const reqEnd = toDay(data.endDate);
-      const overlapDays = (row: any) => {
-        const start = Math.max(reqStart, toDay(row.start_date));
-        const end = Math.min(reqEnd, toDay(row.end_date));
-        return Math.max(0, end - start + 1);
-      };
-      return [...existing].sort((a: any, b: any) => {
-        const byOverlap = overlapDays(b) - overlapDays(a);
-        if (byOverlap !== 0) return byOverlap;
-        return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
-      })[0];
+      const overlapping = (existing as any[]).filter(
+        (row) => overlapDays(row, data.startDate, data.endDate) > 0,
+      );
+      if (overlapping.length > 0) {
+        return overlapping.sort((a: any, b: any) => {
+          const byOverlap = overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate);
+          if (byOverlap !== 0) return byOverlap;
+          return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
+        })[0];
+      }
     }
+    // Fallback for legacy Sun→Sat rows after the UI moved to Mon→Sun: the
+    // requested week may be exactly one day after the stored schedule range.
+    const { data: legacyRows, error: legacyErr } = await supabase
+      .from("schedules")
+      .select("*")
+      .is("archived_at", null)
+      .lte("start_date", addDaysIso(data.endDate, -1))
+      .gte("end_date", addDaysIso(data.startDate, -1))
+      .order("start_date", { ascending: false });
+    if (legacyErr) throw new Error(legacyErr.message);
+    const legacyMatch = ((legacyRows ?? []) as any[])
+      .filter((row) => overlapDays(row, data.startDate, data.endDate) > 0)
+      .sort((a, b) => overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate))[0];
+    if (legacyMatch) return legacyMatch;
     if (!data.autoCreate) return null;
     await requireManager(supabase, userId);
     const name = data.name ?? `Week of ${data.startDate}`;
@@ -838,46 +913,27 @@ export const duplicateShift = createServerFn({ method: "POST" })
     // If pasting outside the source week, re-parent the copy to the schedule
     // that owns the target date (same trailer) so it doesn't orphan.
     let targetScheduleId: string = (rest as any).schedule_id;
-    if (sch.start_date && (newDate < sch.start_date || newDate > sch.end_date)) {
-      const { data: destSchedule } = await supabase
+    if (sch.start_date && !scheduleCoversDate(sch as any, newDate)) {
+      let candidatesQ = supabase
         .from("schedules")
-        .select("id, status, trailer_id")
-        .lte("start_date", newDate)
-        .gte("end_date", newDate)
+        .select("id, status, trailer_id, start_date, end_date, created_at")
         .is("archived_at", null)
-        .or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .lte("start_date", newDate)
+        .gte("end_date", addDaysIso(newDate, -1));
+      if ((rest as any).trailer_id) {
+        candidatesQ = candidatesQ.or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`);
+      }
+      const { data: candidateSchedules, error: destErr } = await candidatesQ;
+      if (destErr) throw new Error(destErr.message);
+      const destSchedule = ((candidateSchedules ?? []) as any[])
+        .filter((row) => scheduleCoversDate(row, newDate))
+        .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
       let destId: string | null = destSchedule?.id ?? null;
-      if (!destId) {
-        // Auto-create a draft schedule for the target week, aligned to the
-        // source schedule's week boundaries (shift by whole weeks).
-        const msPerDay = 86400000;
-        const srcStart = new Date(`${sch.start_date}T00:00:00Z`).getTime();
-        const target = new Date(`${newDate}T00:00:00Z`).getTime();
-        const weeksOffset = Math.floor((target - srcStart) / (7 * msPerDay));
-        const newStartMs = srcStart + weeksOffset * 7 * msPerDay;
-        const newEndMs = newStartMs + 6 * msPerDay;
-        const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-        const newStart = iso(newStartMs);
-        const newEnd = iso(newEndMs);
-        const { data: createdSch, error: csErr } = await supabase
-          .from("schedules")
-          .insert({
-            name: `Week of ${newStart}`,
-            trailer_id: (rest as any).trailer_id,
-            start_date: newStart,
-            end_date: newEnd,
-            status: "draft",
-            created_by: userId,
-          })
-          .select("id")
-          .single();
-        if (csErr) throw new Error(csErr.message);
-        destId = createdSch.id;
-      } else if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
+      if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
         throw new Error("Target week's schedule is locked — unlock it before duplicating there.");
+      }
+      if (!destId) {
+        throw new Error("No schedule covers that date. Open or create that week's schedule first.");
       }
       targetScheduleId = destId;
     }
