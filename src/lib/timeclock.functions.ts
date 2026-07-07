@@ -61,13 +61,18 @@ export const clockIn = createServerFn({ method: "POST" })
     // Kiosk mode: when enabled globally, self clock-in from a phone/laptop
     // is disallowed — employees must use the trailer iPad kiosk. Owner/manager
     // manual punches (managerClockInEmployee) remain as the fallback.
-    const { data: settings } = await supabase.from("automation_settings")
-      .select("kiosk_device_required").eq("scope", "global").maybeSingle();
-    if (settings?.kiosk_device_required) {
-      return {
-        ok: false as const,
-        message: "Clock-in is kiosk-only. Please use the trailer iPad. If it's unavailable, ask a manager to clock you in.",
-      };
+    // Read via admin: automation_settings SELECT is manager-only, so crew
+    // would otherwise see null and bypass the guard.
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: settings } = await supabaseAdmin.from("automation_settings")
+        .select("kiosk_device_required").eq("scope", "global").maybeSingle();
+      if (settings?.kiosk_device_required) {
+        return {
+          ok: false as const,
+          message: "Clock-in is kiosk-only. Please use the trailer iPad. If it's unavailable, ask a manager to clock you in.",
+        };
+      }
     }
     const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
     // Block double clock-in
