@@ -61,13 +61,18 @@ export const clockIn = createServerFn({ method: "POST" })
     // Kiosk mode: when enabled globally, self clock-in from a phone/laptop
     // is disallowed — employees must use the trailer iPad kiosk. Owner/manager
     // manual punches (managerClockInEmployee) remain as the fallback.
-    const { data: settings } = await supabase.from("automation_settings")
-      .select("kiosk_device_required").eq("scope", "global").maybeSingle();
-    if (settings?.kiosk_device_required) {
-      return {
-        ok: false as const,
-        message: "Clock-in is kiosk-only. Please use the trailer iPad. If it's unavailable, ask a manager to clock you in.",
-      };
+    // Read via admin: automation_settings SELECT is manager-only, so crew
+    // would otherwise see null and bypass the guard.
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: settings } = await supabaseAdmin.from("automation_settings")
+        .select("kiosk_device_required").eq("scope", "global").maybeSingle();
+      if (settings?.kiosk_device_required) {
+        return {
+          ok: false as const,
+          message: "Clock-in is kiosk-only. Please use the trailer iPad. If it's unavailable, ask a manager to clock you in.",
+        };
+      }
     }
     const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
     // Block double clock-in
@@ -270,12 +275,15 @@ export const clockOut = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Kiosk mode: block self clock-out from a phone. The punch that opened
-    // via the kiosk must close on the kiosk (or via manager override).
-    const { data: settings } = await supabase.from("automation_settings")
-      .select("kiosk_device_required").eq("scope", "global").maybeSingle();
-    if (settings?.kiosk_device_required) {
-      throw new Error("Clock-out is kiosk-only. Please use the trailer iPad, or ask a manager to close your punch.");
+    // Kiosk mode: block self clock-out from a phone. Read via admin because
+    // automation_settings SELECT is manager-only (crew would see null and bypass).
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: settings } = await supabaseAdmin.from("automation_settings")
+        .select("kiosk_device_required").eq("scope", "global").maybeSingle();
+      if (settings?.kiosk_device_required) {
+        throw new Error("Clock-out is kiosk-only. Please use the trailer iPad, or ask a manager to close your punch.");
+      }
     }
     let punchId = data.punchId;
     if (!punchId) {
