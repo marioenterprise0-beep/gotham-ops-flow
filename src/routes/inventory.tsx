@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies, listInventoryCategories, createInventoryCategory, archiveInventoryCategory } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
-import { createInventoryOrder, listInventoryOrders } from "@/lib/inventory-orders.functions";
+import { createInventoryOrder, listInventoryOrders, submitDraftInventoryOrder } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -66,6 +66,7 @@ const TABS = [
   { key: "live-counts",   label: "Live Counts",   icon: Boxes },
   { key: "count-guide",   label: "Count Guide",   icon: BookOpen },
   { key: "orders",        label: "Orders",        icon: Truck },
+  { key: "drafts",        label: "Drafts",        icon: FileText },
   { key: "approvals",     label: "Approvals",     icon: ClipboardList },
   { key: "configuration", label: "Configuration", icon: SettingsIcon },
 ] as const;
@@ -108,6 +109,7 @@ function InventoryPage() {
   const visibleTabs = TABS.filter((t) => {
     if (t.key === "approvals") return isManager;
     if (t.key === "configuration") return isManager;
+    if (t.key === "drafts") return isOwner;
     // Orders is open to all crew — anyone working a shift can submit an order.
     return true;
   });
@@ -153,9 +155,89 @@ function InventoryPage() {
       {tab === "live-counts"   && <LiveCountsTab />}
       {tab === "count-guide"   && <InventoryGuideView />}
       {tab === "orders"        && <OrdersTab onEditDetails={(itemId) => isManager && changeTab("configuration", { focus: itemId })} />}
+      {tab === "drafts"        && isOwner && <DraftOrdersTab />}
       {tab === "approvals"     && isManager && <InventoryChangesView />}
       {tab === "configuration" && isManager && <OrderGuideView focusItemId={search.focus ?? null} />}
     </AppShell>
+  );
+}
+
+/* =================== DRAFT ORDERS (OWNER-ONLY) =================== */
+
+function DraftOrdersTab() {
+  const qc = useQueryClient();
+  const list = useServerFn(listInventoryOrders);
+  const submitDraft = useServerFn(submitDraftInventoryOrder);
+
+  const { data: orders = [], isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["inv-orders", "drafts"],
+    queryFn: () => list({ data: { scope: "all", status: "draft" } }) as any,
+  });
+
+  const submitMut = useMutation({
+    mutationFn: (id: string) => submitDraft({ data: { id } }) as any,
+    onSuccess: () => {
+      toast.success("Order submitted — owners notified");
+      syncDomains(qc, "inventory", "alerts");
+      refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to submit"),
+  });
+
+  return (
+    <div>
+      <SectionHeader
+        eyebrow="Cleanup"
+        title="Draft inventory orders"
+        action={<button onClick={() => refetch()} className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted-foreground">Refresh</button>}
+      />
+      <p className="text-xs text-muted-foreground mb-3">
+        Orders saved as drafts don't notify anyone. Submit them here to trigger the owner email + alert.
+      </p>
+
+      {isLoading ? (
+        <Card>Loading…</Card>
+      ) : orders.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-muted-foreground">No draft orders — you're all caught up.</Card>
+      ) : (
+        <div className="space-y-2">
+          {orders.map((o: any) => {
+            const items = o.items ?? [];
+            const critical = items.filter((i: any) => i.urgency === "critical" || i.urgency === "emergency").length;
+            return (
+              <Card key={o.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StatusPill tone="warning">DRAFT</StatusPill>
+                      <span className="text-sm font-semibold">{items.length} item{items.length === 1 ? "" : "s"}</span>
+                      {critical > 0 && <StatusPill tone="danger">{critical} critical</StatusPill>}
+                    </div>
+                    <div className="label-caps text-muted-foreground mt-1">
+                      Created {new Date(o.created_at).toLocaleString()}
+                    </div>
+                    {o.notes && <div className="text-xs text-muted-foreground mt-1">Note: {o.notes}</div>}
+                    {items.length > 0 && (
+                      <div className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                        {items.map((i: any) => `${i.item_name} (${i.requested_qty}${i.unit ? " " + i.unit : ""})`).join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    disabled={submitMut.isPending}
+                    onClick={() => submitMut.mutate(o.id)}
+                    className="shrink-0 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold inline-flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Truck className="h-3.5 w-3.5" /> Submit
+                  </button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+      <div className="h-6" />
+    </div>
   );
 }
 
