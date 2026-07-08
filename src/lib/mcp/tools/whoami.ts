@@ -19,7 +19,7 @@ export default defineTool({
     ]);
     const payload = {
       user_id: userId,
-      email: ctx.getUserEmail() ?? profile?.email ?? null,
+      email: ctx.getUserEmail() ?? null,
       display_name: profile?.display_name ?? null,
       active: profile?.active ?? null,
       roles: (roles ?? []).map((r) => r.role),
