@@ -17,7 +17,7 @@ const Email = ({ recipient_name, submitted_by, location, trailer_name, item_coun
       <DataRow label="Items requested" value={item_count ?? items.length} emphasis />
       <DataRow label="Critical items" value={critical_count ?? 0} />
     </DataTable>
-    <Heading style={styles.h2 ?? styles.h1}>Items requested</Heading>
+    <Heading style={styles.h1}>Items requested</Heading>
     <DataTable>
       {items.length === 0 ? <DataRow label="Items" value="—" /> :
         items.map((it, i) => (
