@@ -626,7 +626,7 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
             <History className="h-3.5 w-3.5" /> History
           </button>
-          <button onClick={() => setOrderOpen(true)}
+          <button onClick={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); setOrderOpen(true); }}
             className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold">
             <Plus className="h-3.5 w-3.5" /> New order
           </button>
