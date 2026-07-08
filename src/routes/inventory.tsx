@@ -594,25 +594,40 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
   const needsCount = items.filter((it) => recommendedFor(it) > 0).length;
 
   const createOrder = useServerFn(createInventoryOrder);
+
+  // Editable qty per item (keyed by item id). Empty = use recommended; 0 = exclude.
+  const [qtyMap, setQtyMap] = useState<Record<string, string>>({});
+  const qtyFor = (it: OrderRow) => {
+    const raw = qtyMap[it.id];
+    if (raw !== undefined) return raw === "" ? 0 : Number(raw);
+    return recommendedFor(it);
+  };
+
+  const rowsToOrder = useMemo(() =>
+    visible
+      .map((it) => ({ it, qty: qtyFor(it) }))
+      .filter((r) => r.qty > 0),
+    [visible, qtyMap],
+  );
+
   const orderAllMut = useMutation({
     mutationFn: async () => {
-      const rows = items
-        .filter((it) => recommendedFor(it) > 0)
-        .map((it) => ({
-          itemId: it.id,
-          itemName: it.name,
-          category: it.category,
-          unit: it.unit,
-          currentQty: Number(it.current_qty),
-          parQty: Number(it.par_level),
-          requestedQty: recommendedFor(it),
-          urgency: (Number(it.current_qty) <= Number(it.low_threshold) ? "critical" : "normal") as any,
-        }));
-      if (rows.length === 0) throw new Error("Nothing needs ordering right now.");
+      const rows = rowsToOrder.map(({ it, qty }) => ({
+        itemId: it.id,
+        itemName: it.name,
+        category: it.category,
+        unit: it.unit,
+        currentQty: Number(it.current_qty),
+        parQty: Number(it.par_level),
+        requestedQty: qty,
+        urgency: (Number(it.current_qty) <= Number(it.low_threshold) ? "critical" : "normal") as any,
+      }));
+      if (rows.length === 0) throw new Error("Set a quantity on at least one item.");
       return createOrder({ data: { trailerId: trailerScope, submit: true, items: rows } }) as any;
     },
     onSuccess: () => {
       toast.success("Order submitted — owner notified");
+      setQtyMap({});
       syncDomains(qc, "orders", "inventory", "alerts");
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to submit order"),
@@ -642,76 +657,50 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
             <History className="h-3.5 w-3.5" /> My orders
           </button>
-          <button onClick={() => setOrderOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
-            <Pencil className="h-3.5 w-3.5" /> Customize
-          </button>
           <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
         </div>
       </div>
 
       {(loading || isLoading) && <Card>Loading…</Card>}
 
-      {needsCount > 0 && (
-        <Card className="p-3 mb-3 flex items-center justify-between gap-3 border-[var(--color-gold)]/40">
-          <div className="min-w-0">
-            <div className="label-caps text-muted-foreground">One-click order</div>
-            <div className="text-sm font-semibold">Submit an order for all {needsCount} item{needsCount === 1 ? "" : "s"} that need restocking</div>
+      <Card className="p-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-secondary/40 border-b border-border">
+          <div className="label-caps text-muted-foreground text-[10px]">
+            {rowsToOrder.length} item{rowsToOrder.length === 1 ? "" : "s"} in this order
           </div>
           <button
             onClick={() => orderAllMut.mutate()}
-            disabled={orderAllMut.isPending}
-            className="shrink-0 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+            disabled={orderAllMut.isPending || rowsToOrder.length === 0}
+            className="shrink-0 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-1.5 text-xs font-semibold inline-flex items-center gap-2 disabled:opacity-40"
           >
-            <Truck className="h-4 w-4" /> {orderAllMut.isPending ? "Submitting…" : `Order all (${needsCount})`}
+            <Truck className="h-3.5 w-3.5" /> {orderAllMut.isPending ? "Submitting…" : `Submit Order (${rowsToOrder.length})`}
           </button>
-        </Card>
-      )}
-
-      <Card className="p-0 overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_110px_110px_140px_110px] gap-2 px-3 py-2 bg-secondary/40 label-caps text-muted-foreground text-[10px]">
-          <div>Item</div>
-          <div className="text-right">Current</div>
-          <div className="text-right">PAR</div>
-          <div className="text-right">Recommended</div>
-          <div className="text-right">Status</div>
         </div>
+
         <div className="divide-y divide-border">
           {visible.map((it) => {
-            const s = statusOf(it as unknown as Item);
-            const recommended = recommendedFor(it);
+            const qty = qtyFor(it);
+            const raw = qtyMap[it.id];
+            const displayValue = raw !== undefined ? raw : (recommendedFor(it) > 0 ? String(recommendedFor(it)) : "");
+            const included = qty > 0;
             return (
-              <div key={it.id} className="grid grid-cols-[1fr_auto] md:grid-cols-[1fr_110px_110px_140px_110px] gap-2 px-3 py-2.5 items-center">
-                <div className="min-w-0">
-                  <button
-                    onClick={() => onEditDetails(it.id)}
-                    className="text-left font-semibold text-sm truncate hover:text-[var(--color-gold)]"
-                    title="Edit details"
-                  >
-                    {it.name}
-                  </button>
-                  <div className="label-caps text-muted-foreground text-[10px] truncate">
-                    {it.vendor || "No vendor"} {it.pack_size ? `· ${it.pack_size}` : ""}
-                  </div>
-                </div>
-                <div className="md:hidden text-right">
-                  <StatusPill tone={statusTone(s)}>{s}</StatusPill>
-                  {recommended > 0 && (
-                    <div className="mt-0.5 text-xs font-semibold text-[var(--color-gold)] tabular-nums">
-                      +{recommended} {it.unit}
-                    </div>
-                  )}
-                </div>
-                <div className="hidden md:block text-right tabular-nums text-sm">{Number(it.current_qty)} <span className="text-muted-foreground text-xs">{it.unit}</span></div>
-                <div className="hidden md:block text-right tabular-nums text-sm text-muted-foreground">{Number(it.par_level)} <span className="text-xs">{it.unit}</span></div>
-                <div className="hidden md:block text-right tabular-nums text-sm">
-                  {recommended > 0
-                    ? <span className="font-semibold text-[var(--color-gold)]">{recommended} {it.unit}</span>
-                    : <span className="text-muted-foreground">—</span>}
-                </div>
-                <div className="hidden md:flex justify-end">
-                  <StatusPill tone={statusTone(s)}>{s}</StatusPill>
-                </div>
+              <div key={it.id} className={cn("flex items-center gap-3 px-3 py-2.5", !included && "opacity-60")}>
+                <button
+                  onClick={() => onEditDetails(it.id)}
+                  className="min-w-0 flex-1 text-left text-sm font-semibold truncate hover:text-[var(--color-gold)]"
+                  title="Edit item details"
+                >
+                  {it.name}
+                </button>
+                <input
+                  type="number"
+                  min="0"
+                  value={displayValue}
+                  onChange={(e) => setQtyMap((m) => ({ ...m, [it.id]: e.target.value }))}
+                  placeholder="0"
+                  className="w-20 h-9 rounded-md border border-border bg-card px-2 text-sm text-right tabular-nums font-semibold"
+                />
+                <span className="w-14 text-xs text-muted-foreground">{it.unit}</span>
               </div>
             );
           })}
@@ -730,6 +719,7 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
     </div>
   );
 }
+
 
 
 function Stat({ label, value, emphasis }: { label: string; value: string; emphasis?: boolean }) {
