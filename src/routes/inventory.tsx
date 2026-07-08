@@ -559,11 +559,13 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
     enabled: !loading && !!session?.access_token,
   });
 
-  // Items for the "New order" builder — no longer front-and-center on this tab.
+  // Items for the "New order" builder. Key MUST start with "inventory" so the
+  // sync-bus "inventory" domain invalidates it when items are added/edited.
   const { data: items = [] } = useQuery<Item[]>({
-    queryKey: ["inventory-orders-tab-items", trailerScope ?? "company"],
+    queryKey: ["inventory", "orders-tab-picker", trailerScope ?? "company"],
     queryFn: () => listItems({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
     enabled: !loading && !!session?.access_token,
+    staleTime: 0,
   });
 
   const trailerLabel = trailerScope
@@ -624,7 +626,7 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
             <History className="h-3.5 w-3.5" /> History
           </button>
-          <button onClick={() => setOrderOpen(true)}
+          <button onClick={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); setOrderOpen(true); }}
             className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold">
             <Plus className="h-3.5 w-3.5" /> New order
           </button>
@@ -638,7 +640,7 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
         <Card className="p-8 text-center">
           <div className="label-caps text-muted-foreground mb-1">All clear</div>
           <div className="text-sm text-muted-foreground">No open orders waiting to be fulfilled.</div>
-          <button onClick={() => setOrderOpen(true)}
+          <button onClick={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); setOrderOpen(true); }}
             className="mt-4 inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold">
             <Plus className="h-3.5 w-3.5" /> Create a new order
           </button>
