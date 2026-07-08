@@ -640,7 +640,7 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
         <Card className="p-8 text-center">
           <div className="label-caps text-muted-foreground mb-1">All clear</div>
           <div className="text-sm text-muted-foreground">No open orders waiting to be fulfilled.</div>
-          <button onClick={() => setOrderOpen(true)}
+          <button onClick={() => { qc.invalidateQueries({ queryKey: ["inventory"] }); setOrderOpen(true); }}
             className="mt-4 inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold">
             <Plus className="h-3.5 w-3.5" /> Create a new order
           </button>
