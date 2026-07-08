@@ -492,8 +492,8 @@ function AlertDetailDialog({ alertId, isOwner, onClose, onDone }: { alertId: str
             <>
               {alert?.type === "inventory_order" && (
                 <>
-                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_ordered")} disabled={mutation.isPending}>Mark Ordered</Button>
-                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_received")} disabled={mutation.isPending}>Mark Received</Button>
+                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_ordered")} disabled={mutation.isPending}>Mark Picked Up</Button>
+                  <Button size="sm" variant="outline" onClick={() => mutation.mutate("mark_received")} disabled={mutation.isPending}>Mark Delivered</Button>
                 </>
               )}
               <Button size="sm" variant="outline" onClick={() => mutation.mutate("request_changes")} disabled={mutation.isPending}>Request Changes</Button>
