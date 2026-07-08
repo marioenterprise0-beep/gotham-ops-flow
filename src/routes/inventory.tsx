@@ -66,6 +66,7 @@ const TABS = [
   { key: "live-counts",   label: "Live Counts",   icon: Boxes },
   { key: "count-guide",   label: "Count Guide",   icon: BookOpen },
   { key: "orders",        label: "Orders",        icon: Truck },
+  { key: "drafts",        label: "Drafts",        icon: FileText },
   { key: "approvals",     label: "Approvals",     icon: ClipboardList },
   { key: "configuration", label: "Configuration", icon: SettingsIcon },
 ] as const;
