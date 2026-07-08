@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { listInventory, receiveStock, logWaste, submitCount, upsertInventoryItem, deleteInventoryItem, archiveInventoryItem, restoreInventoryItem, scanInventoryDependencies, listInventoryCategories, createInventoryCategory, archiveInventoryCategory } from "@/lib/inventory.functions";
 import { submitInventoryChangeRequest } from "@/lib/inventory-changes.functions";
-import { createInventoryOrder, listInventoryOrders, submitDraftInventoryOrder } from "@/lib/inventory-orders.functions";
+import { createInventoryOrder, listInventoryOrders, submitDraftInventoryOrder, decideInventoryOrder } from "@/lib/inventory-orders.functions";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
@@ -542,22 +542,27 @@ function LiveCountsTab() {
   );
 }
 
-/* =================== ORDERS TAB (simple) =================== */
+/* =================== ORDERS TAB — pending submitted orders =================== */
 
-type OrderRow = {
-  id: string; name: string; category: string; unit: string;
-  vendor: string | null; pack_size: string | null;
-  current_qty: number; par_level: number; low_threshold: number;
-  preferred_order_qty: number;
-};
+const PENDING_STATUSES = ["submitted", "pending_owner_review", "approved", "ordered"] as const;
 
 function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void }) {
   const qc = useQueryClient();
   const { trailerScope, trailers, session, loading } = useRole();
-  const list = useServerFn(listInventory);
-  const { data: items = [], isLoading } = useQuery<OrderRow[]>({
-    queryKey: ["inventory-orders-tab", trailerScope ?? "company"],
-    queryFn: () => list({ data: { trailerId: trailerScope } }) as Promise<OrderRow[]>,
+  const listOrders = useServerFn(listInventoryOrders);
+  const listItems = useServerFn(listInventory);
+  const decide = useServerFn(decideInventoryOrder);
+
+  const { data: orders = [], isLoading, refetch } = useQuery<any[]>({
+    queryKey: ["inv-orders", "pending", trailerScope ?? "all"],
+    queryFn: () => listOrders({ data: { scope: "all" } }) as any,
+    enabled: !loading && !!session?.access_token,
+  });
+
+  // Items for the "New order" builder — no longer front-and-center on this tab.
+  const { data: items = [] } = useQuery<Item[]>({
+    queryKey: ["inventory-orders-tab-items", trailerScope ?? "company"],
+    queryFn: () => listItems({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
     enabled: !loading && !!session?.access_token,
   });
 
@@ -565,97 +570,63 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
     ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
     : "All trailers · Company";
 
-  const [filter, setFilter] = useState<"needs" | "all">("needs");
   const [orderOpen, setOrderOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const recommendedFor = (it: OrderRow) => {
-    const s = statusOf(it as unknown as Item);
-    if (s === "OK" || s === "OVERSTOCKED") return 0;
-    const par = Number(it.par_level) || 0;
-    const onHand = Number(it.current_qty) || 0;
-    const gap = Math.max(0, par - onHand);
-    const preferred = Number(it.preferred_order_qty) || 0;
-    return preferred > 0 ? preferred : gap;
-  };
+  const pending = useMemo(() => {
+    const scoped = trailerScope
+      ? orders.filter((o) => o.trailer_id === trailerScope || o.trailer_id == null)
+      : orders;
+    return scoped.filter((o: any) => (PENDING_STATUSES as readonly string[]).includes(o.status));
+  }, [orders, trailerScope]);
 
-  const visible = useMemo(() => {
-    const sorted = [...items].sort((a, b) => {
-      const sa = statusOf(a as unknown as Item);
-      const sb = statusOf(b as unknown as Item);
-      const rank = (s: Status) => s === "CRITICAL" ? 0 : s === "LOW" ? 1 : s === "OVERSTOCKED" ? 3 : 2;
-      const diff = rank(sa) - rank(sb);
-      return diff !== 0 ? diff : a.name.localeCompare(b.name);
-    });
-    if (filter === "all") return sorted;
-    return sorted.filter((it) => recommendedFor(it) > 0);
-  }, [items, filter]);
-
-  const needsCount = items.filter((it) => recommendedFor(it) > 0).length;
-
-  const createOrder = useServerFn(createInventoryOrder);
-
-  // Editable qty per item (keyed by item id). Empty = use recommended; 0 = exclude.
-  const [qtyMap, setQtyMap] = useState<Record<string, string>>({});
-  const qtyFor = (it: OrderRow) => {
-    const raw = qtyMap[it.id];
-    if (raw !== undefined) return raw === "" ? 0 : Number(raw);
-    return recommendedFor(it);
-  };
-
-  const rowsToOrder = useMemo(() =>
-    visible
-      .map((it) => ({ it, qty: qtyFor(it) }))
-      .filter((r) => r.qty > 0),
-    [visible, qtyMap],
-  );
-
-  const orderAllMut = useMutation({
-    mutationFn: async () => {
-      const rows = rowsToOrder.map(({ it, qty }) => ({
-        itemId: it.id,
-        itemName: it.name,
-        category: it.category,
-        unit: it.unit,
-        currentQty: Number(it.current_qty),
-        parQty: Number(it.par_level),
-        requestedQty: qty,
-        urgency: (Number(it.current_qty) <= Number(it.low_threshold) ? "critical" : "normal") as any,
-      }));
-      if (rows.length === 0) throw new Error("Set a quantity on at least one item.");
-      return createOrder({ data: { trailerId: trailerScope, submit: true, items: rows } }) as any;
-    },
+  const receiveMut = useMutation({
+    mutationFn: (id: string) => decide({ data: { id, decision: "received" as any } }) as any,
     onSuccess: () => {
-      toast.success("Order submitted — owner notified");
-      setQtyMap({});
+      toast.success("Order marked received — stock updated");
       syncDomains(qc, "orders", "inventory", "alerts");
+      refetch();
     },
-    onError: (e: any) => toast.error(e?.message ?? "Failed to submit order"),
+    onError: (e: any) => toast.error(e?.message ?? "Failed to mark received"),
   });
+
+  const cancelMut = useMutation({
+    mutationFn: (id: string) => decide({ data: { id, decision: "cancelled" as any } }) as any,
+    onSuccess: () => {
+      toast.success("Order cancelled");
+      syncDomains(qc, "orders", "alerts");
+      refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Failed to cancel"),
+  });
+
+  const statusLabel = (s: string) =>
+    s === "submitted" ? "Awaiting owner"
+    : s === "pending_owner_review" ? "Awaiting owner"
+    : s === "approved" ? "Approved — ready to pick up"
+    : s === "ordered" ? "Picked up — awaiting delivery"
+    : s;
+
+  const statusToneFor = (s: string): "warning" | "success" | "info" | "neutral" =>
+    s === "approved" ? "success"
+    : s === "ordered" ? "info"
+    : "warning";
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex gap-2">
-          <button onClick={() => setFilter("needs")}
-            className={cn(
-              "rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]",
-              filter === "needs" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground",
-            )}>
-            Needs Order · {needsCount}
-          </button>
-          <button onClick={() => setFilter("all")}
-            className={cn(
-              "rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px]",
-              filter === "all" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground",
-            )}>
-            All items
-          </button>
+        <div>
+          <div className="label-caps text-muted-foreground">Fulfillment</div>
+          <h2 className="font-display text-lg text-foreground">OPEN ORDERS · {pending.length}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setHistoryOpen(true)}
             className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
-            <History className="h-3.5 w-3.5" /> My orders
+            <History className="h-3.5 w-3.5" /> History
+          </button>
+          <button onClick={() => setOrderOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> New order
           </button>
           <div className="text-xs font-semibold uppercase tracking-[1.2px] text-[var(--color-gold)] bg-[#0A0A0A] px-3 py-1.5 rounded-md">{trailerLabel}</div>
         </div>
@@ -663,62 +634,100 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
 
       {(loading || isLoading) && <Card>Loading…</Card>}
 
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-3 py-2 bg-secondary/40 border-b border-border">
-          <div className="label-caps text-muted-foreground text-[10px]">
-            {rowsToOrder.length} item{rowsToOrder.length === 1 ? "" : "s"} in this order
-          </div>
-          <button
-            onClick={() => orderAllMut.mutate()}
-            disabled={orderAllMut.isPending || rowsToOrder.length === 0}
-            className="shrink-0 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-1.5 text-xs font-semibold inline-flex items-center gap-2 disabled:opacity-40"
-          >
-            <Truck className="h-3.5 w-3.5" /> {orderAllMut.isPending ? "Submitting…" : `Submit Order (${rowsToOrder.length})`}
+      {!isLoading && pending.length === 0 && (
+        <Card className="p-8 text-center">
+          <div className="label-caps text-muted-foreground mb-1">All clear</div>
+          <div className="text-sm text-muted-foreground">No open orders waiting to be fulfilled.</div>
+          <button onClick={() => setOrderOpen(true)}
+            className="mt-4 inline-flex items-center gap-1 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-2 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> Create a new order
           </button>
-        </div>
+        </Card>
+      )}
 
-        <div className="divide-y divide-border">
-          {visible.map((it) => {
-            const qty = qtyFor(it);
-            const raw = qtyMap[it.id];
-            const displayValue = raw !== undefined ? raw : (recommendedFor(it) > 0 ? String(recommendedFor(it)) : "");
-            const included = qty > 0;
-            return (
-              <div key={it.id} className={cn("flex items-center gap-3 px-3 py-2.5", !included && "opacity-60")}>
-                <button
-                  onClick={() => onEditDetails(it.id)}
-                  className="min-w-0 flex-1 text-left text-sm font-semibold truncate hover:text-[var(--color-gold)]"
-                  title="Edit item details"
-                >
-                  {it.name}
-                </button>
-                <input
-                  type="number"
-                  min="0"
-                  value={displayValue}
-                  onChange={(e) => setQtyMap((m) => ({ ...m, [it.id]: e.target.value }))}
-                  placeholder="0"
-                  className="w-20 h-9 rounded-md border border-border bg-card px-2 text-sm text-right tabular-nums font-semibold"
-                />
-                <span className="w-14 text-xs text-muted-foreground">{it.unit}</span>
+      <div className="space-y-4">
+        {pending.map((o: any) => {
+          const items = o.items ?? [];
+          const critical = items.filter((i: any) => i.urgency === "critical" || i.urgency === "emergency").length;
+          const creatorLabel = o.created_by_name ?? "";
+          return (
+            <Card key={o.id} className="p-0 overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-secondary/40 border-b border-border flex-wrap">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <StatusPill tone={statusToneFor(o.status)}>{statusLabel(o.status)}</StatusPill>
+                    {critical > 0 && <StatusPill tone="danger">{critical} critical</StatusPill>}
+                    <span className="text-sm font-semibold">{items.length} item{items.length === 1 ? "" : "s"}</span>
+                  </div>
+                  <div className="label-caps text-muted-foreground mt-1 text-[10px]">
+                    Submitted {new Date(o.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    {creatorLabel ? ` · by ${creatorLabel}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Cancel this order (${items.length} items)?`)) cancelMut.mutate(o.id);
+                    }}
+                    disabled={cancelMut.isPending}
+                    className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-[var(--color-danger)] disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => receiveMut.mutate(o.id)}
+                    disabled={receiveMut.isPending}
+                    className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 py-2 text-xs font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Truck className="h-3.5 w-3.5" />
+                    {receiveMut.isPending && receiveMut.variables === o.id ? "Fulfilling…" : `Fulfill order (${items.length})`}
+                  </button>
+                </div>
               </div>
-            );
-          })}
-          {!isLoading && visible.length === 0 && (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              {filter === "needs" ? "Nothing needs ordering right now." : "No items to display."}
-            </div>
-          )}
-        </div>
-      </Card>
 
-      {orderOpen && <OrderBuilderModal items={items as unknown as Item[]} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => syncDomains(qc, "orders", "inventory", "alerts")} />}
+              {o.notes && (
+                <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border bg-card">
+                  Note: {o.notes}
+                </div>
+              )}
+
+              <div className="divide-y divide-border">
+                {items.map((it: any) => (
+                  <div key={it.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <button
+                      onClick={() => it.item_id && onEditDetails(it.item_id)}
+                      disabled={!it.item_id}
+                      className={cn("min-w-0 flex-1 text-left text-sm font-semibold truncate", it.item_id && "hover:text-[var(--color-gold)]")}
+                      title={it.item_id ? "Edit item details" : ""}
+                    >
+                      {it.item_name}
+                      {it.reason && <span className="ml-2 text-[10px] font-normal text-muted-foreground">({it.reason})</span>}
+                    </button>
+                    {(it.urgency === "critical" || it.urgency === "emergency") && (
+                      <StatusPill tone="danger">{it.urgency}</StatusPill>
+                    )}
+                    <span className="tabular-nums text-sm font-semibold text-[var(--color-gold)] shrink-0">
+                      {Number(it.requested_qty)} <span className="text-xs text-muted-foreground font-normal">{it.unit ?? ""}</span>
+                    </span>
+                  </div>
+                ))}
+                {items.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-muted-foreground">No items on this order.</div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {orderOpen && <OrderBuilderModal items={items as unknown as Item[]} trailerId={trailerScope} onClose={() => setOrderOpen(false)} onDone={() => { syncDomains(qc, "orders", "inventory", "alerts"); refetch(); }} />}
       {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
 
       <div className="h-6" />
     </div>
   );
 }
+
 
 
 
