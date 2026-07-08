@@ -990,7 +990,6 @@ function OrderBuilderModal({ items, trailerId, onClose, onDone }: { items: Item[
 
         <div className="mt-5 flex items-center justify-end gap-2">
           <button onClick={onClose} className="rounded-md px-3 py-2 text-sm border border-border">Cancel</button>
-          <button disabled={rows.length === 0 || m.isPending} onClick={() => m.mutate(false)} className="rounded-md px-3 py-2 text-sm border border-border disabled:opacity-50">Save Draft</button>
           <button disabled={rows.length === 0 || m.isPending} onClick={() => m.mutate(true)}
             className="rounded-md px-4 py-2 text-sm font-semibold bg-[var(--color-gold)] text-[#0A0A0A] inline-flex items-center gap-2 disabled:opacity-50">
             <Truck className="h-4 w-4" /> Submit Order
