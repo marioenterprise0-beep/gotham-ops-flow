@@ -1,0 +1,1 @@
+REVOKE UPDATE (sop_accepted_at, training_completed_at, handbook_acknowledged_at, last_login_at) ON public.profiles FROM authenticated;
