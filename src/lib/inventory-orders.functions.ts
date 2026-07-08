@@ -209,3 +209,30 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// Owner-only: force a draft order into "submitted" so the DB trigger fires
+// the owner alert + email dispatch. Used when a crew member accidentally
+// saved as draft instead of submitting.
+export const submitDraftInventoryOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { isOwner } = await getRoles(supabase, userId);
+    if (!isOwner) throw new Error("Owner role required");
+
+    const { data: order, error: ge } = await supabase.from("inventory_orders")
+      .select("status").eq("id", data.id).single();
+    if (ge) throw ge;
+    if (order.status !== "draft") {
+      throw new Error(`Order is already ${order.status}; only drafts can be submitted here.`);
+    }
+
+    // BEFORE UPDATE trigger flips status → 'pending_owner_review' and inserts
+    // the alert; alert-email-dispatch then sends the owner email.
+    const { error: ue } = await supabase.from("inventory_orders")
+      .update({ status: "submitted" }).eq("id", data.id);
+    if (ue) throw ue;
+
+    return { ok: true };
+  });
