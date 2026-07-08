@@ -559,11 +559,13 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
     enabled: !loading && !!session?.access_token,
   });
 
-  // Items for the "New order" builder — no longer front-and-center on this tab.
+  // Items for the "New order" builder. Key MUST start with "inventory" so the
+  // sync-bus "inventory" domain invalidates it when items are added/edited.
   const { data: items = [] } = useQuery<Item[]>({
-    queryKey: ["inventory-orders-tab-items", trailerScope ?? "company"],
+    queryKey: ["inventory", "orders-tab-picker", trailerScope ?? "company"],
     queryFn: () => listItems({ data: { trailerId: trailerScope } }) as Promise<Item[]>,
     enabled: !loading && !!session?.access_token,
+    staleTime: 0,
   });
 
   const trailerLabel = trailerScope
