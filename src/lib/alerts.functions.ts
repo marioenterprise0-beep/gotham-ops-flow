@@ -132,7 +132,7 @@ export const actOnAlert = createServerFn({ method: "POST" })
     if (data.action === "approve") patch = { status: "approved" };
     else if (data.action === "decline") patch = { status: "declined" };
     else if (data.action === "request_changes") patch = { status: "pending" };
-    else if (data.action === "resolve" || data.action === "mark_received") {
+    else if (data.action === "resolve" || data.action === "mark_received" || data.action === "mark_ordered") {
       patch = { status: "resolved", resolved_by: userId, resolved_at: new Date().toISOString(), resolution: data.note ?? data.action };
     } else if (data.action === "review") {
       patch = { status: alert.status === "open" ? "pending" : alert.status };
