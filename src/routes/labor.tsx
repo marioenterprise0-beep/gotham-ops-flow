@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests, getPayrollDetail } from "@/lib/labor.functions";
+import { listPendingAvailability, decideAvailability } from "@/lib/schedule.functions";
 import { ChevronLeft, ChevronRight, Check, X, MessageSquare, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn, fmtTime12 } from "@/lib/utils";
