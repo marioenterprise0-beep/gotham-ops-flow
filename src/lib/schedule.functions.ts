@@ -1368,61 +1368,16 @@ export const decideAvailability = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { data: row, error } = await supabase
-      .from("availability_blocks")
-      .update({
-        status: data.decision,
-        decided_by: userId,
-        decided_at: new Date().toISOString(),
-        decision_note: data.note ?? null,
-      })
-      .eq("id", data.id)
-      .select("*")
-      .single();
+
+    // Atomic: block update + decision alert commit or roll back together.
+    const { data: row, error } = await supabase.rpc("decide_availability_atomic" as any, {
+      _id: data.id,
+      _decision: data.decision,
+      _note: data.note ?? "",
+    });
     if (error) throw new Error(error.message);
-
-    const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
-
-    await supabase.from("alerts").insert({
-      type: data.decision === "approved" ? "availability_approved" : "availability_declined",
-      title: `Unavailability ${data.decision} — ${row.block_date}`,
-      description: data.note ?? null,
-      source_module: "availability",
-      source_id: row.id,
-      trailer_id: row.trailer_id,
-      created_by: userId,
-      assigned_user_id: row.user_id,
-      assigned_role: "manager",
-      priority: "normal",
-      status: "pending",
-      payload: {
-        decision: data.decision,
-        block_date: row.block_date,
-        decision_reason: data.note ?? null,
-        decided_by_name: decider?.display_name ?? "Management",
-      },
-    } as any);
-
     return row;
   });
-
-
-
-// ---------- Sales target ----------
-
-export const setScheduleSalesTarget = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), salesTarget: z.number().positive() }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    const { supabase, userId } = context;
-    await requireManager(supabase, userId);
-    const { error } = await supabase
-      .from("schedules")
-      .update({ sales_target: data.salesTarget })
-      .eq("id", data.id);
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
