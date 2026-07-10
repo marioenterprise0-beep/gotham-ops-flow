@@ -11,7 +11,7 @@ interface Props {
 
 const Email = ({ recipient_name, block_date, decided_by, decision_reason }: Props) => (
   <BrandLayout preview="Unavailability declined">
-    <StatusBadge variant="danger" label="Declined" />
+    <StatusBadge variant="critical" label="Declined" />
     <Heading style={styles.h1}>Unavailability request declined</Heading>
     <Text style={styles.text}>
       {recipient_name ? `Hi ${recipient_name}, your` : 'Your'} request to be marked unavailable
