@@ -1253,7 +1253,7 @@ export const listAvailabilityForRange = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: rows, error } = await supabase
       .from("availability_blocks")
-      .select("id, user_id, block_date, all_day, reason")
+      .select("id, user_id, block_date, all_day, reason, status, decided_by, decided_at, decision_note, trailer_id, schedule_id")
       .gte("block_date", data.startDate)
       .lte("block_date", data.endDate);
     if (error) throw new Error(error.message);
@@ -1272,17 +1272,78 @@ export const upsertAvailability = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase.from("availability_blocks").upsert(
-      {
-        user_id: userId,
-        block_date: data.blockDate,
-        all_day: true,
-        reason: data.reason ?? null,
-      },
-      { onConflict: "user_id,block_date" },
-    );
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("trailer_id, display_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const trailerId: string | null = profile?.trailer_id ?? null;
+
+    // If a published/locked schedule covers this date, mark as pending
+    // (owner/manager must approve). Otherwise auto-approve.
+    let activeSched: { id: string; status: string; name: string | null } | null = null;
+    {
+      let q = supabase
+        .from("schedules")
+        .select("id, status, name, trailer_id")
+        .is("archived_at", null)
+        .in("status", ["published", "locked"])
+        .lte("start_date", data.blockDate)
+        .gte("end_date", data.blockDate);
+      if (trailerId) q = q.or(`trailer_id.eq.${trailerId},trailer_id.is.null`);
+      const { data: rows } = await q.limit(1);
+      if (rows && rows.length > 0) activeSched = rows[0] as any;
+    }
+
+    const requiresApproval = !!activeSched;
+    const status: "pending" | "approved" = requiresApproval ? "pending" : "approved";
+
+    const { data: row, error } = await supabase
+      .from("availability_blocks")
+      .upsert(
+        {
+          user_id: userId,
+          block_date: data.blockDate,
+          all_day: true,
+          reason: data.reason ?? null,
+          status,
+          trailer_id: trailerId,
+          schedule_id: activeSched?.id ?? null,
+          decided_by: null,
+          decided_at: null,
+          decision_note: null,
+        },
+        { onConflict: "user_id,block_date" },
+      )
+      .select("*")
+      .single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+
+    if (requiresApproval) {
+      await supabase.from("alerts").insert({
+        type: "availability_request",
+        title: "Unavailability request",
+        description: `${data.blockDate}${data.reason ? ` · ${data.reason}` : ""}`,
+        source_module: "availability",
+        source_id: row.id,
+        trailer_id: trailerId,
+        created_by: userId,
+        assigned_role: "manager",
+        priority: "normal",
+        status: "pending",
+        payload: {
+          request_id: row.id,
+          block_date: data.blockDate,
+          reason: data.reason ?? null,
+          schedule_name: activeSched?.name ?? null,
+          schedule_status: activeSched?.status ?? null,
+          employee_name: profile?.display_name ?? "Employee",
+        },
+      } as any);
+    }
+
+    return { ok: true, status, requiresApproval };
   });
 
 export const deleteAvailability = createServerFn({ method: "POST" })
@@ -1298,6 +1359,82 @@ export const deleteAvailability = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ---------- Availability approval (owner/manager) ----------
+
+export const listPendingAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    let q = supabase
+      .from("availability_blocks")
+      .select("id, user_id, block_date, reason, status, trailer_id, schedule_id, created_at, decided_by, decided_at, decision_note")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (data.trailerId) q = q.eq("trailer_id", data.trailerId);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const ids = Array.from(new Set((rows ?? []).map((r: any) => r.user_id)));
+    const { data: profs } = ids.length
+      ? await supabase.from("profiles").select("id, display_name").in("id", ids)
+      : { data: [] as any[] };
+    const pmap = new Map<string, string>((profs ?? []).map((p: any) => [p.id, p.display_name ?? "Crew"]));
+    return (rows ?? []).map((r: any) => ({ ...r, employee_name: pmap.get(r.user_id) ?? "Crew" }));
+  });
+
+export const decideAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      id: z.string().uuid(),
+      decision: z.enum(["approved", "declined"]),
+      note: z.string().max(500).optional(),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { data: row, error } = await supabase
+      .from("availability_blocks")
+      .update({
+        status: data.decision,
+        decided_by: userId,
+        decided_at: new Date().toISOString(),
+        decision_note: data.note ?? null,
+      })
+      .eq("id", data.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+
+    await supabase.from("alerts").insert({
+      type: "availability_decided",
+      title: `Unavailability ${data.decision} — ${row.block_date}`,
+      description: data.note ?? null,
+      source_module: "availability",
+      source_id: row.id,
+      trailer_id: row.trailer_id,
+      created_by: userId,
+      assigned_user_id: row.user_id,
+      assigned_role: "manager",
+      priority: "normal",
+      status: "pending",
+      payload: {
+        decision: data.decision,
+        block_date: row.block_date,
+        decision_reason: data.note ?? null,
+        decided_by_name: decider?.display_name ?? "Management",
+      },
+    } as any);
+
+    return row;
+  });
+
+
 
 // ---------- Sales target ----------
 
