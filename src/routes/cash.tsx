@@ -218,56 +218,12 @@ function CashPage() {
           </Button>
         ) : null
       } />
-      <Card className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
-              <th className="py-2 pr-3">Drawer</th>
-              <th className="py-2 pr-3">Status</th>
-              <th className="py-2 pr-3">Opened</th>
-              <th className="py-2 pr-3">Closed</th>
-              <th className="py-2 pr-3">Sales</th>
-              <th className="py-2 pr-3">Counted</th>
-              <th className="py-2 pr-3">Variance</th>
-              <th className="py-2 pr-3">Review</th>
-              <th className="py-2 pr-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((s) => {
-              const drawer = drawers.find((d) => d.id === s.drawer_id);
-              const v = Number(s.variance ?? 0);
-              const tone = s.status === "open" ? "info" : v === 0 ? "success" : Math.abs(v) > 5 ? "danger" : "warning";
-              return (
-                <tr key={s.id} className="border-b border-border/50">
-                  <td className="py-2 pr-3 font-medium">{drawer?.name ?? "—"}</td>
-                  <td className="py-2 pr-3"><StatusPill tone={s.status === "open" ? "info" : s.status === "pending" ? "warning" : "neutral"}>{s.status}</StatusPill></td>
-                  <td className="py-2 pr-3 text-muted-foreground">{new Date(s.opened_at).toLocaleString()}</td>
-                  <td className="py-2 pr-3 text-muted-foreground">{s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"}</td>
-                  <td className="py-2 pr-3">{s.total_cash_sales != null ? money(s.total_cash_sales) : "—"}</td>
-                  <td className="py-2 pr-3">{s.counted_amount != null ? money(s.counted_amount) : "—"}</td>
-                  <td className="py-2 pr-3">
-                    {s.variance != null ? <StatusPill tone={tone as any}>{v >= 0 ? "+" : ""}{money(v)}</StatusPill> : "—"}
-                  </td>
-                  <td className="py-2 pr-3">
-                    {s.status !== "open" ? <StatusPill tone={
-                      s.owner_review === "approved" ? "success" :
-                      s.owner_review === "correction" ? "warning" :
-                      s.owner_review === "flagged" ? "danger" : "neutral"
-                    }>{s.owner_review}</StatusPill> : "—"}
-                  </td>
-                  <td className="py-2 pr-3">
-                    <button onClick={() => setDetailFor(s.id)} className="text-xs underline text-foreground/70 hover:text-foreground">Open</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {sessions.length === 0 && (
-              <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No drawer sessions yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <StoreActivitiesTable
+        sessions={sessions}
+        drawers={drawers}
+        onOpenSession={(sid) => setDetailFor(sid)}
+      />
+
 
       {addOpen && trailerId && (
         <AddDrawerDialog trailerId={trailerId} onClose={() => setAddOpen(false)} onSaved={() => {
