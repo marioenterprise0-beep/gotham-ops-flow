@@ -82,6 +82,22 @@ export const toggleCashDrawer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const renameCashDrawer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    drawerId: z.string().uuid(),
+    name: z.string().trim().min(1).max(40).regex(/^[a-zA-Z0-9 _-]+$/, "Only letters, numbers, spaces, _ and -"),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { requireOwner } = await import("./auth-guards");
+    await requireOwner(supabase, userId);
+    const { error } = await supabase
+      .from("cash_drawers").update({ name: data.name }).eq("id", data.drawerId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
 // ---------------- Sessions ----------------
 
 export const openDrawerSession = createServerFn({ method: "POST" })
