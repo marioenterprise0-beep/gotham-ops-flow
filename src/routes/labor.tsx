@@ -476,6 +476,33 @@ function TimeOffList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
   );
 }
 
+function AvailabilityList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
+  if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No unavailability requests.</Card>;
+  return (
+    <Card className="mt-3 p-0 overflow-hidden">
+      {items.map((a, i) => (
+        <div key={a.id} className={cn("p-3.5", i && "border-t border-border")}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{a.employee_name} · {a.block_date}</div>
+              <div className="text-xs text-muted-foreground">{a.reason || "No reason provided"}</div>
+              {a.decision_note && (
+                <div className="text-[11px] text-muted-foreground mt-0.5">Note: {a.decision_note}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusPill tone={a.status === "approved" ? "success" : a.status === "declined" ? "danger" : "warning"}>{a.status}</StatusPill>
+              {a.status === "pending" && <DecisionButtons id={a.id} isOwner={isOwner} decideFn={decideAvailability} qkey="labor-availability" />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+
+
 function NotesList({ items }: { items: any[] }) {
   if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No notes.</Card>;
   return (
