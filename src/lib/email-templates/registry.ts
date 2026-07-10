@@ -76,4 +76,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'daily-digest': dailyDigest,
   'night-summary': nightSummary,
   'shift-reminder': shiftReminder,
+  'availability-request': availabilityRequest,
+  'availability-approved': availabilityApproved,
+  'availability-declined': availabilityDeclined,
 }
