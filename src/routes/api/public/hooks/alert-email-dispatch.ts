@@ -240,13 +240,26 @@ const MAPPINGS: Record<string, Mapping> = {
     }),
   },
 
-  availability_decided: {
+  availability_approved: {
     template: 'availability-approved',
     category: 'time_clock',
-    subject: (alert) =>
-      alert.payload?.decision === 'declined'
-        ? 'Unavailability declined'
-        : 'Unavailability approved',
+    subject: () => 'Unavailability approved',
+    recipients: async (alert) => {
+      if (!alert.assigned_user_id) return []
+      const rec = await getEmployee(alert.assigned_user_id)
+      return rec ? [rec] : []
+    },
+    buildData: async (alert) => ({
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
+      decided_by: alert.payload?.decided_by_name ?? 'Management',
+      decision_reason: alert.payload?.decision_reason ?? undefined,
+    }),
+  },
+
+  availability_declined: {
+    template: 'availability-declined',
+    category: 'time_clock',
+    subject: () => 'Unavailability declined',
     recipients: async (alert) => {
       if (!alert.assigned_user_id) return []
       const rec = await getEmployee(alert.assigned_user_id)
