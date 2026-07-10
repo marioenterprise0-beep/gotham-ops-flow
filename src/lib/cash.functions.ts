@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { requireManager } from "@/lib/auth-guards";
+import { requireManager, requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -78,6 +78,21 @@ export const toggleCashDrawer = createServerFn({ method: "POST" })
     await requireManager(context.supabase, context.userId);
     const { error } = await context.supabase
       .from("cash_drawers").update({ enabled: data.enabled }).eq("id", data.drawerId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const renameCashDrawer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    drawerId: z.string().uuid(),
+    name: z.string().trim().min(1).max(40).regex(/^[a-zA-Z0-9 _-]+$/, "Only letters, numbers, spaces, _ and -"),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireOwner(supabase, userId);
+    const { error } = await supabase
+      .from("cash_drawers").update({ name: data.name }).eq("id", data.drawerId);
     if (error) throw error;
     return { ok: true };
   });

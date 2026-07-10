@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown, Trash2 } from "lucide-react";
+import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown, Trash2, Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -17,7 +17,7 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
-  editDrawerSession, archiveDrawer, scanDrawerDependencies,
+  editDrawerSession, archiveDrawer, scanDrawerDependencies, renameCashDrawer,
   attachDrawerClosePdf, getDrawerClosePdfUrl, sendDrawerCloseAlertEmail,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML, downloadCSV } from "@/lib/exports";
@@ -335,7 +335,28 @@ function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, o
   const isOpen = !!drawer.open_session;
   const scanFn = useServerFn(scanDrawerDependencies);
   const archiveFn = useServerFn(archiveDrawer);
+  const renameFn = useServerFn(renameCashDrawer);
   const [deleting, setDeleting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+
+  const handleRename = async () => {
+    const next = window.prompt(`Rename drawer "${drawer.name}"`, drawer.name)?.trim();
+    if (!next || next === drawer.name) return;
+    if (!/^[a-zA-Z0-9 _-]+$/.test(next) || next.length > 40) {
+      toast.error("Name must be 1–40 chars: letters, numbers, spaces, _ or -");
+      return;
+    }
+    try {
+      setRenaming(true);
+      await renameFn({ data: { drawerId: drawer.id, name: next } });
+      toast.success("Drawer renamed");
+      onDeleted();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to rename drawer");
+    } finally {
+      setRenaming(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -366,6 +387,17 @@ function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, o
           <div className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-[var(--color-gold)]" />
             <h3 className="font-semibold text-lg">{drawer.name}</h3>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={renaming}
+                title="Rename drawer"
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Float {money(drawer.starting_float)}</p>
         </div>
