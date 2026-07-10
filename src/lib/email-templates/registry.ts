@@ -31,6 +31,9 @@ import { template as criticalAlert } from './critical-alert'
 import { template as dailyDigest } from './daily-digest'
 import { template as nightSummary } from './night-summary'
 import { template as shiftReminder } from './shift-reminder'
+import { template as availabilityRequest } from './availability-request'
+import { template as availabilityApproved } from './availability-approved'
+import { template as availabilityDeclined } from './availability-declined'
 
 export interface TemplateEntry {
   component: ComponentType<any>
