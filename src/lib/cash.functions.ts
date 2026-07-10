@@ -702,7 +702,13 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
       </div>
     `;
 
-    const from = process.env.CASH_EMAIL_FROM || "Gotham Halal <onboarding@resend.dev>";
+    const FALLBACK_FROM = "Gotham Halal <onboarding@resend.dev>";
+    // Resend requires "email@example.com" or "Name <email@example.com>".
+    // Validate the env override; fall back if it's malformed so a bad secret doesn't break sends.
+    const fromRaw = (process.env.CASH_EMAIL_FROM || "").trim();
+    const fromValid = /^[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+$/.test(fromRaw)
+      || /^[^<>]+<\s*[^<>@\s]+@[^<>@\s]+\.[^<>@\s]+\s*>$/.test(fromRaw);
+    const from = fromValid ? fromRaw : FALLBACK_FROM;
     const body: Record<string, unknown> = { from, to: recipients, subject, html };
     if (attachment) body.attachments = [attachment];
 
