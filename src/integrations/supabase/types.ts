@@ -3585,6 +3585,29 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       current_user_trailer: { Args: never; Returns: string }
+      decide_availability_atomic: {
+        Args: { _decision: string; _id: string; _note: string }
+        Returns: {
+          all_day: boolean
+          block_date: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          reason: string | null
+          schedule_id: string | null
+          status: string
+          trailer_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "availability_blocks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -3652,6 +3675,38 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      request_availability_atomic: {
+        Args: {
+          _block_date: string
+          _employee_name: string
+          _reason: string
+          _requires_approval: boolean
+          _schedule_id: string
+          _schedule_name: string
+          _schedule_status: string
+          _trailer_id: string
+        }
+        Returns: {
+          all_day: boolean
+          block_date: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: string
+          reason: string | null
+          schedule_id: string | null
+          status: string
+          trailer_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "availability_blocks"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       run_clock_sweep: { Args: never; Returns: undefined }
       run_daily_rollover: {

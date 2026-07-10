@@ -1297,53 +1297,25 @@ export const upsertAvailability = createServerFn({ method: "POST" })
     }
 
     const requiresApproval = !!activeSched;
-    const status: "pending" | "approved" = requiresApproval ? "pending" : "approved";
 
-    const { data: row, error } = await supabase
-      .from("availability_blocks")
-      .upsert(
-        {
-          user_id: userId,
-          block_date: data.blockDate,
-          all_day: true,
-          reason: data.reason ?? null,
-          status,
-          trailer_id: trailerId,
-          schedule_id: activeSched?.id ?? null,
-          decided_by: null,
-          decided_at: null,
-          decision_note: null,
-        },
-        { onConflict: "user_id,block_date" },
-      )
-      .select("*")
-      .single();
+    // Atomic: availability_blocks upsert + companion alert commit or roll back together.
+    const { error } = await supabase.rpc("request_availability_atomic" as any, {
+      _block_date: data.blockDate,
+      _reason: data.reason ?? "",
+      _requires_approval: requiresApproval,
+      _trailer_id: trailerId,
+      _schedule_id: activeSched?.id ?? null,
+      _schedule_name: activeSched?.name ?? null,
+      _schedule_status: activeSched?.status ?? null,
+      _employee_name: profile?.display_name ?? "Employee",
+    });
     if (error) throw new Error(error.message);
 
-    if (requiresApproval) {
-      await supabase.from("alerts").insert({
-        type: "availability_request",
-        title: "Unavailability request",
-        description: `${data.blockDate}${data.reason ? ` · ${data.reason}` : ""}`,
-        source_module: "availability",
-        source_id: row.id,
-        trailer_id: trailerId,
-        created_by: userId,
-        assigned_role: "manager",
-        priority: "normal",
-        status: "pending",
-        payload: {
-          request_id: row.id,
-          block_date: data.blockDate,
-          reason: data.reason ?? null,
-          schedule_name: activeSched?.name ?? null,
-          schedule_status: activeSched?.status ?? null,
-          employee_name: profile?.display_name ?? "Employee",
-        },
-      } as any);
-    }
-
-    return { ok: true, status, requiresApproval };
+    return {
+      ok: true,
+      status: requiresApproval ? ("pending" as const) : ("approved" as const),
+      requiresApproval,
+    };
   });
 
 export const deleteAvailability = createServerFn({ method: "POST" })
@@ -1396,45 +1368,16 @@ export const decideAvailability = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
-    const { data: row, error } = await supabase
-      .from("availability_blocks")
-      .update({
-        status: data.decision,
-        decided_by: userId,
-        decided_at: new Date().toISOString(),
-        decision_note: data.note ?? null,
-      })
-      .eq("id", data.id)
-      .select("*")
-      .single();
+
+    // Atomic: block update + decision alert commit or roll back together.
+    const { data: row, error } = await supabase.rpc("decide_availability_atomic" as any, {
+      _id: data.id,
+      _decision: data.decision,
+      _note: data.note ?? "",
+    });
     if (error) throw new Error(error.message);
-
-    const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
-
-    await supabase.from("alerts").insert({
-      type: data.decision === "approved" ? "availability_approved" : "availability_declined",
-      title: `Unavailability ${data.decision} — ${row.block_date}`,
-      description: data.note ?? null,
-      source_module: "availability",
-      source_id: row.id,
-      trailer_id: row.trailer_id,
-      created_by: userId,
-      assigned_user_id: row.user_id,
-      assigned_role: "manager",
-      priority: "normal",
-      status: "pending",
-      payload: {
-        decision: data.decision,
-        block_date: row.block_date,
-        decision_reason: data.note ?? null,
-        decided_by_name: decider?.display_name ?? "Management",
-      },
-    } as any);
-
     return row;
   });
-
-
 
 // ---------- Sales target ----------
 
