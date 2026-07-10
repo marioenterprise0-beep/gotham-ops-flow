@@ -345,10 +345,14 @@ async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
   const sb = admin()
   const { data: session } = await sb
     .from('cash_drawer_sessions')
-    .select('variance, counted_amount, expected_amount, total_cash_sales, closed_by')
+    .select('variance, counted_amount, expected_amount, total_cash_sales, closed_by, drawer_id, notes')
     .eq('id', alert.source_id)
     .maybeSingle()
   if (!session) return null
+  const { data: drawer } = (session as any).drawer_id
+    ? await sb.from('cash_drawers').select('name').eq('id', (session as any).drawer_id).maybeSingle()
+    : { data: null }
+  const drawerName = (drawer as any)?.name ?? 'Cash drawer'
   const variance = Number(session.variance ?? 0)
   const isVariance = Math.abs(variance) >= 5
   return {
@@ -356,16 +360,20 @@ async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
     category: 'cash',
     subject: (_a, ctx) =>
       isVariance
-        ? `Cash variance ${variance >= 0 ? '+' : ''}${variance.toFixed(2)} — ${ctx.trailer.name}`
-        : `Drawer closed — ${ctx.trailer.name}`,
+        ? `Cash variance ${variance >= 0 ? '+' : ''}${variance.toFixed(2)} — ${drawerName} · ${ctx.trailer.name}`
+        : `${drawerName} closed — ${ctx.trailer.name}`,
     recipients: async () => getOwners(),
     buildData: async (_a, ctx) => ({
       trailer_name: ctx.trailer.name,
+      drawer_name: drawerName,
+      submitted_by: ctx.creator?.display_name ?? 'Manager',
       closed_by: ctx.creator?.display_name ?? 'Manager',
-      counted: session.counted_amount,
-      expected: session.expected_amount,
-      sales: session.total_cash_sales,
-      variance,
+      counted: Number(session.counted_amount ?? 0).toFixed(2),
+      expected: Number(session.expected_amount ?? 0).toFixed(2),
+      sales: Number(session.total_cash_sales ?? 0).toFixed(2),
+      variance: variance.toFixed(2),
+      reason: (session as any).notes ?? undefined,
+      session_id: alert.source_id,
       cta_url: `${SITE_URL}/cash`,
     }),
   }
