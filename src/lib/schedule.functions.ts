@@ -1378,6 +1378,22 @@ export const decideAvailability = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return row;
   });
+
+// ---------- Sales target ----------
+
+export const setScheduleSalesTarget = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), salesTarget: z.number().positive() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+    const { error } = await supabase
+      .from("schedules")
+      .update({ sales_target: data.salesTarget })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
