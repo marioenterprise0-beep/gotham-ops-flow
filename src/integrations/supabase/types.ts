@@ -305,27 +305,60 @@ export type Database = {
           all_day: boolean
           block_date: string
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
           id: string
           reason: string | null
+          schedule_id: string | null
+          status: string
+          trailer_id: string | null
           user_id: string
         }
         Insert: {
           all_day?: boolean
           block_date: string
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           id?: string
           reason?: string | null
+          schedule_id?: string | null
+          status?: string
+          trailer_id?: string | null
           user_id: string
         }
         Update: {
           all_day?: boolean
           block_date?: string
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           id?: string
           reason?: string | null
+          schedule_id?: string | null
+          status?: string
+          trailer_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "availability_blocks_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_blocks_trailer_id_fkey"
+            columns: ["trailer_id"]
+            isOneToOne: false
+            referencedRelation: "trailers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cash_drawer_sessions: {
         Row: {
