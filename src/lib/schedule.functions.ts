@@ -1297,53 +1297,25 @@ export const upsertAvailability = createServerFn({ method: "POST" })
     }
 
     const requiresApproval = !!activeSched;
-    const status: "pending" | "approved" = requiresApproval ? "pending" : "approved";
 
-    const { data: row, error } = await supabase
-      .from("availability_blocks")
-      .upsert(
-        {
-          user_id: userId,
-          block_date: data.blockDate,
-          all_day: true,
-          reason: data.reason ?? null,
-          status,
-          trailer_id: trailerId,
-          schedule_id: activeSched?.id ?? null,
-          decided_by: null,
-          decided_at: null,
-          decision_note: null,
-        },
-        { onConflict: "user_id,block_date" },
-      )
-      .select("*")
-      .single();
+    // Atomic: availability_blocks upsert + companion alert commit or roll back together.
+    const { error } = await supabase.rpc("request_availability_atomic" as any, {
+      _block_date: data.blockDate,
+      _reason: data.reason ?? "",
+      _requires_approval: requiresApproval,
+      _trailer_id: trailerId,
+      _schedule_id: activeSched?.id ?? null,
+      _schedule_name: activeSched?.name ?? null,
+      _schedule_status: activeSched?.status ?? null,
+      _employee_name: profile?.display_name ?? "Employee",
+    });
     if (error) throw new Error(error.message);
 
-    if (requiresApproval) {
-      await supabase.from("alerts").insert({
-        type: "availability_request",
-        title: "Unavailability request",
-        description: `${data.blockDate}${data.reason ? ` · ${data.reason}` : ""}`,
-        source_module: "availability",
-        source_id: row.id,
-        trailer_id: trailerId,
-        created_by: userId,
-        assigned_role: "manager",
-        priority: "normal",
-        status: "pending",
-        payload: {
-          request_id: row.id,
-          block_date: data.blockDate,
-          reason: data.reason ?? null,
-          schedule_name: activeSched?.name ?? null,
-          schedule_status: activeSched?.status ?? null,
-          employee_name: profile?.display_name ?? "Employee",
-        },
-      } as any);
-    }
-
-    return { ok: true, status, requiresApproval };
+    return {
+      ok: true,
+      status: requiresApproval ? ("pending" as const) : ("approved" as const),
+      requiresApproval,
+    };
   });
 
 export const deleteAvailability = createServerFn({ method: "POST" })
