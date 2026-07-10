@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown } from "lucide-react";
+import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -17,7 +17,7 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
-  editDrawerSession,
+  editDrawerSession, archiveDrawer, scanDrawerDependencies,
   attachDrawerClosePdf, getDrawerClosePdfUrl, sendDrawerCloseAlertEmail,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML, downloadCSV } from "@/lib/exports";
@@ -168,10 +168,12 @@ function CashPage() {
           <DrawerCard
             key={d.id}
             drawer={d}
+            isOwner={isOwner}
             onRequestOpen={() => setOpenFor(d)}
             onClose={() => setCloseFor(d)}
             onDrop={() => setDropFor(d)}
             onView={(sid) => setDetailFor(sid)}
+            onDeleted={() => syncDomains(qc, "cash")}
           />
         ))}
       </div>
@@ -321,14 +323,41 @@ function CashPage() {
   );
 }
 
-function DrawerCard({ drawer, onRequestOpen, onClose, onDrop, onView }: {
+function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, onDeleted }: {
   drawer: any;
+  isOwner: boolean;
   onRequestOpen: () => void;
   onClose: () => void;
   onDrop: () => void;
   onView: (sid: string) => void;
+  onDeleted: () => void;
 }) {
   const isOpen = !!drawer.open_session;
+  const scanFn = useServerFn(scanDrawerDependencies);
+  const archiveFn = useServerFn(archiveDrawer);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      const scan = await scanFn({ data: { id: drawer.id } });
+      const msg = scan.hasDependencies
+        ? `Delete "${drawer.name}"? It has ${scan.sessions} past session${scan.sessions === 1 ? "" : "s"}. The drawer will be archived and hidden; historical sessions stay in the audit log.`
+        : `Delete "${drawer.name}"? This drawer has no sessions.`;
+      if (!confirm(msg)) return;
+      setDeleting(true);
+      await archiveFn({ data: { id: drawer.id, reason: "Deleted by owner" } });
+      toast.success("Drawer deleted");
+      onDeleted();
+    } catch (e: any) {
+      if (e?.message === "HAS_OPEN_SESSION" || String(e?.message ?? "").includes("HAS_OPEN_SESSION")) {
+        toast.error("Close the drawer session before deleting.");
+      } else {
+        toast.error(e?.message ?? "Failed to delete drawer");
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <Card className="flex flex-col gap-3">
@@ -363,6 +392,18 @@ function DrawerCard({ drawer, onRequestOpen, onClose, onDrop, onView }: {
             <Button size="sm" variant="outline" onClick={onDrop}>Cash Drop</Button>
             <Button size="sm" variant="ghost" onClick={() => onView(drawer.open_session.id)}>Activity</Button>
           </>
+        )}
+        {isOwner && !isOpen && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto text-destructive hover:text-destructive"
+            disabled={deleting}
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
         )}
       </div>
     </Card>
