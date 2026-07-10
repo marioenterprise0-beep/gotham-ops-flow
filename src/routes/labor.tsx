@@ -85,6 +85,7 @@ function LaborPage() {
         pending = false;
         qc.invalidateQueries({ queryKey: ["labor-dash"] });
         qc.invalidateQueries({ queryKey: ["labor-reqs"] });
+        qc.invalidateQueries({ queryKey: ["labor-availability"] });
         qc.invalidateQueries({ queryKey: ["emp-week"] });
       }, 350);
     };
@@ -93,6 +94,7 @@ function LaborPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "time_punches" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "time_corrections" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "time_off_requests" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "availability_blocks" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "schedule_shifts" }, refresh)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
