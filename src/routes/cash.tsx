@@ -218,56 +218,12 @@ function CashPage() {
           </Button>
         ) : null
       } />
-      <Card className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
-              <th className="py-2 pr-3">Drawer</th>
-              <th className="py-2 pr-3">Status</th>
-              <th className="py-2 pr-3">Opened</th>
-              <th className="py-2 pr-3">Closed</th>
-              <th className="py-2 pr-3">Sales</th>
-              <th className="py-2 pr-3">Counted</th>
-              <th className="py-2 pr-3">Variance</th>
-              <th className="py-2 pr-3">Review</th>
-              <th className="py-2 pr-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((s) => {
-              const drawer = drawers.find((d) => d.id === s.drawer_id);
-              const v = Number(s.variance ?? 0);
-              const tone = s.status === "open" ? "info" : v === 0 ? "success" : Math.abs(v) > 5 ? "danger" : "warning";
-              return (
-                <tr key={s.id} className="border-b border-border/50">
-                  <td className="py-2 pr-3 font-medium">{drawer?.name ?? "—"}</td>
-                  <td className="py-2 pr-3"><StatusPill tone={s.status === "open" ? "info" : s.status === "pending" ? "warning" : "neutral"}>{s.status}</StatusPill></td>
-                  <td className="py-2 pr-3 text-muted-foreground">{new Date(s.opened_at).toLocaleString()}</td>
-                  <td className="py-2 pr-3 text-muted-foreground">{s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"}</td>
-                  <td className="py-2 pr-3">{s.total_cash_sales != null ? money(s.total_cash_sales) : "—"}</td>
-                  <td className="py-2 pr-3">{s.counted_amount != null ? money(s.counted_amount) : "—"}</td>
-                  <td className="py-2 pr-3">
-                    {s.variance != null ? <StatusPill tone={tone as any}>{v >= 0 ? "+" : ""}{money(v)}</StatusPill> : "—"}
-                  </td>
-                  <td className="py-2 pr-3">
-                    {s.status !== "open" ? <StatusPill tone={
-                      s.owner_review === "approved" ? "success" :
-                      s.owner_review === "correction" ? "warning" :
-                      s.owner_review === "flagged" ? "danger" : "neutral"
-                    }>{s.owner_review}</StatusPill> : "—"}
-                  </td>
-                  <td className="py-2 pr-3">
-                    <button onClick={() => setDetailFor(s.id)} className="text-xs underline text-foreground/70 hover:text-foreground">Open</button>
-                  </td>
-                </tr>
-              );
-            })}
-            {sessions.length === 0 && (
-              <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No drawer sessions yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
+      <StoreActivitiesTable
+        sessions={sessions}
+        drawers={drawers}
+        onOpenSession={(sid) => setDetailFor(sid)}
+      />
+
 
       {addOpen && trailerId && (
         <AddDrawerDialog trailerId={trailerId} onClose={() => setAddOpen(false)} onSaved={() => {
@@ -322,6 +278,159 @@ function CashPage() {
     </AppShell>
   );
 }
+
+function StoreActivitiesTable({ sessions, drawers, onOpenSession }: {
+  sessions: any[];
+  drawers: any[];
+  onOpenSession: (sid: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const drawerName = (id: string) => drawers.find((d) => d.id === id)?.name ?? "—";
+
+  // Group sessions by calendar day (based on opened_at)
+  const groups = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; sessions: any[] }>();
+    for (const s of sessions) {
+      const d = new Date(s.opened_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const label = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      if (!map.has(key)) map.set(key, { key, label, sessions: [] });
+      map.get(key)!.sessions.push(s);
+    }
+    // sort newest first
+    return Array.from(map.values()).sort((a, b) => (a.key < b.key ? 1 : -1));
+  }, [sessions]);
+
+  if (sessions.length === 0) {
+    return (
+      <Card className="p-6 text-center text-sm text-muted-foreground">
+        No drawer sessions yet.
+      </Card>
+    );
+  }
+
+  const sumBy = (arr: any[], k: string) => arr.reduce((s, x) => s + Number(x?.[k] ?? 0), 0);
+
+  return (
+    <div className="space-y-3">
+      {groups.map((g) => {
+        // Group day's sessions by drawer name (so renames like "morning shift"/"closing shift" show cleanly)
+        const byDrawer = new Map<string, any[]>();
+        for (const s of g.sessions) {
+          const name = drawerName(s.drawer_id);
+          if (!byDrawer.has(name)) byDrawer.set(name, []);
+          byDrawer.get(name)!.push(s);
+        }
+        const dayClosed = g.sessions.filter((s) => s.status !== "open");
+        const daySales = sumBy(dayClosed, "total_cash_sales");
+        const dayCounted = sumBy(dayClosed, "counted_amount");
+        const dayVariance = sumBy(dayClosed, "variance");
+        const isOpen = !!expanded[g.key];
+        const vTone = dayVariance === 0 ? "success" : Math.abs(dayVariance) > 5 ? "danger" : "warning";
+        return (
+          <Card key={g.key} className="overflow-hidden">
+            <button
+              onClick={() => setExpanded((p) => ({ ...p, [g.key]: !p[g.key] }))}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className={`inline-block transition-transform ${isOpen ? "rotate-90" : ""}`}>▸</span>
+                <div className="min-w-0">
+                  <div className="font-semibold">{g.label}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {Array.from(byDrawer.keys()).join(" • ")} · {g.sessions.length} session{g.sessions.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-sm shrink-0">
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Sales</div>
+                  <div className="font-semibold">{money(daySales)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Counted</div>
+                  <div className="font-semibold">{money(dayCounted)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Variance</div>
+                  <StatusPill tone={vTone as any}>{dayVariance >= 0 ? "+" : ""}{money(dayVariance)}</StatusPill>
+                </div>
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="border-t border-border bg-muted/20 divide-y divide-border/60">
+                {Array.from(byDrawer.entries()).map(([name, arr]) => {
+                  const closed = arr.filter((s) => s.status !== "open");
+                  const sSales = sumBy(closed, "total_cash_sales");
+                  const sCounted = sumBy(closed, "counted_amount");
+                  const sVar = sumBy(closed, "variance");
+                  const sTone = sVar === 0 ? "success" : Math.abs(sVar) > 5 ? "danger" : "warning";
+                  return (
+                    <div key={name} className="px-4 py-3">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div className="font-medium capitalize">{name}</div>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className="text-muted-foreground">Sales <span className="text-foreground font-semibold">{money(sSales)}</span></span>
+                          <span className="text-muted-foreground">Counted <span className="text-foreground font-semibold">{money(sCounted)}</span></span>
+                          <StatusPill tone={sTone as any}>{sVar >= 0 ? "+" : ""}{money(sVar)}</StatusPill>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                              <th className="py-1 pr-3">Status</th>
+                              <th className="py-1 pr-3">Opened</th>
+                              <th className="py-1 pr-3">Closed</th>
+                              <th className="py-1 pr-3">Sales</th>
+                              <th className="py-1 pr-3">Counted</th>
+                              <th className="py-1 pr-3">Variance</th>
+                              <th className="py-1 pr-3">Review</th>
+                              <th className="py-1 pr-3"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {arr.map((s) => {
+                              const v = Number(s.variance ?? 0);
+                              const tone = s.status === "open" ? "info" : v === 0 ? "success" : Math.abs(v) > 5 ? "danger" : "warning";
+                              return (
+                                <tr key={s.id} className="border-t border-border/40">
+                                  <td className="py-1.5 pr-3"><StatusPill tone={s.status === "open" ? "info" : s.status === "pending" ? "warning" : "neutral"}>{s.status}</StatusPill></td>
+                                  <td className="py-1.5 pr-3 text-muted-foreground">{new Date(s.opened_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</td>
+                                  <td className="py-1.5 pr-3 text-muted-foreground">{s.closed_at ? new Date(s.closed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—"}</td>
+                                  <td className="py-1.5 pr-3">{s.total_cash_sales != null ? money(s.total_cash_sales) : "—"}</td>
+                                  <td className="py-1.5 pr-3">{s.counted_amount != null ? money(s.counted_amount) : "—"}</td>
+                                  <td className="py-1.5 pr-3">{s.variance != null ? <StatusPill tone={tone as any}>{v >= 0 ? "+" : ""}{money(v)}</StatusPill> : "—"}</td>
+                                  <td className="py-1.5 pr-3">
+                                    {s.status !== "open" ? <StatusPill tone={
+                                      s.owner_review === "approved" ? "success" :
+                                      s.owner_review === "correction" ? "warning" :
+                                      s.owner_review === "flagged" ? "danger" : "neutral"
+                                    }>{s.owner_review}</StatusPill> : "—"}
+                                  </td>
+                                  <td className="py-1.5 pr-3">
+                                    <button onClick={() => onOpenSession(s.id)} className="text-[11px] underline text-foreground/70 hover:text-foreground">Open</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, onDeleted }: {
   drawer: any;
