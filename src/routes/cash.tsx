@@ -168,10 +168,12 @@ function CashPage() {
           <DrawerCard
             key={d.id}
             drawer={d}
+            isOwner={isOwner}
             onRequestOpen={() => setOpenFor(d)}
             onClose={() => setCloseFor(d)}
             onDrop={() => setDropFor(d)}
             onView={(sid) => setDetailFor(sid)}
+            onDeleted={() => syncDomains(qc, "cash")}
           />
         ))}
       </div>
