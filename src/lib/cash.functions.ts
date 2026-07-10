@@ -90,7 +90,6 @@ export const renameCashDrawer = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { requireOwner } = await import("./auth-guards");
     await requireOwner(supabase, userId);
     const { error } = await supabase
       .from("cash_drawers").update({ name: data.name }).eq("id", data.drawerId);
