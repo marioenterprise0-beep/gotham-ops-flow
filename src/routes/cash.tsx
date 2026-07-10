@@ -387,6 +387,17 @@ function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, o
           <div className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-[var(--color-gold)]" />
             <h3 className="font-semibold text-lg">{drawer.name}</h3>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={handleRename}
+                disabled={renaming}
+                title="Rename drawer"
+                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Float {money(drawer.starting_float)}</p>
         </div>
