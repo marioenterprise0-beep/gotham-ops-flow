@@ -492,7 +492,7 @@ function AvailabilityList({ items, isOwner }: { items: any[]; isOwner: boolean }
             </div>
             <div className="flex items-center gap-2">
               <StatusPill tone={a.status === "approved" ? "success" : a.status === "declined" ? "danger" : "warning"}>{a.status}</StatusPill>
-              {a.status === "pending" && <DecisionButtons id={a.id} isOwner={isOwner} decideFn={decideAvailability} qkey="labor-availability" />}
+              {a.status === "pending" && <AvailabilityDecisionButtons id={a.id} />}
             </div>
           </div>
         </div>
