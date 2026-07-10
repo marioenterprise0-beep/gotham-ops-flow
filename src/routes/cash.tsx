@@ -173,7 +173,7 @@ function CashPage() {
             onClose={() => setCloseFor(d)}
             onDrop={() => setDropFor(d)}
             onView={(sid) => setDetailFor(sid)}
-            onDeleted={() => syncDomains(qc, "cash")}
+            onDeleted={() => syncDomains(qc, "cash", "dashboard", "history", "alerts", "recaps")}
           />
         ))}
       </div>
