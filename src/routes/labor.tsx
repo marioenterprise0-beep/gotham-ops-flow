@@ -185,6 +185,9 @@ function LaborPage() {
         <TabsContent value="timeoff">
           <TimeOffList items={reqs?.timeoff ?? []} isOwner={isOwner} />
         </TabsContent>
+        <TabsContent value="availability">
+          <AvailabilityList items={availReqs ?? []} isOwner={isOwner} />
+        </TabsContent>
         <TabsContent value="notes">
           <NotesList items={reqs?.notes ?? []} />
         </TabsContent>
