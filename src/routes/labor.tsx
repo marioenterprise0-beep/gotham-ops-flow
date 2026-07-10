@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { getLaborDashboard, getEmployeeWeek, ownerEditPunch, decideCorrection, decideTimeOff, listAllRequests, getPayrollDetail } from "@/lib/labor.functions";
+import { listPendingAvailability, decideAvailability } from "@/lib/schedule.functions";
 import { ChevronLeft, ChevronRight, Check, X, MessageSquare, Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn, fmtTime12 } from "@/lib/utils";
@@ -58,6 +59,7 @@ function LaborPage() {
 
   const dashFn = useServerFn(getLaborDashboard);
   const reqFn = useServerFn(listAllRequests);
+  const availFn = useServerFn(listPendingAvailability);
   const { data: dash } = useQuery({
     queryKey: ["labor-dash", weekStart, trailerScope],
     queryFn: () => dashFn({ data: { weekStart, trailerId: trailerScope ?? null } }),
@@ -66,6 +68,11 @@ function LaborPage() {
     queryKey: ["labor-reqs", trailerScope],
     queryFn: () => reqFn({ data: { trailerId: trailerScope ?? null } }),
   });
+  const { data: availReqs } = useQuery({
+    queryKey: ["labor-availability", trailerScope],
+    queryFn: () => availFn({ data: { trailerId: trailerScope ?? null } }),
+  });
+  const pendingAvail = (availReqs ?? []).filter((r: any) => r.status === "pending").length;
 
   // Realtime: any punch / correction / time-off / schedule change refreshes
   // the labor dashboard live across devices.
@@ -78,6 +85,7 @@ function LaborPage() {
         pending = false;
         qc.invalidateQueries({ queryKey: ["labor-dash"] });
         qc.invalidateQueries({ queryKey: ["labor-reqs"] });
+        qc.invalidateQueries({ queryKey: ["labor-availability"] });
         qc.invalidateQueries({ queryKey: ["emp-week"] });
       }, 350);
     };
@@ -86,6 +94,7 @@ function LaborPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "time_punches" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "time_corrections" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "time_off_requests" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "availability_blocks" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "schedule_shifts" }, refresh)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -135,6 +144,7 @@ function LaborPage() {
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="corrections">Corrections {dash?.pendingCorrections ? `(${dash.pendingCorrections})` : ""}</TabsTrigger>
           <TabsTrigger value="timeoff">Time Off {dash?.pendingTimeOff ? `(${dash.pendingTimeOff})` : ""}</TabsTrigger>
+          <TabsTrigger value="availability">Availability {pendingAvail ? `(${pendingAvail})` : ""}</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
@@ -174,6 +184,9 @@ function LaborPage() {
         </TabsContent>
         <TabsContent value="timeoff">
           <TimeOffList items={reqs?.timeoff ?? []} isOwner={isOwner} />
+        </TabsContent>
+        <TabsContent value="availability">
+          <AvailabilityList items={availReqs ?? []} isOwner={isOwner} />
         </TabsContent>
         <TabsContent value="notes">
           <NotesList items={reqs?.notes ?? []} />
@@ -462,6 +475,70 @@ function TimeOffList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
     </Card>
   );
 }
+
+function AvailabilityList({ items, isOwner }: { items: any[]; isOwner: boolean }) {
+  if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No unavailability requests.</Card>;
+  return (
+    <Card className="mt-3 p-0 overflow-hidden">
+      {items.map((a, i) => (
+        <div key={a.id} className={cn("p-3.5", i && "border-t border-border")}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold">{a.employee_name} · {a.block_date}</div>
+              <div className="text-xs text-muted-foreground">{a.reason || "No reason provided"}</div>
+              {a.decision_note && (
+                <div className="text-[11px] text-muted-foreground mt-0.5">Note: {a.decision_note}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusPill tone={a.status === "approved" ? "success" : a.status === "declined" ? "danger" : "warning"}>{a.status}</StatusPill>
+              {a.status === "pending" && <AvailabilityDecisionButtons id={a.id} />}
+            </div>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function AvailabilityDecisionButtons({ id }: { id: string }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(decideAvailability);
+  const [note, setNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
+  const m = useMutation({
+    mutationFn: (decision: "approved" | "declined") => fn({ data: { id, decision, note: note || undefined } }),
+    onSuccess: () => {
+      toast.success("Decision recorded");
+      setNote(""); setShowNote(false);
+      qc.invalidateQueries({ queryKey: ["labor-availability"] });
+      syncDomains(qc, "schedule", "alerts");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <div className="flex flex-col items-end gap-2">
+      {showNote && (
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" className="h-8 w-56" />
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setShowNote((v) => !v)}>
+          <MessageSquare className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="sm" onClick={() => m.mutate("approved")} disabled={m.isPending}>
+          <Check className="h-3.5 w-3.5" /> Approve
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => m.mutate("declined")} disabled={m.isPending}>
+          <X className="h-3.5 w-3.5" /> Decline
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
+
+
 
 function NotesList({ items }: { items: any[] }) {
   if (items.length === 0) return <Card className="mt-3 p-6 text-center text-sm text-muted-foreground">No notes.</Card>;

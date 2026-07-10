@@ -884,8 +884,12 @@ function ScheduleBoard({
   });
   const availMut = useMutation({
     mutationFn: (v: { blockDate: string; reason?: string }) => markUnavail({ data: v }),
-    onSuccess: () => {
-      toast.success("Marked unavailable");
+    onSuccess: (r: any) => {
+      toast.success(
+        r?.requiresApproval
+          ? "Request sent — manager approval required (schedule already published)"
+          : "Marked unavailable",
+      );
       qc.invalidateQueries({ queryKey: ["availability"] });
       setAvailDialog(null);
     },
@@ -2125,8 +2129,12 @@ function MyAvailabilityCalendar({ startStr, endStr }: { startStr: string; endStr
 
   const markMut = useMutation({
     mutationFn: (v: { blockDate: string; reason?: string }) => markUnavail({ data: v }),
-    onSuccess: () => {
-      toast.success("Marked unavailable");
+    onSuccess: (r: any) => {
+      toast.success(
+        r?.requiresApproval
+          ? "Request sent — manager approval required"
+          : "Marked unavailable",
+      );
       qc.invalidateQueries({ queryKey: ["availability"] });
       setDlg(null);
     },
