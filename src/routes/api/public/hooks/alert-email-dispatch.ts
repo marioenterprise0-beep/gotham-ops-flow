@@ -349,32 +349,61 @@ async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
     .eq('id', alert.source_id)
     .maybeSingle()
   if (!session) return null
-  const { data: drawer } = (session as any).drawer_id
-    ? await sb.from('cash_drawers').select('name').eq('id', (session as any).drawer_id).maybeSingle()
-    : { data: null }
-  const drawerName = (drawer as any)?.name ?? 'Cash drawer'
-  const variance = Number(session.variance ?? 0)
+
+  // Fallback chain for drawer name: live drawer row → payload hint → generic label.
+  let drawerName = 'Cash drawer'
+  const drawerId = (session as any).drawer_id
+  if (drawerId) {
+    const { data: drawer } = await sb.from('cash_drawers').select('name').eq('id', drawerId).maybeSingle()
+    const raw = typeof (drawer as any)?.name === 'string' ? (drawer as any).name.trim() : ''
+    if (raw) drawerName = raw
+  }
+  if (drawerName === 'Cash drawer' && typeof alert.payload?.drawer_name === 'string') {
+    const hint = alert.payload.drawer_name.trim()
+    if (hint) drawerName = hint
+  }
+
+  // Numeric coercion with NaN guards so templates never render "NaN".
+  const toNum = (v: unknown): number => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : 0
+  }
+  const variance = toNum(session.variance)
+  const counted = toNum(session.counted_amount)
+  const expected = toNum(session.expected_amount)
+  const sales = toNum(session.total_cash_sales)
   const isVariance = Math.abs(variance) >= 5
+
+  // Reason: only include if non-empty after trim; otherwise omit so template shows its own fallback.
+  const rawReason = (session as any).notes
+  const reason = typeof rawReason === 'string' && rawReason.trim() ? rawReason.trim() : undefined
+
+  // Session link: only include if source_id is a non-empty string.
+  const sessionId = typeof alert.source_id === 'string' && alert.source_id.length > 0 ? alert.source_id : undefined
+  const ctaUrl = sessionId ? `${SITE_URL}/cash?session=${sessionId}` : `${SITE_URL}/cash`
+
   return {
     template: isVariance ? 'cash-variance-alert' : 'cash-drawer-submitted',
     category: 'cash',
-    subject: (_a, ctx) =>
-      isVariance
-        ? `Cash variance ${variance >= 0 ? '+' : ''}${variance.toFixed(2)} — ${drawerName} · ${ctx.trailer.name}`
-        : `${drawerName} closed — ${ctx.trailer.name}`,
+    subject: (_a, ctx) => {
+      const trailerName = ctx.trailer?.name || 'Trailer'
+      return isVariance
+        ? `Cash variance ${variance >= 0 ? '+' : ''}${variance.toFixed(2)} — ${drawerName} · ${trailerName}`
+        : `${drawerName} closed — ${trailerName}`
+    },
     recipients: async () => getOwners(),
     buildData: async (_a, ctx) => ({
-      trailer_name: ctx.trailer.name,
+      trailer_name: ctx.trailer?.name || 'Trailer',
       drawer_name: drawerName,
-      submitted_by: ctx.creator?.display_name ?? 'Manager',
-      closed_by: ctx.creator?.display_name ?? 'Manager',
-      counted: Number(session.counted_amount ?? 0).toFixed(2),
-      expected: Number(session.expected_amount ?? 0).toFixed(2),
-      sales: Number(session.total_cash_sales ?? 0).toFixed(2),
+      submitted_by: ctx.creator?.display_name?.trim() || 'Manager',
+      closed_by: ctx.creator?.display_name?.trim() || 'Manager',
+      counted: counted.toFixed(2),
+      expected: expected.toFixed(2),
+      sales: sales.toFixed(2),
       variance: variance.toFixed(2),
-      reason: (session as any).notes ?? undefined,
-      session_id: alert.source_id,
-      cta_url: `${SITE_URL}/cash`,
+      reason,
+      session_id: sessionId,
+      cta_url: ctaUrl,
     }),
   }
 }
