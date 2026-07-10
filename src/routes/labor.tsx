@@ -59,6 +59,7 @@ function LaborPage() {
 
   const dashFn = useServerFn(getLaborDashboard);
   const reqFn = useServerFn(listAllRequests);
+  const availFn = useServerFn(listPendingAvailability);
   const { data: dash } = useQuery({
     queryKey: ["labor-dash", weekStart, trailerScope],
     queryFn: () => dashFn({ data: { weekStart, trailerId: trailerScope ?? null } }),
@@ -67,6 +68,11 @@ function LaborPage() {
     queryKey: ["labor-reqs", trailerScope],
     queryFn: () => reqFn({ data: { trailerId: trailerScope ?? null } }),
   });
+  const { data: availReqs } = useQuery({
+    queryKey: ["labor-availability", trailerScope],
+    queryFn: () => availFn({ data: { trailerId: trailerScope ?? null } }),
+  });
+  const pendingAvail = (availReqs ?? []).filter((r: any) => r.status === "pending").length;
 
   // Realtime: any punch / correction / time-off / schedule change refreshes
   // the labor dashboard live across devices.
