@@ -217,6 +217,54 @@ const MAPPINGS: Record<string, Mapping> = {
     }),
   },
 
+  availability_request: {
+    template: 'availability-request',
+    category: 'time_clock',
+    subject: (_a, ctx) =>
+      `Unavailability request — ${ctx.creator?.display_name ?? 'Employee'}`,
+    recipients: async (alert) => {
+      const owners = await getOwners()
+      const mgrs = await getManagersForTrailer(alert.trailer_id)
+      const seen = new Set<string>()
+      return [...owners, ...mgrs].filter((r) =>
+        seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
+      )
+    },
+    buildData: async (alert, ctx) => ({
+      employee_name: ctx.creator?.display_name ?? alert.payload?.employee_name ?? 'Employee',
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
+      reason: alert.payload?.reason ?? undefined,
+      schedule_name: alert.payload?.schedule_name ?? undefined,
+      schedule_status: alert.payload?.schedule_status ?? undefined,
+      request_id: alert.source_id,
+    }),
+  },
+
+  availability_decided: {
+    template: 'availability-approved',
+    category: 'time_clock',
+    subject: (alert) =>
+      alert.payload?.decision === 'declined'
+        ? 'Unavailability declined'
+        : 'Unavailability approved',
+    recipients: async (alert, sb) => {
+      if (!alert.assigned_user_id) return []
+      const { data: p } = await sb
+        .from('profiles')
+        .select('id, display_name, email')
+        .eq('id', alert.assigned_user_id)
+        .maybeSingle()
+      if (!p?.email) return []
+      return [{ user_id: p.id, email: p.email, name: p.display_name ?? 'Crew' }]
+    },
+    buildData: async (alert) => ({
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
+      decided_by: alert.payload?.decided_by_name ?? 'Management',
+      decision_reason: alert.payload?.decision_reason ?? undefined,
+    }),
+  },
+
+
   schedule_approval: {
     template: 'schedule-submitted',
     category: 'schedule',
