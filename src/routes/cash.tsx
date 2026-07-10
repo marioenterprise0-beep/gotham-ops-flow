@@ -426,16 +426,28 @@ function DrawerCard({ drawer, isOwner, onRequestOpen, onClose, onDrop, onView, o
           </>
         )}
         {isOwner && !isOpen && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto text-destructive hover:text-destructive"
-            disabled={deleting}
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            {deleting ? "Deleting…" : "Delete"}
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              disabled={renaming}
+              onClick={handleRename}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              {renaming ? "Renaming…" : "Rename"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </>
         )}
       </div>
     </Card>
