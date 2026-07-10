@@ -501,6 +501,43 @@ function AvailabilityList({ items, isOwner }: { items: any[]; isOwner: boolean }
   );
 }
 
+function AvailabilityDecisionButtons({ id }: { id: string }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(decideAvailability);
+  const [note, setNote] = useState("");
+  const [showNote, setShowNote] = useState(false);
+  const m = useMutation({
+    mutationFn: (decision: "approved" | "declined") => fn({ data: { id, decision, note: note || undefined } }),
+    onSuccess: () => {
+      toast.success("Decision recorded");
+      setNote(""); setShowNote(false);
+      qc.invalidateQueries({ queryKey: ["labor-availability"] });
+      syncDomains(qc, "schedule", "alerts");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return (
+    <div className="flex flex-col items-end gap-2">
+      {showNote && (
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" className="h-8 w-56" />
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setShowNote((v) => !v)}>
+          <MessageSquare className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="sm" onClick={() => m.mutate("approved")} disabled={m.isPending}>
+          <Check className="h-3.5 w-3.5" /> Approve
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => m.mutate("declined")} disabled={m.isPending}>
+          <X className="h-3.5 w-3.5" /> Decline
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
+
 
 
 function NotesList({ items }: { items: any[] }) {
