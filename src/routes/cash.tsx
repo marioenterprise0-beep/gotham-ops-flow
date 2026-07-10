@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown } from "lucide-react";
+import { Banknote, Plus, Download, FileText, ShieldCheck, AlertTriangle, Check, X, Clock, TrendingUp, TrendingDown, FileDown, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
@@ -17,7 +17,7 @@ import { useRole } from "@/lib/role";
 import {
   listCashDrawers, addCashDrawer, openDrawerSession, closeDrawerSession,
   getDrawerSession, listDrawerSessions, submitCashDrop, verifyCashDrop, reviewDrawerSession,
-  editDrawerSession,
+  editDrawerSession, archiveDrawer, scanDrawerDependencies,
   attachDrawerClosePdf, getDrawerClosePdfUrl, sendDrawerCloseAlertEmail,
 } from "@/lib/cash.functions";
 import { openPrintablePDF, kpiBlock, htmlTable, escapeHTML, downloadCSV } from "@/lib/exports";
