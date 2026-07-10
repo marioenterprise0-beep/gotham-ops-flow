@@ -144,6 +144,7 @@ function LaborPage() {
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="corrections">Corrections {dash?.pendingCorrections ? `(${dash.pendingCorrections})` : ""}</TabsTrigger>
           <TabsTrigger value="timeoff">Time Off {dash?.pendingTimeOff ? `(${dash.pendingTimeOff})` : ""}</TabsTrigger>
+          <TabsTrigger value="availability">Availability {pendingAvail ? `(${pendingAvail})` : ""}</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
 
