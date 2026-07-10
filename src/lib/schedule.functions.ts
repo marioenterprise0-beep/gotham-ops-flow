@@ -1412,7 +1412,7 @@ export const decideAvailability = createServerFn({ method: "POST" })
     const { data: decider } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
 
     await supabase.from("alerts").insert({
-      type: "availability_decided",
+      type: data.decision === "approved" ? "availability_approved" : "availability_declined",
       title: `Unavailability ${data.decision} — ${row.block_date}`,
       description: data.note ?? null,
       source_module: "availability",
