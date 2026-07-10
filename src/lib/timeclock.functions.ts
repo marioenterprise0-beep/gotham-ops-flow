@@ -50,7 +50,12 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
 export const clockIn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({
-    deviceInfo: z.record(z.string(), z.any()).optional(),
+    deviceInfo: z.object({
+      ua: z.string().max(300).optional(),
+      source: z.string().max(50).optional(),
+      low_gps_accuracy: z.boolean().optional(),
+      gps_accuracy_m: z.number().finite().min(0).max(1000000).optional(),
+    }).strict().optional(),
     scheduleShiftId: z.string().uuid().optional().nullable(),
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
