@@ -247,15 +247,10 @@ const MAPPINGS: Record<string, Mapping> = {
       alert.payload?.decision === 'declined'
         ? 'Unavailability declined'
         : 'Unavailability approved',
-    recipients: async (alert, sb) => {
+    recipients: async (alert) => {
       if (!alert.assigned_user_id) return []
-      const { data: p } = await sb
-        .from('profiles')
-        .select('id, display_name, email')
-        .eq('id', alert.assigned_user_id)
-        .maybeSingle()
-      if (!p?.email) return []
-      return [{ user_id: p.id, email: p.email, name: p.display_name ?? 'Crew' }]
+      const rec = await getEmployee(alert.assigned_user_id)
+      return rec ? [rec] : []
     },
     buildData: async (alert) => ({
       block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
