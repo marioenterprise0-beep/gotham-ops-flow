@@ -82,7 +82,7 @@ import { DEFAULT_TRAILER_TZ, zonedDateToUtcMs } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/client";
 
 
-export const Route = createFileRoute("/schedule")({ component: SchedulePage });
+export const Route = createFileRoute("/schedule")({ beforeLoad: requireAuthBeforeLoad, component: SchedulePage });
 
 type Status = "draft" | "submitted" | "approved" | "locked" | "published";
 type ViewMode = "day" | "week" | "twoweek" | "month";
