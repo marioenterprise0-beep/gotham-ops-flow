@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useEffect } from "react";
@@ -81,7 +82,7 @@ import { DEFAULT_TRAILER_TZ, zonedDateToUtcMs } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/client";
 
 
-export const Route = createFileRoute("/schedule")({ component: SchedulePage });
+export const Route = createFileRoute("/schedule")({ beforeLoad: requireAuthBeforeLoad, component: SchedulePage });
 
 type Status = "draft" | "submitted" | "approved" | "locked" | "published";
 type ViewMode = "day" | "week" | "twoweek" | "month";
