@@ -161,8 +161,16 @@ function Settings() {
                 <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
               </div>
               <div className="pt-3 mt-3 border-t border-border">
-                <div className="text-sm font-semibold mb-1">Theme colors</div>
-                <div className="text-[11px] text-muted-foreground mb-3">Applied instantly across every page for all users.</div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="text-sm font-semibold mb-1">Theme colors</div>
+                    <div className="text-[11px] text-muted-foreground">Applied instantly across every page for all users.</div>
+                  </div>
+                  <LivePreviewToggle
+                    active={livePreview}
+                    onToggle={() => setLivePreview((v) => !v)}
+                  />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <ColorField label="Background" value={bgColor} onChange={setBgColor} />
                   <ColorField label="Text" value={fgColor} onChange={setFgColor} />
