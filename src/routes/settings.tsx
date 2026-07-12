@@ -15,7 +15,7 @@ import {
 } from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
-import { useBranding, refreshBranding, applyThemeColors } from "@/lib/branding";
+import { useBranding, refreshBranding, applyThemeColors, resolveTheme } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -417,15 +417,15 @@ function ThemePreview({
   bg: string; fg: string; accent: string;
   orgName: string; shortName: string; tagline: string;
 }) {
-  const safe = (v: string, fallback: string) =>
-    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-  const b = safe(bg, "#0A0A0A");
-  const f = safe(fg, "#F5F5F5");
-  const a = safe(accent, "#EAB308");
-  // Derive a subtle muted foreground from the text color (60% opacity).
-  const muted = f + "99";
-  const surface = f + "0F"; // ~6% overlay for card surfaces
-  const border = f + "22";  // ~13% overlay for hairlines
+  // Use the exact same derivation as applyThemeColors() so the preview
+  // matches what saving will paint across the app.
+  const t = resolveTheme(bg, fg, accent);
+  const b = t.background;
+  const f = t.foreground;
+  const a = t.accent;
+  const muted = t.mutedForeground;
+  const surface = t.card;
+  const border = t.border;
 
   return (
     <div className="mt-4">
@@ -445,7 +445,7 @@ function ThemePreview({
           <div className="flex items-center gap-2">
             <div
               className="h-6 w-6 rounded-md grid place-items-center text-[10px] font-bold"
-              style={{ backgroundColor: a, color: b }}
+              style={{ backgroundColor: a, color: t.onAccent }}
             >
               {shortName.slice(0, 1).toUpperCase()}
             </div>
@@ -478,7 +478,7 @@ function ThemePreview({
             <button
               type="button"
               className="h-9 px-4 rounded-md text-xs font-semibold uppercase tracking-[1.2px]"
-              style={{ backgroundColor: a, color: b }}
+              style={{ backgroundColor: a, color: t.onAccent }}
             >
               Primary action
             </button>
@@ -619,14 +619,15 @@ function DevicePreview({
   const [device, setDevice] = useState<"mobile" | "tablet">("mobile");
   const [screen, setScreen] = useState<"dashboard" | "schedule" | "signin">("dashboard");
 
-  const safe = (v: string, fallback: string) =>
-    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-  const b = safe(bg, "#0A0A0A");
-  const f = safe(fg, "#F5F5F5");
-  const a = safe(accent, "#EAB308");
-  const muted = f + "99";
-  const surface = f + "0F";
-  const border = f + "22";
+  // Match applyThemeColors() exactly — same derivation used across the app.
+  const t = resolveTheme(bg, fg, accent);
+  const b = t.background;
+  const f = t.foreground;
+  const a = t.accent;
+  const muted = t.mutedForeground;
+  const surface = t.card;
+  const border = t.border;
+  const onAccent = t.onAccent;
 
   const frame =
     device === "mobile"
@@ -679,13 +680,13 @@ function DevicePreview({
             <InScreenContrastBadges bg={b} fg={f} accent={a} />
 
             {screen === "dashboard" && (
-              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
             )}
             {screen === "schedule" && (
-              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
             )}
             {screen === "signin" && (
-              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} />
+              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} onAccent={onAccent} />
             )}
           </div>
         </div>
@@ -746,14 +747,14 @@ function InScreenContrastBadges({ bg, fg, accent }: { bg: string; fg: string; ac
 
 type MockProps = {
   b?: string; f: string; a: string; muted: string; surface: string; border: string;
-  shortName?: string; orgName?: string;
+  shortName?: string; orgName?: string; onAccent?: string;
 };
 
-function TopBar({ f, a, muted, border, surface, shortName }: MockProps) {
+function TopBar({ f, a, muted, border, surface, shortName, onAccent }: MockProps) {
   return (
     <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, backgroundColor: surface }}>
       <div className="flex items-center gap-1.5 min-w-0">
-        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: "#000" }}>
+        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: onAccent ?? "#000" }}>
           {shortName?.slice(0, 1).toUpperCase() ?? "O"}
         </div>
         <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{shortName}</div>
@@ -766,10 +767,10 @@ function TopBar({ f, a, muted, border, surface, shortName }: MockProps) {
   );
 }
 
-function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
+function DashboardMock({ f, a, muted, surface, border, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
       <div className="p-3 space-y-2 overflow-hidden">
         <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Today</div>
         <div className="text-sm font-semibold">Good morning</div>
@@ -801,7 +802,7 @@ function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
         <button
           type="button"
           className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.2px]"
-          style={{ backgroundColor: a, color: "#000" }}
+          style={{ backgroundColor: a, color: onAccent ?? "#000" }}
         >
           Clock in
         </button>
@@ -810,7 +811,7 @@ function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
   );
 }
 
-function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
+function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: MockProps) {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
   const shifts = [
     { name: "Alex", role: "Grill", time: "9–3", tone: a },
@@ -820,7 +821,7 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
   ];
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
       <div className="p-3 space-y-2 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">This week</div>
@@ -834,7 +835,7 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
                 className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-semibold"
                 style={
                   i === 2
-                    ? { backgroundColor: a, color: "#000" }
+                    ? { backgroundColor: a, color: onAccent ?? "#000" }
                     : { border: `1px solid ${border}`, color: f }
                 }
               >
@@ -863,10 +864,10 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
   );
 }
 
-function SigninMock({ b, f, a, muted, surface, border, orgName, shortName }: MockProps) {
+function SigninMock({ b, f, a, muted, surface, border, orgName, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center px-4 gap-3 text-center">
-      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: b }}>
+      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: onAccent ?? b }}>
         {shortName?.slice(0, 1).toUpperCase() ?? "O"}
       </div>
       <div>
@@ -883,7 +884,7 @@ function SigninMock({ b, f, a, muted, surface, border, orgName, shortName }: Moc
         <button
           type="button"
           className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.4px]"
-          style={{ backgroundColor: a, color: b }}
+          style={{ backgroundColor: a, color: onAccent ?? b }}
         >
           Sign in
         </button>
