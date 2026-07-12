@@ -129,7 +129,7 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
       recipient_email: to,
     };
     const element = Rreact.createElement(entry.component, templateData);
-    const html = await render(element);
+    const html = await (render as any)(element);
     const text = await render(element, { plainText: true } as any);
 
     const rawSubject = typeof entry.subject === "function"
