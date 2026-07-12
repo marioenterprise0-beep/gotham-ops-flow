@@ -141,18 +141,20 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
     const { sendLovableEmail } = await import("@lovable.dev/email-js");
-    const result = await sendLovableEmail({
-      apiKey,
-      senderDomain: "notify.dipnshake.com",
-      to,
-      from: "dipnshake <noreply@notify.dipnshake.com>",
-      subject,
-      html,
-      text,
-      purpose: "transactional",
-      label: `branding-test:${templateName}`,
-      idempotencyKey: `branding-test:${userId}:${Date.now()}`,
-    } as any);
+    const result = await sendLovableEmail(
+      {
+        to,
+        from: "dipnshake <noreply@notify.dipnshake.com>",
+        sender_domain: "notify.dipnshake.com",
+        subject,
+        html,
+        text,
+        purpose: "transactional",
+        label: `branding-test:${templateName}`,
+        idempotency_key: `branding-test:${userId}:${Date.now()}`,
+      },
+      { apiKey },
+    );
 
     return { ok: true, to, templateName, result };
   });
