@@ -2801,10 +2801,13 @@ export type Database = {
       }
       stores: {
         Row: {
+          accent_color: string | null
           archive_reason: string | null
           archived_at: string | null
           archived_by: string | null
+          bg_color: string | null
           created_at: string
+          fg_color: string | null
           id: string
           location: string | null
           name: string
@@ -2813,10 +2816,13 @@ export type Database = {
           tagline: string | null
         }
         Insert: {
+          accent_color?: string | null
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          bg_color?: string | null
           created_at?: string
+          fg_color?: string | null
           id?: string
           location?: string | null
           name: string
@@ -2825,10 +2831,13 @@ export type Database = {
           tagline?: string | null
         }
         Update: {
+          accent_color?: string | null
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          bg_color?: string | null
           created_at?: string
+          fg_color?: string | null
           id?: string
           location?: string | null
           name?: string
