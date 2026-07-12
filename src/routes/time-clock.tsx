@@ -215,7 +215,7 @@ function TimeClockPage() {
     },
     onError: (e: Error) => {
       if (e.message === "LOCATION_OFF") {
-        setGeoBlock("Location access is required to clock in. Please enable location in your browser settings and try again at the trailer.");
+        setGeoBlock("Location access is required to clock in. Please enable location in your browser settings and try again on-site.");
         return;
       }
       toast.error(e.message);
@@ -407,13 +407,13 @@ function TimeClockPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-[var(--color-gold)]" />
-              You're not at the trailer
+              You're not on-site
             </AlertDialogTitle>
             <AlertDialogDescription>
               {geoBlock ?? ""}
               <br />
               <br />
-              You must be on-site within the trailer's geofence to clock in.
+              You must be on-site within the location's geofence to clock in.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
