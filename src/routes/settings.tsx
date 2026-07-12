@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
-import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
+import { getMyProfile, updateMyProfile, updateStoreInfo, sendBrandingTestEmail } from "@/lib/settings.functions";
 import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
 import { GeofencePanel } from "@/components/gotham/geofence-panel";
 import {
@@ -37,6 +37,7 @@ function Settings() {
   const fetchProfile = useServerFn(getMyProfile);
   const updateProfile = useServerFn(updateMyProfile);
   const updateStore = useServerFn(updateStoreInfo);
+  const sendTest = useServerFn(sendBrandingTestEmail);
 
   const { data } = useQuery({ queryKey: ["my-profile"], queryFn: () => fetchProfile() });
 
@@ -107,6 +108,12 @@ function Settings() {
       qc.invalidateQueries({ queryKey: ["my-profile"] });
       refreshBranding();
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const testEmail = useMutation({
+    mutationFn: () => sendTest({ data: { bgColor, fgColor, accentColor } }),
+    onSuccess: (r: any) => toast.success(`Test email sent to ${r?.to ?? "you"}`),
     onError: (e: Error) => toast.error(e.message),
   });
 
