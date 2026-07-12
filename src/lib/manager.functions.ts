@@ -146,7 +146,7 @@ export const createActionTask = createServerFn({ method: "POST" })
     const { data: shift } = await supabase.from("shifts")
       .select("id").eq("trailer_id", trailerId).eq("status", "active")
       .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-    if (!shift) throw new Error("No active shift at this trailer. Open a shift first.");
+    if (!shift) throw new Error("No active shift at this location. Open a shift first.");
 
     const { data: task, error } = await supabase.from("tasks").insert({
       shift_id: shift.id,
