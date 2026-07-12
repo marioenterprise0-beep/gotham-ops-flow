@@ -345,6 +345,7 @@ function TrailerSwitcher() {
 
 function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean; impersonating?: boolean }) {
   const { roleId, user, signOut } = useRole();
+  const branding = useBranding();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
   const [now, setNow] = useState(() => new Date());
@@ -360,7 +361,7 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
       )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none">DIP N SHAKE OS</span>
+          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none uppercase">{branding.shortName}</span>
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />
