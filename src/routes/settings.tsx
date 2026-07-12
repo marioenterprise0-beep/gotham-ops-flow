@@ -767,10 +767,10 @@ function TopBar({ f, a, muted, border, surface, shortName, onAccent }: MockProps
   );
 }
 
-function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
+function DashboardMock({ f, a, muted, surface, border, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
       <div className="p-3 space-y-2 overflow-hidden">
         <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Today</div>
         <div className="text-sm font-semibold">Good morning</div>
@@ -802,7 +802,7 @@ function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
         <button
           type="button"
           className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.2px]"
-          style={{ backgroundColor: a, color: "#000" }}
+          style={{ backgroundColor: a, color: onAccent ?? "#000" }}
         >
           Clock in
         </button>
@@ -811,7 +811,7 @@ function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
   );
 }
 
-function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
+function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: MockProps) {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
   const shifts = [
     { name: "Alex", role: "Grill", time: "9–3", tone: a },
@@ -821,7 +821,7 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
   ];
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
       <div className="p-3 space-y-2 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">This week</div>
@@ -835,7 +835,7 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
                 className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-semibold"
                 style={
                   i === 2
-                    ? { backgroundColor: a, color: "#000" }
+                    ? { backgroundColor: a, color: onAccent ?? "#000" }
                     : { border: `1px solid ${border}`, color: f }
                 }
               >
@@ -864,10 +864,10 @@ function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
   );
 }
 
-function SigninMock({ b, f, a, muted, surface, border, orgName, shortName }: MockProps) {
+function SigninMock({ b, f, a, muted, surface, border, orgName, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center px-4 gap-3 text-center">
-      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: b }}>
+      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: onAccent ?? b }}>
         {shortName?.slice(0, 1).toUpperCase() ?? "O"}
       </div>
       <div>
@@ -884,7 +884,7 @@ function SigninMock({ b, f, a, muted, surface, border, orgName, shortName }: Moc
         <button
           type="button"
           className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.4px]"
-          style={{ backgroundColor: a, color: b }}
+          style={{ backgroundColor: a, color: onAccent ?? b }}
         >
           Sign in
         </button>
