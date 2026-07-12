@@ -1,6 +1,6 @@
-appId: com.gothamhalal.dash
-productName: "Gothamhalal Dash"
-copyright: "Copyright © 2025 Gotham Halal"
+appId: com.dipnshake.dash
+productName: "Dip N Shake Dash"
+copyright: "Copyright © 2026 Dip N Shake"
 asar: true
 
 # Where Electron's main entry lives
@@ -26,12 +26,12 @@ mac:
   entitlements: electron/build/entitlements.mac.plist
   entitlementsInherit: electron/build/entitlements.mac.plist
   extendInfo:
-    NSCameraUsageDescription: "Gothamhalal Dash uses the camera for employee selfie clock-in verification."
-    NSLocationWhenInUseUsageDescription: "Gothamhalal Dash uses your location to verify you are at the correct trailer when clocking in."
-    NSMicrophoneUsageDescription: "Gothamhalal Dash may use the microphone for voice notes."
+    NSCameraUsageDescription: "Dip N Shake Dash uses the camera for employee selfie clock-in verification."
+    NSLocationWhenInUseUsageDescription: "Dip N Shake Dash uses your location to verify you are on-site when clocking in."
+    NSMicrophoneUsageDescription: "Dip N Shake Dash may use the microphone for voice notes."
 
 dmg:
-  title: "Gothamhalal Dash ${version}"
+  title: "Dip N Shake Dash ${version}"
   icon: electron/build/icon.icns
   background: electron/build/dmg-background.png
   iconSize: 80
