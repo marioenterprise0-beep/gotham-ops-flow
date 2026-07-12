@@ -747,14 +747,14 @@ function InScreenContrastBadges({ bg, fg, accent }: { bg: string; fg: string; ac
 
 type MockProps = {
   b?: string; f: string; a: string; muted: string; surface: string; border: string;
-  shortName?: string; orgName?: string;
+  shortName?: string; orgName?: string; onAccent?: string;
 };
 
-function TopBar({ f, a, muted, border, surface, shortName }: MockProps) {
+function TopBar({ f, a, muted, border, surface, shortName, onAccent }: MockProps) {
   return (
     <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, backgroundColor: surface }}>
       <div className="flex items-center gap-1.5 min-w-0">
-        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: "#000" }}>
+        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: onAccent ?? "#000" }}>
           {shortName?.slice(0, 1).toUpperCase() ?? "O"}
         </div>
         <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{shortName}</div>
