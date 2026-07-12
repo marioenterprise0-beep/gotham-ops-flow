@@ -15,6 +15,7 @@ import { RoleProvider } from "../lib/role";
 import { supabase } from "@/integrations/supabase/client";
 import { PwaInstallPrompt } from "@/components/gotham/PwaInstallPrompt";
 import { Toaster } from "@/components/ui/sonner";
+import { BrandingProvider } from "@/lib/branding";
 
 function NotFoundComponent() {
   return (
@@ -146,13 +147,15 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RoleProvider>
-        <AuthSyncBridge />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster richColors position="top-right" />
-        <PwaInstallPrompt />
-      </RoleProvider>
+      <BrandingProvider>
+        <RoleProvider>
+          <AuthSyncBridge />
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster richColors position="top-right" />
+          <PwaInstallPrompt />
+        </RoleProvider>
+      </BrandingProvider>
     </QueryClientProvider>
   );
 }
