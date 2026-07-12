@@ -15,6 +15,7 @@ import {
 } from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
+import { useBranding, refreshBranding } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -42,10 +43,19 @@ function Settings() {
   const [name, setName] = useState("");
   const [storeName, setStoreName] = useState("");
   const [storeLoc, setStoreLoc] = useState("");
+  const [storeShort, setStoreShort] = useState("");
+  const [storeTagline, setStoreTagline] = useState("");
+  const [storeSupportEmail, setStoreSupportEmail] = useState("");
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
-    if (data?.store) { setStoreName(data.store.name ?? ""); setStoreLoc(data.store.location ?? ""); }
+    if (data?.store) {
+      setStoreName(data.store.name ?? "");
+      setStoreLoc(data.store.location ?? "");
+      setStoreShort((data.store as any).short_name ?? "");
+      setStoreTagline((data.store as any).tagline ?? "");
+      setStoreSupportEmail((data.store as any).support_email ?? "");
+    }
   }, [data]);
 
   const saveProfile = useMutation({
@@ -55,8 +65,20 @@ function Settings() {
   });
 
   const saveStore = useMutation({
-    mutationFn: () => updateStore({ data: { storeId: data!.store!.id, name: storeName.trim(), location: storeLoc.trim() || undefined } }),
-    onSuccess: () => { toast.success("Store updated"); syncDomains(qc, "profiles"); },
+    mutationFn: () => updateStore({ data: {
+      storeId: data!.store!.id,
+      name: storeName.trim(),
+      location: storeLoc.trim() || undefined,
+      shortName: storeShort.trim() || null,
+      tagline: storeTagline.trim() || null,
+      supportEmail: storeSupportEmail.trim() || null,
+    } }),
+    onSuccess: () => {
+      toast.success("Branding saved");
+      syncDomains(qc, "profiles");
+      qc.invalidateQueries({ queryKey: ["my-profile"] });
+      refreshBranding();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -85,21 +107,35 @@ function Settings() {
 
       {isMgr && data?.store && (
         <>
-          <SectionHeader eyebrow="Store" title="Store Info" />
+          <SectionHeader eyebrow="Branding" title="Organization Branding" />
           <Card>
             <div className="space-y-3">
               <div>
-                <div className="label-caps text-muted-foreground mb-1">Store name</div>
-                <input value={storeName} onChange={(e) => setStoreName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <div className="label-caps text-muted-foreground mb-1">Organization name</div>
+                <input value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="e.g. Acme Coffee Co." className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <div className="mt-1 text-[11px] text-muted-foreground">Full name shown on invoices and PDFs.</div>
               </div>
               <div>
-                <div className="label-caps text-muted-foreground mb-1">Location</div>
+                <div className="label-caps text-muted-foreground mb-1">Short name / wordmark</div>
+                <input value={storeShort} onChange={(e) => setStoreShort(e.target.value)} maxLength={40} placeholder="e.g. ACME" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <div className="mt-1 text-[11px] text-muted-foreground">Displayed in the top header, sign-in page, and browser tab.</div>
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground mb-1">Tagline</div>
+                <input value={storeTagline} onChange={(e) => setStoreTagline(e.target.value)} maxLength={200} placeholder="Short line shown on the sign-in page." className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground mb-1">Support email</div>
+                <input type="email" value={storeSupportEmail} onChange={(e) => setStoreSupportEmail(e.target.value)} placeholder="ops@yourcompany.com" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+              </div>
+              <div>
+                <div className="label-caps text-muted-foreground mb-1">Primary location / address</div>
                 <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
               </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
-                  <Save className="h-3.5 w-3.5" /> Save store
+                  <Save className="h-3.5 w-3.5" /> Save branding
                 </button>
               </div>
             </div>
