@@ -680,13 +680,13 @@ function DevicePreview({
             <InScreenContrastBadges bg={b} fg={f} accent={a} />
 
             {screen === "dashboard" && (
-              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
             )}
             {screen === "schedule" && (
-              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
             )}
             {screen === "signin" && (
-              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} />
+              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} onAccent={onAccent} />
             )}
           </div>
         </div>
