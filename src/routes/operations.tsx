@@ -65,7 +65,7 @@ function Operations() {
   const activeTrailer = trailerScope;
   const trailerLabel = activeTrailer
     ? (trailers.find((t) => t.id === activeTrailer)?.name ?? "Trailer")
-    : "Your trailer";
+    : "Your location";
 
   const shiftFn = useServerFn(getActiveShift);
   const { data: shiftData } = useQuery({
@@ -156,7 +156,7 @@ function Operations() {
         <Card dark className="text-center py-12">
           <div className="label-caps text-white/55">No active shift</div>
           <h1 className="font-display text-3xl text-white mt-2">START THE SHIFT</h1>
-          <p className="text-white/60 text-sm mt-2">Open the trailer to seed the checklist.</p>
+          <p className="text-white/60 text-sm mt-2">Open the location to seed the checklist.</p>
           <button onClick={() => openM.mutate()} disabled={openM.isPending}
             className="mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-3 bg-[var(--color-gold)] text-[#0A0A0A] font-semibold text-sm disabled:opacity-60">
             <Play className="h-4 w-4" /> Open Shift
