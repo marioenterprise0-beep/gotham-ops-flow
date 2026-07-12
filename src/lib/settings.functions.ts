@@ -74,3 +74,87 @@ export async function fetchPublicBranding() {
     .maybeSingle();
   return data;
 }
+
+// ---------- Test email preview using unsaved colors ----------
+// Renders one email template with the caller-supplied theme colors applied
+// via the shared applyBrandOverrides helper, then sends it to the current
+// user's own email so they can vet the branding before saving.
+export const sendBrandingTestEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({
+    bgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+    fgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+    accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
+    templateName: z.string().min(1).max(80).optional(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await requireManager(supabase, userId);
+
+    // Resolve the caller's email from their auth record.
+    const { data: userRes, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userRes?.user?.email) {
+      throw new Error("Could not resolve your email address");
+    }
+    const to = userRes.user.email;
+
+    const [
+      { TEMPLATES },
+      { applyBrandOverrides },
+      { render, ...React },
+    ] = await Promise.all([
+      import("./email-templates/registry"),
+      import("./email-templates/_brand"),
+      // React + render live in the same module surface used by other senders.
+      import("@react-email/components"),
+    ]);
+    const Rreact = await import("react");
+
+    const templateName = data.templateName && TEMPLATES[data.templateName]
+      ? data.templateName
+      : "announcement-published";
+    const entry = TEMPLATES[templateName];
+    if (!entry) throw new Error(`Template not found: ${templateName}`);
+
+    // Apply the pending picker values (falling back to saved values in place).
+    applyBrandOverrides({
+      bgColor: data.bgColor ?? null,
+      fgColor: data.fgColor ?? null,
+      accentColor: data.accentColor ?? null,
+    });
+
+    const templateData = {
+      ...(entry.previewData ?? {}),
+      recipient_name: userRes.user.email,
+      recipient_email: to,
+    };
+    const element = Rreact.createElement(entry.component, templateData);
+    const html = await render(element);
+    const text = await render(element, { plainText: true });
+
+    const rawSubject = typeof entry.subject === "function"
+      ? entry.subject(templateData)
+      : entry.subject;
+    const subject = `[Preview] ${rawSubject}`;
+
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const { sendLovableEmail } = await import("@lovable.dev/email-js");
+    const result = await sendLovableEmail({
+      apiKey,
+      senderDomain: "notify.dipnshake.com",
+      to,
+      from: "dipnshake <noreply@notify.dipnshake.com>",
+      subject,
+      html,
+      text,
+      purpose: "transactional",
+      label: `branding-test:${templateName}`,
+      idempotencyKey: `branding-test:${userId}:${Date.now()}`,
+    } as any);
+
+    return { ok: true, to, templateName, result };
+  });
+
+void React;
