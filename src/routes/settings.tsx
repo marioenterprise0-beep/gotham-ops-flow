@@ -15,7 +15,7 @@ import {
 } from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
-import { useBranding, refreshBranding } from "@/lib/branding";
+import { useBranding, refreshBranding, applyThemeColors } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -51,6 +51,23 @@ function Settings() {
   const [bgColor, setBgColor] = useState("#08090B");
   const [fgColor, setFgColor] = useState("#F5F5F4");
   const [accentColor, setAccentColor] = useState("#22C55E");
+  const [livePreview, setLivePreview] = useState(false);
+
+  // When live preview is on, push the current pickers to the global CSS vars.
+  // When it turns off, reload the saved branding so the app reverts cleanly.
+  useEffect(() => {
+    if (!livePreview) return;
+    applyThemeColors({ bgColor, fgColor, accentColor });
+  }, [livePreview, bgColor, fgColor, accentColor]);
+
+  useEffect(() => {
+    if (livePreview) return;
+    // Turned off (or never on) — sync back to saved values.
+    refreshBranding();
+  }, [livePreview]);
+
+  // Ensure the live preview doesn't persist when leaving the page.
+  useEffect(() => () => { if (livePreview) refreshBranding(); }, [livePreview]);
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
@@ -144,8 +161,16 @@ function Settings() {
                 <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
               </div>
               <div className="pt-3 mt-3 border-t border-border">
-                <div className="text-sm font-semibold mb-1">Theme colors</div>
-                <div className="text-[11px] text-muted-foreground mb-3">Applied instantly across every page for all users.</div>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div className="text-sm font-semibold mb-1">Theme colors</div>
+                    <div className="text-[11px] text-muted-foreground">Applied instantly across every page for all users.</div>
+                  </div>
+                  <LivePreviewToggle
+                    active={livePreview}
+                    onToggle={() => setLivePreview((v) => !v)}
+                  />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <ColorField label="Background" value={bgColor} onChange={setBgColor} />
                   <ColorField label="Text" value={fgColor} onChange={setFgColor} />
@@ -246,6 +271,31 @@ function PresetButton({ label, onClick }: { label: string; onClick: () => void }
       className="h-8 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] hover:border-[var(--color-gold)]"
     >
       {label}
+    </button>
+  );
+}
+
+function LivePreviewToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={active}
+      aria-label="Live preview across app shell"
+      className={`shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-md border text-[11px] font-semibold uppercase tracking-[1px] transition-colors ${
+        active
+          ? "border-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--color-gold)]/10"
+          : "border-border text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          active ? "bg-[var(--color-gold)] animate-pulse" : "bg-muted-foreground"
+        }`}
+        aria-hidden="true"
+      />
+      Live preview {active ? "on" : "off"}
     </button>
   );
 }
