@@ -15,7 +15,7 @@ import {
 } from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
-import { useBranding, refreshBranding, applyThemeColors } from "@/lib/branding";
+import { useBranding, refreshBranding, applyThemeColors, resolveTheme } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
