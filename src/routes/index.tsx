@@ -9,6 +9,7 @@ import {
 import { downloadCSV, openPrintablePDF, htmlTable, kpiBlock, escapeHTML } from "@/lib/exports";
 import { useEffect, useMemo, useState } from "react";
 import { useRole, ROLES, initials, type RoleId } from "@/lib/role";
+import { useBranding } from "@/lib/branding";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/dashboard.functions";
@@ -302,6 +303,7 @@ function quickActionsForRole(role: RoleId | null, clockedIn: boolean) {
 
 function ManagerView({ stats, role }: { stats: any; role: any }) {
   const now = useClock();
+  const branding = useBranding();
   const totalTasks = stats?.tasks.total ?? 0;
   const doneTasks = stats?.tasks.done ?? 0;
   const remaining = stats?.tasks.remaining ?? 0;
@@ -351,7 +353,7 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
           <div>
             <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]/80">
               <span className={`h-1.5 w-1.5 rounded-full ${shiftActive ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
-              Today at Dip N Shake
+              Today at {branding.shortName}
             </div>
             <h1 className="font-display text-2xl md:text-3xl mt-0.5 text-white leading-tight">{phaseLabel}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-white/70">
