@@ -17,8 +17,8 @@ import {
 export const brand = {
   ink: '#0B0B0B',
   graphite: '#1A1A1A',
-  gold: '#C8922A',
-  goldSoft: '#E9D8A6',
+  gold: '#C8102E',
+  goldSoft: '#FDECEE',
   cream: '#F7F3EA',
   card: '#FFFFFF',
   muted: '#7A7A7A',

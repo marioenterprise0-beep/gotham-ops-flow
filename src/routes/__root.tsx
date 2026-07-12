@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
       { name: "author", content: "Dip N Shake" },
       // PWA / Apple meta tags
-      { name: "theme-color", content: "#D4A853" },
+      { name: "theme-color", content: "#C8102E" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
