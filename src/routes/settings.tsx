@@ -661,6 +661,7 @@ function DevicePreview({
                 style={{ background: "#0B0B0D" }}
               />
             )}
+            <InScreenContrastBadges bg={b} fg={f} accent={a} />
 
             {screen === "dashboard" && (
               <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
@@ -691,6 +692,40 @@ function SegBtn({ active, onClick, children }: { active: boolean; onClick: () =>
     >
       {children}
     </button>
+  );
+}
+
+function InScreenContrastBadges({ bg, fg, accent }: { bg: string; fg: string; accent: string }) {
+  const pairs = [
+    { label: "Text", a: fg, b: bg },
+    { label: "Accent", a: accent, b: bg },
+  ];
+  return (
+    <div className="absolute top-2 right-2 z-20 flex flex-col items-end gap-1 pointer-events-none">
+      {pairs.map((p) => {
+        const ratio = contrastRatio(p.a, p.b);
+        if (ratio === null) return null;
+        const rating = rate(ratio);
+        const isFail = rating.level === "Fail";
+        const isWarn = rating.level === "AA Large";
+        return (
+          <div
+            key={p.label}
+            className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.6px] shadow-sm"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.72)",
+              color: isFail ? "#F87171" : isWarn ? "#FBBF24" : "#4ADE80",
+              border: `1px solid ${isFail ? "#F87171" : isWarn ? "#FBBF24" : "#4ADE80"}66`,
+            }}
+            title={`${p.label} vs background — ${ratio.toFixed(2)}:1 (${rating.level})`}
+          >
+            {(isFail || isWarn) && <span aria-hidden="true">⚠</span>}
+            <span>{p.label}</span>
+            <span className="font-mono tabular-nums">{ratio.toFixed(1)}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
