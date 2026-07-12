@@ -314,7 +314,7 @@ export const kioskClockIn = createServerFn({ method: "POST" })
       .from("profiles").select("id, trailer_id, active, archived_at, display_name")
       .eq("id", data.employeeId).maybeSingle();
     if (!emp || emp.trailer_id !== device.trailerId || !emp.active || emp.archived_at) {
-      return { ok: false as const, message: "Employee not assigned to this trailer." };
+      return { ok: false as const, message: "Employee not assigned to this location." };
     }
 
     // Already clocked in?
@@ -376,7 +376,7 @@ export const kioskClockOut = createServerFn({ method: "POST" })
       .from("profiles").select("id, trailer_id, display_name")
       .eq("id", data.employeeId).maybeSingle();
     if (!emp || emp.trailer_id !== device.trailerId) {
-      return { ok: false as const, message: "Employee not assigned to this trailer." };
+      return { ok: false as const, message: "Employee not assigned to this location." };
     }
 
     const { data: open } = await supabaseAdmin.from("time_punches")
