@@ -11,7 +11,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const [{ data: profile }, { data: roles }, { data: store }] = await Promise.all([
       supabase.from("profiles").select("id, display_name, store_id, created_at").eq("id", userId).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("stores").select("id, name, short_name, tagline, support_email, location").order("created_at").limit(1).maybeSingle(),
+      supabase.from("stores").select("id, name, short_name, tagline, support_email, location, bg_color, fg_color, accent_color").order("created_at").limit(1).maybeSingle(),
     ]);
     return { profile, roles: (roles ?? []).map((r) => r.role), store };
   });
@@ -35,6 +35,9 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
     tagline: z.string().max(200).optional().nullable(),
     supportEmail: z.string().email().max(200).optional().nullable().or(z.literal("")),
     location: z.string().max(200).optional(),
+    bgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
+    fgColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
+    accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -46,6 +49,9 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
       tagline: data.tagline?.trim() || null,
       support_email: (data.supportEmail && data.supportEmail.trim()) || null,
       location: data.location ?? null,
+      bg_color: data.bgColor ?? null,
+      fg_color: data.fgColor ?? null,
+      accent_color: data.accentColor ?? null,
     }).eq("id", data.storeId);
     if (error) throw error;
     return { ok: true };
@@ -56,7 +62,7 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
 export async function fetchPublicBranding() {
   const { data } = await publicClient
     .from("stores")
-    .select("id, name, short_name, tagline, support_email")
+    .select("id, name, short_name, tagline, support_email, bg_color, fg_color, accent_color")
     .order("created_at")
     .limit(1)
     .maybeSingle();

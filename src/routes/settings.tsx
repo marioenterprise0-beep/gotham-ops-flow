@@ -46,6 +46,9 @@ function Settings() {
   const [storeShort, setStoreShort] = useState("");
   const [storeTagline, setStoreTagline] = useState("");
   const [storeSupportEmail, setStoreSupportEmail] = useState("");
+  const [bgColor, setBgColor] = useState("#08090B");
+  const [fgColor, setFgColor] = useState("#F5F5F4");
+  const [accentColor, setAccentColor] = useState("#EAB308");
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
@@ -55,6 +58,9 @@ function Settings() {
       setStoreShort((data.store as any).short_name ?? "");
       setStoreTagline((data.store as any).tagline ?? "");
       setStoreSupportEmail((data.store as any).support_email ?? "");
+      if ((data.store as any).bg_color) setBgColor((data.store as any).bg_color);
+      if ((data.store as any).fg_color) setFgColor((data.store as any).fg_color);
+      if ((data.store as any).accent_color) setAccentColor((data.store as any).accent_color);
     }
   }, [data]);
 
@@ -72,6 +78,9 @@ function Settings() {
       shortName: storeShort.trim() || null,
       tagline: storeTagline.trim() || null,
       supportEmail: storeSupportEmail.trim() || null,
+      bgColor,
+      fgColor,
+      accentColor,
     } }),
     onSuccess: () => {
       toast.success("Branding saved");
@@ -132,6 +141,21 @@ function Settings() {
                 <div className="label-caps text-muted-foreground mb-1">Primary location / address</div>
                 <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
               </div>
+              <div className="pt-3 mt-3 border-t border-border">
+                <div className="text-sm font-semibold mb-1">Theme colors</div>
+                <div className="text-[11px] text-muted-foreground mb-3">Applied instantly across every page for all users.</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <ColorField label="Background" value={bgColor} onChange={setBgColor} />
+                  <ColorField label="Text" value={fgColor} onChange={setFgColor} />
+                  <ColorField label="Accent" value={accentColor} onChange={setAccentColor} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <PresetButton label="Midnight" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#EAB308"); }} />
+                  <PresetButton label="Slate" onClick={() => { setBgColor("#0F172A"); setFgColor("#E2E8F0"); setAccentColor("#3B82F6"); }} />
+                  <PresetButton label="Espresso" onClick={() => { setBgColor("#1C1917"); setFgColor("#FAFAF9"); setAccentColor("#F97316"); }} />
+                  <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
+                </div>
+              </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
@@ -166,6 +190,48 @@ function Settings() {
 }
 
 function AutomationPanel() {
+  return _AutomationPanel();
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
+  return (
+    <div>
+      <div className="label-caps text-muted-foreground mb-1">{label}</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={safe}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 rounded-md border border-border bg-card cursor-pointer p-1"
+          aria-label={`${label} color`}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={7}
+          placeholder="#000000"
+          className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm font-mono uppercase"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PresetButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-8 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] hover:border-[var(--color-gold)]"
+    >
+      {label}
+    </button>
+  );
+}
+
+function _AutomationPanel() {
   const qc = useQueryClient();
   const getFn = useServerFn(getAutomationSettings);
   const saveFn = useServerFn(updateAutomationSettings);
