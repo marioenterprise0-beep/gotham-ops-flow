@@ -221,14 +221,14 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
       <div className="px-8 pt-8 pb-4 flex items-center justify-between">
         <div>
           <div className="text-gold text-sm uppercase tracking-widest">{deviceLabel}</div>
-          <h1 className="text-white text-3xl font-bold">{trailerName || "Trailer"}</h1>
+          <h1 className="text-white text-3xl font-bold">{trailerName || "Location"}</h1>
         </div>
         <ClockWidget />
       </div>
       <div className="px-8 pb-8 flex-1 overflow-auto">
         {roster.isLoading && <div className="text-white/50 text-center pt-16">Loading crew…</div>}
         {roster.data && roster.data.length === 0 && (
-          <div className="text-white/50 text-center pt-16">No active employees assigned to this trailer.</div>
+          <div className="text-white/50 text-center pt-16">No active employees assigned to this location.</div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {(roster.data ?? []).map((e) => (
