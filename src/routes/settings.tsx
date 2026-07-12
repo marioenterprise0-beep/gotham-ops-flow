@@ -208,6 +208,14 @@ function Settings() {
                 />
               </div>
               <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={testEmail.isPending}
+                  onClick={() => testEmail.mutate()}
+                  className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 mr-2 hover:border-[var(--color-gold)] disabled:opacity-50"
+                >
+                  <Mail className="h-3.5 w-3.5" /> {testEmail.isPending ? "Sending…" : "Send test email"}
+                </button>
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
                   <Save className="h-3.5 w-3.5" /> Save branding
