@@ -17,7 +17,7 @@ import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
 import { useBranding, refreshBranding, applyThemeColors, resolveTheme } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
+import { Bell, BellOff, LogOut, Mail, Save, Wand2, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { toast } from "sonner";
 
@@ -215,6 +215,16 @@ function Settings() {
                   className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 mr-2 hover:border-[var(--color-gold)] disabled:opacity-50"
                 >
                   <Mail className="h-3.5 w-3.5" /> {testEmail.isPending ? "Sending…" : "Send test email"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyThemeColors({ bgColor, fgColor, accentColor });
+                    toast.success("Theme applied to this session — save to keep it");
+                  }}
+                  className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 mr-2 hover:border-[var(--color-gold)]"
+                >
+                  <Wand2 className="h-3.5 w-3.5" /> Apply to current session
                 </button>
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
