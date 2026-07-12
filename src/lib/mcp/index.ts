@@ -10,10 +10,10 @@ const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unse
 
 export default defineMcp({
   name: "gotham-os-mcp",
-  title: "Gotham OS",
+  title: "Dip N Shake OS",
   version: "0.1.0",
   instructions:
-    "Read-only tools for Gotham Halal's internal operating system. Use these to look up crew, current time-clock activity, low-stock inventory, and unresolved alerts. Every call runs as the signed-in user; row-level security applies.",
+    "Read-only tools for Dip N Shake's internal operating system. Use these to look up crew, current time-clock activity, low-stock inventory, and unresolved alerts. Every call runs as the signed-in user; row-level security applies.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",

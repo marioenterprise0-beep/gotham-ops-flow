@@ -19,7 +19,7 @@ import {
 export const Route = createFileRoute("/handbook")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Employee Handbook · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Employee Handbook · Dip N Shake OS" }] }),
   component: HandbookPage,
 });
 
@@ -74,7 +74,7 @@ function AckBanner({ myAck }: { myAck: MyAck | undefined }) {
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 mb-3">
             By typing your full name and confirming below, you acknowledge that you have received, read, and
-            understand the Gothamhalal Employee Handbook (version {myAck.currentVersion}).
+            understand the Dip N Shake Employee Handbook (version {myAck.currentVersion}).
           </p>
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
             <input
@@ -215,7 +215,7 @@ function HandbookPage() {
         <div>
           <p className="text-sm text-muted-foreground">
             {view === "full"
-              ? "The full Gothamhalal Employee Handbook — every section, every role."
+              ? "The full Dip N Shake Employee Handbook — every section, every role."
               : "Company policies only — Employment, Conduct, Operations, and Discipline."}
           </p>
         </div>

@@ -3,7 +3,7 @@ import { defineTool } from "@lovable.dev/mcp-js";
 export default defineTool({
   name: "whoami",
   title: "Who am I",
-  description: "Return the signed-in user's id, email, and roles in Gotham OS.",
+  description: "Return the signed-in user's id, email, and roles in Dip N Shake OS.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {

@@ -16,7 +16,7 @@ import { syncDomains } from "@/lib/sync-bus";
 export const Route = createFileRoute("/recaps")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Daily Recap · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Daily Recap · Dip N Shake OS" }] }),
   component: RecapsPage,
 });
 

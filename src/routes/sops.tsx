@@ -27,7 +27,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/sops")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "SOP Library · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "SOP Library · Dip N Shake OS" }] }),
   component: SOPsPage,
 });
 

@@ -153,7 +153,7 @@ export const Route = createFileRoute('/api/public/hooks/daily-digest')({
           const payload = {
             template_name: 'daily-digest',
             recipient_email: profile.email,
-            subject: `Gotham OS daily digest — ${eligible.length} update${eligible.length === 1 ? '' : 's'}`,
+            subject: `Dip N Shake OS daily digest — ${eligible.length} update${eligible.length === 1 ? '' : 's'}`,
             template_data: {
               recipient_name: profile.display_name ?? 'Team',
               recipient_email: profile.email,

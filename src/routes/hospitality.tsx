@@ -14,12 +14,12 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/hospitality")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Hospitality · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Hospitality · Dip N Shake OS" }] }),
   component: Hospitality,
 });
 
 const STANDARDS = [
-  { t: "Greeting", d: "Within 5 seconds. \"Welcome to Gotham Halal!\" — eye contact, smile." },
+  { t: "Greeting", d: "Within 5 seconds. \"Welcome to Dip N Shake!\" — eye contact, smile." },
   { t: "Upsell", d: "Suggest drink or combo on every order." },
   { t: "Wait Acknowledgement", d: "Update guest if wait exceeds 3 minutes." },
   { t: "Recovery", d: "Acknowledge, Apologize, Act — within 60 seconds." },

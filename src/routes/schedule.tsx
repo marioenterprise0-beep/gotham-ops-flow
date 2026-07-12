@@ -98,7 +98,7 @@ const STATUS_TONE: Record<Status, "neutral" | "warning" | "success" | "danger" |
 const SEGMENTS = ["open", "mid", "close", "custom"] as const;
 const ROLES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 
-// Segment palette (Gotham identity)
+// Segment palette (Dip N Shake identity)
 const SEG_BG: Record<string, string> = {
   open: "var(--color-success)",
   mid: "var(--color-gold)",

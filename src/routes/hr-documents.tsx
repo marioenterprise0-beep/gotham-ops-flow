@@ -26,7 +26,7 @@ import { listUsers } from "@/lib/users.functions";
 export const Route = createFileRoute("/hr-documents")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "HR Documents · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "HR Documents · Dip N Shake OS" }] }),
   component: HrDocumentsPage,
 });
 

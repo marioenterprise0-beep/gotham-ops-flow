@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/gotham/EmptyState";
 export const Route = createFileRoute("/alerts")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Alerts · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Alerts · Dip N Shake OS" }] }),
   component: AlertsPage,
 });
 

@@ -21,7 +21,7 @@ const Email = ({ employee_name, title, completed_at, pdf_url }: Props) => (
 )
 export const template = {
   component: Email,
-  subject: (d: any) => `[Gotham Halal] Completed: ${d?.title ?? 'HR Document'} — ${d?.employee_name ?? ''}`,
+  subject: (d: any) => `[Dip N Shake] Completed: ${d?.title ?? 'HR Document'} — ${d?.employee_name ?? ''}`,
   displayName: 'HR Document Completed Record',
   previewData: {
     title: 'Written Warning Form', employee_name: 'Sara Ahmed',

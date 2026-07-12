@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-// Gotham Halal — Performance Checklist Packet
+// Dip N Shake — Performance Checklist Packet
 // Opening (10–15 min) · Prep (60–75 min) · Closing (35–50 min) · Inventory (15–25 min)
 const TEMPLATES = {
   opening: [

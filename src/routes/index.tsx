@@ -28,8 +28,8 @@ export const Route = createFileRoute("/")({
   beforeLoad: requireAuthBeforeLoad,
   head: () => ({
     meta: [
-      { title: "Dashboard · Gotham OS" },
-      { name: "description", content: "Role-based shift dashboard for Gotham Halal crew." },
+      { title: "Dashboard · Dip N Shake OS" },
+      { name: "description", content: "Role-based shift dashboard for Dip N Shake crew." },
     ],
   }),
   component: Dashboard,
@@ -345,13 +345,13 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
 
   return (
     <>
-      {/* HERO — TODAY AT GOTHAM (compressed) */}
+      {/* HERO — TODAY AT DIP N SHAKE (compressed) */}
       <Card dark className="relative overflow-hidden !p-3">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-center">
           <div>
             <div className="flex items-center gap-2 label-caps text-[var(--color-gold)]/80">
               <span className={`h-1.5 w-1.5 rounded-full ${shiftActive ? "bg-[var(--color-success)] animate-pulse" : "bg-white/30"}`} />
-              Today at Gotham
+              Today at Dip N Shake
             </div>
             <h1 className="font-display text-2xl md:text-3xl mt-0.5 text-white leading-tight">{phaseLabel}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-white/70">
@@ -707,7 +707,7 @@ function exportHealthPDF(stats: any, crew: any[], roleName: string, phaseLabel: 
   const items = (stats?.alerts?.items ?? []).map((r: any) => [r.name, `${r.pct}%`, r.critical ? "CRITICAL" : "LOW"]);
   const crewRows = crew.map((c: any) => [c.display_name, roleName]);
   const html = `
-    <h1>Gotham OS — Health Report</h1>
+    <h1>Dip N Shake OS — Health Report</h1>
     <div class="meta">${escapeHTML(phaseLabel)} · ${escapeHTML(stats?.store?.name ?? "—")}</div>
     ${kpiBlock([
       { label: "Tasks Remaining", value: stats?.tasks?.remaining ?? 0, tone: (stats?.tasks?.remaining ?? 0) ? "warn" : "ok" },
@@ -720,5 +720,5 @@ function exportHealthPDF(stats: any, crew: any[], roleName: string, phaseLabel: 
     <h2>Crew</h2>
     ${crewRows.length ? htmlTable(["Name", "Role"], crewRows) : '<div class="meta">No active crew.</div>'}
   `;
-  openPrintablePDF("Gotham Health Report", html);
+  openPrintablePDF("Dip N Shake Health Report", html);
 }

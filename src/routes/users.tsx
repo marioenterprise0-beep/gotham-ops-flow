@@ -46,7 +46,7 @@ const MOD_PRESETS: { id: string; label: string; desc: string; allow: string[] }[
 export const Route = createFileRoute("/users")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "people" } as any }); },
-  head: () => ({ meta: [{ title: "Users · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Users · Dip N Shake OS" }] }),
   component: UsersPage,
 });
 

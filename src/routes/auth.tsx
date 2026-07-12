@@ -10,7 +10,7 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
     next: typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//") ? s.next : "",
   }),
-  head: () => ({ meta: [{ title: "Sign in · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Sign in · Dip N Shake OS" }] }),
   component: AuthPage,
 });
 
@@ -121,9 +121,9 @@ function AuthPage() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex surface-dark items-center justify-center p-12">
         <div className="max-w-md">
-          <img src={logoAsset.url} alt="Gotham Halal" className="h-24 w-auto object-contain mb-5" />
-          <div className="font-display text-5xl text-[var(--color-gold)] leading-none">GOTHAM OS</div>
-          <p className="mt-4 text-white/70">Internal operating system for Gotham Halal. Built for the trailer crew — speed, accountability, premium halal hospitality.</p>
+          <img src={logoAsset.url} alt="Dip N Shake" className="h-24 w-auto object-contain mb-5" />
+          <div className="font-display text-5xl text-[var(--color-gold)] leading-none">DIP N SHAKE OS</div>
+          <p className="mt-4 text-white/70">Internal operating system for Dip N Shake. Built for the trailer crew — speed, accountability, premium halal hospitality.</p>
           <ul className="mt-8 space-y-2 text-sm text-white/70">
             <li>· Phase-based opening, mid, closing checklists</li>
             <li>· Live inventory, waste, and receiving</li>
@@ -135,8 +135,8 @@ function AuthPage() {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
-            <img src={logoAsset.url} alt="Gotham Halal" className="h-16 w-auto object-contain" />
-            <div className="font-display text-2xl text-foreground">GOTHAM OS</div>
+            <img src={logoAsset.url} alt="Dip N Shake" className="h-16 w-auto object-contain" />
+            <div className="font-display text-2xl text-foreground">DIP N SHAKE OS</div>
           </div>
           <div className="label-caps text-muted-foreground">{mode === "signin" ? "Sign in" : "Create account"}</div>
           <h1 className="font-display text-3xl mt-1">{mode === "signin" ? "WELCOME BACK" : "JOIN THE CREW"}</h1>
@@ -149,7 +149,7 @@ function AuthPage() {
               </Field>
             )}
             <Field label="Email">
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@gothamhalal.com"
+              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dipnshake.com"
                 className="w-full h-11 rounded-md border border-border bg-card px-3 text-sm focus:border-[var(--color-gold)] outline-none" />
             </Field>
             <Field label="Password">

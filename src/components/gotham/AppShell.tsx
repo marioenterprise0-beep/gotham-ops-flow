@@ -129,7 +129,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
   // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
-  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Gotham OS…</div>;
+  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Dip N Shake OS…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
@@ -359,8 +359,8 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
       )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <img src={logoAsset.url} alt="Gotham Halal" className="h-8 w-auto object-contain" />
-          <span className="hidden sm:inline font-display text-lg tracking-wider text-[var(--color-gold)]">GOTHAM OS</span>
+          <img src={logoAsset.url} alt="Dip N Shake" className="h-8 w-auto object-contain" />
+          <span className="hidden sm:inline font-display text-lg tracking-wider text-[var(--color-gold)]">DIP N SHAKE OS</span>
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />

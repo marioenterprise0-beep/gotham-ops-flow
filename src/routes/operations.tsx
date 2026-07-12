@@ -20,7 +20,7 @@ import { Plus, Trash2 } from "lucide-react";
 export const Route = createFileRoute("/operations")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Operations · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Operations · Dip N Shake OS" }] }),
   component: Operations,
 });
 

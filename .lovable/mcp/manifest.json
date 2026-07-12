@@ -13,13 +13,13 @@
     "server": {
       "name": "gotham-os-mcp",
       "version": "0.1.0",
-      "title": "Gotham OS"
+      "title": "Dip N Shake OS"
     },
     "tools": [
       {
         "name": "whoami",
         "title": "Who am I",
-        "description": "Return the signed-in user's id, email, and roles in Gotham OS.",
+        "description": "Return the signed-in user's id, email, and roles in Dip N Shake OS.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -88,7 +88,7 @@
       {
         "name": "list_active_alerts",
         "title": "List active alerts",
-        "description": "List unresolved alerts in Gotham OS. Optionally cap the result count (default 50, max 200).",
+        "description": "List unresolved alerts in Dip N Shake OS. Optionally cap the result count (default 50, max 200).",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

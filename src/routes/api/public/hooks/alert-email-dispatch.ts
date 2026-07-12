@@ -299,7 +299,7 @@ const MAPPINGS: Record<string, Mapping> = {
   announcement: {
     template: 'announcement-published',
     category: 'announcements',
-    subject: (alert) => alert.title || 'New announcement from Gotham OS',
+    subject: (alert) => alert.title || 'New announcement from Dip N Shake OS',
     recipients: async (alert) => {
       if (alert.trailer_id) return getCrewForTrailer(alert.trailer_id)
       const owners = await getOwners()
@@ -313,7 +313,7 @@ const MAPPINGS: Record<string, Mapping> = {
       trailer_name: ctx.trailer.name,
       title: alert.title,
       body: alert.description,
-      posted_by: ctx.creator?.display_name ?? 'Gotham OS',
+      posted_by: ctx.creator?.display_name ?? 'Dip N Shake OS',
       cta_url: `${SITE_URL}/announcements`,
     }),
   },

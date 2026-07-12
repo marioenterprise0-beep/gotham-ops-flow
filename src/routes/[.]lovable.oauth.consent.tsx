@@ -73,9 +73,9 @@ function Consent() {
     <main className="min-h-screen grid place-items-center p-6 bg-background">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="label-caps text-muted-foreground">Authorize access</div>
-        <h1 className="font-display text-2xl mt-1">Connect {clientName} to Gotham OS</h1>
+        <h1 className="font-display text-2xl mt-1">Connect {clientName} to Dip N Shake OS</h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          {clientName} is asking to act on your behalf using Gotham OS's agent tools.
+          {clientName} is asking to act on your behalf using Dip N Shake OS's agent tools.
           It will see the same data your account can see (row-level security still applies).
         </p>
         {error && (

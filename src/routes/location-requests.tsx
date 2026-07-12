@@ -22,7 +22,7 @@ import { GeofencePanel } from "@/components/gotham/geofence-panel";
 export const Route = createFileRoute("/location-requests")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "locations" } as any }); },
-  head: () => ({ meta: [{ title: "Location Access · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Location Access · Dip N Shake OS" }] }),
   component: LocationRequests,
 });
 

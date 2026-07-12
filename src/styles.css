@@ -60,8 +60,8 @@
 :root {
   --radius: 0.75rem;
 
-  /* Gotham OS exact palette */
-  --background: #F5F5F0;
+  /* Dip N Shake palette — red · black · green */
+  --background: #FAFAF7;
   --foreground: #0A0A0A;
 
   --card: #FFFFFF;
@@ -70,46 +70,47 @@
   --popover-foreground: #0A0A0A;
 
   --ink: #0A0A0A;
-  --primary: #0A0A0A;
+  --primary: #C8102E;
   --primary-foreground: #FFFFFF;
 
-  --secondary: #F5F5F0;
+  --secondary: #F3F3EF;
   --secondary-foreground: #0A0A0A;
   --graphite: #1C1C1C;
 
-  --muted: #F5F5F0;
+  --muted: #F3F3EF;
   --muted-foreground: #6B6B6B;
 
-  --accent: #F5E6C8;
+  --accent: #E8F5EC;
   --accent-foreground: #0A0A0A;
 
-  --gold: #C9973A;
-  --gold-light: #F5E6C8;
-  --gold-foreground: #0A0A0A;
+  /* Legacy "gold" tokens re-mapped to brand red so existing usages stay themed. */
+  --gold: #C8102E;
+  --gold-light: #FDECEE;
+  --gold-foreground: #FFFFFF;
 
-  --success: #1E7B4B;
+  --success: #1B7F3B;
   --success-foreground: #FFFFFF;
-  --success-bg: #D5F5E3;
-  --warning: #D35400;
+  --success-bg: #E4F4E9;
+  --warning: #C87A00;
   --warning-foreground: #FFFFFF;
-  --warning-bg: #FDEBD0;
-  --danger: #C0392B;
-  --danger-bg: #FADBD8;
-  --destructive: #C0392B;
+  --warning-bg: #FDEBCC;
+  --danger: #C8102E;
+  --danger-bg: #FADBDF;
+  --destructive: #C8102E;
   --destructive-foreground: #FFFFFF;
 
   --border: #E0E0E0;
   --input: #E0E0E0;
-  --ring: #C9973A;
+  --ring: #C8102E;
 
   --sidebar: #0A0A0A;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #C9973A;
-  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-primary: #1B7F3B;
+  --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #1C1C1C;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: #1C1C1C;
-  --sidebar-ring: #C9973A;
+  --sidebar-ring: #C8102E;
 }
 
 @layer base {

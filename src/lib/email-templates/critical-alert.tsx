@@ -7,7 +7,7 @@ const Email = ({ recipient_name, alert_title, alert_description, source_module, 
   <BrandLayout preview={`CRITICAL — ${alert_title ?? ''}`}>
     <StatusBadge variant="critical" label="Critical Alert" />
     <Heading style={styles.h1}>{alert_title ?? 'Critical alert'}</Heading>
-    <Text style={styles.text}>{recipient_name ? `${recipient_name}, ` : ''}a critical issue was raised in Gotham OS and needs your immediate attention.</Text>
+    <Text style={styles.text}>{recipient_name ? `${recipient_name}, ` : ''}a critical issue was raised in Dip N Shake OS and needs your immediate attention.</Text>
     {alert_description && <Text style={styles.text}>{alert_description}</Text>}
     <DataTable>
       <DataRow label="Module" value={source_module ?? '—'} />

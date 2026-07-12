@@ -27,7 +27,7 @@ export const Route = createFileRoute("/trusted-devices")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
   component: TrustedDevicesPage,
-  head: () => ({ meta: [{ title: "Trusted Devices · Gotham Halal" }] }),
+  head: () => ({ meta: [{ title: "Trusted Devices · Dip N Shake" }] }),
 });
 
 function TrustedDevicesPage() {

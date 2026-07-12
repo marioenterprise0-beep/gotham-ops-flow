@@ -41,11 +41,11 @@ const Email = ({
   items = [],
 }: Props) => (
   <BrandLayout
-    preview={`Gotham OS digest — ${total} update${total === 1 ? '' : 's'} in the ${window_label}`}
+    preview={`Dip N Shake OS digest — ${total} update${total === 1 ? '' : 's'} in the ${window_label}`}
     eyebrow="Daily Digest"
   >
     <Text style={styles.eyebrow}>Daily Digest</Text>
-    <Heading style={styles.h1}>Your Gotham OS recap</Heading>
+    <Heading style={styles.h1}>Your Dip N Shake OS recap</Heading>
     <Text style={styles.text}>
       {recipient_name}, here's everything from the {window_label}.
     </Text>
@@ -101,7 +101,7 @@ const Email = ({
 export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
-    `Gotham OS daily digest — ${d.total ?? 0} update${d.total === 1 ? '' : 's'}`,
+    `Dip N Shake OS daily digest — ${d.total ?? 0} update${d.total === 1 ? '' : 's'}`,
   displayName: 'Daily Digest',
   previewData: {
     recipient_name: 'Bruce',

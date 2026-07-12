@@ -23,7 +23,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/settings")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Settings · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Settings · Dip N Shake OS" }] }),
   component: Settings,
 });
 

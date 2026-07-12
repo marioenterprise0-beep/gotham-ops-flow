@@ -11,7 +11,7 @@ import { ShieldCheck, AlertTriangle, RefreshCw } from "lucide-react";
 export const Route = createFileRoute("/integrity")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Data Integrity · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Data Integrity · Dip N Shake OS" }] }),
   component: IntegrityPage,
   errorComponent: ({ error, reset }) => (
     <div className="p-6 max-w-2xl mx-auto">

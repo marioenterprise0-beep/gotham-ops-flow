@@ -27,7 +27,7 @@ export const Route = createFileRoute("/inventory")({
     tab: typeof s.tab === "string" ? (s.tab as string) : undefined,
     focus: typeof s.focus === "string" ? (s.focus as string) : undefined,
   }),
-  head: () => ({ meta: [{ title: "Inventory · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Inventory · Dip N Shake OS" }] }),
   component: InventoryPage,
 });
 

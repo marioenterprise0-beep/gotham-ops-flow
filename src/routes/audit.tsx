@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/gotham/EmptyState";
 export const Route = createFileRoute("/audit")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
-  head: () => ({ meta: [{ title: "Audit Log · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Audit Log · Dip N Shake OS" }] }),
   component: AuditPage,
 });
 

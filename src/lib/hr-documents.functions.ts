@@ -552,14 +552,14 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
 
     // Configurable via env so the recipient list can be rotated without a
     // code change; falls back to the original addresses if unset.
-    const complianceEmails = (process.env.HR_COMPLIANCE_EMAILS ?? "hello@gothamhalal.com,mario@gothamhalal.com")
+    const complianceEmails = (process.env.HR_COMPLIANCE_EMAILS ?? "hello@dipnshake.com,mario@dipnshake.com")
       .split(",")
       .map((e) => e.trim())
       .filter(Boolean);
     const recipients: Recipient[] = complianceEmails.map((email) => ({
       user_id: crypto.randomUUID(),
       email,
-      display_name: "Gotham Halal",
+      display_name: "Dip N Shake",
       role: "owner",
     }));
 
@@ -577,7 +577,7 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
       recipients,
       category: "hr_documents",
       priority: "normal",
-      subject: `[Gotham Halal] Completed: ${a.title} — ${templateData.employee_name}`,
+      subject: `[Dip N Shake] Completed: ${a.title} — ${templateData.employee_name}`,
       sourceModule: "hr_documents",
       sourceId: a.id,
     });

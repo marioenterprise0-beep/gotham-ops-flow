@@ -604,7 +604,7 @@ export const transitionSchedule = createServerFn({ method: "POST" })
         const { data: trailer } = sched?.trailer_id
           ? await supabase.from("trailers").select("name").eq("id", sched.trailer_id).maybeSingle()
           : { data: null as any };
-        const location = (trailer as any)?.name ?? "Gotham Halal";
+        const location = (trailer as any)?.name ?? "Dip N Shake";
         const weekRange = sched ? `${sched.start_date} – ${sched.end_date}` : "";
 
         const { data: lockedByProfile } = await supabase
@@ -1619,7 +1619,7 @@ export const sendShiftReminders = createServerFn({ method: "POST" })
       const email = emailMap.get(empId);
       if (!email) continue;
       const name = nameMap.get(empId) ?? "Crew";
-      const location = (empShifts[0] as any).schedules?.trailers?.name ?? "Gotham Halal";
+      const location = (empShifts[0] as any).schedules?.trailers?.name ?? "Dip N Shake";
       const shiftRows = empShifts
         .sort((a: any, b: any) => (a.start_time as string).localeCompare(b.start_time as string))
         .map((s: any) => {

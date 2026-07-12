@@ -14,7 +14,7 @@ import { RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react";
 export const Route = createFileRoute("/data-health")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "system" } as any }); },
-  head: () => ({ meta: [{ title: "Data Health · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Data Health · Dip N Shake OS" }] }),
   component: DataHealthPage,
 });
 

@@ -37,7 +37,7 @@ export const Route = createFileRoute("/admin")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
   validateSearch: (s: Record<string, unknown>) => ({ tab: (s.tab as TabKey | undefined) ?? undefined }),
-  head: () => ({ meta: [{ title: "Admin · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Admin · Dip N Shake OS" }] }),
   component: AdminPage,
 });
 

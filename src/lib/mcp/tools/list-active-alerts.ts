@@ -5,7 +5,7 @@ export default defineTool({
   name: "list_active_alerts",
   title: "List active alerts",
   description:
-    "List unresolved alerts in Gotham OS. Optionally cap the result count (default 50, max 200).",
+    "List unresolved alerts in Dip N Shake OS. Optionally cap the result count (default 50, max 200).",
   inputSchema: {
     limit: z.number().int().min(1).max(200).optional().describe("Max rows to return (default 50)."),
   },

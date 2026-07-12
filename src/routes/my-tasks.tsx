@@ -14,7 +14,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/my-tasks")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "My Tasks · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "My Tasks · Dip N Shake OS" }] }),
   component: MyTasks,
 });
 

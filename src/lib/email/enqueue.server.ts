@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js'
 import { TEMPLATES } from '@/lib/email-templates/registry'
 import { filterByPreferences, type Category, type Recipient } from './recipients.server'
 
-const SITE_NAME = 'gothamhalaldash'
-const SENDER_DOMAIN = 'notify.gothamhalaldash.com'
-const FROM_DOMAIN = 'notify.gothamhalaldash.com'
+const SITE_NAME = 'dipnshake'
+const SENDER_DOMAIN = 'notify.dipnshake.com'
+const FROM_DOMAIN = 'notify.dipnshake.com'
 
 let _admin: any = null
 function admin(): any {

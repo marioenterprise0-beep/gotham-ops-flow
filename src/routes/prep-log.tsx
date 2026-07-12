@@ -19,7 +19,7 @@ import { ChefHat, Plus, Trash2 } from "lucide-react";
 export const Route = createFileRoute("/prep-log")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Prep Log · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Prep Log · Dip N Shake OS" }] }),
   component: PrepLogPage,
 });
 

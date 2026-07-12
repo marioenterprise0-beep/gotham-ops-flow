@@ -32,7 +32,7 @@ export function buildDrawerClosePdf(p: DrawerClosePdfInput): { blob: Blob; filen
   doc.setFontSize(10);
   doc.setTextColor(110);
   doc.text(
-    `Gotham Halal · ${trailer?.name ?? "—"} · Drawer ${drawer?.name ?? "—"}`,
+    `Dip N Shake · ${trailer?.name ?? "—"} · Drawer ${drawer?.name ?? "—"}`,
     40,
     68,
   );

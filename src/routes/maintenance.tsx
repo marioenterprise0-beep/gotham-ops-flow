@@ -19,7 +19,7 @@ import {
 export const Route = createFileRoute("/maintenance")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Maintenance · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Maintenance · Dip N Shake OS" }] }),
   component: MaintenancePage,
 });
 
