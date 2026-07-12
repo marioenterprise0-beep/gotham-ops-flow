@@ -57,8 +57,8 @@ function AnalyticsPage() {
   if (!allowed) return <Navigate to="/" />;
 
   const scopeLabel = trailerScope
-    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
-    : "Company · All trailers";
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Location")
+    : "Company · All locations";
 
   const k = data?.kpis;
 
