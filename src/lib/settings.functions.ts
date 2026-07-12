@@ -23,6 +23,12 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { error } = await supabase.from("profiles").update({ display_name: data.displayName }).eq("id", userId);
     if (error) throw error;
+    // Bust the server-side email branding cache so the next email render
+    // reflects the new colors immediately.
+    try {
+      const { clearEmailBrandingCache } = await import("./email/branding.server");
+      clearEmailBrandingCache();
+    } catch {}
     return { ok: true };
   });
 

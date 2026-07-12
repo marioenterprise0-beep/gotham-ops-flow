@@ -2,6 +2,8 @@ import * as React from 'react'
 import { render } from '@react-email/components'
 import { createFileRoute } from '@tanstack/react-router'
 import { TEMPLATES } from '@/lib/email-templates/registry'
+import { applyBrandOverrides } from '@/lib/email-templates/_brand'
+import { getEmailBranding } from '@/lib/email/branding.server'
 
 // Renders all registered templates with their previewData.
 // Gated by LOVABLE_API_KEY — only the Go API calls this.
@@ -26,6 +28,10 @@ export const Route = createFileRoute("/lovable/email/transactional/preview")({
         }
 
         const templateNames = Object.keys(TEMPLATES)
+        // Apply saved store branding so previews reflect the owner's theme.
+        try {
+          applyBrandOverrides(await getEmailBranding())
+        } catch {}
         const results: Array<{
           templateName: string
           displayName: string

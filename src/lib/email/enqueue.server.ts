@@ -7,6 +7,8 @@ import { render } from '@react-email/components'
 import { createClient } from '@supabase/supabase-js'
 import { TEMPLATES } from '@/lib/email-templates/registry'
 import { filterByPreferences, type Category, type Recipient } from './recipients.server'
+import { applyBrandOverrides } from '@/lib/email-templates/_brand'
+import { getEmailBranding } from './branding.server'
 
 const SITE_NAME = 'dipnshake'
 const SENDER_DOMAIN = 'notify.dipnshake.com'
@@ -69,6 +71,11 @@ export async function enqueueAlertEmail(input: EnqueueAlertEmailInput): Promise<
   skipped: number
 }> {
   const sb = admin()
+
+  // Apply saved store branding to outgoing emails.
+  try {
+    applyBrandOverrides(await getEmailBranding())
+  } catch {}
 
   const template = TEMPLATES[input.templateName]
   if (!template) {
