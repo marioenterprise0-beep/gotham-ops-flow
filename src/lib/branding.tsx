@@ -60,14 +60,97 @@ export function applyThemeColors(b: {
     if (val && /^#[0-9a-fA-F]{6}$/.test(val)) root.style.setProperty(name, val);
     else root.style.removeProperty(name);
   };
-  set("--background", b.bgColor);
-  set("--foreground", b.fgColor);
-  // Accent maps to the app's gold/primary highlight used across buttons,
-  // switcher pills, sidebar accents, and links.
-  set("--gold", b.accentColor);
-  set("--gold-light", b.accentColor);
-  set("--primary", b.accentColor);
-  set("--ring", b.accentColor);
+
+  // Reset any previously-applied inline overrides so a cleared value falls
+  // back to the stylesheet defaults cleanly.
+  const ALL = [
+    "--background", "--foreground",
+    "--card", "--card-foreground",
+    "--popover", "--popover-foreground",
+    "--secondary", "--secondary-foreground",
+    "--muted", "--muted-foreground",
+    "--accent", "--accent-foreground",
+    "--gold", "--gold-light", "--gold-foreground",
+    "--primary", "--primary-foreground",
+    "--border", "--input", "--ring",
+    "--sidebar", "--sidebar-foreground",
+    "--sidebar-primary", "--sidebar-primary-foreground",
+    "--sidebar-accent", "--sidebar-accent-foreground",
+    "--sidebar-border", "--sidebar-ring",
+  ];
+  for (const name of ALL) root.style.removeProperty(name);
+
+  const isHex = (v: string | null): v is string => !!v && /^#[0-9a-fA-F]{6}$/.test(v);
+  const hexToRgb = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+  const rgbToHex = (r: number, g: number, b: number) =>
+    "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+  const luminance = (hex: string) => {
+    const { r, g, b } = hexToRgb(hex);
+    const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  // Shift a color toward white or black by `amt` (0..1).
+  const mix = (hex: string, target: "white" | "black", amt: number) => {
+    const { r, g, b } = hexToRgb(hex);
+    const t = target === "white" ? 255 : 0;
+    return rgbToHex(r + (t - r) * amt, g + (t - g) * amt, b + (t - b) * amt);
+  };
+  // Nudge a surface color slightly lighter or darker than the base background,
+  // depending on whether the base is dark or light.
+  const surface = (base: string, step: number) => {
+    const dark = luminance(base) < 0.5;
+    return mix(base, dark ? "white" : "black", step);
+  };
+
+  // ---- Background family -----------------------------------------------
+  if (isHex(b.bgColor)) {
+    const bg = b.bgColor;
+    set("--background", bg);
+    set("--sidebar", surface(bg, 0.03));
+    set("--card", surface(bg, 0.05));
+    set("--popover", surface(bg, 0.07));
+    set("--secondary", surface(bg, 0.08));
+    set("--muted", surface(bg, 0.08));
+    set("--input", surface(bg, 0.09));
+    set("--sidebar-accent", surface(bg, 0.07));
+    set("--border", surface(bg, 0.14));
+    set("--sidebar-border", surface(bg, 0.14));
+  }
+
+  // ---- Foreground family -----------------------------------------------
+  if (isHex(b.fgColor)) {
+    const fg = b.fgColor;
+    set("--foreground", fg);
+    set("--card-foreground", fg);
+    set("--popover-foreground", fg);
+    set("--secondary-foreground", fg);
+    set("--accent-foreground", fg);
+    set("--sidebar-foreground", fg);
+    set("--sidebar-accent-foreground", fg);
+    // muted text = foreground pulled toward the background for lower emphasis
+    if (isHex(b.bgColor)) {
+      set("--muted-foreground", mix(fg, luminance(b.bgColor) < 0.5 ? "black" : "white", 0.35));
+    }
+  }
+
+  // ---- Accent family (primary highlight used across the UI) ------------
+  if (isHex(b.accentColor)) {
+    const ac = b.accentColor;
+    const onAccent = luminance(ac) > 0.5 ? "#0A0A0A" : "#FFFFFF";
+    set("--accent", ac);
+    set("--gold", ac);
+    set("--gold-light", mix(ac, "white", 0.18));
+    set("--gold-foreground", onAccent);
+    set("--primary", ac);
+    set("--primary-foreground", onAccent);
+    set("--ring", ac);
+    set("--sidebar-primary", ac);
+    set("--sidebar-primary-foreground", onAccent);
+    set("--sidebar-ring", ac);
+  }
 }
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
