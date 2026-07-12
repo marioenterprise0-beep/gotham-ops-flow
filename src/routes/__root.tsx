@@ -82,7 +82,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Dip N Shake OS — Internal Operations" },
-      { name: "description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
+      { name: "description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for the crew." },
       { name: "author", content: "Dip N Shake" },
       // PWA / Apple meta tags
       { name: "theme-color", content: "#C8102E" },
@@ -95,12 +95,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "msapplication-TileImage", content: "/icons/icon-144x144.png" },
       // Open Graph
       { property: "og:title", content: "Dip N Shake OS — Internal Operations" },
-      { property: "og:description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
+      { property: "og:description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for the crew." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Dip N Shake OS — Internal Operations" },
-      { name: "twitter:description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for trailer crews." },
+      { name: "twitter:description", content: "Dip N Shake internal execution platform — operations, inventory, SOPs and analytics for the crew." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/df56c6ea-4aef-4633-a717-52e90460f312/id-preview-812cc439--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app-1780698621811.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/df56c6ea-4aef-4633-a717-52e90460f312/id-preview-812cc439--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app-1780698621811.png" },
     ],
