@@ -700,7 +700,7 @@ function exportHealthCSV(stats: any, crew: any[], roleName: string) {
   rows.push(["Alerts", "Open", stats?.alerts?.count ?? 0]);
   (stats?.alerts?.items ?? []).forEach((r: any) => rows.push(["Stock", r.name, `${r.pct}% of par${r.critical ? " · CRITICAL" : ""}`]));
   crew.forEach((c: any) => rows.push(["Crew", c.display_name, roleName]));
-  downloadCSV("gotham-health.csv", ["Section", "Label", "Value"], rows);
+  downloadCSV("dipnshake-health.csv", ["Section", "Label", "Value"], rows);
 }
 
 function exportHealthPDF(stats: any, crew: any[], roleName: string, phaseLabel: string) {

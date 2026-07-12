@@ -123,7 +123,7 @@ function AuthPage() {
         <div className="max-w-md">
           <img src={logoAsset.url} alt="Dip N Shake" className="h-24 w-auto object-contain mb-5" />
           <div className="font-display text-5xl text-[var(--color-gold)] leading-none">DIP N SHAKE OS</div>
-          <p className="mt-4 text-white/70">Internal operating system for Dip N Shake. Built for the trailer crew — speed, accountability, premium halal hospitality.</p>
+          <p className="mt-4 text-white/70">Internal operating system for Dip N Shake. Built for the crew — speed, accountability, and consistent hospitality.</p>
           <ul className="mt-8 space-y-2 text-sm text-white/70">
             <li>· Phase-based opening, mid, closing checklists</li>
             <li>· Live inventory, waste, and receiving</li>
