@@ -49,7 +49,11 @@ async function loadBranding(): Promise<Branding> {
   }
 }
 
-function applyThemeColors(b: Branding) {
+export function applyThemeColors(b: {
+  bgColor: string | null;
+  fgColor: string | null;
+  accentColor: string | null;
+}) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const set = (name: string, val: string | null) => {
