@@ -619,14 +619,15 @@ function DevicePreview({
   const [device, setDevice] = useState<"mobile" | "tablet">("mobile");
   const [screen, setScreen] = useState<"dashboard" | "schedule" | "signin">("dashboard");
 
-  const safe = (v: string, fallback: string) =>
-    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-  const b = safe(bg, "#0A0A0A");
-  const f = safe(fg, "#F5F5F5");
-  const a = safe(accent, "#EAB308");
-  const muted = f + "99";
-  const surface = f + "0F";
-  const border = f + "22";
+  // Match applyThemeColors() exactly — same derivation used across the app.
+  const t = resolveTheme(bg, fg, accent);
+  const b = t.background;
+  const f = t.foreground;
+  const a = t.accent;
+  const muted = t.mutedForeground;
+  const surface = t.card;
+  const border = t.border;
+  const onAccent = t.onAccent;
 
   const frame =
     device === "mobile"
