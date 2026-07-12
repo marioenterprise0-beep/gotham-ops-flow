@@ -15,7 +15,7 @@ import {
 } from "@/lib/notifications.functions";
 import { syncDomains } from "@/lib/sync-bus";
 import { useRole, ROLES } from "@/lib/role";
-import { useBranding, refreshBranding } from "@/lib/branding";
+import { useBranding, refreshBranding, applyThemeColors } from "@/lib/branding";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { Bell, BellOff, LogOut, Mail, Save, Zap } from "lucide-react";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -51,6 +51,23 @@ function Settings() {
   const [bgColor, setBgColor] = useState("#08090B");
   const [fgColor, setFgColor] = useState("#F5F5F4");
   const [accentColor, setAccentColor] = useState("#22C55E");
+  const [livePreview, setLivePreview] = useState(false);
+
+  // When live preview is on, push the current pickers to the global CSS vars.
+  // When it turns off, reload the saved branding so the app reverts cleanly.
+  useEffect(() => {
+    if (!livePreview) return;
+    applyThemeColors({ bgColor, fgColor, accentColor });
+  }, [livePreview, bgColor, fgColor, accentColor]);
+
+  useEffect(() => {
+    if (livePreview) return;
+    // Turned off (or never on) — sync back to saved values.
+    refreshBranding();
+  }, [livePreview]);
+
+  // Ensure the live preview doesn't persist when leaving the page.
+  useEffect(() => () => { if (livePreview) refreshBranding(); }, [livePreview]);
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
