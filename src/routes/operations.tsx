@@ -61,10 +61,10 @@ function Operations() {
   const [newAssignee, setNewAssignee] = useState<string>("");
   const [newSignoff, setNewSignoff] = useState(false);
 
-  // For managers in "Company" scope, server resolves to their own trailer
+  // For managers in "Company" scope, server resolves to their own location
   const activeTrailer = trailerScope;
   const trailerLabel = activeTrailer
-    ? (trailers.find((t) => t.id === activeTrailer)?.name ?? "Trailer")
+    ? (trailers.find((t) => t.id === activeTrailer)?.name ?? "Location")
     : "Your location";
 
   const shiftFn = useServerFn(getActiveShift);

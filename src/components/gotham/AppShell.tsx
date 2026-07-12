@@ -312,10 +312,10 @@ function TrailerSwitcher() {
           <button
             type="button"
             onClick={() => setDialogOpen(true)}
-            title="Request temporary access to another trailer"
+            title="Request temporary access to another location"
             className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] hover:border-[var(--color-gold)] transition"
           >
-            <span className="label-caps text-white/50">Trailer</span>
+            <span className="label-caps text-white/50">Location</span>
             <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {scopeName}</span>
             <span className="text-[10px] text-white/40">Request</span>
           </button>
@@ -324,8 +324,8 @@ function TrailerSwitcher() {
       );
     }
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title="Locked to your assigned trailer">
-        <span className="label-caps text-white/50">Trailer</span>
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title="Locked to your assigned location">
+        <span className="label-caps text-white/50">Location</span>
         <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {homeName}</span>
       </div>
     );
@@ -335,9 +335,9 @@ function TrailerSwitcher() {
       value={trailerScope ?? ""}
       onChange={(e) => setTrailerScope(e.target.value || null)}
       className="hidden md:block bg-[#1C1C1C] border border-[#2A2A2A] rounded-md px-2.5 py-1.5 text-xs font-medium text-[var(--color-gold)] outline-none focus:border-[var(--color-gold)]"
-      title="Trailer scope"
+      title="Location scope"
     >
-      <option value="">All trailers (Company)</option>
+      <option value="">All locations (Company)</option>
       {trailers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
     </select>
   );

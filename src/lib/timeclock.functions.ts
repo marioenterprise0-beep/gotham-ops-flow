@@ -287,7 +287,7 @@ export const clockOut = createServerFn({ method: "POST" })
       const { data: settings } = await supabaseAdmin.from("automation_settings")
         .select("kiosk_device_required").eq("scope", "global").maybeSingle();
       if (settings?.kiosk_device_required) {
-        throw new Error("Clock-out is kiosk-only. Please use the trailer iPad, or ask a manager to close your punch.");
+        throw new Error("Clock-out is kiosk-only. Please use the on-site iPad, or ask a manager to close your punch.");
       }
     }
     let punchId = data.punchId;

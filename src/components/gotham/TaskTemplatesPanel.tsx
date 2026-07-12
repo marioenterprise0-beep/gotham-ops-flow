@@ -89,7 +89,7 @@ export function TaskTemplatesPanel() {
   });
 
   const trailerName = (id: string | null) =>
-    id ? (trailers.find((t: any) => t.id === id)?.name ?? "—") : "All trailers";
+    id ? (trailers.find((t: any) => t.id === id)?.name ?? "—") : "All locations";
 
   return (
     <Card className="p-0 overflow-hidden">

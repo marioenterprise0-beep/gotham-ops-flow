@@ -686,7 +686,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
     const variance = Number(sess.variance ?? 0);
     const absVar = Math.abs(variance);
     const severity = absVar >= 50 ? "CRITICAL" : absVar >= 20 ? "HIGH" : absVar >= 5 ? "REVIEW" : "OK";
-    const trailerName = trailer?.name ?? "Trailer";
+    const trailerName = trailer?.name ?? "Location";
     const drawerName = drawer?.name ?? "Drawer";
     const subject = `[${severity}] Drawer Closed — ${trailerName} · ${drawerName} · Variance ${variance >= 0 ? "+" : ""}${_money(variance)}`;
     const varColor = absVar >= 20 ? "#b91c1c" : absVar >= 5 ? "#b45309" : "#047857";
