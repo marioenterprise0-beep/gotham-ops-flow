@@ -49,6 +49,86 @@ async function loadBranding(): Promise<Branding> {
   }
 }
 
+// Shared color math so applyThemeColors() and preview components resolve
+// the exact same surface / border / muted / on-accent values.
+const isHex = (v: string | null | undefined): v is string =>
+  !!v && /^#[0-9a-fA-F]{6}$/.test(v);
+const hexToRgb = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+};
+const rgbToHex = (r: number, g: number, b: number) =>
+  "#" + [r, g, b]
+    .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"))
+    .join("");
+const luminance = (hex: string) => {
+  const { r, g, b } = hexToRgb(hex);
+  const f = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const mix = (hex: string, target: "white" | "black", amt: number) => {
+  const { r, g, b } = hexToRgb(hex);
+  const t = target === "white" ? 255 : 0;
+  return rgbToHex(r + (t - r) * amt, g + (t - g) * amt, b + (t - b) * amt);
+};
+const surfaceOf = (base: string, step: number) => {
+  const dark = luminance(base) < 0.5;
+  return mix(base, dark ? "white" : "black", step);
+};
+
+export type ResolvedTheme = {
+  background: string;
+  foreground: string;
+  accent: string;
+  onAccent: string;
+  accentLight: string;
+  sidebar: string;
+  card: string;
+  popover: string;
+  secondary: string;
+  muted: string;
+  input: string;
+  sidebarAccent: string;
+  border: string;
+  sidebarBorder: string;
+  mutedForeground: string;
+};
+
+// Single source of truth for the derived theme palette. The live preview and
+// the device-preview mocks both consume this so what you see matches exactly
+// what applyThemeColors() writes to the global CSS variables.
+export function resolveTheme(
+  bgColor: string | null | undefined,
+  fgColor: string | null | undefined,
+  accentColor: string | null | undefined,
+): ResolvedTheme {
+  const bg = isHex(bgColor) ? bgColor : "#08090B";
+  const fg = isHex(fgColor) ? fgColor : "#F5F5F4";
+  const ac = isHex(accentColor) ? accentColor : "#22C55E";
+  const onAccent = luminance(ac) > 0.5 ? "#0A0A0A" : "#FFFFFF";
+  const mutedFg = mix(fg, luminance(bg) < 0.5 ? "black" : "white", 0.35);
+  return {
+    background: bg,
+    foreground: fg,
+    accent: ac,
+    onAccent,
+    accentLight: mix(ac, "white", 0.18),
+    sidebar: surfaceOf(bg, 0.03),
+    card: surfaceOf(bg, 0.05),
+    popover: surfaceOf(bg, 0.07),
+    secondary: surfaceOf(bg, 0.08),
+    muted: surfaceOf(bg, 0.08),
+    input: surfaceOf(bg, 0.09),
+    sidebarAccent: surfaceOf(bg, 0.07),
+    border: surfaceOf(bg, 0.14),
+    sidebarBorder: surfaceOf(bg, 0.14),
+    mutedForeground: mutedFg,
+  };
+}
+
 export function applyThemeColors(b: {
   bgColor: string | null;
   fgColor: string | null;
@@ -56,10 +136,6 @@ export function applyThemeColors(b: {
 }) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  const set = (name: string, val: string | null) => {
-    if (val && /^#[0-9a-fA-F]{6}$/.test(val)) root.style.setProperty(name, val);
-    else root.style.removeProperty(name);
-  };
 
   // Reset any previously-applied inline overrides so a cleared value falls
   // back to the stylesheet defaults cleanly.
@@ -80,76 +156,44 @@ export function applyThemeColors(b: {
   ];
   for (const name of ALL) root.style.removeProperty(name);
 
-  const isHex = (v: string | null): v is string => !!v && /^#[0-9a-fA-F]{6}$/.test(v);
-  const hexToRgb = (hex: string) => {
-    const n = parseInt(hex.slice(1), 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  };
-  const rgbToHex = (r: number, g: number, b: number) =>
-    "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
-  const luminance = (hex: string) => {
-    const { r, g, b } = hexToRgb(hex);
-    const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-  };
-  // Shift a color toward white or black by `amt` (0..1).
-  const mix = (hex: string, target: "white" | "black", amt: number) => {
-    const { r, g, b } = hexToRgb(hex);
-    const t = target === "white" ? 255 : 0;
-    return rgbToHex(r + (t - r) * amt, g + (t - g) * amt, b + (t - b) * amt);
-  };
-  // Nudge a surface color slightly lighter or darker than the base background,
-  // depending on whether the base is dark or light.
-  const surface = (base: string, step: number) => {
-    const dark = luminance(base) < 0.5;
-    return mix(base, dark ? "white" : "black", step);
-  };
+  const set = (name: string, val: string) => root.style.setProperty(name, val);
+  const t = resolveTheme(b.bgColor, b.fgColor, b.accentColor);
 
-  // ---- Background family -----------------------------------------------
   if (isHex(b.bgColor)) {
-    const bg = b.bgColor;
-    set("--background", bg);
-    set("--sidebar", surface(bg, 0.03));
-    set("--card", surface(bg, 0.05));
-    set("--popover", surface(bg, 0.07));
-    set("--secondary", surface(bg, 0.08));
-    set("--muted", surface(bg, 0.08));
-    set("--input", surface(bg, 0.09));
-    set("--sidebar-accent", surface(bg, 0.07));
-    set("--border", surface(bg, 0.14));
-    set("--sidebar-border", surface(bg, 0.14));
+    set("--background", t.background);
+    set("--sidebar", t.sidebar);
+    set("--card", t.card);
+    set("--popover", t.popover);
+    set("--secondary", t.secondary);
+    set("--muted", t.muted);
+    set("--input", t.input);
+    set("--sidebar-accent", t.sidebarAccent);
+    set("--border", t.border);
+    set("--sidebar-border", t.sidebarBorder);
   }
 
-  // ---- Foreground family -----------------------------------------------
   if (isHex(b.fgColor)) {
-    const fg = b.fgColor;
-    set("--foreground", fg);
-    set("--card-foreground", fg);
-    set("--popover-foreground", fg);
-    set("--secondary-foreground", fg);
-    set("--accent-foreground", fg);
-    set("--sidebar-foreground", fg);
-    set("--sidebar-accent-foreground", fg);
-    // muted text = foreground pulled toward the background for lower emphasis
-    if (isHex(b.bgColor)) {
-      set("--muted-foreground", mix(fg, luminance(b.bgColor) < 0.5 ? "black" : "white", 0.35));
-    }
+    set("--foreground", t.foreground);
+    set("--card-foreground", t.foreground);
+    set("--popover-foreground", t.foreground);
+    set("--secondary-foreground", t.foreground);
+    set("--accent-foreground", t.foreground);
+    set("--sidebar-foreground", t.foreground);
+    set("--sidebar-accent-foreground", t.foreground);
+    if (isHex(b.bgColor)) set("--muted-foreground", t.mutedForeground);
   }
 
-  // ---- Accent family (primary highlight used across the UI) ------------
   if (isHex(b.accentColor)) {
-    const ac = b.accentColor;
-    const onAccent = luminance(ac) > 0.5 ? "#0A0A0A" : "#FFFFFF";
-    set("--accent", ac);
-    set("--gold", ac);
-    set("--gold-light", mix(ac, "white", 0.18));
-    set("--gold-foreground", onAccent);
-    set("--primary", ac);
-    set("--primary-foreground", onAccent);
-    set("--ring", ac);
-    set("--sidebar-primary", ac);
-    set("--sidebar-primary-foreground", onAccent);
-    set("--sidebar-ring", ac);
+    set("--accent", t.accent);
+    set("--gold", t.accent);
+    set("--gold-light", t.accentLight);
+    set("--gold-foreground", t.onAccent);
+    set("--primary", t.accent);
+    set("--primary-foreground", t.onAccent);
+    set("--ring", t.accent);
+    set("--sidebar-primary", t.accent);
+    set("--sidebar-primary-foreground", t.onAccent);
+    set("--sidebar-ring", t.accent);
   }
 }
 
