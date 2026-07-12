@@ -72,6 +72,22 @@ export function useBranding(): Branding {
   return useContext(BrandingCtx);
 }
 
+// Keep the browser tab title in sync with the current org short name.
+// Preserves the per-route title suffix set by TanStack head().
+let originalSuffix: string | null = null;
+export function useDocumentTitleSync() {
+  const branding = useBranding();
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const current = document.title;
+    // Try to detect a per-route prefix ("Cash · Dip N Shake OS" etc.)
+    const parts = current.split(" · ");
+    const routePart = parts[0] || branding.shortName;
+    if (originalSuffix === null) originalSuffix = parts.slice(1).join(" · ") || branding.shortName;
+    document.title = `${routePart} · ${branding.shortName}`;
+  }, [branding.shortName]);
+}
+
 export function refreshBranding() {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("branding:refresh"));
