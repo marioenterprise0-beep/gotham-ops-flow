@@ -478,7 +478,7 @@ function ThemePreview({
             <button
               type="button"
               className="h-9 px-4 rounded-md text-xs font-semibold uppercase tracking-[1.2px]"
-              style={{ backgroundColor: a, color: b }}
+              style={{ backgroundColor: a, color: t.onAccent }}
             >
               Primary action
             </button>
