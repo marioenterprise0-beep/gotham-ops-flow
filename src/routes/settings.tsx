@@ -190,6 +190,48 @@ function Settings() {
 }
 
 function AutomationPanel() {
+  return _AutomationPanel();
+}
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
+  return (
+    <div>
+      <div className="label-caps text-muted-foreground mb-1">{label}</div>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={safe}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-12 rounded-md border border-border bg-card cursor-pointer p-1"
+          aria-label={`${label} color`}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          maxLength={7}
+          placeholder="#000000"
+          className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm font-mono uppercase"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PresetButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-8 rounded-md border border-border px-3 text-xs font-semibold uppercase tracking-[1px] hover:border-[var(--color-gold)]"
+    >
+      {label}
+    </button>
+  );
+}
+
+function _AutomationPanel() {
   const qc = useQueryClient();
   const getFn = useServerFn(getAutomationSettings);
   const saveFn = useServerFn(updateAutomationSettings);
