@@ -156,6 +156,14 @@ function Settings() {
                   <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
                 </div>
                 <ContrastReport bg={bgColor} fg={fgColor} accent={accentColor} />
+                <ThemePreview
+                  bg={bgColor}
+                  fg={fgColor}
+                  accent={accentColor}
+                  orgName={storeName || "Your Organization"}
+                  shortName={storeShort || storeName || "Ops"}
+                  tagline={storeTagline || "Internal operating system for your team."}
+                />
               </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
