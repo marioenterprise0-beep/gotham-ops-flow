@@ -60,61 +60,62 @@
 :root {
   --radius: 0.75rem;
 
-  /* Black · Red · Green — high-contrast dark theme */
-  --background: #000000;
-  --foreground: #FF2A2A;
+  /* Modern dark theme — near-black surfaces, off-white text, restrained accents */
+  --background: #08090B;
+  --foreground: #F5F5F4;
 
-  --card: #0A0A0A;
-  --card-foreground: #FF2A2A;
-  --popover: #0A0A0A;
-  --popover-foreground: #FF2A2A;
+  --card: #101114;
+  --card-foreground: #F5F5F4;
+  --popover: #14161A;
+  --popover-foreground: #F5F5F4;
 
-  --ink: #FF2A2A;
-  --primary: #FF2A2A;
-  --primary-foreground: #000000;
+  --ink: #F5F5F4;
+  --primary: #EF4444;
+  --primary-foreground: #0A0A0A;
 
-  --secondary: #111111;
-  --secondary-foreground: #FF2A2A;
-  --graphite: #141414;
+  --secondary: #17191D;
+  --secondary-foreground: #F5F5F4;
+  --graphite: #17191D;
 
-  --muted: #111111;
-  --muted-foreground: #A81C1C;
+  --muted: #17191D;
+  --muted-foreground: #A1A1AA;
 
   --accent: #22C55E;
-  --accent-foreground: #000000;
+  --accent-foreground: #0A0A0A;
 
   /* Legacy "gold" tokens re-mapped to green accent so existing usages stay themed. */
   --gold: #22C55E;
-  --gold-light: #16A34A;
-  --gold-foreground: #000000;
+  --gold-light: #4ADE80;
+  --gold-foreground: #0A0A0A;
 
   --success: #22C55E;
-  --success-foreground: #000000;
+  --success-foreground: #0A0A0A;
   --success-bg: #052E16;
-  --warning: #EAB308;
-  --warning-foreground: #000000;
+  --warning: #F59E0B;
+  --warning-foreground: #0A0A0A;
   --warning-bg: #2A1F00;
-  --danger: #FF2A2A;
-  --danger-bg: #2A0000;
-  --destructive: #FF2A2A;
-  --destructive-foreground: #FFFFFF;
+  --danger: #EF4444;
+  --danger-bg: #2A0A0A;
+  --destructive: #EF4444;
+  --destructive-foreground: #F5F5F4;
 
-  --border: #1F1F1F;
-  --input: #1F1F1F;
-  --ring: #22C55E;
+  --border: #23262C;
+  --input: #1B1D22;
+  --ring: #EF4444;
 
-  --sidebar: #000000;
-  --sidebar-foreground: #FF2A2A;
-  --sidebar-primary: #22C55E;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #0A0A0A;
-  --sidebar-accent-foreground: #22C55E;
-  --sidebar-border: #1F1F1F;
-  --sidebar-ring: #22C55E;
+  --sidebar: #0B0C0F;
+  --sidebar-foreground: #E4E4E7;
+  --sidebar-primary: #EF4444;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #14161A;
+  --sidebar-accent-foreground: #F5F5F4;
+  --sidebar-border: #23262C;
+  --sidebar-ring: #EF4444;
 }
 
 @layer base {
   * { border-color: var(--color-border); }
+  html { background-color: var(--color-background); color-scheme: dark; }
   html, body {
     background-color: var(--color-background);
     color: var(--color-foreground);
