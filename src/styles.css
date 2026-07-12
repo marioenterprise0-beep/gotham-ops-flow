@@ -11,8 +11,8 @@
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
 
-  --font-display: "Black Han Sans", "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bebas Neue", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --color-background: var(--background);
@@ -60,57 +60,57 @@
 :root {
   --radius: 0.75rem;
 
-  /* Dip N Shake palette — red · black · green */
-  --background: #FAFAF7;
-  --foreground: #0A0A0A;
+  /* Black · Red · Green — high-contrast dark theme */
+  --background: #000000;
+  --foreground: #FF2A2A;
 
-  --card: #FFFFFF;
-  --card-foreground: #0A0A0A;
-  --popover: #FFFFFF;
-  --popover-foreground: #0A0A0A;
+  --card: #0A0A0A;
+  --card-foreground: #FF2A2A;
+  --popover: #0A0A0A;
+  --popover-foreground: #FF2A2A;
 
-  --ink: #0A0A0A;
-  --primary: #C8102E;
-  --primary-foreground: #FFFFFF;
+  --ink: #FF2A2A;
+  --primary: #FF2A2A;
+  --primary-foreground: #000000;
 
-  --secondary: #F3F3EF;
-  --secondary-foreground: #0A0A0A;
-  --graphite: #1C1C1C;
+  --secondary: #111111;
+  --secondary-foreground: #FF2A2A;
+  --graphite: #141414;
 
-  --muted: #F3F3EF;
-  --muted-foreground: #6B6B6B;
+  --muted: #111111;
+  --muted-foreground: #A81C1C;
 
-  --accent: #E8F5EC;
-  --accent-foreground: #0A0A0A;
+  --accent: #22C55E;
+  --accent-foreground: #000000;
 
-  /* Legacy "gold" tokens re-mapped to brand red so existing usages stay themed. */
-  --gold: #C8102E;
-  --gold-light: #FDECEE;
-  --gold-foreground: #FFFFFF;
+  /* Legacy "gold" tokens re-mapped to green accent so existing usages stay themed. */
+  --gold: #22C55E;
+  --gold-light: #16A34A;
+  --gold-foreground: #000000;
 
-  --success: #1B7F3B;
-  --success-foreground: #FFFFFF;
-  --success-bg: #E4F4E9;
-  --warning: #C87A00;
-  --warning-foreground: #FFFFFF;
-  --warning-bg: #FDEBCC;
-  --danger: #C8102E;
-  --danger-bg: #FADBDF;
-  --destructive: #C8102E;
+  --success: #22C55E;
+  --success-foreground: #000000;
+  --success-bg: #052E16;
+  --warning: #EAB308;
+  --warning-foreground: #000000;
+  --warning-bg: #2A1F00;
+  --danger: #FF2A2A;
+  --danger-bg: #2A0000;
+  --destructive: #FF2A2A;
   --destructive-foreground: #FFFFFF;
 
-  --border: #E0E0E0;
-  --input: #E0E0E0;
-  --ring: #C8102E;
+  --border: #1F1F1F;
+  --input: #1F1F1F;
+  --ring: #22C55E;
 
-  --sidebar: #0A0A0A;
-  --sidebar-foreground: #FFFFFF;
-  --sidebar-primary: #1B7F3B;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1C1C1C;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #1C1C1C;
-  --sidebar-ring: #C8102E;
+  --sidebar: #000000;
+  --sidebar-foreground: #FF2A2A;
+  --sidebar-primary: #22C55E;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #0A0A0A;
+  --sidebar-accent-foreground: #22C55E;
+  --sidebar-border: #1F1F1F;
+  --sidebar-ring: #22C55E;
 }
 
 @layer base {
@@ -122,8 +122,8 @@
     -webkit-font-smoothing: antialiased;
     font-weight: 400;
   }
-  .font-display, .font-han { font-family: "Black Han Sans", sans-serif; letter-spacing: 0.01em; }
-  h1, h2, h3, h4 { font-family: var(--font-sans); font-weight: 600; letter-spacing: -0.01em; }
+  .font-display, .font-han { font-family: "Bebas Neue", sans-serif; letter-spacing: 0.04em; }
+  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.01em; }
 }
 
 @utility text-balance { text-wrap: balance; }
