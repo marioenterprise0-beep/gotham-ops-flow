@@ -161,7 +161,7 @@ export function TrustedDevicesManager() {
           <div className="text-sm text-muted-foreground py-6">Loading…</div>
         ) : devices.data?.length === 0 ? (
           <div className="text-sm text-muted-foreground py-6">
-            No devices yet. Register the trailer iPad to enable kiosk mode.
+            No devices yet. Register the location iPad to enable kiosk mode.
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -226,7 +226,7 @@ export function TrustedDevicesManager() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Trailer</Label>
+              <Label>Location</Label>
               <select
                 className="w-full border rounded-md px-3 py-2 bg-background"
                 value={newTrailerId}
@@ -241,7 +241,7 @@ export function TrustedDevicesManager() {
             <div>
               <Label>Device label</Label>
               <Input
-                placeholder="e.g. Trailer 1 Kiosk"
+                placeholder="e.g. Front Counter Kiosk"
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
               />
