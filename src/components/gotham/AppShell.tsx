@@ -189,8 +189,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
                       : "gap-3 px-3 py-2 border-l-2",
                     active
                       ? (collapsed
-                          ? "bg-[#FAF7EE] text-[var(--color-gold)]"
-                          : "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[#FAF7EE]")
+                          ? "bg-[var(--sidebar-accent)] text-[var(--color-gold)]"
+                          : "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--sidebar-accent)]")
                       : (collapsed
                           ? "text-foreground/70 hover:bg-secondary hover:text-foreground"
                           : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground"),
