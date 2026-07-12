@@ -661,6 +661,7 @@ function DevicePreview({
                 style={{ background: "#0B0B0D" }}
               />
             )}
+            <InScreenContrastBadges bg={b} fg={f} accent={a} />
 
             {screen === "dashboard" && (
               <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
