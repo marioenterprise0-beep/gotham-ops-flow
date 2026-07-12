@@ -94,7 +94,7 @@ export function LocationRequests() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const trailerName = (id?: string | null) => (id ? trailers.find((t) => t.id === id)?.name ?? "Trailer" : "—");
+  const trailerName = (id?: string | null) => (id ? trailers.find((t) => t.id === id)?.name ?? "Location" : "—");
 
   return (
     <EmbedShell>
