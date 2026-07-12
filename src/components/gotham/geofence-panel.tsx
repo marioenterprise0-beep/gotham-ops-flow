@@ -30,14 +30,14 @@ export function GeofencePanel() {
 
   return (
     <>
-      <SectionHeader eyebrow="Clock-in Geofence" title="Trailer Locations" />
+      <SectionHeader eyebrow="Clock-in Geofence" title="Locations" />
       <Card>
         <div className="text-xs text-muted-foreground mb-3">
-          Employees can only clock in within the radius of their trailer. Enter an address, stand at the trailer and tap "Use current location", or type lat/lng directly.
+          Employees can only clock in within the radius of their location. Enter an address, stand on-site and tap "Use current location", or type lat/lng directly.
         </div>
         <div className="space-y-4">
           {trailers.length === 0 && (
-            <div className="text-sm text-muted-foreground">No trailers yet.</div>
+            <div className="text-sm text-muted-foreground">No locations yet.</div>
           )}
           {trailers.map((t) => (
             <GeofenceRow key={t.id} trailer={t} onSave={(v) => save.mutate({ trailerId: t.id, ...v })} pending={save.isPending} />
@@ -135,7 +135,7 @@ function GeofenceRow({ trailer, onSave, pending }: {
       </div>
       <div className="mt-2 flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          {trailer.geofence_lat == null ? "Not set — geofence disabled for this trailer." : "Geofence active."}
+          {trailer.geofence_lat == null ? "Not set — geofence disabled for this location." : "Geofence active."}
         </div>
         <div className="flex gap-2">
           <button

@@ -89,7 +89,7 @@ export const template = {
   previewData: {
     recipient_name: "Ahmed",
     week_range: "Jun 30 – Jul 6",
-    location: "Henrietta Trailer",
+    location: "Downtown Location",
     locked_by: "Mario (Owner)",
     shifts: [
       { day: "Mon", date: "Jun 30", start: "09:00", end: "14:00", role: "cashier" },

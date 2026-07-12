@@ -63,7 +63,7 @@ export const ARCHIVE_DOMAINS: ArchiveDomain[] = [
   ]},
   { table: "alert_actions", label: "Alert Actions", deps: [] },
   { table: "location_access_requests", label: "Location Access Requests", deps: [] },
-  { table: "trailers", label: "Trailers", nameColumn: "name", ownerOnlyArchive: true, deps: [
+  { table: "trailers", label: "Locations", nameColumn: "name", ownerOnlyArchive: true, deps: [
     { table: "profiles", column: "trailer_id", label: "Profiles" },
     { table: "inventory_items", column: "trailer_id", label: "Inventory items" },
     { table: "schedules", column: "trailer_id", label: "Schedules" },

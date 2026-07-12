@@ -18,5 +18,5 @@ const Email = ({ recipient_name, manager_name, recap_date, location, shift_score
     <OpenGothamButton path={recap_id ? `/recaps/${recap_id}` : '/recaps'} label="Read Recap" />
   </BrandLayout>
 )
-export const template = { component: Email, subject: (d: any) => `Daily recap — ${d?.recap_date ?? ''}`, displayName: 'Daily Recap Submitted', previewData: { manager_name: 'Aisha', recap_date: 'Dec 9', location: 'Trailer 1', shift_score: 8 } } satisfies TemplateEntry
+export const template = { component: Email, subject: (d: any) => `Daily recap — ${d?.recap_date ?? ''}`, displayName: 'Daily Recap Submitted', previewData: { manager_name: 'Aisha', recap_date: 'Dec 9', location: 'Location 1', shift_score: 8 } } satisfies TemplateEntry
 export default Email

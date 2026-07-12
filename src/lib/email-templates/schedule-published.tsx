@@ -54,7 +54,7 @@ export const template = {
   previewData: {
     recipient_name: 'Sara',
     week_range: 'Dec 9 – Dec 15',
-    location: 'Trailer 1',
+    location: 'Location 1',
     total_hours: 32,
     shifts: [
       { date: 'Mon Dec 9', start: '10:00 AM', end: '6:00 PM', role: 'cashier' },

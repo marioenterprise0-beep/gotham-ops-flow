@@ -191,13 +191,13 @@ function AutomationPanel() {
         <div className="space-y-4">
           <ToggleRow
             label="Daily rollover"
-            help="At each trailer's local rollover hour, close active shifts, mark incomplete checklist items missed, auto clock-out open punches, and archive old resolved alerts. History is preserved."
+            help="At each location's local rollover hour, close active shifts, mark incomplete checklist items missed, auto clock-out open punches, and archive old resolved alerts. History is preserved."
             checked={settings.rollover_enabled}
             onChange={(v) => save.mutate({ rolloverEnabled: v })}
           />
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold">Rollover hour (trailer local time)</div>
+              <div className="text-sm font-semibold">Rollover hour (location local time)</div>
               <div className="text-xs text-muted-foreground">Runs every 15 minutes; fires once when local hour matches.</div>
             </div>
             <select

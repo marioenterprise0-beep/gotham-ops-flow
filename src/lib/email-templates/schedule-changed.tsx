@@ -39,6 +39,6 @@ export const template = {
   component: Email,
   subject: (d: any) => `Schedule updated — ${d?.week_range ?? ''}`,
   displayName: 'Schedule Changed',
-  previewData: { changed_by: 'Aisha Khan', week_range: 'Dec 9 – Dec 15', location: 'Trailer 1', changes: [{ field: 'Tue Dec 10', from: '10–6', to: '12–8' }] },
+  previewData: { changed_by: 'Aisha Khan', week_range: 'Dec 9 – Dec 15', location: 'Location 1', changes: [{ field: 'Tue Dec 10', from: '10–6', to: '12–8' }] },
 } satisfies TemplateEntry
 export default Email

@@ -32,5 +32,5 @@ const Email = ({ recipient_name, submitted_by, location, trailer_name, item_coun
   </BrandLayout>
   )
 }
-export const template = { component: Email, subject: (d: any) => `Inventory order submitted — ${d?.location ?? d?.trailer_name ?? ''}`, displayName: 'Inventory Order Submitted', previewData: { submitted_by: 'Aisha', location: 'Trailer 1', item_count: 3, critical_count: 1, order_id: 'abc', items: [{ item_name: 'Chicken thighs', requested_qty: 40, unit: 'lb', urgency: 'critical', current_qty: 4, par_qty: 20 }, { item_name: 'Pita bread', requested_qty: 80, unit: 'ea', current_qty: 12, par_qty: 80 }, { item_name: 'Tahini', requested_qty: 6, unit: 'jar' }] } } satisfies TemplateEntry
+export const template = { component: Email, subject: (d: any) => `Inventory order submitted — ${d?.location ?? d?.trailer_name ?? ''}`, displayName: 'Inventory Order Submitted', previewData: { submitted_by: 'Aisha', location: 'Location 1', item_count: 3, critical_count: 1, order_id: 'abc', items: [{ item_name: 'Chicken thighs', requested_qty: 40, unit: 'lb', urgency: 'critical', current_qty: 4, par_qty: 20 }, { item_name: 'Pita bread', requested_qty: 80, unit: 'ea', current_qty: 12, par_qty: 80 }, { item_name: 'Tahini', requested_qty: 6, unit: 'jar' }] } } satisfies TemplateEntry
 export default Email

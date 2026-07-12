@@ -23,7 +23,7 @@ const Email = ({
     <Heading style={styles.h1}>End-of-night report</Heading>
     <Text style={styles.text}>
       {recipient_name ? `${recipient_name}, ` : ''}here's the summary for{' '}
-      {trailer_name ?? 'the trailer'} on {shift_date ?? 'today'}.
+      {trailer_name ?? 'this location'} on {shift_date ?? 'today'}.
     </Text>
     <DataTable>
       <DataRow label="Date"           value={shift_date ?? '—'} emphasis />
@@ -44,7 +44,7 @@ export const template = {
   subject: (d: any) => `Night summary — ${d?.shift_date ?? ''}`,
   displayName: 'Night Summary',
   previewData: {
-    trailer_name: 'Trailer 1', shift_date: '2026-06-13',
+    trailer_name: 'Location 1', shift_date: '2026-06-13',
     shift_score: 8, total_hours: '32.5h', cash_variance: '+$2.00',
     critical_alerts: 0, crew_count: 4,
   },
