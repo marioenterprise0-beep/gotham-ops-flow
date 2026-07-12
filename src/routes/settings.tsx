@@ -445,7 +445,7 @@ function ThemePreview({
           <div className="flex items-center gap-2">
             <div
               className="h-6 w-6 rounded-md grid place-items-center text-[10px] font-bold"
-              style={{ backgroundColor: a, color: b }}
+              style={{ backgroundColor: a, color: t.onAccent }}
             >
               {shortName.slice(0, 1).toUpperCase()}
             </div>
