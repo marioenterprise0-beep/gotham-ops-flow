@@ -141,6 +141,21 @@ function Settings() {
                 <div className="label-caps text-muted-foreground mb-1">Primary location / address</div>
                 <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
               </div>
+              <div className="pt-3 mt-3 border-t border-border">
+                <div className="text-sm font-semibold mb-1">Theme colors</div>
+                <div className="text-[11px] text-muted-foreground mb-3">Applied instantly across every page for all users.</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <ColorField label="Background" value={bgColor} onChange={setBgColor} />
+                  <ColorField label="Text" value={fgColor} onChange={setFgColor} />
+                  <ColorField label="Accent" value={accentColor} onChange={setAccentColor} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <PresetButton label="Midnight" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#EAB308"); }} />
+                  <PresetButton label="Slate" onClick={() => { setBgColor("#0F172A"); setFgColor("#E2E8F0"); setAccentColor("#3B82F6"); }} />
+                  <PresetButton label="Espresso" onClick={() => { setBgColor("#1C1917"); setFgColor("#FAFAF9"); setAccentColor("#F97316"); }} />
+                  <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
+                </div>
+              </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
