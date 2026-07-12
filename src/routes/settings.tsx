@@ -232,6 +232,101 @@ function PresetButton({ label, onClick }: { label: string; onClick: () => void }
   );
 }
 
+// ---------- WCAG contrast utilities ----------
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+}
+function relLum({ r, g, b }: { r: number; g: number; b: number }) {
+  const ch = (v: number) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+}
+function contrastRatio(a: string, b: string): number | null {
+  const ra = hexToRgb(a); const rb = hexToRgb(b);
+  if (!ra || !rb) return null;
+  const la = relLum(ra); const lb = relLum(rb);
+  const [lo, hi] = la < lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+type Rating = { level: "AAA" | "AA" | "AA Large" | "Fail"; tone: "ok" | "warn" | "bad" };
+function rate(ratio: number): Rating {
+  if (ratio >= 7) return { level: "AAA", tone: "ok" };
+  if (ratio >= 4.5) return { level: "AA", tone: "ok" };
+  if (ratio >= 3) return { level: "AA Large", tone: "warn" };
+  return { level: "Fail", tone: "bad" };
+}
+
+function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: string }) {
+  const pairs: Array<{ label: string; a: string; b: string; hint: string }> = [
+    { label: "Text on background", a: fg, b: bg, hint: "Body copy readability" },
+    { label: "Accent on background", a: accent, b: bg, hint: "Buttons, links, focus rings" },
+    { label: "Text on accent", a: fg, b: accent, hint: "Text inside accent-filled buttons" },
+  ];
+  const anyFail = pairs.some((p) => {
+    const r = contrastRatio(p.a, p.b);
+    return r !== null && r < 4.5;
+  });
+  return (
+    <div className="mt-4 rounded-md border border-border bg-card/50 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-semibold uppercase tracking-[1px] text-muted-foreground">
+          Contrast check (WCAG 2.1)
+        </div>
+        {anyFail && (
+          <span className="text-[10px] font-semibold uppercase tracking-[1px] text-[var(--color-danger,#ef4444)]">
+            Accessibility warning
+          </span>
+        )}
+      </div>
+      <ul className="space-y-2">
+        {pairs.map((p) => {
+          const ratio = contrastRatio(p.a, p.b);
+          const rating = ratio !== null ? rate(ratio) : null;
+          const toneClass =
+            rating?.tone === "ok"
+              ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+              : rating?.tone === "warn"
+              ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+              : "bg-red-500/15 text-red-500 border-red-500/30";
+          return (
+            <li key={p.label} className="flex items-center gap-3">
+              <div
+                className="h-9 w-16 shrink-0 rounded-md border border-border flex items-center justify-center text-[11px] font-semibold"
+                style={{ backgroundColor: /^#[0-9a-fA-F]{6}$/.test(p.b) ? p.b : undefined, color: /^#[0-9a-fA-F]{6}$/.test(p.a) ? p.a : undefined }}
+                aria-hidden="true"
+              >
+                Aa
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium">{p.label}</div>
+                <div className="text-[11px] text-muted-foreground">{p.hint}</div>
+              </div>
+              <div className="text-[11px] font-mono tabular-nums text-muted-foreground">
+                {ratio !== null ? `${ratio.toFixed(2)}:1` : "—"}
+              </div>
+              {rating && (
+                <span className={`text-[10px] font-semibold uppercase tracking-[1px] px-2 py-1 rounded border ${toneClass}`}>
+                  {rating.level}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {anyFail && (
+        <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
+          One or more pairs fall below the WCAG AA minimum of 4.5:1 for normal text (3:1 for large text). Users with low vision may struggle to read these combinations.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function _AutomationPanel() {
   const qc = useQueryClient();
   const getFn = useServerFn(getAutomationSettings);
