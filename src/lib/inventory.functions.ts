@@ -36,7 +36,7 @@ async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: st
   if (isManager) return;
   if (!item) throw new Error("Inventory item not found");
   if (!profile?.trailer_id || profile.trailer_id !== item.trailer_id) {
-    throw new Error("Not authorized for this trailer's inventory");
+      throw new Error("Not authorized for this location's inventory");
   }
 }
 

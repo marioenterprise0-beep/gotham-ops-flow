@@ -242,7 +242,7 @@ function RecapEditor({ id, isOwner, isCrew = false, defaultTrailerId, onClose, o
         {id && isLoading ? <div>Loading…</div> : (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Location / trailer">
+              <Field label="Location">
                 <select disabled={!editable} value={trailerId ?? ""} onChange={(e) => setTrailerId(e.target.value || null)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
                   <option value="">—</option>
                   {trailers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}

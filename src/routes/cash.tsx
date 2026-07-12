@@ -869,7 +869,7 @@ function SessionDetailDialog({ sessionId, isManager, isOwner, onClose, onChanged
           <Card className="bg-secondary">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <Field label="Status" value={s.status} />
-              <Field label="Trailer" value={trailer?.name ?? "—"} />
+                <Field label="Location" value={trailer?.name ?? "—"} />
               <Field label="Opened" value={new Date(s.opened_at).toLocaleString()} />
               <Field label="Closed" value={s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"} />
               <Field label="Opened By" value={names[s.opened_by] ?? "—"} />
@@ -1042,7 +1042,7 @@ function printCashDropSlip(p: {
         ["Business", "Dip N Shake"],
         ["Module", "Cash Management"],
         ["Type", "Cash Drop Slip"],
-        ["Location / Trailer", p.trailerName],
+        ["Location", p.trailerName],
         ["Drawer", p.drawerName],
         ["Cash Drop Amount", `$${Number(d.amount).toFixed(2)}`],
         ["Reason", d.reason || "—"],

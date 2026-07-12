@@ -256,8 +256,8 @@ function LiveCountsTab() {
     enabled: !loading && !!session?.access_token,
   });
   const trailerLabel = trailerScope
-    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
-    : "All trailers · Company";
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Location")
+    : "All locations · Company";
 
   const listCatsFn = useServerFn(listInventoryCategories);
   const { data: categories = [] } = useQuery<Array<{ id: string; key: string; label: string; sort_order: number; archived_at: string | null }>>({
@@ -569,8 +569,8 @@ function OrdersTab({ onEditDetails }: { onEditDetails: (itemId: string) => void 
   });
 
   const trailerLabel = trailerScope
-    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Trailer")
-    : "All trailers · Company";
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? "Location")
+    : "All locations · Company";
 
   const [orderOpen, setOrderOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);

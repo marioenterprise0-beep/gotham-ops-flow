@@ -632,7 +632,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
         .from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
       const callerTrailer = (callerProfile as any)?.trailer_id ?? null;
       if (callerTrailer && callerTrailer !== sess.trailer_id) {
-        throw new Error("Cannot send cash alert for a session outside your trailer");
+        throw new Error("Cannot send cash alert for a session outside your location");
       }
     }
 

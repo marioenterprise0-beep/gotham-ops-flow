@@ -7,7 +7,7 @@ import { z } from "zod";
 const TEMPLATES = {
   opening: [
     // Open Trailer + Power On Equipment
-    { section: "OPEN + POWER ON",   title: "Open trailer",                       assignee_role: "shift_lead", requires_signoff: false },
+    { section: "OPEN + POWER ON",   title: "Open location",                      assignee_role: "shift_lead", requires_signoff: false },
     { section: "OPEN + POWER ON",   title: "Turn on lights",                     assignee_role: "shift_lead", requires_signoff: false },
     { section: "OPEN + POWER ON",   title: "Turn on propane valves",             assignee_role: "shift_lead", requires_signoff: true  },
     { section: "OPEN + POWER ON",   title: "Turn on grills",                     assignee_role: "grill",      requires_signoff: false },
@@ -15,7 +15,7 @@ const TEMPLATES = {
     // Tray + Station Check
     { section: "TRAY + STATION",    title: "Check all trays and stations for prep needs", assignee_role: "prep", requires_signoff: false },
     // Opening Sign-Off
-    { section: "OPENING SIGN-OFF",  title: "Trailer open and ready",             assignee_role: "shift_lead", requires_signoff: true  },
+    { section: "OPENING SIGN-OFF",  title: "Location open and ready",            assignee_role: "shift_lead", requires_signoff: true  },
     { section: "OPENING SIGN-OFF",  title: "Lights on",                          assignee_role: "shift_lead", requires_signoff: false },
     { section: "OPENING SIGN-OFF",  title: "Propane on",                         assignee_role: "shift_lead", requires_signoff: true  },
     { section: "OPENING SIGN-OFF",  title: "Grill heating",                      assignee_role: "grill",      requires_signoff: false },
@@ -89,7 +89,7 @@ const TEMPLATES = {
     { section: "FINAL READINESS",     title: "Ensure enough 6QT sauce buckets",            assignee_role: "shift_lead", requires_signoff: false },
     { section: "FINAL READINESS",     title: "Plug work phone into charger",               assignee_role: "shift_lead", requires_signoff: false },
     { section: "FINAL READINESS",     title: "Plug wireless card reader into charger",     assignee_role: "shift_lead", requires_signoff: false },
-    { section: "FINAL READINESS",     title: "Trailer ready for next day",                 assignee_role: "shift_lead", requires_signoff: true  },
+    { section: "FINAL READINESS",     title: "Location ready for next day",                assignee_role: "shift_lead", requires_signoff: true  },
     // Closing Sign-Off
     { section: "CLOSING SIGN-OFF",    title: "Grills off",                                 assignee_role: "shift_lead", requires_signoff: true  },
     { section: "CLOSING SIGN-OFF",    title: "Fryers off",                                 assignee_role: "shift_lead", requires_signoff: true  },
@@ -103,7 +103,7 @@ const TEMPLATES = {
     { section: "CLOSING SIGN-OFF",    title: "Trash removed, new bags installed",          assignee_role: "shift_lead", requires_signoff: false },
     { section: "CLOSING SIGN-OFF",    title: "Boxes discarded",                            assignee_role: "shift_lead", requires_signoff: false },
     { section: "CLOSING SIGN-OFF",    title: "Inventory checked, 6QT buckets stocked",     assignee_role: "shift_lead", requires_signoff: true  },
-    { section: "CLOSING SIGN-OFF",    title: "Trailer ready for next day",                 assignee_role: "shift_lead", requires_signoff: true  },
+    { section: "CLOSING SIGN-OFF",    title: "Location ready for next day",                assignee_role: "shift_lead", requires_signoff: true  },
   ],
   emergency: [
     // Inventory Check Checklist (15–25 minutes)

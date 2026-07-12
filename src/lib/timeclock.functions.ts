@@ -75,7 +75,7 @@ export const clockIn = createServerFn({ method: "POST" })
       if (settings?.kiosk_device_required) {
         return {
           ok: false as const,
-          message: "Clock-in is kiosk-only. Please use the trailer iPad. If it's unavailable, ask a manager to clock you in.",
+          message: "Clock-in is kiosk-only. Please use the location iPad. If it's unavailable, ask a manager to clock you in.",
         };
       }
     }
@@ -121,7 +121,7 @@ export const clockIn = createServerFn({ method: "POST" })
         if (dist - tolerance > radius) {
           return {
             ok: false as const,
-            message: `You are too far from ${trailer.name ?? "the trailer"} (${Math.round(dist)} m away, must be within ${radius} m). Clock in once you arrive.`,
+            message: `You are too far from ${trailer.name ?? "the location"} (${Math.round(dist)} m away, must be within ${radius} m). Clock in once you arrive.`,
           };
         }
       }
@@ -226,7 +226,7 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
-    if (!isOwner) throw new Error("Only owners can configure trailer geofences.");
+    if (!isOwner) throw new Error("Only owners can configure location geofences.");
     // Use supabaseAdmin for the write — geofence columns are not granted to authenticated
     // and the trailers UPDATE policy allows any manager, so we enforce owner-only at app layer above.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
