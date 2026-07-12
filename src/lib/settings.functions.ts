@@ -101,14 +101,14 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
     const [
       { TEMPLATES },
       { applyBrandOverrides },
-      { render, ...React },
+      { render },
+      Rreact,
     ] = await Promise.all([
       import("./email-templates/registry"),
       import("./email-templates/_brand"),
-      // React + render live in the same module surface used by other senders.
       import("@react-email/components"),
+      import("react"),
     ]);
-    const Rreact = await import("react");
 
     const templateName = data.templateName && TEMPLATES[data.templateName]
       ? data.templateName
@@ -130,7 +130,7 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
     };
     const element = Rreact.createElement(entry.component, templateData);
     const html = await render(element);
-    const text = await render(element, { plainText: true });
+    const text = await render(element, { plainText: true } as any);
 
     const rawSubject = typeof entry.subject === "function"
       ? entry.subject(templateData)
@@ -157,4 +157,3 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
     return { ok: true, to, templateName, result };
   });
 
-void React;
