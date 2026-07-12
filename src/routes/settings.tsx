@@ -164,6 +164,13 @@ function Settings() {
                   shortName={storeShort || storeName || "Ops"}
                   tagline={storeTagline || "Internal operating system for your team."}
                 />
+                <DevicePreview
+                  bg={bgColor}
+                  fg={fgColor}
+                  accent={accentColor}
+                  orgName={storeName || "Your Organization"}
+                  shortName={storeShort || storeName || "Ops"}
+                />
               </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
@@ -532,6 +539,254 @@ function _AutomationPanel() {
         ))}
       </Card>
     </>
+  );
+}
+
+// ---------- Device preview (mobile / tablet mocks) ----------
+function DevicePreview({
+  bg, fg, accent, orgName, shortName,
+}: {
+  bg: string; fg: string; accent: string; orgName: string; shortName: string;
+}) {
+  const [device, setDevice] = useState<"mobile" | "tablet">("mobile");
+  const [screen, setScreen] = useState<"dashboard" | "schedule" | "signin">("dashboard");
+
+  const safe = (v: string, fallback: string) =>
+    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+  const b = safe(bg, "#0A0A0A");
+  const f = safe(fg, "#F5F5F5");
+  const a = safe(accent, "#EAB308");
+  const muted = f + "99";
+  const surface = f + "0F";
+  const border = f + "22";
+
+  const frame =
+    device === "mobile"
+      ? { w: 260, h: 520, radius: 34, notch: true }
+      : { w: 460, h: 340, radius: 22, notch: false };
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div className="text-xs font-semibold uppercase tracking-[1px] text-muted-foreground">
+          Device preview
+        </div>
+        <div className="flex items-center gap-2">
+          <SegBtn active={device === "mobile"} onClick={() => setDevice("mobile")}>Mobile</SegBtn>
+          <SegBtn active={device === "tablet"} onClick={() => setDevice("tablet")}>Tablet</SegBtn>
+          <div className="mx-1 h-4 w-px bg-border" />
+          <SegBtn active={screen === "dashboard"} onClick={() => setScreen("dashboard")}>Dashboard</SegBtn>
+          <SegBtn active={screen === "schedule"} onClick={() => setScreen("schedule")}>Schedule</SegBtn>
+          <SegBtn active={screen === "signin"} onClick={() => setScreen("signin")}>Sign-in</SegBtn>
+        </div>
+      </div>
+
+      <div className="flex justify-center rounded-lg border border-border bg-muted/20 p-5 overflow-hidden">
+        <div
+          className="relative shadow-xl"
+          style={{
+            width: frame.w,
+            height: frame.h,
+            borderRadius: frame.radius,
+            padding: 8,
+            background: "#0B0B0D",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+          aria-label={`${device} preview of ${screen}`}
+        >
+          <div
+            className="relative overflow-hidden h-full w-full"
+            style={{
+              borderRadius: frame.radius - 8,
+              backgroundColor: b,
+              color: f,
+            }}
+          >
+            {frame.notch && (
+              <div
+                className="absolute left-1/2 -translate-x-1/2 top-1.5 h-4 w-20 rounded-full z-10"
+                style={{ background: "#0B0B0D" }}
+              />
+            )}
+
+            {screen === "dashboard" && (
+              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+            )}
+            {screen === "schedule" && (
+              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} />
+            )}
+            {screen === "signin" && (
+              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SegBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-7 px-2.5 rounded-md text-[11px] font-semibold uppercase tracking-[1px] border transition-colors ${
+        active
+          ? "border-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--color-gold)]/10"
+          : "border-border text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+type MockProps = {
+  b?: string; f: string; a: string; muted: string; surface: string; border: string;
+  shortName?: string; orgName?: string;
+};
+
+function TopBar({ f, a, muted, border, surface, shortName }: MockProps) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, backgroundColor: surface }}>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: "#000" }}>
+          {shortName?.slice(0, 1).toUpperCase() ?? "O"}
+        </div>
+        <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{shortName}</div>
+      </div>
+      <div className="flex items-center gap-1">
+        <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: a }} />
+        <div className="text-[9px]" style={{ color: muted }}>Live</div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardMock({ f, a, muted, surface, border, shortName }: MockProps) {
+  return (
+    <div className="h-full w-full flex flex-col">
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <div className="p-3 space-y-2 overflow-hidden">
+        <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Today</div>
+        <div className="text-sm font-semibold">Good morning</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: "On shift", value: "6" },
+            { label: "Sales", value: "$1.2k" },
+            { label: "Tasks", value: "8/12" },
+            { label: "Alerts", value: "2" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-md p-2 border" style={{ borderColor: border, backgroundColor: surface }}>
+              <div className="text-[8px] uppercase tracking-[1px]" style={{ color: muted }}>{s.label}</div>
+              <div className="text-sm font-semibold" style={{ color: s.label === "Sales" ? a : f }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-md p-2 border" style={{ borderColor: border, backgroundColor: surface }}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Next up</div>
+            <div className="text-[9px] font-semibold" style={{ color: a }}>View all</div>
+          </div>
+          {["Prep station open", "Lunch rush", "Cash drop"].map((t, i) => (
+            <div key={t} className="flex items-center justify-between py-1" style={{ borderTop: i === 0 ? "none" : `1px solid ${border}` }}>
+              <div className="text-[10px]" style={{ color: f }}>{t}</div>
+              <div className="text-[9px]" style={{ color: muted }}>{9 + i}:00</div>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.2px]"
+          style={{ backgroundColor: a, color: "#000" }}
+        >
+          Clock in
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleMock({ f, a, muted, surface, border, shortName }: MockProps) {
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+  const shifts = [
+    { name: "Alex", role: "Grill", time: "9–3", tone: a },
+    { name: "Sam", role: "Cashier", time: "11–5", tone: f },
+    { name: "Jordan", role: "Prep", time: "6–12", tone: f },
+    { name: "Kai", role: "Lead", time: "12–8", tone: a },
+  ];
+  return (
+    <div className="h-full w-full flex flex-col">
+      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} />
+      <div className="p-3 space-y-2 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">This week</div>
+          <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Jun 3–9</div>
+        </div>
+        <div className="flex items-center justify-between">
+          {days.map((d, i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div className="text-[9px]" style={{ color: muted }}>{d}</div>
+              <div
+                className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-semibold"
+                style={
+                  i === 2
+                    ? { backgroundColor: a, color: "#000" }
+                    : { border: `1px solid ${border}`, color: f }
+                }
+              >
+                {i + 3}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-md border overflow-hidden" style={{ borderColor: border, backgroundColor: surface }}>
+          {shifts.map((s, i) => (
+            <div
+              key={s.name}
+              className="flex items-center justify-between px-2 py-1.5"
+              style={{ borderTop: i === 0 ? "none" : `1px solid ${border}` }}
+            >
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{s.name}</div>
+                <div className="text-[9px]" style={{ color: muted }}>{s.role}</div>
+              </div>
+              <div className="text-[10px] font-mono tabular-nums" style={{ color: s.tone }}>{s.time}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SigninMock({ b, f, a, muted, surface, border, orgName, shortName }: MockProps) {
+  return (
+    <div className="h-full w-full flex flex-col items-center justify-center px-4 gap-3 text-center">
+      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: b }}>
+        {shortName?.slice(0, 1).toUpperCase() ?? "O"}
+      </div>
+      <div>
+        <div className="text-[11px] uppercase tracking-[1.4px]" style={{ color: muted }}>Welcome to</div>
+        <div className="text-base font-semibold leading-tight" style={{ color: f }}>{orgName}</div>
+      </div>
+      <div className="w-full space-y-1.5">
+        <div className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center" style={{ borderColor: border, backgroundColor: surface, color: muted }}>
+          you@work.com
+        </div>
+        <div className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center" style={{ borderColor: border, backgroundColor: surface, color: muted }}>
+          ••••••••
+        </div>
+        <button
+          type="button"
+          className="h-8 w-full rounded-md text-[10px] font-semibold uppercase tracking-[1.4px]"
+          style={{ backgroundColor: a, color: b }}
+        >
+          Sign in
+        </button>
+      </div>
+      <div className="text-[9px]" style={{ color: muted }}>Secure staff access</div>
+    </div>
   );
 }
 
