@@ -80,7 +80,7 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
           const email = emailMap.get(empId);
           if (!email) continue;
           const name = nameMap.get(empId) ?? "Crew";
-          const location = (empShifts[0] as any).schedules?.trailers?.name ?? "Gotham Halal";
+          const location = (empShifts[0] as any).schedules?.trailers?.name ?? "Dip N Shake";
           const shiftRows = (empShifts as any[])
             .sort((a, b) => (a.start_time as string).localeCompare(b.start_time as string))
             .map((s: any) => {

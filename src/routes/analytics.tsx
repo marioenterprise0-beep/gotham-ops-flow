@@ -13,7 +13,7 @@ import { getAnalytics } from "@/lib/analytics.functions";
 export const Route = createFileRoute("/analytics")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Analytics · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Analytics · Dip N Shake OS" }] }),
   component: AnalyticsPage,
 });
 

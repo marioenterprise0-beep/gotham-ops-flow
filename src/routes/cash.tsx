@@ -28,7 +28,7 @@ import { syncDomains } from "@/lib/sync-bus";
 export const Route = createFileRoute("/cash")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Cash Management · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Cash Management · Dip N Shake OS" }] }),
   component: CashPage,
 });
 
@@ -1028,7 +1028,7 @@ function printCashDropSlip(p: {
   const when = new Date(d.submitted_at);
   const body = `
     <h1>Cash Drop Slip</h1>
-    <div class="meta">Gotham Halal · Cash Management</div>
+    <div class="meta">Dip N Shake · Cash Management</div>
     ${kpiBlock([
       { label: "Drop ID", value: d.drop_code },
       { label: "Amount", value: `$${Number(d.amount).toFixed(2)}`, tone: "warn" },
@@ -1039,7 +1039,7 @@ function printCashDropSlip(p: {
     ${htmlTable(
       ["Field", "Value"],
       [
-        ["Business", "Gotham Halal"],
+        ["Business", "Dip N Shake"],
         ["Module", "Cash Management"],
         ["Type", "Cash Drop Slip"],
         ["Location / Trailer", p.trailerName],
@@ -1079,7 +1079,7 @@ function printDrawerClose(p: { session: any; drawer: any; trailer: any; drops: a
   ]);
   const body = `
     <h1>Drawer Close Report</h1>
-    <div class="meta">Gotham Halal · ${escapeHTML(p.trailer?.name ?? "—")} · Drawer ${escapeHTML(p.drawer?.name ?? "—")}</div>
+    <div class="meta">Dip N Shake · ${escapeHTML(p.trailer?.name ?? "—")} · Drawer ${escapeHTML(p.drawer?.name ?? "—")}</div>
     ${kpiBlock([
       { label: "Starting Float", value: `$${starting.toFixed(2)}` },
       { label: "Total Cash Sales From POS", value: `$${Number(s.total_cash_sales ?? 0).toFixed(2)}` },

@@ -15,7 +15,7 @@ import { ScrollText, Search, X } from "lucide-react";
 export const Route = createFileRoute("/change-log")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "activity" } as any }); },
-  head: () => ({ meta: [{ title: "Change Log · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Change Log · Dip N Shake OS" }] }),
   component: ChangeLogPage,
 });
 

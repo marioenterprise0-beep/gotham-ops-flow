@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/gotham/EmptyState";
 export const Route = createFileRoute("/health")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Store Health · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Store Health · Dip N Shake OS" }] }),
   component: HealthPage,
 });
 

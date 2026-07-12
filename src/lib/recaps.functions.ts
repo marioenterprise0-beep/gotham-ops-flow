@@ -226,7 +226,7 @@ async function sendNightSummaryEmail(supabase: any, managerId: string, recap: an
   const totalVariance = (cashSessions ?? []).reduce((sum: number, s: any) => sum + Number(s.variance ?? 0), 0);
   const varStr = (totalVariance >= 0 ? "+" : "") + `$${Math.abs(totalVariance).toFixed(2)}`;
   const hoursStr = `${(workedMin / 60).toFixed(1)}h`;
-  const trailerName = (trailer?.data as any)?.name ?? "Gotham Halal";
+  const trailerName = (trailer?.data as any)?.name ?? "Dip N Shake";
 
   let managerName = "Manager";
   if (managerId) {

@@ -20,7 +20,7 @@ import { syncDomains } from "@/lib/sync-bus";
 export const Route = createFileRoute("/permissions")({
   ssr: false,
   beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "permissions" } as any }); },
-  head: () => ({ meta: [{ title: "Permissions · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Permissions · Dip N Shake OS" }] }),
   component: PermissionsPage,
 });
 

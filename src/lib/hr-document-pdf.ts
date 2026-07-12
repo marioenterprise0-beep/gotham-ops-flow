@@ -63,7 +63,7 @@ export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: S
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110);
-  doc.text(`Gotham Halal · Completed record · Generated ${new Date().toLocaleString()}`, PAGE_MARGIN, 66);
+  doc.text(`Dip N Shake · Completed record · Generated ${new Date().toLocaleString()}`, PAGE_MARGIN, 66);
   doc.setTextColor(0);
 
   function ensureSpace(needed: number) {

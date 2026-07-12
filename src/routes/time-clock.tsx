@@ -37,7 +37,7 @@ import { syncDomains } from "@/lib/sync-bus";
 export const Route = createFileRoute("/time-clock")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Time Clock · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Time Clock · Dip N Shake OS" }] }),
   component: TimeClockPage,
 });
 

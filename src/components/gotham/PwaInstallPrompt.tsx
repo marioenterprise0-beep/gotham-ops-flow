@@ -31,7 +31,7 @@ export function PwaInstallPrompt() {
     <div
       className="fixed bottom-0 left-0 right-0 z-50 m-3 mb-safe rounded-2xl border border-amber-500/30 bg-zinc-900/95 p-4 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 duration-300"
       role="dialog"
-      aria-label="Install Gothamhalal Dash"
+      aria-label="Install Dip N Shake Dash"
     >
       <button
         onClick={dismiss}
@@ -45,13 +45,13 @@ export function PwaInstallPrompt() {
         {/* App icon */}
         <img
           src="/icons/apple-touch-icon.png"
-          alt="Gothamhalal Dash"
+          alt="Dip N Shake Dash"
           className="h-14 w-14 rounded-2xl flex-shrink-0 shadow-md"
         />
 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-amber-400">
-            Install Gothamhalal Dash
+            Install Dip N Shake Dash
           </p>
           <p className="mt-0.5 text-xs text-zinc-400 leading-relaxed">
             Add to your Home Screen for fast access — works offline and looks great on iPad.

@@ -18,7 +18,7 @@ import { RotateCcw, Trash2, Search, AlertTriangle } from "lucide-react";
 export const Route = createFileRoute("/archive-center")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Archive Center · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Archive Center · Dip N Shake OS" }] }),
   component: ArchiveCenterPage,
 });
 

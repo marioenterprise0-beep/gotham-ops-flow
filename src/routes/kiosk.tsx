@@ -12,7 +12,7 @@ const TOKEN_KEY = "gotham:kiosk-device-token:v1";
 
 export const Route = createFileRoute("/kiosk")({
   component: KioskPage,
-  head: () => ({ meta: [{ title: "Gotham Halal · Kiosk" }] }),
+  head: () => ({ meta: [{ title: "Dip N Shake · Kiosk" }] }),
 });
 
 function KioskPage() {

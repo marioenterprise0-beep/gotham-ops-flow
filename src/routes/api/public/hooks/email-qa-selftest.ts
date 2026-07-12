@@ -83,13 +83,13 @@ export const Route = createFileRoute('/api/public/hooks/email-qa-selftest')({
           const payload = {
             template_name: 'critical-alert',
             recipient_email: smokeTo,
-            subject: 'Gotham OS — Email pipeline self-test',
+            subject: 'Dip N Shake OS — Email pipeline self-test',
             template_data: {
               recipient_name: 'QA',
               trailer_name: 'QA Trailer',
               title: 'Email pipeline self-test',
               description: 'If you received this, branded delivery is healthy.',
-              cta_url: 'https://gothamhalaldash.com/alerts',
+              cta_url: 'https://dipnshake.com/alerts',
             },
             idempotency_key: `qa-selftest:${smokeTo}:${Date.now()}`,
             metadata: { kind: 'qa_selftest' },

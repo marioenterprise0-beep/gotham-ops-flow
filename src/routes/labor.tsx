@@ -23,7 +23,7 @@ import { syncDomains } from "@/lib/sync-bus";
 export const Route = createFileRoute("/labor")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Labor · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Labor · Dip N Shake OS" }] }),
   component: LaborPage,
 });
 

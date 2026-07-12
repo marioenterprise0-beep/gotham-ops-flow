@@ -695,7 +695,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
       <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#ffffff;color:#0b0d10;padding:24px;">
         <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
           <div style="padding:18px 22px;background:#0b0d10;color:#ffffff;">
-            <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;">Gotham Halal · Cash Activity</div>
+            <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;">Dip N Shake · Cash Activity</div>
             <div style="font-size:18px;font-weight:700;margin-top:4px;">Drawer Closed — ${_esc(trailerName)}</div>
           </div>
           <div style="padding:18px 22px;">
@@ -717,7 +717,7 @@ export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
       </div>
     `;
 
-    const FALLBACK_FROM = "Gotham Halal <onboarding@resend.dev>";
+    const FALLBACK_FROM = "Dip N Shake <onboarding@resend.dev>";
     // Resend requires "email@example.com" or "Name <email@example.com>".
     // Validate the env override; fall back if it's malformed so a bad secret doesn't break sends.
     const fromRaw = (process.env.CASH_EMAIL_FROM || "").trim();

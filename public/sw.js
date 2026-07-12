@@ -1,4 +1,4 @@
-// Gotham Halal Dash — Service Worker
+// Dip N Shake Dash — Service Worker
 // Handles: push notifications, offline caching, background sync
 
 const CACHE_VERSION = "v2";
@@ -115,7 +115,7 @@ async function staleWhileRevalidate(request) {
 // ─── Push notifications ───────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {
   const data = event.data?.json?.() ?? {};
-  const title = data.title ?? "Gotham OS";
+  const title = data.title ?? "Dip N Shake OS";
   const body = data.body ?? "You have a new alert.";
   const icon = data.icon ?? "/icons/icon-192x192.png";
   const badge = data.badge ?? "/icons/icon-96x96.png";

@@ -37,8 +37,8 @@ function fmt12(t: string) {
 const Email = ({ recipient_name, location, shifts = [], reminder_for = "tomorrow" }: Props) => {
   const isToday = reminder_for === "today";
   const preview = isToday
-    ? `You're scheduled today at ${location ?? "Gotham Halal"}`
-    : `You're scheduled tomorrow at ${location ?? "Gotham Halal"}`;
+    ? `You're scheduled today at ${location ?? "Dip N Shake"}`
+    : `You're scheduled tomorrow at ${location ?? "Dip N Shake"}`;
 
   return (
     <BrandLayout preview={preview}>
@@ -47,7 +47,7 @@ const Email = ({ recipient_name, location, shifts = [], reminder_for = "tomorrow
       <Text style={styles.text}>
         Hey {recipient_name ?? "there"}, here are your{" "}
         {isToday ? "shifts today" : "shifts tomorrow"} at{" "}
-        <strong>{location ?? "Gotham Halal"}</strong>.
+        <strong>{location ?? "Dip N Shake"}</strong>.
       </Text>
 
       {shifts.length > 0 && (
@@ -63,7 +63,7 @@ const Email = ({ recipient_name, location, shifts = [], reminder_for = "tomorrow
       )}
 
       <Text style={{ ...styles.text, marginTop: 16 }}>
-        You can clock in up to <strong>15 minutes before</strong> your shift starts from the Gotham OS app.
+        You can clock in up to <strong>15 minutes before</strong> your shift starts from the Dip N Shake OS app.
       </Text>
 
       <OpenGothamButton path="/time-clock" label="Open Time Clock" />
@@ -75,8 +75,8 @@ export const template: TemplateEntry = {
   component: Email,
   subject: (data) =>
     data.reminder_for === "today"
-      ? `You're on today — ${data.location ?? "Gotham Halal"}`
-      : `Shift tomorrow — ${data.location ?? "Gotham Halal"}`,
+      ? `You're on today — ${data.location ?? "Dip N Shake"}`
+      : `Shift tomorrow — ${data.location ?? "Dip N Shake"}`,
   displayName: "Shift Reminder",
   previewData: {
     recipient_name: "Alex",

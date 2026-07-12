@@ -12,7 +12,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/email-log")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  head: () => ({ meta: [{ title: "Email Delivery Log · Gotham OS" }] }),
+  head: () => ({ meta: [{ title: "Email Delivery Log · Dip N Shake OS" }] }),
   component: EmailLogPage,
 });
 
