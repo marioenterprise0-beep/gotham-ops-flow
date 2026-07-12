@@ -2,6 +2,7 @@ import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/lib/role";
+import { useBranding } from "@/lib/branding";
 
 import { toast } from "sonner";
 
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const { session, loading } = useRole();
+  const branding = useBranding();
   const nav = useNavigate();
   const { next } = Route.useSearch();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -120,8 +122,8 @@ function AuthPage() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex surface-dark items-center justify-center p-12">
         <div className="max-w-md">
-          <div className="font-display text-6xl text-[var(--color-gold)] leading-none tracking-[0.08em]">DIP N SHAKE OS</div>
-          <p className="mt-4 text-white/70">Internal operating system for Dip N Shake. Built for the crew — speed, accountability, and consistent hospitality.</p>
+          <div className="font-display text-6xl text-[var(--color-gold)] leading-none tracking-[0.08em] uppercase">{branding.shortName}</div>
+          <p className="mt-4 text-white/70">{branding.tagline}</p>
           <ul className="mt-8 space-y-2 text-sm text-white/70">
             <li>· Phase-based opening, mid, closing checklists</li>
             <li>· Live inventory, waste, and receiving</li>
@@ -133,7 +135,7 @@ function AuthPage() {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
-            <div className="font-display text-3xl text-foreground tracking-[0.08em]">DIP N SHAKE OS</div>
+            <div className="font-display text-3xl text-foreground tracking-[0.08em] uppercase">{branding.shortName}</div>
           </div>
           <div className="label-caps text-muted-foreground">{mode === "signin" ? "Sign in" : "Create account"}</div>
           <h1 className="font-display text-3xl mt-1">{mode === "signin" ? "WELCOME BACK" : "JOIN THE CREW"}</h1>

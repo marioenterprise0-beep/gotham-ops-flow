@@ -2808,6 +2808,9 @@ export type Database = {
           id: string
           location: string | null
           name: string
+          short_name: string | null
+          support_email: string | null
+          tagline: string | null
         }
         Insert: {
           archive_reason?: string | null
@@ -2817,6 +2820,9 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
+          short_name?: string | null
+          support_email?: string | null
+          tagline?: string | null
         }
         Update: {
           archive_reason?: string | null
@@ -2826,6 +2832,9 @@ export type Database = {
           id?: string
           location?: string | null
           name?: string
+          short_name?: string | null
+          support_email?: string | null
+          tagline?: string | null
         }
         Relationships: []
       }

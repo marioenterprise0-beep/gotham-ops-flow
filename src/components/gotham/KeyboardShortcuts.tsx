@@ -91,7 +91,7 @@ export function KeyboardShortcuts() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Keyboard shortcuts</DialogTitle>
-            <DialogDescription>Navigate Dip N Shake OS without touching the mouse.</DialogDescription>
+            <DialogDescription>Navigate without touching the mouse.</DialogDescription>
           </DialogHeader>
           <ul className="divide-y divide-border">
             {SHORTCUTS.map((s) => (

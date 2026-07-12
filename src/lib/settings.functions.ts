@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
+import { supabase as publicClient } from "@/integrations/supabase/client";
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -10,7 +11,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
     const [{ data: profile }, { data: roles }, { data: store }] = await Promise.all([
       supabase.from("profiles").select("id, display_name, store_id, created_at").eq("id", userId).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("stores").select("id, name, location").order("created_at").limit(1).maybeSingle(),
+      supabase.from("stores").select("id, name, short_name, tagline, support_email, location").order("created_at").limit(1).maybeSingle(),
     ]);
     return { profile, roles: (roles ?? []).map((r) => r.role), store };
   });
@@ -30,13 +31,34 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({
     storeId: z.string().uuid(),
     name: z.string().min(1).max(120),
+    shortName: z.string().max(40).optional().nullable(),
+    tagline: z.string().max(200).optional().nullable(),
+    supportEmail: z.string().email().max(200).optional().nullable().or(z.literal("")),
     location: z.string().max(200).optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
     await requireTabAccess(supabase, userId, "settings", "edit");
-    const { error } = await supabase.from("stores").update({ name: data.name, location: data.location ?? null }).eq("id", data.storeId);
+    const { error } = await supabase.from("stores").update({
+      name: data.name,
+      short_name: data.shortName?.trim() || null,
+      tagline: data.tagline?.trim() || null,
+      support_email: (data.supportEmail && data.supportEmail.trim()) || null,
+      location: data.location ?? null,
+    }).eq("id", data.storeId);
     if (error) throw error;
     return { ok: true };
   });
+
+// Public branding fetch — readable by anon so pre-auth surfaces (sign-in page,
+// PWA install prompt) can render the org name/tagline.
+export async function fetchPublicBranding() {
+  const { data } = await publicClient
+    .from("stores")
+    .select("id, name, short_name, tagline, support_email")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  return data;
+}

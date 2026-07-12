@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { initials, ROLES, useRole } from "@/lib/role";
+import { useBranding } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -128,7 +129,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
   // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
-  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Dip N Shake OS…</div>;
+  const branding = useBranding();
+  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading {branding.orgName}…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
@@ -343,6 +345,7 @@ function TrailerSwitcher() {
 
 function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean; impersonating?: boolean }) {
   const { roleId, user, signOut } = useRole();
+  const branding = useBranding();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
   const [now, setNow] = useState(() => new Date());
@@ -358,7 +361,7 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
       )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none">DIP N SHAKE OS</span>
+          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none uppercase">{branding.shortName}</span>
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />
