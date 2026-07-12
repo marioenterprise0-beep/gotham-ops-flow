@@ -17,5 +17,5 @@ const Email = ({ recipient_name, approver_name, location, item_count, owner_comm
     <OpenGothamButton path={order_id ? `/inventory/orders/${order_id}` : '/inventory/orders'} label="Open Inventory Order" />
   </BrandLayout>
 )
-export const template = { component: Email, subject: 'Inventory order approved', displayName: 'Inventory Order Approved', previewData: { recipient_name: 'Aisha', approver_name: 'Omar', location: 'Trailer 1', item_count: 14 } } satisfies TemplateEntry
+export const template = { component: Email, subject: 'Inventory order approved', displayName: 'Inventory Order Approved', previewData: { recipient_name: 'Aisha', approver_name: 'Omar', location: 'Location 1', item_count: 14 } } satisfies TemplateEntry
 export default Email

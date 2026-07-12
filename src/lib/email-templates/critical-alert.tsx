@@ -16,5 +16,5 @@ const Email = ({ recipient_name, alert_title, alert_description, source_module, 
     <OpenGothamButton path={alert_id ? `/alerts/${alert_id}` : '/alerts'} label="Open Alert" />
   </BrandLayout>
 )
-export const template = { component: Email, subject: (d: any) => `CRITICAL: ${d?.alert_title ?? 'Alert'}`, displayName: 'Critical Alert', previewData: { alert_title: 'Walk-in cooler down', alert_description: 'Temperature sensor reports 51°F sustained for 30 min.', source_module: 'operations', location: 'Trailer 1' } } satisfies TemplateEntry
+export const template = { component: Email, subject: (d: any) => `CRITICAL: ${d?.alert_title ?? 'Alert'}`, displayName: 'Critical Alert', previewData: { alert_title: 'Walk-in cooler down', alert_description: 'Temperature sensor reports 51°F sustained for 30 min.', source_module: 'operations', location: 'Location 1' } } satisfies TemplateEntry
 export default Email

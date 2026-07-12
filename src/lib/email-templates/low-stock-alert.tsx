@@ -16,5 +16,5 @@ const Email = ({ recipient_name, location, items = [] }: Props) => (
     <OpenGothamButton path="/inventory" label="Open Inventory" />
   </BrandLayout>
 )
-export const template = { component: Email, subject: (d: any) => `Low stock — ${d?.location ?? ''}`, displayName: 'Low Stock Alert', previewData: { location: 'Trailer 1', items: [{ name: 'Chicken thighs', current: 4, par: 20 }, { name: 'Pita bread', current: 12, par: 80 }] } } satisfies TemplateEntry
+export const template = { component: Email, subject: (d: any) => `Low stock — ${d?.location ?? ''}`, displayName: 'Low Stock Alert', previewData: { location: 'Location 1', items: [{ name: 'Chicken thighs', current: 4, par: 20 }, { name: 'Pita bread', current: 12, par: 80 }] } } satisfies TemplateEntry
 export default Email
