@@ -155,6 +155,7 @@ function Settings() {
                   <PresetButton label="Espresso" onClick={() => { setBgColor("#1C1917"); setFgColor("#FAFAF9"); setAccentColor("#F97316"); }} />
                   <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
                 </div>
+                <ContrastReport bg={bgColor} fg={fgColor} accent={accentColor} />
               </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
