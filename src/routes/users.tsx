@@ -163,7 +163,7 @@ function UsersTab() {
   });
   const trailerMut = useMutation({
     mutationFn: (v: { userId: string; trailerId: string | null }) => setTrailerFn({ data: v }),
-    onSuccess: () => { toast.success("Trailer assigned"); refresh(); },
+    onSuccess: () => { toast.success("Location assigned"); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
   const activeMut = useMutation({
@@ -276,7 +276,7 @@ function UsersTab() {
                 </select>
                 <select disabled={isArchived} value={u.trailer_id ?? ""} onChange={(e) => trailerMut.mutate({ userId: u.id, trailerId: e.target.value || null })}
                   className="h-9 rounded-md border border-border bg-card px-2 text-xs disabled:opacity-50">
-                  <option value="">No trailer</option>
+                  <option value="">No location</option>
                   {trailers.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
                 <div><StatusPill tone={isArchived ? "neutral" : u.active ? "success" : "danger"}>{isArchived ? "Archived" : u.active ? "Active" : "Disabled"}</StatusPill></div>
@@ -414,7 +414,7 @@ function UsersTab() {
       </Card>
       {!isOwner && (
         <div className="mt-3 text-xs text-muted-foreground">
-          Only owners can edit per-user tab permissions. Managers can change roles and trailer assignments.
+          Only owners can edit per-user tab permissions. Managers can change roles and location assignments.
         </div>
       )}
 
@@ -530,7 +530,7 @@ function InvitesTab() {
             </select>
           </div>
           <div>
-            <div className="label-caps text-muted-foreground mb-1">Trailer</div>
+            <div className="label-caps text-muted-foreground mb-1">Location</div>
             <select value={trailerId} onChange={(e) => setTrailerId(e.target.value)}
               className="w-full h-10 rounded-md border border-border bg-card px-2 text-sm">
               <option value="">Any</option>
