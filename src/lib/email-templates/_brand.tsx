@@ -33,6 +33,31 @@ export const brand = {
   infoBg: '#E3EAF3',
 }
 
+// Snapshot of the original brand tokens so overrides can be reverted / reset.
+const DEFAULT_BRAND = { ...brand }
+
+function isHex(v: unknown): v is string {
+  return typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
+}
+
+function hexToRgb(hex: string) {
+  const h = hex.replace('#', '')
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  }
+}
+
+function mix(hex: string, withHex: string, amount: number) {
+  const a = hexToRgb(hex)
+  const b = hexToRgb(withHex)
+  const r = Math.round(a.r + (b.r - a.r) * amount)
+  const g = Math.round(a.g + (b.g - a.g) * amount)
+  const bl = Math.round(a.b + (b.b - a.b) * amount)
+  return '#' + [r, g, bl].map((v) => v.toString(16).padStart(2, '0')).join('')
+}
+
 const PUBLIC_APP_URL = 'https://dipnshake.com'
 
 export const appUrl = (path = '/') =>
@@ -169,6 +194,47 @@ export const styles = {
     textAlign: 'center' as const,
     margin: '0 0 20px',
   } as const,
+}
+
+// Overrides are applied by mutating the shared brand + styles objects
+// before render() runs. React reads style properties at render time,
+// so mutations take effect for the very next render.
+export function applyBrandOverrides(input: {
+  bgColor?: string | null
+  fgColor?: string | null
+  accentColor?: string | null
+}) {
+  // Reset to defaults so consecutive renders with different overrides
+  // don't accumulate stale values.
+  Object.assign(brand, DEFAULT_BRAND)
+
+  if (isHex(input.bgColor)) {
+    brand.ink = input.bgColor
+    brand.graphite = mix(input.bgColor, '#ffffff', 0.12)
+  }
+  if (isHex(input.fgColor)) {
+    // Text over cream cards in email — keep readable against light backgrounds.
+    // fg only recolors the primary text/link tone, not the dark surfaces.
+  }
+  if (isHex(input.accentColor)) {
+    brand.gold = input.accentColor
+    brand.goldSoft = mix(input.accentColor, '#ffffff', 0.9)
+  }
+
+  // Rebuild derived style values that were captured at module load.
+  ;(styles.header as any).backgroundColor = brand.ink
+  ;(styles.brandSub as any).color = brand.gold
+  ;(styles.goldRule as any).backgroundColor = brand.gold
+  ;(styles.h1 as any).color = brand.ink
+  ;(styles.text as any).color = brand.ink
+  ;(styles.link as any).color = brand.ink
+  ;(styles.button as any).backgroundColor = brand.ink
+  ;(styles.button as any).border = `1px solid ${brand.ink}`
+  ;(styles.footer as any).backgroundColor = brand.ink
+  ;(styles.footerBrand as any).color = brand.gold
+  ;(styles.codeBox as any).color = brand.ink
+  ;(styles.codeBox as any).backgroundColor = brand.goldSoft
+  ;(styles.codeBox as any).border = `1px solid ${brand.gold}`
 }
 
 // ---------- Status Badge ----------
