@@ -335,6 +335,116 @@ function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: st
   );
 }
 
+// ---------- Live theme preview ----------
+function ThemePreview({
+  bg, fg, accent, orgName, shortName, tagline,
+}: {
+  bg: string; fg: string; accent: string;
+  orgName: string; shortName: string; tagline: string;
+}) {
+  const safe = (v: string, fallback: string) =>
+    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
+  const b = safe(bg, "#0A0A0A");
+  const f = safe(fg, "#F5F5F5");
+  const a = safe(accent, "#EAB308");
+  // Derive a subtle muted foreground from the text color (60% opacity).
+  const muted = f + "99";
+  const surface = f + "0F"; // ~6% overlay for card surfaces
+  const border = f + "22";  // ~13% overlay for hairlines
+
+  return (
+    <div className="mt-4">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-[1px] text-muted-foreground">
+        Live preview
+      </div>
+      <div
+        className="rounded-lg border overflow-hidden"
+        style={{ backgroundColor: b, color: f, borderColor: border }}
+        aria-label="Theme preview"
+      >
+        {/* Top bar */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: border, backgroundColor: surface }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="h-6 w-6 rounded-md grid place-items-center text-[10px] font-bold"
+              style={{ backgroundColor: a, color: b }}
+            >
+              {shortName.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="text-sm font-semibold tracking-wide truncate">{shortName}</div>
+          </div>
+          <div className="flex items-center gap-3 text-[11px]" style={{ color: muted }}>
+            <span>Dashboard</span>
+            <span>Schedule</span>
+            <span style={{ color: a, fontWeight: 600 }}>Reports</span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="text-[10px] font-semibold uppercase tracking-[1.2px] px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: a + "22", color: a, border: `1px solid ${a}55` }}
+            >
+              Live
+            </span>
+            <div className="text-[11px]" style={{ color: muted }}>{orgName}</div>
+          </div>
+          <div className="text-lg font-semibold leading-tight">{tagline}</div>
+          <p className="text-[13px] leading-relaxed" style={{ color: muted }}>
+            This is how body copy appears against your chosen background. Interactive elements use your accent color.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              className="h-9 px-4 rounded-md text-xs font-semibold uppercase tracking-[1.2px]"
+              style={{ backgroundColor: a, color: b }}
+            >
+              Primary action
+            </button>
+            <button
+              type="button"
+              className="h-9 px-4 rounded-md text-xs font-semibold uppercase tracking-[1.2px] border"
+              style={{ borderColor: border, color: f, backgroundColor: "transparent" }}
+            >
+              Secondary
+            </button>
+            <a
+              className="text-xs font-medium underline underline-offset-4"
+              style={{ color: a }}
+              href="#preview"
+              onClick={(e) => e.preventDefault()}
+            >
+              Text link
+            </a>
+          </div>
+
+          <div
+            className="mt-2 rounded-md p-3 border"
+            style={{ backgroundColor: surface, borderColor: border }}
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-[1.2px] mb-1" style={{ color: muted }}>
+              Card surface
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium">Today's shifts</div>
+              <div className="text-sm font-mono tabular-nums" style={{ color: a }}>12</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground">
+        Preview only — changes apply everywhere after you save.
+      </div>
+    </div>
+  );
+}
+
 function _AutomationPanel() {
   const qc = useQueryClient();
   const getFn = useServerFn(getAutomationSettings);
