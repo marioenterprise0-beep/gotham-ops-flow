@@ -164,6 +164,13 @@ function Settings() {
                   shortName={storeShort || storeName || "Ops"}
                   tagline={storeTagline || "Internal operating system for your team."}
                 />
+                <DevicePreview
+                  bg={bgColor}
+                  fg={fgColor}
+                  accent={accentColor}
+                  orgName={storeName || "Your Organization"}
+                  shortName={storeShort || storeName || "Ops"}
+                />
               </div>
               <div className="flex justify-end">
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
