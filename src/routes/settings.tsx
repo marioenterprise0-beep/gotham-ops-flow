@@ -417,15 +417,15 @@ function ThemePreview({
   bg: string; fg: string; accent: string;
   orgName: string; shortName: string; tagline: string;
 }) {
-  const safe = (v: string, fallback: string) =>
-    /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
-  const b = safe(bg, "#0A0A0A");
-  const f = safe(fg, "#F5F5F5");
-  const a = safe(accent, "#EAB308");
-  // Derive a subtle muted foreground from the text color (60% opacity).
-  const muted = f + "99";
-  const surface = f + "0F"; // ~6% overlay for card surfaces
-  const border = f + "22";  // ~13% overlay for hairlines
+  // Use the exact same derivation as applyThemeColors() so the preview
+  // matches what saving will paint across the app.
+  const t = resolveTheme(bg, fg, accent);
+  const b = t.background;
+  const f = t.foreground;
+  const a = t.accent;
+  const muted = t.mutedForeground;
+  const surface = t.card;
+  const border = t.border;
 
   return (
     <div className="mt-4">
