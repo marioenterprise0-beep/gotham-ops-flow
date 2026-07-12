@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { initials, ROLES, useRole } from "@/lib/role";
+import { useBranding } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 import { useUnreadAlerts } from "@/hooks/use-unread-alerts";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
@@ -128,7 +129,12 @@ export function AppShell({ children }: { children?: ReactNode }) {
   // Dynamic route protection: if user navigates to a path not in their mode allowlist, redirect home.
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
-  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading Dip N Shake OS…</div>;
+  return <AppShellInner session={session} loading={loading} roleId={roleId} />;
+}
+
+function AppShellInner({ session, loading, roleId }: { session: any; loading: boolean; roleId: string | null }) {
+  const branding = useBranding();
+  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading {branding.orgName}…</div>;
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
