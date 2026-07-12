@@ -46,9 +46,11 @@ function Settings() {
   const [storeShort, setStoreShort] = useState("");
   const [storeTagline, setStoreTagline] = useState("");
   const [storeSupportEmail, setStoreSupportEmail] = useState("");
+  // Defaults mirror the current app theme (see :root in src/styles.css) so the
+  // pickers reflect what the user actually sees when no color is saved yet.
   const [bgColor, setBgColor] = useState("#08090B");
   const [fgColor, setFgColor] = useState("#F5F5F4");
-  const [accentColor, setAccentColor] = useState("#EAB308");
+  const [accentColor, setAccentColor] = useState("#22C55E");
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
@@ -150,7 +152,8 @@ function Settings() {
                   <ColorField label="Accent" value={accentColor} onChange={setAccentColor} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <PresetButton label="Midnight" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#EAB308"); }} />
+                  <PresetButton label="Midnight Green" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#22C55E"); }} />
+                  <PresetButton label="Midnight Gold" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#EAB308"); }} />
                   <PresetButton label="Slate" onClick={() => { setBgColor("#0F172A"); setFgColor("#E2E8F0"); setAccentColor("#3B82F6"); }} />
                   <PresetButton label="Espresso" onClick={() => { setBgColor("#1C1917"); setFgColor("#FAFAF9"); setAccentColor("#F97316"); }} />
                   <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
