@@ -46,6 +46,9 @@ function Settings() {
   const [storeShort, setStoreShort] = useState("");
   const [storeTagline, setStoreTagline] = useState("");
   const [storeSupportEmail, setStoreSupportEmail] = useState("");
+  const [bgColor, setBgColor] = useState("#08090B");
+  const [fgColor, setFgColor] = useState("#F5F5F4");
+  const [accentColor, setAccentColor] = useState("#EAB308");
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
@@ -55,6 +58,9 @@ function Settings() {
       setStoreShort((data.store as any).short_name ?? "");
       setStoreTagline((data.store as any).tagline ?? "");
       setStoreSupportEmail((data.store as any).support_email ?? "");
+      if ((data.store as any).bg_color) setBgColor((data.store as any).bg_color);
+      if ((data.store as any).fg_color) setFgColor((data.store as any).fg_color);
+      if ((data.store as any).accent_color) setAccentColor((data.store as any).accent_color);
     }
   }, [data]);
 
@@ -72,6 +78,9 @@ function Settings() {
       shortName: storeShort.trim() || null,
       tagline: storeTagline.trim() || null,
       supportEmail: storeSupportEmail.trim() || null,
+      bgColor,
+      fgColor,
+      accentColor,
     } }),
     onSuccess: () => {
       toast.success("Branding saved");
