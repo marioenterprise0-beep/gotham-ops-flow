@@ -10,7 +10,6 @@ import { usePushNotifications } from "@/hooks/use-push-notifications";
 import { CommandPalette } from "@/components/gotham/CommandPalette";
 import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
 import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
-import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
 
 
@@ -359,8 +358,7 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
       )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <img src={logoAsset.url} alt="Dip N Shake" className="h-8 w-auto object-contain" />
-          <span className="hidden sm:inline font-display text-lg tracking-wider text-[var(--color-gold)]">DIP N SHAKE OS</span>
+          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none">DIP N SHAKE OS</span>
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />

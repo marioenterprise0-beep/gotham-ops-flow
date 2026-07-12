@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRole } from "@/lib/role";
 
 import { toast } from "sonner";
-import logoAsset from "@/assets/gotham-halal-logo.jpeg.asset.json";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -121,8 +120,7 @@ function AuthPage() {
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex surface-dark items-center justify-center p-12">
         <div className="max-w-md">
-          <img src={logoAsset.url} alt="Dip N Shake" className="h-24 w-auto object-contain mb-5" />
-          <div className="font-display text-5xl text-[var(--color-gold)] leading-none">DIP N SHAKE OS</div>
+          <div className="font-display text-6xl text-[var(--color-gold)] leading-none tracking-[0.08em]">DIP N SHAKE OS</div>
           <p className="mt-4 text-white/70">Internal operating system for Dip N Shake. Built for the crew — speed, accountability, and consistent hospitality.</p>
           <ul className="mt-8 space-y-2 text-sm text-white/70">
             <li>· Phase-based opening, mid, closing checklists</li>
@@ -135,8 +133,7 @@ function AuthPage() {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-6 flex flex-col items-center gap-2">
-            <img src={logoAsset.url} alt="Dip N Shake" className="h-16 w-auto object-contain" />
-            <div className="font-display text-2xl text-foreground">DIP N SHAKE OS</div>
+            <div className="font-display text-3xl text-foreground tracking-[0.08em]">DIP N SHAKE OS</div>
           </div>
           <div className="label-caps text-muted-foreground">{mode === "signin" ? "Sign in" : "Create account"}</div>
           <h1 className="font-display text-3xl mt-1">{mode === "signin" ? "WELCOME BACK" : "JOIN THE CREW"}</h1>
