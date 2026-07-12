@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
-import { getMyProfile, updateMyProfile, updateStoreInfo } from "@/lib/settings.functions";
+import { getMyProfile, updateMyProfile, updateStoreInfo, sendBrandingTestEmail } from "@/lib/settings.functions";
 import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
 import { GeofencePanel } from "@/components/gotham/geofence-panel";
 import {
@@ -37,6 +37,7 @@ function Settings() {
   const fetchProfile = useServerFn(getMyProfile);
   const updateProfile = useServerFn(updateMyProfile);
   const updateStore = useServerFn(updateStoreInfo);
+  const sendTest = useServerFn(sendBrandingTestEmail);
 
   const { data } = useQuery({ queryKey: ["my-profile"], queryFn: () => fetchProfile() });
 
@@ -107,6 +108,12 @@ function Settings() {
       qc.invalidateQueries({ queryKey: ["my-profile"] });
       refreshBranding();
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const testEmail = useMutation({
+    mutationFn: () => sendTest({ data: { bgColor, fgColor, accentColor } }),
+    onSuccess: (r: any) => toast.success(`Test email sent to ${r?.to ?? "you"}`),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -201,6 +208,14 @@ function Settings() {
                 />
               </div>
               <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={testEmail.isPending}
+                  onClick={() => testEmail.mutate()}
+                  className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 mr-2 hover:border-[var(--color-gold)] disabled:opacity-50"
+                >
+                  <Mail className="h-3.5 w-3.5" /> {testEmail.isPending ? "Sending…" : "Send test email"}
+                </button>
                 <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
                   className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
                   <Save className="h-3.5 w-3.5" /> Save branding
