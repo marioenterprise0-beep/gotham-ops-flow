@@ -275,6 +275,31 @@ function PresetButton({ label, onClick }: { label: string; onClick: () => void }
   );
 }
 
+function LivePreviewToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      role="switch"
+      aria-checked={active}
+      aria-label="Live preview across app shell"
+      className={`shrink-0 inline-flex items-center gap-2 h-8 px-3 rounded-md border text-[11px] font-semibold uppercase tracking-[1px] transition-colors ${
+        active
+          ? "border-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--color-gold)]/10"
+          : "border-border text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${
+          active ? "bg-[var(--color-gold)] animate-pulse" : "bg-muted-foreground"
+        }`}
+        aria-hidden="true"
+      />
+      Live preview {active ? "on" : "off"}
+    </button>
+  );
+}
+
 // ---------- WCAG contrast utilities ----------
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
