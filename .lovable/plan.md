@@ -1,114 +1,69 @@
-## Scope
+# Phase 1a — Execution Protocol v3 (final)
 
-Six related changes across permissions, recap, schedules, SOPs, and inventory. Keep the prior owner-only lockdown for governance actions; restore only the operational items listed below.
+Multi-tenancy foundation for Cibora Systems. Runbook only — v3 feature plan governs *what* Phase 1a builds.
 
----
+## Staging model
 
-## Section 1 — Manager Task Control (controlled restore)
+- You provision `cibora-staging` in the same workspace and load a fresh prod export via Cloud → Advanced settings → Export data.
+- Staging holds real employee PII from load until wipe. Access restricted to you and platform.
+- After Gate E, staging is wiped or the project deleted.
 
-**Backend (`src/lib/tasks.functions.ts`, new `manager-tasks.functions.ts`)**
-- Add `createShiftTask` server fn: manager-only, requires `shift_id` + `trailer_id`, optional `assignee_user_id`/`assignee_role`, `due_at`, `title`, `description`, `requires_signoff`. Inserts into `tasks` (NOT `task_templates`) scoped to one shift.
-- Add `duplicateTaskTemplate` (manager) → creates a `tasks` row from an existing template for a given shift. Does NOT write to `task_templates`.
-- On insert, emit an `alerts` row (type `manager_note`, assigned to the role or user) so employees get notified.
-- Keep `task_templates.functions.ts` write paths owner-only (already done).
+## Maintenance window (Step 6)
 
-**UI**
-- `src/components/gotham/TaskTemplatesPanel.tsx` — for managers, hide Create/Edit/Delete/Archive template controls; show a read-only template list with a "Use as shift task" button that calls `duplicateTaskTemplate`.
-- `src/routes/manager.tsx` — add "Create Shift Task" dialog (title, description, assignee, due, signoff) wired to `createShiftTask`. Show inside the Today's Crew / Shift Tasks panel.
-- Owner UI for templates unchanged.
+Step 6 runs inside a scheduled low-traffic maintenance window you announce to operators. Target: an overnight slot when no trailer is open and no cron job is due. Expected duration 20–40 min.
 
----
+Writes arriving during the window are covered by:
 
-## Section 2 — Daily Recap for All Roles
+1. **App-level maintenance mode** (shipped in deploy D1). Non-super-admin users see a full-screen offline page. Timeclock endpoints stay live; punches accepted and stamped by the trigger below.
+2. **DB-level `BEFORE INSERT` org-fill trigger** (installed in migration 1). Fills `organization_id` from, in order: caller-supplied value → FK to `trailer_id`/`store_id`/`employee_id`'s owning org → `current_setting('app.active_organization_id', true)` → the seed org (`Dip N Shake`) as last-resort fallback, logged to `change_log`.
 
-**Backend (`src/lib/recaps.functions.ts`)**
-- Replace the `isManager` gate in `saveRecap` with a role-aware gate: any authenticated user can save a recap for themselves; the row's `manager_id` becomes "author_id" semantically (column reused).
-- Add a `kind` column to `daily_recaps` (`crew` | `manager`) via migration; default by caller role. Crew recap uses a small subset of fields (summary, issues, notes, inventory notes, customer notes, completed work) — store those in existing free-text columns (`ops_went_well` = completed work, `ops_attention` = issues, `next_shift_notes` = notes, `inv_concerns` = inventory notes, `hosp_feedback` = customer notes) plus add `crew_summary text` column.
-- `listRecaps`: owners see all; managers see their location + crew at their location; crew see only their own. Add `kind`, `authorId`, `trailerId` filters.
+**The Dip N Shake fallback exists only for Phase 1a.** See exit criterion in Phase 1b section.
 
-**Migration**
-- `ALTER TABLE public.daily_recaps ADD COLUMN kind text NOT NULL DEFAULT 'manager'`, `ADD COLUMN crew_summary text`.
-- Update RLS so crew can `INSERT` their own recap and `SELECT` their own.
+## Step 6 ordered sequence
 
-**UI**
-- `src/routes/recaps.tsx` — render Crew form (compact) vs Manager form (full) based on effective role; Owner sees filter bar (employee, manager, location, date, kind) and the full list.
-- Add Recaps entry to crew nav.
+Each numbered item is a separate approval inside the window:
 
----
+1. **Migration 1** — create `organizations`, `organization_members`, `organization_invites`, `brands`; helper fns (`is_member_of_org`, `is_manager_of_org`, `current_user_org_ids`); install `BEFORE INSERT` org-fill trigger on every tenant table.
+2. **Migration 2** — add nullable `organization_id` + FK to every tenant table **and add nullable `profiles.active_organization_id` column + FK** (no trigger yet; D1 needs the column to exist).
+3. **Migration 3** — seed `Dip N Shake` org, membership rows for existing users, backfill `organization_id` on every tenant row, backfill `profiles.active_organization_id` to Dip N Shake for existing users.
+4. **Migration 4** — flip `organization_id` to `NOT NULL` on every tenant table (and on `profiles.active_organization_id`).
+5. **App-code deploy D1** — release that reads `active_organization_id` from `profiles`, sets `app.active_organization_id` per request, ships maintenance mode, uses `current_user_org_ids()` fetchers. Runs against a DB where the column exists and is populated.
+6. **Migration 5** — rewrite RLS policies to authorize via `organization_members`.
+7. **Migration 6** — Storage buckets to org-scoped paths + Storage RLS.
+8. **Migration 7** — scope Realtime channels + cron jobs + push-token tables to org.
+9. **Migration 8** — install sign-in trigger that sets `profiles.active_organization_id` on first membership when null (column itself already exists from migration 2).
+10. **App-code deploy D2** — lift maintenance mode; enable org-switcher UI.
 
-## Section 3 — Schedule Visibility for Crew
+Failure at any step halts the sequence. In-window writes are covered by the trigger; Gate D's fresh export is the rollback artifact.
 
-**Backend (`src/lib/schedule.functions.ts`)**
-- Add `listMyScheduleShifts` (any auth user) returning only shifts where `employee_id = userId` from published schedules. Include shift date/time/role/trailer.
-- Add `requestScheduleChange` (any auth user) → creates an alert / change request row visible to manager+owner.
+## Gates (unchanged from v2 except Gate D wording)
 
-**UI**
-- `src/routes/schedule.tsx` — when effective role is crew, render a read-only "My Schedule" view (assigned shifts, upcoming, details) with a "Request Change" button. Hide edit/publish/approve and other-employee data.
-- `src/routes/index.tsx` (dashboard) — show next 3 upcoming shifts for crew.
+- **Gate A** — you confirm `cibora-staging` exists and app boots against it.
+- **Gate B** — you approve Baseline Parity Report v1.
+- **Gate C** — you approve Staging Verification Bundle (Parity Report v2, backfill audit, trigger-fallback-fired = 0 on clean staging, isolation suite green, smoke test).
+- **Gate D** — before entering the maintenance window, you post in chat: fresh prod export completed at [timestamp], **archive opened and verified to contain a file/dump entry for every table** (68 at last count, checksum or file-count summary acceptable). I explicitly acknowledge receipt before the window starts. Verification failure → re-export and re-verify.
+- **Gate E** — you confirm production healthy after Production Verification Bundle.
+- **Post-execution** — you wipe or delete `cibora-staging` and confirm in chat.
 
----
+## Phase 1b exit criteria (binding, promoted from note)
 
-## Section 4 — Global SOP Propagation
+Phase 1b (`trailer` → `location` terminology + fallback removal) does not ship until:
 
-**Backend (`src/lib/sops.functions.ts`)**
-- Confirm SOP write fns are owner-only and have no `trailer_id` filter on the master record (SOPs are global).
-- Ensure `publishSop` bumps version and that `listSops` for all roles returns the latest published version regardless of location.
-- Keep `sop_acknowledgements` per-employee and per-trailer (location-scoped completion).
+1. **The Dip N Shake fallback branch is removed from the `BEFORE INSERT` org-fill trigger on every tenant table.** Migration recreates each trigger without the seed-org fallback; trigger continues to fill from caller value / FK / `app.active_organization_id` only, and raises on failure.
+2. **Isolation suite gains a blocking assertion** (`pnpm test:isolation`) that inspects each tenant table's trigger definition and fails if any branch references the Dip N Shake org id or any hardcoded organization id. CI red = deploy blocked.
+3. **Isolation suite gains a runtime assertion**: with `app.active_organization_id` unset and no FK path, an insert into every tenant table must raise, not silently succeed.
+4. **`change_log` fallback-fired count over the Phase 1a soak window must be 0** before Phase 1b runs. Any non-zero count is investigated and root-caused before proceeding.
 
-**UI**
-- `src/routes/sops.tsx` — managers/crew get view-only; owner sees edit/publish/archive.
+No second organization may be created — via admin console, invite flow, or seed — while the fallback trigger exists. The org-creation server function will refuse when it detects the fallback branch still installed. This is a code-level guard, not a policy.
 
----
+## What ships in Phase 1a (unchanged from v3 feature plan)
 
-## Section 5 — Global Inventory Structure / Local Quantities
+Org tables + membership + invites + brands · `organization_id NOT NULL` on every tenant table · `profiles.active_organization_id NOT NULL` · RLS rewritten against `organization_members` · Storage/Realtime/cron/push scoped to org · Dip N Shake seeded, existing users backfilled · `pnpm test:isolation` in CI · sign-in trigger · maintenance mode · org-fill trigger with Dip-N-Shake fallback (removed in 1b) · org-creation guard that refuses while fallback exists.
 
-**Backend (`src/lib/inventory.functions.ts`)**
-- Split writes:
-  - Owner-only: create/edit/delete/archive `inventory_items` master fields (name, category, vendor, unit, par, low_threshold, minimum_qty, guide).
-  - When owner creates a new master item, fan it out: insert one row per active trailer with `current_qty = 0` (or upsert a per-trailer quantity row). 
-- Two viable models — pick model B to avoid a schema migration:
-  - **Model B (chosen):** keep current `inventory_items` (per-trailer rows) but enforce that structural fields are identical across trailers by writing the same payload to every trailer when owner updates. Managers can only update `current_qty`, `last_counted_at`, notes.
-- Add `propagateInventoryItem` helper used by owner mutations.
-- Counts/orders/receiving remain location-scoped (already are).
+## What I need from you to start
 
-**UI**
-- `src/routes/inventory.tsx` — managers see count/recount/receive/order; structural edit fields disabled.
-- `src/routes/order-guide.tsx` / inventory guide — owner-only edits.
+1. Confirm v3 protocol.
+2. Create `cibora-staging` + load a fresh prod export.
+3. Post the staging project handle and the target maintenance window date/time in chat.
 
----
-
-## Section 6 — Validation
-
-After implementation, manually verify in preview:
-1. Owner creates SOP → visible on all trailers (switch location).
-2. Owner edits inventory item → name/par/threshold update across trailers, counts unchanged.
-3. Manager creates shift task → alert fires, employee sees it in My Tasks.
-4. Crew submits recap → manager + owner see it in Recaps.
-5. Crew opens /schedule → sees own shifts only, no editor.
-6. Manager cannot reach owner-only template/inventory-structure mutations (server returns `Owner role required`).
-
----
-
-## Technical Notes
-
-- Effective role still comes from `src/lib/role.tsx` (`actAsRole` impersonation for owners).
-- All server fns continue to enforce real role via `user_roles` table — impersonation is UI-only.
-- Single migration adds `daily_recaps.kind` + `daily_recaps.crew_summary` and adjusts RLS for crew inserts.
-- No changes to the global Active Location context; this work plugs into it.
-
----
-
-## Files (planned)
-
-- migration: `daily_recaps` columns + policies
-- `src/lib/tasks.functions.ts` — add `createShiftTask`, `duplicateTaskTemplate`
-- `src/lib/recaps.functions.ts` — role-aware save/list, `kind` support
-- `src/lib/schedule.functions.ts` — `listMyScheduleShifts`, `requestScheduleChange`
-- `src/lib/inventory.functions.ts` — owner-only structural writes + propagation; manager count-only
-- `src/components/gotham/TaskTemplatesPanel.tsx` — role-gated UI
-- `src/routes/manager.tsx` — Create Shift Task dialog
-- `src/routes/recaps.tsx` — crew/manager/owner views
-- `src/routes/schedule.tsx` — crew read-only view
-- `src/routes/sops.tsx` — role-gated UI
-- `src/routes/inventory.tsx` — structural-edit gating
-- `src/routes/index.tsx` — crew upcoming shifts widget
+I'll begin Step 2 after Gate A.
