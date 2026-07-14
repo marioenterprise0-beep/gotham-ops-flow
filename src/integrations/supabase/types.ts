@@ -51,7 +51,7 @@ export type Database = {
           event: string
           id?: string
           ip?: string | null
-          organization_id: string
+          organization_id?: string
           payload?: Json | null
           user_agent?: string | null
           user_id?: string | null
@@ -90,7 +90,7 @@ export type Database = {
           created_at?: string
           expires_at: string
           id?: string
-          organization_id: string
+          organization_id?: string
           request_id?: string | null
           trailer_id: string
           user_id: string
@@ -144,7 +144,7 @@ export type Database = {
           created_at?: string
           id?: string
           note?: string | null
-          organization_id: string
+          organization_id?: string
         }
         Update: {
           action?: Database["public"]["Enums"]["alert_action_kind"]
@@ -185,7 +185,7 @@ export type Database = {
         Insert: {
           category: string
           last_seen_at?: string
-          organization_id: string
+          organization_id?: string
           user_id: string
         }
         Update: {
@@ -249,7 +249,7 @@ export type Database = {
           email_status?: Database["public"]["Enums"]["alert_email_status"]
           email_template?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           payload?: Json | null
           priority?: Database["public"]["Enums"]["alert_priority"]
           resolution?: string | null
@@ -320,7 +320,7 @@ export type Database = {
           entity: string
           entity_id?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           payload?: Json | null
         }
         Update: {
@@ -365,7 +365,7 @@ export type Database = {
           id?: string
           kiosk_device_required?: boolean
           manager_self_approval?: boolean
-          organization_id: string
+          organization_id?: string
           rollover_enabled?: boolean
           rollover_hour?: number
           scope?: string
@@ -420,7 +420,7 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           schedule_id?: string | null
           status?: string
@@ -509,7 +509,7 @@ export type Database = {
           id?: string
           opened_at?: string
           opened_by: string
-          organization_id: string
+          organization_id?: string
           owner_note?: string | null
           owner_review?: Database["public"]["Enums"]["cash_owner_review"]
           owner_reviewed_at?: string | null
@@ -595,7 +595,7 @@ export type Database = {
           enabled?: boolean
           id?: string
           name: string
-          organization_id: string
+          organization_id?: string
           starting_float?: number
           trailer_id: string
           updated_at?: string
@@ -654,7 +654,7 @@ export type Database = {
           drop_code: string
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           session_id: string
           submitted_at?: string
@@ -725,7 +725,7 @@ export type Database = {
           entity: string
           entity_id?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           summary?: string | null
           trailer_id?: string | null
@@ -787,7 +787,7 @@ export type Database = {
           manager_initials?: string | null
           manager_name?: string | null
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           phase: Database["public"]["Enums"]["shift_phase"]
           shift_id: string
           start_at?: string | null
@@ -905,7 +905,7 @@ export type Database = {
           ops_attention?: string | null
           ops_slowed?: string | null
           ops_went_well?: string | null
-          organization_id: string
+          organization_id?: string
           owner_comment?: string | null
           recap_date?: string
           reviewed_at?: string | null
@@ -1111,7 +1111,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          organization_id: string
+          organization_id?: string
           pin_hash: string
           set_by?: string | null
           updated_at?: string
@@ -1149,7 +1149,7 @@ export type Database = {
           full_name_typed: string
           handbook_version: number
           id?: string
-          organization_id: string
+          organization_id?: string
           user_id: string
         }
         Update: {
@@ -1189,7 +1189,7 @@ export type Database = {
           display_order: number
           id?: string
           is_policy?: boolean
-          organization_id: string
+          organization_id?: string
           part_number: number
           part_title: string
           section_number: number
@@ -1244,7 +1244,7 @@ export type Database = {
           logged_at?: string
           logged_by?: string | null
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           recovery_action?: string | null
           severity?: Database["public"]["Enums"]["incident_severity"]
           shift_id?: string | null
@@ -1323,7 +1323,7 @@ export type Database = {
           employee_id: string
           field_values?: Json
           id?: string
-          organization_id: string
+          organization_id?: string
           required_signer_roles?: string[]
           status?: Database["public"]["Enums"]["hr_assignment_status"]
           template_id?: string | null
@@ -1389,7 +1389,7 @@ export type Database = {
         Insert: {
           assignment_id: string
           id?: string
-          organization_id: string
+          organization_id?: string
           signed_at?: string | null
           signer_role_label: string
           signer_user_id?: string | null
@@ -1438,7 +1438,7 @@ export type Database = {
           edited_at?: string
           edited_by?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           signer_roles: string[]
           template_id: string
           title: string
@@ -1498,7 +1498,7 @@ export type Database = {
           created_at?: string
           doc_code: string
           id?: string
-          organization_id: string
+          organization_id?: string
           owner_only?: boolean
           signer_roles?: string[]
           title: string
@@ -1553,7 +1553,7 @@ export type Database = {
           id?: string
           key: string
           label: string
-          organization_id: string
+          organization_id?: string
           sort_order?: number
         }
         Update: {
@@ -1608,7 +1608,7 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           payload?: Json
           reason?: string | null
           requested_by: string
@@ -1672,7 +1672,7 @@ export type Database = {
           expected_qty?: number | null
           id?: string
           item_id: string
-          organization_id: string
+          organization_id?: string
           shift_id?: string | null
           trailer_id?: string | null
           variance?: number | null
@@ -1762,7 +1762,7 @@ export type Database = {
           low_threshold?: number
           minimum_qty?: number
           name: string
-          organization_id: string
+          organization_id?: string
           pack_size?: string | null
           par_level?: number
           preferred_order_qty?: number
@@ -1850,7 +1850,7 @@ export type Database = {
           item_name: string
           notes?: string | null
           order_id: string
-          organization_id: string
+          organization_id?: string
           par_qty?: number
           reason?: string | null
           requested_qty: number
@@ -1931,7 +1931,7 @@ export type Database = {
           id?: string
           notes?: string | null
           ordered_at?: string | null
-          organization_id: string
+          organization_id?: string
           owner_comment?: string | null
           received_at?: string | null
           status?: Database["public"]["Enums"]["inventory_order_status"]
@@ -1989,7 +1989,7 @@ export type Database = {
           id?: string
           item_id: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           qty: number
           received_at?: string
           received_by?: string | null
@@ -2050,7 +2050,7 @@ export type Database = {
           expires_hours?: number | null
           id?: string
           note?: string | null
-          organization_id: string
+          organization_id?: string
           role?: Database["public"]["Enums"]["app_role"]
           trailer_id?: string | null
           used_at?: string | null
@@ -2123,7 +2123,7 @@ export type Database = {
           decision_note?: string | null
           duration_minutes?: number
           id?: string
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           requested_by: string
           requested_trailer_id: string
@@ -2189,7 +2189,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           photo_url?: string | null
           priority?: Database["public"]["Enums"]["alert_priority"]
           reported_by: string
@@ -2354,7 +2354,7 @@ export type Database = {
           logged_at?: string
           logged_by: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           quantity: number
           shift_id?: string | null
           trailer_id?: string | null
@@ -2517,7 +2517,7 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           id?: string
-          organization_id: string
+          organization_id?: string
           role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           updated_by?: string | null
@@ -2560,7 +2560,7 @@ export type Database = {
           as_of: string
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           punches_auto_closed?: number
           ran_at?: string
           shifts_closed?: number
@@ -2622,7 +2622,7 @@ export type Database = {
           end_time: string
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           repeat_weekly?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           schedule_id: string
@@ -2719,7 +2719,7 @@ export type Database = {
           locked_by?: string | null
           name: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           published_at?: string | null
           published_by?: string | null
           sales_target?: number | null
@@ -2796,7 +2796,7 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           schedule_shift_id: string
           status?: string
@@ -2867,7 +2867,7 @@ export type Database = {
           for_date?: string | null
           id?: string
           note: string
-          organization_id: string
+          organization_id?: string
           punch_id?: string | null
           schedule_shift_id?: string | null
           trailer_id?: string | null
@@ -2922,7 +2922,7 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           reason?: string | null
           requester_id: string
           schedule_shift_id: string
@@ -3038,7 +3038,7 @@ export type Database = {
           end_time: string
           id?: string
           name: string
-          organization_id: string
+          organization_id?: string
           role?: Database["public"]["Enums"]["app_role"]
           segment?: Database["public"]["Enums"]["shift_segment"]
           start_time: string
@@ -3105,7 +3105,7 @@ export type Database = {
           notes?: string | null
           opened_at?: string
           opened_by?: string | null
-          organization_id: string
+          organization_id?: string
           phase?: Database["public"]["Enums"]["shift_phase"]
           shift_date?: string
           status?: Database["public"]["Enums"]["shift_status"]
@@ -3158,7 +3158,7 @@ export type Database = {
         Insert: {
           acknowledged_at?: string
           id?: string
-          organization_id: string
+          organization_id?: string
           sop_id: string
           user_id: string
           version: number
@@ -3204,7 +3204,7 @@ export type Database = {
           created_at?: string
           id?: string
           label?: string | null
-          organization_id: string
+          organization_id?: string
           sop_id: string
           storage_path: string
           uploaded_by?: string | null
@@ -3256,7 +3256,7 @@ export type Database = {
           edited_at?: string
           edited_by?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           pass_standard?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
           sop_id: string
@@ -3303,7 +3303,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          organization_id: string
+          organization_id?: string
           sop_id: string
           user_id: string
           viewed_at?: string
@@ -3356,7 +3356,7 @@ export type Database = {
           category: string
           created_at?: string
           id?: string
-          organization_id: string
+          organization_id?: string
           pass_standard?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
           title: string
@@ -3416,7 +3416,7 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
-          organization_id: string
+          organization_id?: string
           short_name?: string | null
           support_email?: string | null
           tagline?: string | null
@@ -3487,7 +3487,7 @@ export type Database = {
           access_level?: string
           enabled?: boolean
           id?: string
-          organization_id: string
+          organization_id?: string
           scope_id: string
           scope_type: string
           tab_key: string
@@ -3536,7 +3536,7 @@ export type Database = {
           changed_at?: string
           changed_fields?: string[]
           id?: string
-          organization_id: string
+          organization_id?: string
           template_id: string
           version: number
         }
@@ -3590,7 +3590,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
-          organization_id: string
+          organization_id?: string
           phase: Database["public"]["Enums"]["shift_phase"]
           position?: number
           requires_signoff?: boolean
@@ -3671,7 +3671,7 @@ export type Database = {
           description?: string | null
           id?: string
           numeric_value?: number | null
-          organization_id: string
+          organization_id?: string
           owner_id?: string | null
           phase: Database["public"]["Enums"]["shift_phase"]
           photo_url?: string | null
@@ -3756,7 +3756,7 @@ export type Database = {
           id?: string
           new_value?: Json | null
           old_value?: Json | null
-          organization_id: string
+          organization_id?: string
           reason?: string | null
         }
         Update: {
@@ -3815,7 +3815,7 @@ export type Database = {
           employee_id: string
           for_date: string
           id?: string
-          organization_id: string
+          organization_id?: string
           punch_id?: string | null
           reason: string
           requested_in?: string | null
@@ -3895,7 +3895,7 @@ export type Database = {
           full_day?: boolean
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           reason: string
           start_date: string
           start_time?: string | null
@@ -3974,7 +3974,7 @@ export type Database = {
           employee_id: string
           id?: string
           notes?: string | null
-          organization_id: string
+          organization_id?: string
           schedule_shift_id?: string | null
           status?: Database["public"]["Enums"]["punch_status"]
           trailer_id?: string | null
@@ -4047,7 +4047,7 @@ export type Database = {
           id?: string
           location?: string | null
           name: string
-          organization_id: string
+          organization_id?: string
           timezone?: string
         }
         Update: {
@@ -4099,7 +4099,7 @@ export type Database = {
           label: string
           last_used_at?: string | null
           last_used_ip?: string | null
-          organization_id: string
+          organization_id?: string
           revoked_at?: string | null
           revoked_by?: string | null
           token_hash: string
@@ -4149,7 +4149,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          organization_id: string
+          organization_id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
@@ -4193,7 +4193,7 @@ export type Database = {
           item_id: string
           logged_at?: string
           logged_by?: string | null
-          organization_id: string
+          organization_id?: string
           photo_url?: string | null
           qty: number
           reason: string
