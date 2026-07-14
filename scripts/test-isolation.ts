@@ -94,6 +94,9 @@ async function newClient() {
     // pg reads PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE from env by default.
     // On Lovable Cloud sandbox these are pre-set. In CI, set them from secrets.
     connectionString: process.env.DATABASE_URL || undefined,
+    ssl: process.env.PGSSL_DISABLE_VERIFY === "1" || !!process.env.PGHOST
+      ? { rejectUnauthorized: false }
+      : undefined,
   });
   await client.connect();
   return client;
@@ -126,9 +129,11 @@ async function asUser<T>(
   await c.query("BEGIN");
   try {
     await c.query("SET LOCAL role = authenticated");
-    await c.query(`SET LOCAL request.jwt.claims = $1`, [
-      JSON.stringify({ sub: userId, role: "authenticated" }),
-    ]);
+    // Postgres SET does not accept bind parameters — inline the claims JSON
+    // as an escaped literal. userId is always a validated UUID so no
+    // injection surface here.
+    const claims = JSON.stringify({ sub: userId, role: "authenticated" });
+    await c.query(`SET LOCAL request.jwt.claims = '${claims.replace(/'/g, "''")}'`);
     const out = await body(c);
     await c.query("ROLLBACK");
     return out;
