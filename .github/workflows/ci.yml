@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  isolation:
+    name: Multi-tenant isolation suite (Phase 1a)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - name: Run isolation suite
+        env:
+          # Set these as repository secrets. The script uses pg's native
+          # PG* env vars OR DATABASE_URL. Pre-migration, the script exits 1
+          # with a clear "migration not applied" message — this is expected
+          # until the Phase 1a migration lands.
+          DATABASE_URL: ${{ secrets.CIBORA_TEST_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::CIBORA_TEST_DATABASE_URL secret is not set."
+            echo "::error::Set it in Settings → Secrets to a dedicated test DB connection string."
+            exit 1
+          fi
+          npm run test:isolation
+
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run test
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
