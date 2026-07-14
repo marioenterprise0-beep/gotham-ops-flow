@@ -10,6 +10,19 @@ jobs:
   isolation:
     name: Multi-tenant isolation suite (Phase 1a)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: cibora
+          POSTGRES_PASSWORD: cibora
+          POSTGRES_DB: cibora_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cibora -d cibora_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,20 +30,21 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - name: Run isolation suite
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Bootstrap ephemeral schema (auth shim + Phase 1a migration)
         env:
-          # Set these as repository secrets. The script uses pg's native
-          # PG* env vars OR DATABASE_URL. Pre-migration, the script exits 1
-          # with a clear "migration not applied" message — this is expected
-          # until the Phase 1a migration lands.
-          DATABASE_URL: ${{ secrets.CIBORA_TEST_DATABASE_URL }}
+          PGPASSWORD: cibora
+          DATABASE_URL: postgres://cibora:cibora@localhost:5432/cibora_test
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error::CIBORA_TEST_DATABASE_URL secret is not set."
-            echo "::error::Set it in Settings → Secrets to a dedicated test DB connection string."
-            exit 1
-          fi
-          npm run test:isolation
+          # NEVER point this job at production. The service container above
+          # is a throwaway Postgres — same rule applies every future phase.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/ci/auth-shim.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .lovable/phase-1a-migration.sql
+      - name: Run isolation suite against ephemeral DB
+        env:
+          DATABASE_URL: postgres://cibora:cibora@localhost:5432/cibora_test
+        run: npm run test:isolation
 
   unit-tests:
     name: Unit tests
