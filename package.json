@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:isolation": "tsx scripts/test-isolation.ts",
     "icons": "node scripts/generate-icons.cjs",
     "electron": "electron electron/main.cjs",
     "electron:dev": "NODE_ENV=development electron electron/main.cjs",
