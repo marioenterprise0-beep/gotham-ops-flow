@@ -73,5 +73,95 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (user_id, organization_id, role)
 );
-GRANT SELECT ON public.user_roles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_roles TO authenticated;
 GRANT ALL ON public.user_roles TO service_role;
+
+-- Minimal pre-Phase-1a tenant tables used by the CI isolation suite. In the
+-- real database these tables predate Phase 1a; the throwaway CI database starts
+-- empty, so define only the columns required by the migrations/tests before the
+-- Phase 1a batch adds organization_id, triggers, and RLS policies.
+CREATE TABLE IF NOT EXISTS public.stores (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.trailers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  geofence_lat double precision,
+  geofence_lng double precision,
+  geofence_radius_m integer,
+  active boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS public.automation_settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  scope text NOT NULL,
+  kiosk_device_required boolean NOT NULL DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name text,
+  email text,
+  trailer_id uuid
+);
+
+CREATE TABLE IF NOT EXISTS public.active_location_grants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id uuid,
+  user_id uuid NOT NULL,
+  trailer_id uuid NOT NULL,
+  expires_at timestamptz NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.availability_blocks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  block_date date NOT NULL,
+  all_day boolean NOT NULL DEFAULT true,
+  reason text,
+  status text NOT NULL DEFAULT 'pending',
+  trailer_id uuid,
+  schedule_id uuid,
+  decided_by uuid,
+  decided_at timestamptz,
+  decision_note text,
+  UNIQUE (user_id, block_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  type text NOT NULL,
+  title text NOT NULL,
+  description text,
+  source_module text,
+  source_id uuid,
+  trailer_id uuid,
+  created_by uuid,
+  assigned_user_id uuid,
+  assigned_role text,
+  priority text NOT NULL DEFAULT 'normal',
+  status text NOT NULL DEFAULT 'pending',
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON
+  public.stores,
+  public.trailers,
+  public.automation_settings,
+  public.profiles,
+  public.active_location_grants,
+  public.availability_blocks,
+  public.alerts
+TO authenticated;
+
+GRANT ALL ON
+  public.stores,
+  public.trailers,
+  public.automation_settings,
+  public.profiles,
+  public.active_location_grants,
+  public.availability_blocks,
+  public.alerts
+TO service_role;
