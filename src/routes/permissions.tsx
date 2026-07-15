@@ -23,8 +23,19 @@ import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2, Mail } 
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 
-type PermRow = { scope_type: "role" | "user"; scope_id: string; tab_key: string; access_level: TabAccess; enabled?: boolean };
-type ProfileRow = { id: string; email?: string | null; full_name?: string | null; [k: string]: unknown };
+type PermRow = {
+  scope_type: "role" | "user";
+  scope_id: string;
+  tab_key: string;
+  access_level: TabAccess;
+  enabled?: boolean;
+};
+type ProfileRow = {
+  id: string;
+  email?: string | null;
+  full_name?: string | null;
+  [k: string]: unknown;
+};
 type UserRoleRow = { user_id: string; role: RoleId };
 type PermissionsPayload = { perms: PermRow[]; profiles: ProfileRow[]; roles: UserRoleRow[] };
 
