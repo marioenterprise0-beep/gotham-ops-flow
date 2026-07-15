@@ -14,28 +14,23 @@ const LEVEL_RANK: Record<TabAccessLevel, number> = {
   edit: 2,
 };
 
-async function getRoles(supabase: any, userId: string): Promise<string[]> {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: any) => r.role as string);
-}
-
+// All role checks are scoped to the caller's active organization via the
+// pre-request GUC `app.active_organization_id` (set by public.set_active_org_context).
+// The 2-arg RPC wrappers (is_manager(uid), has_role(uid, role)) filter user_roles
+// by that GUC, so a user with a role in a different org cannot pass these gates.
 export async function requireManager(supabase: any, userId: string) {
-  const roles = await getRoles(supabase, userId);
-  if (!roles.some((r) => r === "owner" || r === "manager")) {
-    throw new Error("Manager role required");
-  }
+  const { data: mgr } = await supabase.rpc("is_manager", { _user_id: userId });
+  if (mgr !== true) throw new Error("Manager role required");
 }
 
 export async function requireOwner(supabase: any, userId: string) {
-  const roles = await getRoles(supabase, userId);
-  if (!roles.includes("owner")) {
-    throw new Error("Owner role required");
-  }
+  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  if (own !== true) throw new Error("Owner role required");
 }
 
 export async function isOwner(supabase: any, userId: string): Promise<boolean> {
-  const roles = await getRoles(supabase, userId);
-  return roles.includes("owner");
+  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  return own === true;
 }
 
 // Enforces tab-level permission for the requesting user.
@@ -54,8 +49,14 @@ export async function requireTabAccess(
   tabKey: string,
   required: TabAccessLevel = "edit",
 ) {
-  const roles = await getRoles(supabase, userId);
-  if (roles.includes("owner")) return;
+  // Owner bypass, org-scoped.
+  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  if (own === true) return;
+
+  // Fetch the caller's roles for the active org only (RLS on user_roles
+  // allows any org the caller belongs to, so we use an org-scoped RPC).
+  const { data: activeRoles } = await supabase.rpc("my_active_org_roles");
+  const roles: string[] = (activeRoles ?? []) as string[];
 
   const { data: perms } = await supabase
     .from("tab_permissions")
