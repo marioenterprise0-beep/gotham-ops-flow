@@ -57,3 +57,21 @@ DO $$ BEGIN
     'owner', 'manager', 'shift_lead', 'grill', 'prep', 'cashier'
   );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- public.user_roles is created by the pre-Phase-1a base schema in production
+-- (per-user, per-org operational roles). The Phase-1a migration's has_role
+-- function bodies reference it at CREATE FUNCTION time (LANGUAGE sql bodies
+-- are parse-validated on definition), so the table must exist before those
+-- functions are defined. Match the production shape closely enough that the
+-- has_role bodies compile; the isolation suite exercises row-level behavior
+-- via inserts, not via schema introspection.
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  organization_id uuid,
+  role public.app_role NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, organization_id, role)
+);
+GRANT SELECT ON public.user_roles TO authenticated;
+GRANT ALL ON public.user_roles TO service_role;
