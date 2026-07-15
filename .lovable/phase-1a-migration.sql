@@ -1,23 +1,21 @@
 -- =============================================================================
--- Phase 1a — Multi-tenant foundation (DRAFT for review)
+-- Phase 1a — Multi-tenant foundation (CONSOLIDATED, matches shipped migrations)
 -- =============================================================================
+-- Consolidation of the three shipped migrations:
+--   20260714064527 — core tables, functions, seed org, backfill, columns,
+--                    triggers, NOT NULL, RLS policies, verify block.
+--   20260714064615 — ALTER COLUMN organization_id SET DEFAULT
+--                    public.current_organization_id() on every tenant table.
+--   20260714064658 — Restore compat 2-arg has_role(user_id, role) that reads
+--                    the session GUC and raises when unset.
+--
 -- Ships in ONE atomic transaction. No fallback, no staging. Trigger raises
 -- on any INSERT that cannot resolve organization_id.
 --
--- Structure:
---   1. Enums + core tables (organizations, organization_members)
---   2. Helper functions (is_org_member, has_org_role, has_role/3, current_org)
---   3. profiles.active_organization_id (nullable convenience pointer)
---   4. Seed org "Cibora Dev" + backfill memberships for existing users
---   5. Generic enforce_org_id() trigger + per-table FK-derivation registry
---   6. For every tenant table:
---        a. ADD COLUMN organization_id uuid
---        b. Backfill (direct column OR FK-derived OR seed org)
---        c. ATTACH trigger BEFORE INSERT
---        d. ALTER COLUMN organization_id SET NOT NULL
---        e. DROP existing RLS policies; RECREATE tenant-scoped policies
---   7. email_send_log: add NULLABLE organization_id (attribution only)
---   8. Verification block — RAISE EXCEPTION if any tenant table lacks org_id
+-- Runnable standalone: every tenant-table operation is guarded by
+-- to_regclass() so this file also applies cleanly against the ephemeral
+-- CI Postgres (which has only the auth shim + this file). The verify
+-- block only checks tables that actually exist in the target DB.
 -- =============================================================================
 
 BEGIN;
@@ -82,24 +80,57 @@ $$;
 -- New has_role signature: (user_id, org_id, role). Replaces the 2-arg version.
 -- Operational roles remain per-user, per-org; enforces the role-boundary rule
 -- (this function never touches organization_members.org_role).
-DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _org_id uuid, _role public.app_role)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-     WHERE user_id = _user_id
-       AND organization_id = _org_id
-       AND role = _role
-  )
-$$;
+-- Only defined when the app_role type exists — the type ships in the base
+-- schema on prod but is absent from CI's ephemeral DB.
+DO $has$
+BEGIN
+  IF to_regtype('public.app_role') IS NOT NULL THEN
+    EXECUTE 'DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role)';
+    EXECUTE $f$
+      CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _org_id uuid, _role public.app_role)
+      RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $body$
+        SELECT EXISTS (
+          SELECT 1 FROM public.user_roles
+           WHERE user_id = _user_id
+             AND organization_id = _org_id
+             AND role = _role
+        )
+      $body$
+    $f$;
+    -- Compat 2-arg helper (shipped migration 20260714064658): reads active
+    -- org from session GUC and raises if unset. Preserves existing call sites.
+    EXECUTE $f$
+      CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
+      RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $body$
+      DECLARE
+        org uuid := public.current_organization_id();
+      BEGIN
+        IF org IS NULL THEN
+          RAISE EXCEPTION 'has_role: no active organization on session (app.active_organization_id unset)'
+            USING ERRCODE = 'insufficient_privilege';
+        END IF;
+        RETURN EXISTS (
+          SELECT 1 FROM public.user_roles
+           WHERE user_id = _user_id
+             AND organization_id = org
+             AND role = _role
+        );
+      END $body$
+    $f$;
+  END IF;
+END $has$;
 
 -- =============================================================================
 -- 3. profiles.active_organization_id (nullable — profiles stay user-owned)
 -- =============================================================================
 
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS active_organization_id uuid
-    REFERENCES public.organizations(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    ALTER TABLE public.profiles
+      ADD COLUMN IF NOT EXISTS active_organization_id uuid
+        REFERENCES public.organizations(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 4. Seed org + membership backfill for existing users
@@ -109,14 +140,17 @@ INSERT INTO public.organizations (id, name, slug)
 VALUES ('00000000-0000-0000-0000-000000000001'::uuid, 'Cibora Dev', 'cibora-dev')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.organization_members (organization_id, user_id, org_role)
-SELECT '00000000-0000-0000-0000-000000000001'::uuid, p.id, 'org_owner'
-  FROM public.profiles p
- ON CONFLICT DO NOTHING;
-
-UPDATE public.profiles
-   SET active_organization_id = '00000000-0000-0000-0000-000000000001'::uuid
- WHERE active_organization_id IS NULL;
+DO $$ BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    INSERT INTO public.organization_members (organization_id, user_id, org_role)
+    SELECT '00000000-0000-0000-0000-000000000001'::uuid, p.id, 'org_owner'
+      FROM public.profiles p
+     ON CONFLICT DO NOTHING;
+    UPDATE public.profiles
+       SET active_organization_id = '00000000-0000-0000-0000-000000000001'::uuid
+     WHERE active_organization_id IS NULL;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 5. Generic enforce_org_id() trigger + FK-derivation registry
@@ -232,6 +266,11 @@ DECLARE
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables LOOP
+    -- Skip tables that don't exist in this DB (CI ephemeral schema only has
+    -- what this file creates; prod has the full tenant schema).
+    IF to_regclass('public.' || quote_ident(t)) IS NULL THEN
+      CONTINUE;
+    END IF;
     EXECUTE format('ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES public.organizations(id) ON DELETE RESTRICT', t);
     -- Backfill: single-tenant snapshot → all existing rows belong to seed org.
     EXECUTE format(
@@ -246,6 +285,12 @@ BEGIN
     );
     -- NOT NULL — no fallback, ever.
     EXECUTE format('ALTER TABLE public.%I ALTER COLUMN organization_id SET NOT NULL', t);
+    -- Session-default (shipped migration 20260714064615): so app inserts
+    -- that omit organization_id get filled from the session GUC.
+    EXECUTE format(
+      'ALTER TABLE public.%I ALTER COLUMN organization_id SET DEFAULT public.current_organization_id()',
+      t
+    );
     -- Index for RLS predicate perf.
     EXECUTE format(
       'CREATE INDEX IF NOT EXISTS %I ON public.%I (organization_id)',
@@ -290,6 +335,9 @@ DECLARE
   pol record;
 BEGIN
   FOREACH t IN ARRAY tenant_tables LOOP
+    IF to_regclass('public.' || quote_ident(t)) IS NULL THEN
+      CONTINUE;
+    END IF;
     -- Drop every existing policy on this table so old permissive policies
     -- cannot leak across orgs during rollout.
     FOR pol IN
@@ -355,11 +403,15 @@ CREATE POLICY "orgmem_admin_manage" ON public.organization_members FOR ALL TO au
 -- 7. email_send_log — nullable attribution column (service-role only, no RLS exposure)
 -- =============================================================================
 
-ALTER TABLE public.email_send_log
-  ADD COLUMN IF NOT EXISTS organization_id uuid
-    REFERENCES public.organizations(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS email_send_log_organization_id_idx
-  ON public.email_send_log (organization_id);
+DO $$ BEGIN
+  IF to_regclass('public.email_send_log') IS NOT NULL THEN
+    ALTER TABLE public.email_send_log
+      ADD COLUMN IF NOT EXISTS organization_id uuid
+        REFERENCES public.organizations(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS email_send_log_organization_id_idx
+      ON public.email_send_log (organization_id);
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 8. Verification — fail the migration if any tenant table is misconfigured
@@ -393,7 +445,9 @@ BEGIN
      SELECT 1 FROM information_schema.columns
       WHERE table_schema='public' AND table_name=t
         AND column_name='organization_id' AND is_nullable='NO'
-   );
+   )
+     -- Only verify tables that exist in this DB (CI ephemeral skip).
+     AND to_regclass('public.'||t) IS NOT NULL;
   IF missing IS NOT NULL THEN
     RAISE EXCEPTION 'Phase 1a verify FAILED — organization_id NOT NULL missing on: %', missing;
   END IF;
