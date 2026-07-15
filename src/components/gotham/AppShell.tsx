@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/gotham/CommandPalette";
 import { KeyboardShortcuts } from "@/components/gotham/KeyboardShortcuts";
 import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator";
 import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
+import { OrgSwitcher } from "@/components/gotham/OrgSwitcher";
 
 
 type Tab = { to: string; key: string; label: string; icon: typeof Home };
@@ -394,6 +395,8 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
         </button>
 
         <TrailerSwitcher />
+
+        <OrgSwitcher />
 
         <div className="flex items-center gap-2.5">
           {role && (
