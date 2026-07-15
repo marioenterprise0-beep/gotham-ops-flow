@@ -19,22 +19,22 @@ const OFFLINE_FALLBACK = "/";
 
 // ─── Install: pre-cache shell assets ─────────────────────────────────────────
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS))
-  );
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)));
   self.skipWaiting();
 });
 
 // ─── Activate: clean up old caches ───────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== STATIC_CACHE && k !== DYNAMIC_CACHE)
-          .map((k) => caches.delete(k))
-      )
-    )
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== STATIC_CACHE && k !== DYNAMIC_CACHE)
+            .map((k) => caches.delete(k)),
+        ),
+      ),
   );
   event.waitUntil(clients.claim());
 });
@@ -105,10 +105,12 @@ async function networkFirstWithFallback(request) {
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(DYNAMIC_CACHE);
   const cached = await cache.match(request);
-  const fetchPromise = fetch(request).then((response) => {
-    if (response.ok) cache.put(request, response.clone());
-    return response;
-  }).catch(() => null);
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    })
+    .catch(() => null);
   return cached ?? (await fetchPromise) ?? new Response("", { status: 503 });
 }
 
@@ -130,10 +132,8 @@ self.addEventListener("push", (event) => {
       tag,
       data: { url },
       requireInteraction: data.priority === "critical",
-      actions: data.priority === "critical"
-        ? [{ action: "view", title: "View Alert" }]
-        : [],
-    })
+      actions: data.priority === "critical" ? [{ action: "view", title: "View Alert" }] : [],
+    }),
   );
 });
 
@@ -149,7 +149,7 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
       return clients.openWindow(url);
-    })
+    }),
   );
 });
 
