@@ -23,10 +23,15 @@ import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2, Mail } 
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 
+type PermRow = { scope_type: "role" | "user"; scope_id: string; tab_key: string; access_level: TabAccess };
+type ProfileRow = { id: string; email?: string | null; full_name?: string | null; [k: string]: unknown };
+type UserRoleRow = { user_id: string; role: RoleId };
+type PermissionsPayload = { perms: PermRow[]; profiles: ProfileRow[]; roles: UserRoleRow[] };
+
 export const Route = createFileRoute("/permissions")({
   ssr: false,
   beforeLoad: () => {
-    throw redirect({ to: "/admin", search: { tab: "permissions" } as any });
+    throw redirect({ to: "/admin", search: { tab: "permissions" } });
   },
   head: () => ({ meta: [{ title: "Permissions · Dip N Shake OS" }] }),
   component: PermissionsPage,
@@ -79,7 +84,7 @@ export function PermissionsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["all-tab-permissions", session?.user?.id ?? null],
-    queryFn: () => listFn() as Promise<any>,
+    queryFn: () => listFn() as Promise<PermissionsPayload>,
     enabled: canLoadPermissions,
     retry: false,
   });
@@ -100,7 +105,7 @@ export function PermissionsPage() {
 
   const presetM = useMutation({
     mutationFn: (overwrite: boolean) => applyPresetsFn({ data: { overwrite } }),
-    onSuccess: async (res: any) => {
+    onSuccess: async (res: { applied?: number } | undefined) => {
       toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
       syncDomains(qc, "permissions", "users");
       await refreshPermissions();
@@ -120,23 +125,23 @@ export function PermissionsPage() {
 
   const emailM = useMutation({
     mutationFn: (v: { role: string; category: EmailCategory; enabled: boolean }) =>
-      setEmailPolicyFn({ data: v as any }),
+      setEmailPolicyFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["role-email-policies"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
   const emailDefaultsM = useMutation({
     mutationFn: (overwrite: boolean) => applyEmailDefaultsFn({ data: { overwrite } }),
-    onSuccess: (res: any) => {
+    onSuccess: (res: { applied?: number } | undefined) => {
       toast.success(`Email defaults applied · ${res?.applied ?? 0} rules updated`);
       qc.invalidateQueries({ queryKey: ["role-email-policies"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const perms: any[] = data?.perms ?? [];
-  const profiles: any[] = data?.profiles ?? [];
-  const userRoles: any[] = data?.roles ?? [];
+  const perms: PermRow[] = data?.perms ?? [];
+  const profiles: ProfileRow[] = data?.profiles ?? [];
+  const userRoles: UserRoleRow[] = data?.roles ?? [];
 
   const roleByUser = useMemo(() => {
     const m = new Map<string, RoleId[]>();
