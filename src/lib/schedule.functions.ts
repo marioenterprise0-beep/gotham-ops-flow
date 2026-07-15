@@ -939,7 +939,7 @@ export const duplicateShift = createServerFn({ method: "POST" })
       const destSchedule = ((candidateSchedules ?? []) as any[])
         .filter((row) => scheduleCoversDate(row, newDate))
         .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
-      let destId: string | null = destSchedule?.id ?? null;
+      const destId: string | null = destSchedule?.id ?? null;
       if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
         throw new Error("Target week's schedule is locked — unlock it before duplicating there.");
       }

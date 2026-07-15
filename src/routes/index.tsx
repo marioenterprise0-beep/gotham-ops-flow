@@ -219,8 +219,8 @@ function CrewView({
                   weekday: "short",
                   month: "short",
                   day: "numeric",
-                })} ·{" "}
-                {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
+                })}{" "}
+                · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-3 w-3 text-[var(--color-gold)]" />
@@ -533,8 +533,8 @@ function ManagerView({ stats, role }: { stats: any; role: any }) {
                   weekday: "short",
                   month: "short",
                   day: "numeric",
-                })} ·{" "}
-                {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
+                })}{" "}
+                · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-3 w-3 text-[var(--color-gold)]" />

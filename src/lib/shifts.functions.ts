@@ -1143,14 +1143,12 @@ export const ensureShiftPhase = createServerFn({ method: "POST" })
     }));
     await supabase.from("tasks").insert(rows);
     await supabase.from("shifts").update({ phase: data.phase }).eq("id", data.shiftId);
-    await supabase
-      .from("audit_log")
-      .insert({
-        actor_id: userId,
-        action: "seed_phase",
-        entity: "shift",
-        entity_id: data.shiftId,
-        payload: { phase: data.phase },
-      });
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "seed_phase",
+      entity: "shift",
+      entity_id: data.shiftId,
+      payload: { phase: data.phase },
+    });
     return { seeded: rows.length };
   });

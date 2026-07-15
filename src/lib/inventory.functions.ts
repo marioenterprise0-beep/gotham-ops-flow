@@ -555,15 +555,13 @@ export const receiveStock = createServerFn({ method: "POST" })
         .eq("id", data.itemId);
       if (upErr) throw upErr;
     }
-    await supabase
-      .from("audit_log")
-      .insert({
-        actor_id: userId,
-        action: "receive_stock",
-        entity: "inventory_item",
-        entity_id: data.itemId,
-        payload: { qty: data.qty, supplier: data.supplier },
-      });
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "receive_stock",
+      entity: "inventory_item",
+      entity_id: data.itemId,
+      payload: { qty: data.qty, supplier: data.supplier },
+    });
     return receipt;
   });
 
@@ -610,15 +608,13 @@ export const logWaste = createServerFn({ method: "POST" })
         .eq("id", data.itemId);
       if (upErr) throw upErr;
     }
-    await supabase
-      .from("audit_log")
-      .insert({
-        actor_id: userId,
-        action: "log_waste",
-        entity: "inventory_item",
-        entity_id: data.itemId,
-        payload: { qty: data.qty, reason: data.reason },
-      });
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "log_waste",
+      entity: "inventory_item",
+      entity_id: data.itemId,
+      payload: { qty: data.qty, reason: data.reason },
+    });
     return row;
   });
 
@@ -664,14 +660,12 @@ export const submitCount = createServerFn({ method: "POST" })
       .update({ current_qty: data.countQty })
       .eq("id", data.itemId);
     if (upErr) throw upErr;
-    await supabase
-      .from("audit_log")
-      .insert({
-        actor_id: userId,
-        action: "submit_count",
-        entity: "inventory_item",
-        entity_id: data.itemId,
-        payload: { countQty: data.countQty, variance },
-      });
+    await supabase.from("audit_log").insert({
+      actor_id: userId,
+      action: "submit_count",
+      entity: "inventory_item",
+      entity_id: data.itemId,
+      payload: { countQty: data.countQty, variance },
+    });
     return row;
   });
