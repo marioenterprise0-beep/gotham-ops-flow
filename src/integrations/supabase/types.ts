@@ -4435,6 +4435,10 @@ export type Database = {
         }
         Returns: number
       }
+      my_active_org_roles: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
       my_email: { Args: never; Returns: string }
       my_trailer_id: { Args: never; Returns: string }
       payroll_week_start: { Args: { _d: string }; Returns: string }
