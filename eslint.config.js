@@ -12,9 +12,9 @@ export default tseslint.config(
       ".output",
       ".vinxi",
       "src/routes/mcp.ts",
-      "src/routes/[.mcp]/**",
-      "src/routes/[.well-known]/**",
-      "src/routes/[.]lovable.oauth.consent.tsx",
+      "src/routes/\\[.mcp\\]/**",
+      "src/routes/\\[.well-known\\]/**",
+      "src/routes/\\[.\\]lovable.oauth.consent.tsx",
     ],
   },
   {
