@@ -16,6 +16,14 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   CREATE ROLE service_role NOLOGIN BYPASSRLS;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- `authenticator` is the PostgREST-managed role in real Supabase. The
+-- phase-1b guc-wiring migration issues `ALTER ROLE authenticator ...`, so
+-- the role must exist for the migration to apply cleanly against this
+-- ephemeral DB. The isolation suite doesn't go through PostgREST, so the
+-- pre_request hook is not exercised here — the ALTER just needs to succeed.
+DO $$ BEGIN
+  CREATE ROLE authenticator NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
