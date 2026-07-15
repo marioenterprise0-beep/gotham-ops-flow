@@ -294,7 +294,6 @@ async function main() {
       });
     }
 
-    // ---- Group C: caller-supplied WITH CHECK rejects foreign org id --------
     // ---- Group B: cross-org UPDATE / DELETE rejection ----------------------
     // For every tenant table, userA attempting to UPDATE or DELETE any row
     // stamped with orgB must affect 0 rows. Uses `WHERE organization_id = $orgB`
