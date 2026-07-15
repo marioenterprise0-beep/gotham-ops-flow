@@ -18,7 +18,12 @@ export const Route = createFileRoute("/integrity")({
       <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
         <div className="text-sm font-medium text-destructive">Could not load Data Integrity</div>
         <div className="text-xs text-muted-foreground mt-1">{String(error?.message ?? error)}</div>
-        <button onClick={() => reset()} className="mt-3 px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-muted/70">Retry</button>
+        <button
+          onClick={() => reset()}
+          className="mt-3 px-3 py-1.5 text-sm rounded-md bg-muted hover:bg-muted/70"
+        >
+          Retry
+        </button>
       </div>
     </div>
   ),
@@ -66,10 +71,15 @@ function IntegrityPage() {
           }
         />
         <p className="text-sm text-muted-foreground -mt-2">
-          Continuous cross-model consistency check across schedules, labor, inventory, permissions, and users. Auto-refreshes after every mutation.
+          Continuous cross-model consistency check across schedules, labor, inventory, permissions,
+          and users. Auto-refreshes after every mutation.
         </p>
 
-        {isLoading && <Card><div className="p-6 text-muted-foreground">Running sweep…</div></Card>}
+        {isLoading && (
+          <Card>
+            <div className="p-6 text-muted-foreground">Running sweep…</div>
+          </Card>
+        )}
 
         {data && (
           <>
@@ -86,9 +96,32 @@ function IntegrityPage() {
                   </div>
                 </div>
               </Card>
-              <Card><div className="p-4"><div className="text-xs text-muted-foreground">Critical</div><div className="text-2xl font-semibold text-destructive">{data.totals.critical}</div></div></Card>
-              <Card><div className="p-4"><div className="text-xs text-muted-foreground">Warning</div><div className="text-2xl font-semibold text-amber-500">{data.totals.warning}</div></div></Card>
-              <Card><div className="p-4"><div className="text-xs text-muted-foreground">Last run</div><div className="text-sm mt-1">{new Date(data.ranAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}</div></div></Card>
+              <Card>
+                <div className="p-4">
+                  <div className="text-xs text-muted-foreground">Critical</div>
+                  <div className="text-2xl font-semibold text-destructive">
+                    {data.totals.critical}
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="p-4">
+                  <div className="text-xs text-muted-foreground">Warning</div>
+                  <div className="text-2xl font-semibold text-amber-500">{data.totals.warning}</div>
+                </div>
+              </Card>
+              <Card>
+                <div className="p-4">
+                  <div className="text-xs text-muted-foreground">Last run</div>
+                  <div className="text-sm mt-1">
+                    {new Date(data.ranAt).toLocaleTimeString([], {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </div>
+                </div>
+              </Card>
             </div>
 
             {data.issues.length === 0 ? (
@@ -103,17 +136,24 @@ function IntegrityPage() {
                 <div className="divide-y divide-border">
                   {data.issues.map((issue) => (
                     <div key={issue.code} className="p-4 flex items-start gap-4">
-                      <AlertTriangle className={`size-5 mt-0.5 ${issue.severity === "critical" ? "text-destructive" : "text-amber-500"}`} />
+                      <AlertTriangle
+                        className={`size-5 mt-0.5 ${issue.severity === "critical" ? "text-destructive" : "text-amber-500"}`}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <StatusPill tone={TONE[issue.severity]}>{issue.severity}</StatusPill>
-                          <span className="text-xs uppercase tracking-wide text-muted-foreground">{issue.category}</span>
+                          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {issue.category}
+                          </span>
                           <span className="text-xs text-muted-foreground">·</span>
                           <code className="text-xs text-muted-foreground">{issue.code}</code>
                         </div>
                         <div className="mt-1 text-sm">{issue.message}</div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {issue.count} affected{issue.sampleIds?.length ? ` · sample: ${issue.sampleIds.join(", ")}` : ""}
+                          {issue.count} affected
+                          {issue.sampleIds?.length
+                            ? ` · sample: ${issue.sampleIds.join(", ")}`
+                            : ""}
                         </div>
                       </div>
                     </div>

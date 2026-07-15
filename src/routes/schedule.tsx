@@ -81,8 +81,10 @@ import { syncDomains } from "@/lib/sync-bus";
 import { DEFAULT_TRAILER_TZ, zonedDateToUtcMs } from "@/lib/timezone";
 import { supabase } from "@/integrations/supabase/client";
 
-
-export const Route = createFileRoute("/schedule")({ beforeLoad: requireAuthBeforeLoad, component: SchedulePage });
+export const Route = createFileRoute("/schedule")({
+  beforeLoad: requireAuthBeforeLoad,
+  component: SchedulePage,
+});
 
 type Status = "draft" | "submitted" | "approved" | "locked" | "published";
 type ViewMode = "day" | "week" | "twoweek" | "month";
@@ -201,9 +203,17 @@ function SchedulePage() {
     queryFn: async () => {
       // Managers/owners auto-create a blank draft on landing so the grid is
       // always present for crew to view and mark unavailability against.
-      const exact = await findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: false } });
+      const exact = await findOrCreate({
+        data: { startDate: startStr, endDate: endStr, autoCreate: false },
+      });
       if (exact) return exact;
-      const legacy = await findOrCreate({ data: { startDate: fmt(addDays(start, -1)), endDate: fmt(addDays(end, -1)), autoCreate: false } });
+      const legacy = await findOrCreate({
+        data: {
+          startDate: fmt(addDays(start, -1)),
+          endDate: fmt(addDays(end, -1)),
+          autoCreate: false,
+        },
+      });
       if (legacy) return legacy;
       return findOrCreate({ data: { startDate: startStr, endDate: endStr, autoCreate: isMgr } });
     },
@@ -285,14 +295,13 @@ function SchedulePage() {
                       </Button>
                     ) : (
                       <div className="text-xs text-muted-foreground">
-                        A manager will publish one soon. You can still mark days you're unavailable below.
+                        A manager will publish one soon. You can still mark days you're unavailable
+                        below.
                       </div>
                     )}
                   </div>
                 </Card>
-                {!isMgr && (
-                  <MyAvailabilityCalendar startStr={startStr} endStr={endStr} />
-                )}
+                {!isMgr && <MyAvailabilityCalendar startStr={startStr} endStr={endStr} />}
               </>
             ) : (
               <ScheduleBoard
@@ -305,7 +314,6 @@ function SchedulePage() {
                 trailerScope={trailerScope}
               />
             )}
-
           </TabsContent>
 
           {!isMgr && (
@@ -677,7 +685,15 @@ function ScheduleBoard({
 
   const { data, isLoading } = useQuery({
     queryKey: scheduleCacheKey,
-    queryFn: () => fetchSchedule({ data: { id: scheduleId, trailerId: trailerScope ?? null, startDate: startStr, endDate: endStr } }),
+    queryFn: () =>
+      fetchSchedule({
+        data: {
+          id: scheduleId,
+          trailerId: trailerScope ?? null,
+          startDate: startStr,
+          endDate: endStr,
+        },
+      }),
   });
   const { data: employees = [] } = useQuery({
     queryKey: ["employees", trailerScope],
@@ -691,7 +707,9 @@ function ScheduleBoard({
 
   const [addedEmployeeIds, setAddedEmployeeIds] = useState<Set<string>>(new Set());
   // Reset manually-pinned employees when the viewed week changes.
-  useEffect(() => { setAddedEmployeeIds(new Set()); }, [startStr]);
+  useEffect(() => {
+    setAddedEmployeeIds(new Set());
+  }, [startStr]);
 
   // Realtime: refetch the schedule cache whenever a punch or shift changes
   // anywhere in the visible week — keeps clocked-hours and shift edits in sync
@@ -723,7 +741,12 @@ function ScheduleBoard({
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "schedule_shifts", filter: `schedule_id=eq.${scheduleId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "schedule_shifts",
+          filter: `schedule_id=eq.${scheduleId}`,
+        },
         () => refresh(),
       )
       .subscribe();
@@ -750,31 +773,25 @@ function ScheduleBoard({
     Array.isArray(queryKey) && queryKey[0] === "schedule" && queryKey[1] === scheduleId;
   const upsertShiftInScheduleCache = (saved: any) => {
     if (!saved?.id) return;
-    qc.setQueriesData(
-      { predicate: (q) => scheduleQueryMatches(q.queryKey) },
-      (current: any) => {
-        if (!current?.schedule) return current;
-        const existing = Array.isArray(current.shifts) ? current.shifts : [];
-        const idx = existing.findIndex((s: any) => s.id === saved.id);
-        const shifts = idx >= 0
-          ? existing.map((s: any) => (s.id === saved.id ? saved : s))
-          : [...existing, saved];
-        shifts.sort((a: any, b: any) =>
+    qc.setQueriesData({ predicate: (q) => scheduleQueryMatches(q.queryKey) }, (current: any) => {
+      if (!current?.schedule) return current;
+      const existing = Array.isArray(current.shifts) ? current.shifts : [];
+      const idx = existing.findIndex((s: any) => s.id === saved.id);
+      const shifts =
+        idx >= 0 ? existing.map((s: any) => (s.id === saved.id ? saved : s)) : [...existing, saved];
+      shifts.sort(
+        (a: any, b: any) =>
           String(a.shift_date).localeCompare(String(b.shift_date)) ||
           String(a.start_time).localeCompare(String(b.start_time)),
-        );
-        return { ...current, shifts };
-      },
-    );
+      );
+      return { ...current, shifts };
+    });
   };
   const removeShiftFromScheduleCache = (id: string) => {
-    qc.setQueriesData(
-      { predicate: (q) => scheduleQueryMatches(q.queryKey) },
-      (current: any) => {
-        if (!current?.schedule || !Array.isArray(current.shifts)) return current;
-        return { ...current, shifts: current.shifts.filter((s: any) => s.id !== id) };
-      },
-    );
+    qc.setQueriesData({ predicate: (q) => scheduleQueryMatches(q.queryKey) }, (current: any) => {
+      if (!current?.schedule || !Array.isArray(current.shifts)) return current;
+      return { ...current, shifts: current.shifts.filter((s: any) => s.id !== id) };
+    });
   };
   const invalidateLabor = () => syncDomains(qc, "labor");
   const forceScheduleRefresh = async () => {
@@ -793,7 +810,8 @@ function ScheduleBoard({
 
   const saveMut = useMutation({
     mutationFn: (v: any) => {
-      if (locked) return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
+      if (locked)
+        return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
       return save({ data: v });
     },
 
@@ -803,14 +821,31 @@ function ScheduleBoard({
       qc.setQueryData(scheduleCacheKey, (old: any) => {
         if (!old) return old;
         const patch = {
-          schedule_id: v.scheduleId, employee_id: v.employeeId ?? null,
-          trailer_id: v.trailerId ?? null, role: v.role, segment: v.segment,
-          shift_date: v.shiftDate, start_time: v.startTime, end_time: v.endTime,
-          break_minutes: v.breakMinutes ?? 30, notes: v.notes ?? null,
-          repeat_weekly: v.repeatWeekly ?? false, archived_at: null,
+          schedule_id: v.scheduleId,
+          employee_id: v.employeeId ?? null,
+          trailer_id: v.trailerId ?? null,
+          role: v.role,
+          segment: v.segment,
+          shift_date: v.shiftDate,
+          start_time: v.startTime,
+          end_time: v.endTime,
+          break_minutes: v.breakMinutes ?? 30,
+          notes: v.notes ?? null,
+          repeat_weekly: v.repeatWeekly ?? false,
+          archived_at: null,
         };
-        if (v.id) return { ...old, shifts: old.shifts.map((s: any) => s.id === v.id ? { ...s, ...patch } : s) };
-        return { ...old, shifts: [...old.shifts, { ...patch, id: `temp-${Date.now()}`, created_at: new Date().toISOString() }] };
+        if (v.id)
+          return {
+            ...old,
+            shifts: old.shifts.map((s: any) => (s.id === v.id ? { ...s, ...patch } : s)),
+          };
+        return {
+          ...old,
+          shifts: [
+            ...old.shifts,
+            { ...patch, id: `temp-${Date.now()}`, created_at: new Date().toISOString() },
+          ],
+        };
       });
       return { prev };
     },
@@ -828,7 +863,8 @@ function ScheduleBoard({
   });
   const delMut = useMutation({
     mutationFn: (id: string) => {
-      if (locked) return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
+      if (locked)
+        return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
       return remove({ data: { id } });
     },
 
@@ -857,7 +893,8 @@ function ScheduleBoard({
   const [copyDate, setCopyDate] = useState<string>("");
   const dupMut = useMutation({
     mutationFn: (v: { id: string; targetDate?: string }) => {
-      if (locked) return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
+      if (locked)
+        return Promise.reject(new Error("Schedule is locked — unlock it before making changes"));
       return dup({ data: v });
     },
 
@@ -868,7 +905,18 @@ function ScheduleBoard({
         if (!old) return old;
         const src = old.shifts.find((s: any) => s.id === v.id);
         if (!src) return old;
-        return { ...old, shifts: [...old.shifts, { ...src, id: `temp-${Date.now()}`, shift_date: v.targetDate ?? src.shift_date, created_at: new Date().toISOString() }] };
+        return {
+          ...old,
+          shifts: [
+            ...old.shifts,
+            {
+              ...src,
+              id: `temp-${Date.now()}`,
+              shift_date: v.targetDate ?? src.shift_date,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        };
       });
       return { prev };
     },
@@ -932,8 +980,7 @@ function ScheduleBoard({
     onError: (e: any) => toast.error(e.message),
   });
   const weeklyHoursMut = useMutation({
-    mutationFn: (v: { employeeId: string; weeklyHours: number }) =>
-      setWeeklyHoursFn({ data: v }),
+    mutationFn: (v: { employeeId: string; weeklyHours: number }) => setWeeklyHoursFn({ data: v }),
     onSuccess: () => {
       toast.success("Weekly hours updated");
       qc.invalidateQueries({ queryKey: ["employees"] });
@@ -1004,7 +1051,6 @@ function ScheduleBoard({
     return m;
   }, [data, startStr, endStr]);
 
-
   // Group shifts by employee+date (string key)
   const grid = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -1029,15 +1075,12 @@ function ScheduleBoard({
   // see themselves and mark unavailability even when they have no shifts
   // yet. Managers can still narrow with the role filter.
   const visibleEmployees = useMemo(() => {
-    return (employees as any[]).filter(
-      (e) => filterRole === "all" || e.roles.includes(filterRole),
-    );
+    return (employees as any[]).filter((e) => filterRole === "all" || e.roles.includes(filterRole));
   }, [employees, filterRole]);
 
   // Manager-only "Add to Schedule" picker is now redundant since everyone
   // shows by default. Keep an empty list so the existing UI hides itself.
   const availableToAdd = useMemo(() => [] as any[], []);
-
 
   // Analytics
   const totals = useMemo(() => {
@@ -1090,9 +1133,7 @@ function ScheduleBoard({
             {availableToAdd.length > 0 && (
               <Select
                 value=""
-                onValueChange={(id) =>
-                  setAddedEmployeeIds((prev) => new Set([...prev, id]))
-                }
+                onValueChange={(id) => setAddedEmployeeIds((prev) => new Set([...prev, id]))}
               >
                 <SelectTrigger className="h-9 w-auto gap-1.5 pl-2.5 pr-3 text-sm">
                   <Plus className="h-3.5 w-3.5" />
@@ -1261,7 +1302,10 @@ function ScheduleBoard({
                         }
                         onEdit={(s) => setEditing(s)}
                         onDup={(s) => dupMut.mutate({ id: s.id })}
-                        onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
+                        onCopy={(s) => {
+                          setCopyShift(s);
+                          setCopyDate(s.shift_date);
+                        }}
                         onSwap={(s) => setSwapDialogShift(s)}
                         onClaim={(s) => setClaimDialogShift(s)}
                       />
@@ -1293,7 +1337,10 @@ function ScheduleBoard({
               }
               onEdit={(s) => setEditing(s)}
               onDup={(s) => dupMut.mutate({ id: s.id })}
-              onCopy={(s) => { setCopyShift(s); setCopyDate(s.shift_date); }}
+              onCopy={(s) => {
+                setCopyShift(s);
+                setCopyDate(s.shift_date);
+              }}
               onClaim={(s) => setClaimDialogShift(s)}
             />
 
@@ -1346,13 +1393,15 @@ function ScheduleBoard({
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCopyShift(null)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCopyShift(null)}>
+                Cancel
+              </Button>
               <Button
                 disabled={!copyDate || dupMut.isPending}
                 onClick={() => {
                   dupMut.mutate(
                     { id: copyShift.id, targetDate: copyDate },
-                    { onSuccess: () => setCopyShift(null) }
+                    { onSuccess: () => setCopyShift(null) },
                   );
                 }}
               >
@@ -1486,7 +1535,6 @@ function Cell({
             Mark unavailable
           </button>
         )}
-
       </div>
     </div>
   );
@@ -1542,7 +1590,6 @@ function ShiftCard({
         borderColor: bg,
       }}
     >
-
       <div className="flex items-center justify-between gap-1">
         <div className="text-[11px] font-semibold leading-tight">
           {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)}
@@ -1884,7 +1931,6 @@ function ShiftForm({
     }
   }, [segment]);
 
-
   const hrs = hoursBetween(startTime, endTime, breakMinutes);
 
   const submit = () =>
@@ -2132,9 +2178,7 @@ function MyAvailabilityCalendar({ startStr, endStr }: { startStr: string; endStr
     mutationFn: (v: { blockDate: string; reason?: string }) => markUnavail({ data: v }),
     onSuccess: (r: any) => {
       toast.success(
-        r?.requiresApproval
-          ? "Request sent — manager approval required"
-          : "Marked unavailable",
+        r?.requiresApproval ? "Request sent — manager approval required" : "Marked unavailable",
       );
       qc.invalidateQueries({ queryKey: ["availability"] });
       setDlg(null);
@@ -2157,7 +2201,9 @@ function MyAvailabilityCalendar({ startStr, endStr }: { startStr: string; endStr
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="font-display text-base">My Availability</div>
-            <div className="text-xs text-muted-foreground">Tap a day to flag yourself unavailable.</div>
+            <div className="text-xs text-muted-foreground">
+              Tap a day to flag yourself unavailable.
+            </div>
           </div>
           <UserX className="h-4 w-4 text-blue-600" />
         </div>
@@ -2201,7 +2247,6 @@ function MyAvailabilityCalendar({ startStr, endStr }: { startStr: string; endStr
     </>
   );
 }
-
 
 // ============================================================
 // Availability Toggle Dialog
@@ -2303,8 +2348,7 @@ function RequestsPanel({ isMgr }: { isMgr: boolean }) {
 
   const { data: claims = [], isLoading: claimsLoading } = useQuery({
     queryKey: isMgr ? ["claim-requests"] : ["my-claims"],
-    queryFn: () =>
-      isMgr ? (listClaimsFn({ data: {} }) as any) : (myClaimsFn() as any),
+    queryFn: () => (isMgr ? (listClaimsFn({ data: {} }) as any) : (myClaimsFn() as any)),
     enabled: !!session,
   });
 
@@ -2404,16 +2448,12 @@ function RequestsPanel({ isMgr }: { isMgr: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="font-display text-lg">
-        {isMgr ? "Swap & Claim Requests" : "My Requests"}
-      </div>
+      <div className="font-display text-lg">{isMgr ? "Swap & Claim Requests" : "My Requests"}</div>
 
       {isLoading && <Card className="p-4 text-sm text-muted-foreground">Loading…</Card>}
 
       {!isLoading && allRequests.length === 0 && (
-        <Card className="py-10 text-center text-sm text-muted-foreground">
-          No requests yet.
-        </Card>
+        <Card className="py-10 text-center text-sm text-muted-foreground">No requests yet.</Card>
       )}
 
       <div className="space-y-2">
@@ -2436,7 +2476,10 @@ function MyShiftsPanel() {
 
   const upcoming = (shifts as any[])
     .filter((s: any) => s.shift_date >= new Date().toISOString().slice(0, 10))
-    .sort((a: any, b: any) => a.shift_date.localeCompare(b.shift_date) || a.start_time.localeCompare(b.start_time));
+    .sort(
+      (a: any, b: any) =>
+        a.shift_date.localeCompare(b.shift_date) || a.start_time.localeCompare(b.start_time),
+    );
 
   return (
     <div className="space-y-3">
@@ -2501,7 +2544,8 @@ function ClaimShiftDialog({
         <DialogHeader>
           <DialogTitle>Claim Open Shift</DialogTitle>
           <DialogDescription>
-            {shift.shift_date} · {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)} · {shift.role}
+            {shift.shift_date} · {fmtTime12(shift.start_time)}–{fmtTime12(shift.end_time)} ·{" "}
+            {shift.role}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">

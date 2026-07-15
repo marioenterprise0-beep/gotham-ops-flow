@@ -7,7 +7,18 @@ import { useRole, type RoleId } from "@/lib/role";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { cn } from "@/lib/utils";
 import { EmbeddedProvider } from "@/components/gotham/EmbedShell";
-import { Users as UsersIcon, KeyRound, MapPin, ScrollText, HeartPulse, Shield, ChevronRight, Sparkles, SlidersHorizontal, Tablet } from "lucide-react";
+import {
+  Users as UsersIcon,
+  KeyRound,
+  MapPin,
+  ScrollText,
+  HeartPulse,
+  Shield,
+  ChevronRight,
+  Sparkles,
+  SlidersHorizontal,
+  Tablet,
+} from "lucide-react";
 
 import { UsersPage } from "@/routes/users";
 import { PermissionsPage } from "@/routes/permissions";
@@ -21,13 +32,23 @@ type TabKey = "people" | "roles" | "permissions" | "locations" | "devices" | "ac
 
 // Admin is OWNER ONLY. Managers operate, owners govern.
 const TABS: { key: TabKey; label: string; icon: any; blurb: string }[] = [
-  { key: "people",      label: "People",        icon: UsersIcon,    blurb: "Invite crew, set roles, deactivate" },
-  { key: "roles",       label: "Roles",         icon: Shield,       blurb: "Role templates and defaults" },
-  { key: "permissions", label: "Permissions",   icon: KeyRound,     blurb: "Tab access matrix (advanced)" },
-  { key: "locations",   label: "Locations",     icon: MapPin,       blurb: "Approve location access requests" },
-  { key: "devices",     label: "Kiosk Devices", icon: Tablet,       blurb: "Trusted iPads for clock in/out" },
-  { key: "activity",    label: "Activity",      icon: ScrollText,   blurb: "Audit log and change history" },
-  { key: "system",      label: "System Health", icon: HeartPulse,   blurb: "Data integrity and platform health" },
+  { key: "people", label: "People", icon: UsersIcon, blurb: "Invite crew, set roles, deactivate" },
+  { key: "roles", label: "Roles", icon: Shield, blurb: "Role templates and defaults" },
+  {
+    key: "permissions",
+    label: "Permissions",
+    icon: KeyRound,
+    blurb: "Tab access matrix (advanced)",
+  },
+  { key: "locations", label: "Locations", icon: MapPin, blurb: "Approve location access requests" },
+  { key: "devices", label: "Kiosk Devices", icon: Tablet, blurb: "Trusted iPads for clock in/out" },
+  { key: "activity", label: "Activity", icon: ScrollText, blurb: "Audit log and change history" },
+  {
+    key: "system",
+    label: "System Health",
+    icon: HeartPulse,
+    blurb: "Data integrity and platform health",
+  },
 ];
 
 const ADMIN_TAB_KEY = "gotham:admin-tab:v1";
@@ -36,7 +57,9 @@ const ACTIVITY_SUBTAB_KEY = "gotham:admin-activity-sub:v1";
 export const Route = createFileRoute("/admin")({
   ssr: false,
   beforeLoad: requireAuthBeforeLoad,
-  validateSearch: (s: Record<string, unknown>) => ({ tab: (s.tab as TabKey | undefined) ?? undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({
+    tab: (s.tab as TabKey | undefined) ?? undefined,
+  }),
   head: () => ({ meta: [{ title: "Admin · Dip N Shake OS" }] }),
   component: AdminPage,
 });
@@ -69,12 +92,24 @@ function AdminPage() {
   }, [search.tab]);
 
   useEffect(() => {
-    try { localStorage.setItem(ADMIN_TAB_KEY, tab); } catch {}
+    try {
+      localStorage.setItem(ADMIN_TAB_KEY, tab);
+    } catch {}
   }, [tab]);
 
-  if (loading || !session || !roleId) return <AppShell><Card>Loading…</Card></AppShell>;
+  if (loading || !session || !roleId)
+    return (
+      <AppShell>
+        <Card>Loading…</Card>
+      </AppShell>
+    );
   // Owner-only — managers should never reach this screen.
-  if (!isOwner) return <AppShell><Card>Owner access required.</Card></AppShell>;
+  if (!isOwner)
+    return (
+      <AppShell>
+        <Card>Owner access required.</Card>
+      </AppShell>
+    );
 
   function choose(next: TabKey) {
     setTab(next);
@@ -90,11 +125,23 @@ function AdminPage() {
           const Icon = t.icon;
           const active = tab === t.key;
           return (
-            <button key={t.key} onClick={() => choose(t.key)}
-              className={cn("text-left rounded-xl border p-3 transition-colors",
-                active ? "border-[var(--color-gold)] bg-card" : "border-border bg-card hover:border-foreground/30")}>
+            <button
+              key={t.key}
+              onClick={() => choose(t.key)}
+              className={cn(
+                "text-left rounded-xl border p-3 transition-colors",
+                active
+                  ? "border-[var(--color-gold)] bg-card"
+                  : "border-border bg-card hover:border-foreground/30",
+              )}
+            >
               <div className="flex items-center justify-between">
-                <Icon className={cn("h-4 w-4", active ? "text-[var(--color-gold)]" : "text-muted-foreground")} />
+                <Icon
+                  className={cn(
+                    "h-4 w-4",
+                    active ? "text-[var(--color-gold)]" : "text-muted-foreground",
+                  )}
+                />
                 {active && <ChevronRight className="h-3 w-3 text-[var(--color-gold)]" />}
               </div>
               <div className="mt-2 text-xs font-semibold uppercase tracking-wide">{t.label}</div>
@@ -109,9 +156,7 @@ function AdminPage() {
         {tab === "roles" && <RolesTab roleId={roleId} />}
         {tab === "permissions" && <PermissionsPage />}
         {tab === "locations" && <LocationRequests />}
-        {tab === "devices" && (
-          <TrustedDevicesManager />
-        )}
+        {tab === "devices" && <TrustedDevicesManager />}
         {tab === "activity" && <ActivityTab />}
         {tab === "system" && <DataHealthPage />}
       </EmbeddedProvider>
@@ -193,11 +238,17 @@ function RolesTab({ roleId }: { roleId: RoleId | null }) {
             <Sparkles className="h-5 w-5 text-[var(--color-gold)] mt-0.5" />
             <div>
               <div className="font-display text-lg">Role templates</div>
-              <div className="text-sm text-muted-foreground">Most teams stick with these four. Custom permissions are available in advanced mode.</div>
+              <div className="text-sm text-muted-foreground">
+                Most teams stick with these four. Custom permissions are available in advanced mode.
+              </div>
             </div>
           </div>
           {isOwner && (
-            <Button size="sm" variant={showAdvanced ? "default" : "outline"} onClick={() => setShowAdvanced((v) => !v)}>
+            <Button
+              size="sm"
+              variant={showAdvanced ? "default" : "outline"}
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
               <SlidersHorizontal className="h-3 w-3 mr-1" />
               {showAdvanced ? "Hide advanced" : "Advanced mode"}
             </Button>
@@ -213,7 +264,9 @@ function RolesTab({ roleId }: { roleId: RoleId | null }) {
                 <div className="font-display text-lg">{t.label}</div>
                 <div className="text-xs text-muted-foreground">{t.tagline}</div>
               </div>
-              <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-secondary text-foreground/70">{t.id}</span>
+              <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-secondary text-foreground/70">
+                {t.id}
+              </span>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
               <div>
@@ -242,12 +295,20 @@ function RolesTab({ roleId }: { roleId: RoleId | null }) {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <div className="font-semibold text-sm">Advanced permissions matrix</div>
-              <div className="text-xs text-muted-foreground">Override tab access per role or per user — only if templates don't fit.</div>
+              <div className="text-xs text-muted-foreground">
+                Override tab access per role or per user — only if templates don't fit.
+              </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => {
-              const ev = new CustomEvent("gotham:admin-go", { detail: { tab: "permissions" } });
-              window.dispatchEvent(ev);
-            }}>Open matrix editor</Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const ev = new CustomEvent("gotham:admin-go", { detail: { tab: "permissions" } });
+                window.dispatchEvent(ev);
+              }}
+            >
+              Open matrix editor
+            </Button>
           </div>
         </Card>
       )}
@@ -262,15 +323,26 @@ function ActivityTab() {
     if (typeof window === "undefined") return "audit";
     return (localStorage.getItem(ACTIVITY_SUBTAB_KEY) as any) ?? "audit";
   });
-  useEffect(() => { try { localStorage.setItem(ACTIVITY_SUBTAB_KEY, sub); } catch {} }, [sub]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACTIVITY_SUBTAB_KEY, sub);
+    } catch {}
+  }, [sub]);
 
   return (
     <div className="space-y-3">
       <div className="inline-flex rounded-md border border-border bg-background p-0.5">
         {(["audit", "changes"] as const).map((s) => (
-          <button key={s} onClick={() => setSub(s)}
-            className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-wide rounded",
-              sub === s ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>
+          <button
+            key={s}
+            onClick={() => setSub(s)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-semibold uppercase tracking-wide rounded",
+              sub === s
+                ? "bg-[#0A0A0A] text-[var(--color-gold)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
             {s === "audit" ? "Audit log" : "Change log"}
           </button>
         ))}

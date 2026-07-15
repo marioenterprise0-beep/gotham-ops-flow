@@ -28,7 +28,8 @@ export const listAuditLogFiltered = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
-    let q = (supabase as any).from("audit_log")
+    let q = (supabase as any)
+      .from("audit_log")
       .select("id, created_at, actor_id, action, entity, entity_id, payload", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(data.offset, data.offset + data.limit - 1);
@@ -45,16 +46,19 @@ export const listAuditLogFiltered = createServerFn({ method: "POST" })
     // 20260621280000) — this read is already behind assertManager above,
     // so the admin client is the right way to get it, not a broader grant.
     const { data: profiles } = ids.length
-      ? await supabaseAdmin.from("profiles").select("id, display_name, email").in("id", ids as string[])
+      ? await supabaseAdmin
+          .from("profiles")
+          .select("id, display_name, email")
+          .in("id", ids as string[])
       : { data: [] };
     const nameById = new Map<string, { name: string; email: string }>(
-      (profiles ?? []).map((p: any) => [p.id, { name: p.display_name, email: p.email }])
+      (profiles ?? []).map((p: any) => [p.id, { name: p.display_name, email: p.email }]),
     );
     return {
       rows: (rows ?? []).map((r: any) => ({
         ...r,
-        actor_name: r.actor_id ? nameById.get(r.actor_id)?.name ?? "Unknown" : "System",
-        actor_email: r.actor_id ? nameById.get(r.actor_id)?.email ?? null : null,
+        actor_name: r.actor_id ? (nameById.get(r.actor_id)?.name ?? "Unknown") : "System",
+        actor_email: r.actor_id ? (nameById.get(r.actor_id)?.email ?? null) : null,
       })),
       total: count ?? 0,
     };
@@ -66,7 +70,11 @@ export const auditLogFilterOptions = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertManager(supabase, userId);
     const { data } = await (supabase as any).from("audit_log").select("action, entity").limit(2000);
-    const actions = Array.from(new Set((data ?? []).map((r: any) => r.action as string))).sort() as string[];
-    const entities = Array.from(new Set((data ?? []).map((r: any) => r.entity as string).filter(Boolean))).sort() as string[];
+    const actions = Array.from(
+      new Set((data ?? []).map((r: any) => r.action as string)),
+    ).sort() as string[];
+    const entities = Array.from(
+      new Set((data ?? []).map((r: any) => r.entity as string).filter(Boolean)),
+    ).sort() as string[];
     return { actions, entities };
   });

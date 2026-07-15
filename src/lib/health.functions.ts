@@ -28,29 +28,41 @@ export const getHealthScore = createServerFn({ method: "GET" })
     await requireManager(supabase, context.userId);
     const days = data.days ?? 1;
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();
 
     const trailerFilter = (q: any) => (data.trailerId ? q.eq("trailer_id", data.trailerId) : q);
 
     // INVENTORY — % of items at/above low_threshold
-    const { data: items } = await trailerFilter(supabase.from("inventory_items").select("current_qty, low_threshold").is("archived_at", null));
+    const { data: items } = await trailerFilter(
+      supabase.from("inventory_items").select("current_qty, low_threshold").is("archived_at", null),
+    );
     const invTotal = items?.length ?? 0;
-    const invOk = (items ?? []).filter((i: any) => Number(i.current_qty) >= Number(i.low_threshold)).length;
+    const invOk = (items ?? []).filter(
+      (i: any) => Number(i.current_qty) >= Number(i.low_threshold),
+    ).length;
     const invScore = invTotal === 0 ? 100 : clamp((invOk / invTotal) * 100);
 
     // CHECKLIST — % of recent tasks completed
     const { data: tasks } = await trailerFilter(
-      supabase.from("tasks").select("status, requires_signoff, signed_off_at").gte("created_at", since),
+      supabase
+        .from("tasks")
+        .select("status, requires_signoff, signed_off_at")
+        .gte("created_at", since),
     );
     const tTotal = tasks?.length ?? 0;
     const tDone = (tasks ?? []).filter((t: any) =>
-      t.requires_signoff ? !!t.signed_off_at : t.status === "complete" || t.status === "signed_off" || t.status === "done",
+      t.requires_signoff
+        ? !!t.signed_off_at
+        : t.status === "complete" || t.status === "signed_off" || t.status === "done",
     ).length;
     const checklistScore = tTotal === 0 ? 100 : clamp((tDone / tTotal) * 100);
 
     // ALERTS — penalize open
-    const { data: alerts } = await trailerFilter(supabase.from("alerts").select("priority, status"));
+    const { data: alerts } = await trailerFilter(
+      supabase.from("alerts").select("priority, status"),
+    );
     let penalty = 0;
     for (const a of alerts ?? []) {
       if (a.status === "resolved" || a.status === "closed") continue;
@@ -73,16 +85,25 @@ export const getHealthScore = createServerFn({ method: "GET" })
     // LABOR — scheduled vs actual hours today
     const todayDate = today.toISOString().slice(0, 10);
     const { data: shifts } = await trailerFilter(
-      supabase.from("schedule_shifts").select("start_time, end_time, break_minutes, schedules!inner(archived_at)").is("schedules.archived_at", null).is("archived_at", null).eq("shift_date", todayDate),
+      supabase
+        .from("schedule_shifts")
+        .select("start_time, end_time, break_minutes, schedules!inner(archived_at)")
+        .is("schedules.archived_at", null)
+        .is("archived_at", null)
+        .eq("shift_date", todayDate),
     );
     const schedHours = (shifts ?? []).reduce((sum: number, s: any) => {
       const [sh, sm] = String(s.start_time).split(":").map(Number);
       const [eh, em] = String(s.end_time).split(":").map(Number);
-      const mins = (eh * 60 + em) - (sh * 60 + sm) - (s.break_minutes ?? 0);
+      const mins = eh * 60 + em - (sh * 60 + sm) - (s.break_minutes ?? 0);
       return sum + Math.max(0, mins) / 60;
     }, 0);
     const { data: punches } = await trailerFilter(
-      supabase.from("time_punches").select("clock_in_at, clock_out_at, break_minutes").is("archived_at", null).gte("clock_in_at", todayISO),
+      supabase
+        .from("time_punches")
+        .select("clock_in_at, clock_out_at, break_minutes")
+        .is("archived_at", null)
+        .gte("clock_in_at", todayISO),
     );
     const actualHours = (punches ?? []).reduce((sum: number, p: any) => {
       const start = new Date(p.clock_in_at).getTime();
@@ -97,9 +118,14 @@ export const getHealthScore = createServerFn({ method: "GET" })
 
     // TRAINING — % active employees trained in last 90 days
     const ninety = new Date(Date.now() - 90 * 86_400_000).toISOString();
-    const { data: profs } = await supabase.from("profiles").select("training_completed_at, active").is("archived_at", null);
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("training_completed_at, active")
+      .is("archived_at", null);
     const active = (profs ?? []).filter((p: any) => p.active);
-    const trained = active.filter((p: any) => p.training_completed_at && p.training_completed_at >= ninety).length;
+    const trained = active.filter(
+      (p: any) => p.training_completed_at && p.training_completed_at >= ninety,
+    ).length;
     const trainingScore = active.length === 0 ? 100 : clamp((trained / active.length) * 100);
 
     // OPENING — did a shift open today (best-effort)
@@ -109,13 +135,55 @@ export const getHealthScore = createServerFn({ method: "GET" })
     const openingScore = (openShifts?.length ?? 0) > 0 ? 100 : 60;
 
     const components: HealthComponent[] = [
-      { key: "opening", label: "Opening", score: openingScore, weight: 0.10, detail: openingScore === 100 ? "Shift opened" : "No shift opened today" },
-      { key: "inventory", label: "Inventory", score: invScore, weight: 0.15, detail: `${invOk}/${invTotal} items above low threshold` },
-      { key: "labor", label: "Labor", score: laborScore, weight: 0.15, detail: `${actualHours.toFixed(1)}h actual vs ${schedHours.toFixed(1)}h scheduled` },
-      { key: "training", label: "Training", score: trainingScore, weight: 0.10, detail: `${trained}/${active.length} active employees current` },
-      { key: "checklist", label: "Checklist", score: checklistScore, weight: 0.20, detail: `${tDone}/${tTotal} tasks completed` },
-      { key: "hospitality", label: "Hospitality", score: hospScore, weight: 0.15, detail: `${incidents?.length ?? 0} incidents in window` },
-      { key: "alerts", label: "Alerts", score: alertScore, weight: 0.15, detail: `${(alerts ?? []).filter((a: any) => a.status !== "resolved" && a.status !== "closed").length} open` },
+      {
+        key: "opening",
+        label: "Opening",
+        score: openingScore,
+        weight: 0.1,
+        detail: openingScore === 100 ? "Shift opened" : "No shift opened today",
+      },
+      {
+        key: "inventory",
+        label: "Inventory",
+        score: invScore,
+        weight: 0.15,
+        detail: `${invOk}/${invTotal} items above low threshold`,
+      },
+      {
+        key: "labor",
+        label: "Labor",
+        score: laborScore,
+        weight: 0.15,
+        detail: `${actualHours.toFixed(1)}h actual vs ${schedHours.toFixed(1)}h scheduled`,
+      },
+      {
+        key: "training",
+        label: "Training",
+        score: trainingScore,
+        weight: 0.1,
+        detail: `${trained}/${active.length} active employees current`,
+      },
+      {
+        key: "checklist",
+        label: "Checklist",
+        score: checklistScore,
+        weight: 0.2,
+        detail: `${tDone}/${tTotal} tasks completed`,
+      },
+      {
+        key: "hospitality",
+        label: "Hospitality",
+        score: hospScore,
+        weight: 0.15,
+        detail: `${incidents?.length ?? 0} incidents in window`,
+      },
+      {
+        key: "alerts",
+        label: "Alerts",
+        score: alertScore,
+        weight: 0.15,
+        detail: `${(alerts ?? []).filter((a: any) => a.status !== "resolved" && a.status !== "closed").length} open`,
+      },
     ];
 
     const overall = clamp(components.reduce((sum, c) => sum + c.score * c.weight, 0));
@@ -123,7 +191,8 @@ export const getHealthScore = createServerFn({ method: "GET" })
     // Lightweight 14-day trend (estimated from current snapshot; placeholder until daily rollups land)
     const trend: { date: string; score: number }[] = [];
     for (let i = 13; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
+      const d = new Date();
+      d.setDate(d.getDate() - i);
       // simple jitter so the sparkline reads correctly
       const jitter = ((i * 7) % 9) - 4;
       trend.push({ date: d.toISOString().slice(0, 10), score: clamp(overall + jitter) });

@@ -31,11 +31,7 @@ export function buildDrawerClosePdf(p: DrawerClosePdfInput): { blob: Blob; filen
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(110);
-  doc.text(
-    `Dip N Shake · ${trailer?.name ?? "—"} · Drawer ${drawer?.name ?? "—"}`,
-    40,
-    68,
-  );
+  doc.text(`Dip N Shake · ${trailer?.name ?? "—"} · Drawer ${drawer?.name ?? "—"}`, 40, 68);
   doc.text(`Generated ${new Date().toLocaleString()}`, 40, 82);
   doc.setTextColor(0);
 
@@ -51,12 +47,14 @@ export function buildDrawerClosePdf(p: DrawerClosePdfInput): { blob: Blob; filen
 
   autoTable(doc, {
     head: [["Variance", "Drop Amount", "Remaining Float", "Owner Review"]],
-    body: [[
-      `${variance >= 0 ? "+" : ""}${money(variance)}`,
-      money(dropAmount),
-      money(starting),
-      String(s.owner_review ?? "—"),
-    ]],
+    body: [
+      [
+        `${variance >= 0 ? "+" : ""}${money(variance)}`,
+        money(dropAmount),
+        money(starting),
+        String(s.owner_review ?? "—"),
+      ],
+    ],
     theme: "grid",
     headStyles: { fillColor: [10, 10, 10], textColor: [224, 184, 104] },
     styles: { fontSize: 10 },
@@ -76,7 +74,10 @@ export function buildDrawerClosePdf(p: DrawerClosePdfInput): { blob: Blob; filen
       ["Opened By", names[s.opened_by] ?? "—"],
       ["Closed At", s.closed_at ? new Date(s.closed_at).toLocaleString() : "—"],
       ["Submitted By (Closed By)", s.closed_by ? (names[s.closed_by] ?? "—") : "—"],
-      ["Verified By (Owner Reviewer)", s.owner_reviewed_by ? (names[s.owner_reviewed_by] ?? "—") : "—"],
+      [
+        "Verified By (Owner Reviewer)",
+        s.owner_reviewed_by ? (names[s.owner_reviewed_by] ?? "—") : "—",
+      ],
       ["Verification", String(s.verification ?? "—")],
       ["Variance Reason / Notes", s.variance_reason ?? "—"],
       ["Owner Note", s.owner_note ?? "—"],

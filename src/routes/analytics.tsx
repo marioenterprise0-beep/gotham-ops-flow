@@ -5,7 +5,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, MetricStat, SectionHeader } from "@/components/gotham/primitives";
 import { canSee, useRole } from "@/lib/role";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { cn } from "@/lib/utils";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { getAnalytics } from "@/lib/analytics.functions";
@@ -49,7 +60,10 @@ function AnalyticsPage() {
   const fn = useServerFn(getAnalytics);
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", range, trailerScope, range === "month" ? month : null],
-    queryFn: () => fn({ data: { range, trailerId: trailerScope ?? null, month: range === "month" ? month : null } }),
+    queryFn: () =>
+      fn({
+        data: { range, trailerId: trailerScope ?? null, month: range === "month" ? month : null },
+      }),
     refetchInterval: 60_000,
     enabled: allowed,
   });
@@ -71,52 +85,105 @@ function AnalyticsPage() {
         </div>
         <div className="flex gap-1 rounded-md border border-border bg-card p-1">
           {RANGES.map((r) => (
-            <button key={r.key} onClick={() => setRange(r.key)}
-              className={cn("px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm", range === r.key ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground hover:text-foreground")}>{r.label}</button>
+            <button
+              key={r.key}
+              onClick={() => setRange(r.key)}
+              className={cn(
+                "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-sm",
+                range === r.key
+                  ? "bg-[#0A0A0A] text-[var(--color-gold)]"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {r.label}
+            </button>
           ))}
         </div>
       </div>
 
       {range === "month" && (
         <div className="mt-3 flex items-center gap-2">
-          <button onClick={() => setMonth(shiftMonth(month, -1))}
-            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">◀ Prev</button>
+          <button
+            onClick={() => setMonth(shiftMonth(month, -1))}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]"
+          >
+            ◀ Prev
+          </button>
           <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded-md bg-[#0A0A0A] text-[var(--color-gold)]">
-            {monthLabel(month)}{isHistoricalMonth && " · archived"}
+            {monthLabel(month)}
+            {isHistoricalMonth && " · archived"}
           </div>
-          <button disabled={month === thisMonth()} onClick={() => setMonth(shiftMonth(month, 1))}
-            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)] disabled:opacity-40 disabled:cursor-not-allowed">Next ▶</button>
+          <button
+            disabled={month === thisMonth()}
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Next ▶
+          </button>
           {isHistoricalMonth && (
-            <button onClick={() => setMonth(thisMonth())} className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]">Jump to current</button>
+            <button
+              onClick={() => setMonth(thisMonth())}
+              className="px-3 py-1.5 text-xs font-semibold rounded-md border border-border bg-card hover:border-[var(--color-gold)]"
+            >
+              Jump to current
+            </button>
           )}
         </div>
       )}
 
       <div className="mt-3 flex gap-2 overflow-x-auto">
         {trailers.map((t) => (
-          <button key={t.id} onClick={() => setTrailerScope(t.id)}
-            className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
-              trailerScope === t.id ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
+          <button
+            key={t.id}
+            onClick={() => setTrailerScope(t.id)}
+            className={cn(
+              "px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
+              trailerScope === t.id
+                ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]"
+                : "bg-card text-muted-foreground border-border hover:text-foreground",
+            )}
+          >
             {t.name}
           </button>
         ))}
-        <button onClick={() => setTrailerScope(null)}
-          className={cn("px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
-            trailerScope === null ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]" : "bg-card text-muted-foreground border-border hover:text-foreground")}>
+        <button
+          onClick={() => setTrailerScope(null)}
+          className={cn(
+            "px-4 py-2 text-xs font-semibold uppercase tracking-[1.2px] rounded-md border transition shrink-0",
+            trailerScope === null
+              ? "bg-[#0A0A0A] text-[var(--color-gold)] border-[#0A0A0A]"
+              : "bg-card text-muted-foreground border-border hover:text-foreground",
+          )}
+        >
           Company
         </button>
       </div>
 
       <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Card><MetricStat label="Opening %"  value={k ? `${k.openingPct}%` : "—"} /></Card>
-        <Card><MetricStat label="Closing %"  value={k ? `${k.closingPct}%` : "—"} /></Card>
-        <Card><MetricStat label="Inv. Var."  value={k ? `${k.invVarPct}%` : "—"} /></Card>
-        <Card><MetricStat label="Task Comp." value={k ? `${k.taskCompPct}%` : "—"} /></Card>
-        <Card><MetricStat label="Waste"      value={k ? `${k.wastePct}` : "—"} tone="gold" /></Card>
-        <Card><MetricStat label="Hosp."      value={k ? `${k.hospScore}` : "—"} /></Card>
+        <Card>
+          <MetricStat label="Opening %" value={k ? `${k.openingPct}%` : "—"} />
+        </Card>
+        <Card>
+          <MetricStat label="Closing %" value={k ? `${k.closingPct}%` : "—"} />
+        </Card>
+        <Card>
+          <MetricStat label="Inv. Var." value={k ? `${k.invVarPct}%` : "—"} />
+        </Card>
+        <Card>
+          <MetricStat label="Task Comp." value={k ? `${k.taskCompPct}%` : "—"} />
+        </Card>
+        <Card>
+          <MetricStat label="Waste" value={k ? `${k.wastePct}` : "—"} tone="gold" />
+        </Card>
+        <Card>
+          <MetricStat label="Hosp." value={k ? `${k.hospScore}` : "—"} />
+        </Card>
       </div>
 
-      <DataQualityAlerts totals={data?.totals} rangeLabel={RANGES.find(r => r.key === range)!.label.toLowerCase()} />
+      <DataQualityAlerts
+        totals={data?.totals}
+        rangeLabel={RANGES.find((r) => r.key === range)!.label.toLowerCase()}
+      />
 
       {isLoading && <div className="mt-4 text-sm text-muted-foreground">Loading analytics…</div>}
 
@@ -128,8 +195,21 @@ function AnalyticsPage() {
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="d" stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} />
               <YAxis stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} domain={[0, 100]} />
-              <Tooltip contentStyle={{ background: "#0A0A0A", border: "1px solid #1C1C1C", borderRadius: 8 }} labelStyle={{ color: "#fff" }} />
-              <Line type="monotone" dataKey="v" stroke={GOLD} strokeWidth={2.5} dot={{ r: 4, fill: GOLD }} />
+              <Tooltip
+                contentStyle={{
+                  background: "#0A0A0A",
+                  border: "1px solid #1C1C1C",
+                  borderRadius: 8,
+                }}
+                labelStyle={{ color: "#fff" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="v"
+                stroke={GOLD}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: GOLD }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -179,7 +259,13 @@ function AnalyticsPage() {
             <BarChart data={data?.hospBreakdown ?? []} layout="vertical">
               <CartesianGrid stroke="#EAEAE5" horizontal={false} />
               <XAxis type="number" stroke="#6B6B6B" tick={{ fontSize: 11 }} domain={[0, 100]} />
-              <YAxis type="category" dataKey="c" stroke="#6B6B6B" tick={{ fontSize: 11 }} width={100} />
+              <YAxis
+                type="category"
+                dataKey="c"
+                stroke="#6B6B6B"
+                tick={{ fontSize: 11 }}
+                width={100}
+              />
               <Tooltip cursor={{ fill: "rgba(201,151,58,0.08)" }} />
               <Bar dataKey="v" fill={GOLD} radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -189,7 +275,9 @@ function AnalyticsPage() {
 
       {data?.totals && (
         <div className="mt-3 text-xs text-muted-foreground">
-          {data.totals.tasks} tasks · {data.totals.wasteEntries} waste entries · {data.totals.countEntries} counts · {data.totals.incidents} incidents · {data.totals.shifts} shifts in range
+          {data.totals.tasks} tasks · {data.totals.wasteEntries} waste entries ·{" "}
+          {data.totals.countEntries} counts · {data.totals.incidents} incidents ·{" "}
+          {data.totals.shifts} shifts in range
         </div>
       )}
 
@@ -262,4 +350,3 @@ function DataQualityAlerts({ totals, rangeLabel }: { totals?: Totals; rangeLabel
     </div>
   );
 }
-

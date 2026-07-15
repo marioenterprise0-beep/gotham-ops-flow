@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { createClient } from '@supabase/supabase-js'
-import { enqueueAlertEmail } from '@/lib/email/enqueue.server'
+import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
+import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
 import {
   getOwners,
   getAllManagers,
@@ -10,7 +10,7 @@ import {
   getLocationRecipientsForCategory,
   type Recipient,
   type Category,
-} from '@/lib/email/recipients.server'
+} from "@/lib/email/recipients.server";
 
 // ---------------------------------------------------------------------------
 // Alert → Email dispatcher
@@ -24,95 +24,110 @@ import {
 //  - Build template_data and enqueue via enqueueAlertEmail (idempotent)
 // ---------------------------------------------------------------------------
 
-const SITE_URL =
-  (process.env.SITE_URL ?? 'https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app').replace(/\/$/, '')
+const SITE_URL = (
+  process.env.SITE_URL ?? "https://project--75d61e5b-6b41-4f7e-a315-ad4632c539dd.lovable.app"
+).replace(/\/$/, "");
 
 type Mapping = {
-  template: string
-  category: Category
-  subject: (alert: any, ctx: any) => string
-  recipients: (alert: any, sb: any) => Promise<Recipient[]>
-  buildData: (alert: any, ctx: any) => Promise<Record<string, unknown>>
-  buildDataFor?: (alert: any, ctx: any, recipient: Recipient) => Promise<Record<string, unknown>>
-}
+  template: string;
+  category: Category;
+  subject: (alert: any, ctx: any) => string;
+  recipients: (alert: any, sb: any) => Promise<Recipient[]>;
+  buildData: (alert: any, ctx: any) => Promise<Record<string, unknown>>;
+  buildDataFor?: (alert: any, ctx: any, recipient: Recipient) => Promise<Record<string, unknown>>;
+};
 
 function fmtDateLabel(ymd: string | null | undefined): string {
-  if (!ymd) return ''
+  if (!ymd) return "";
   // ymd is YYYY-MM-DD from the DB; parse without timezone shift
-  const [y, m, d] = ymd.split('-').map(Number)
-  if (!y || !m || !d) return ymd
-  const date = new Date(Date.UTC(y, m - 1, d))
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return ymd;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function fmtTimeLabel(hms: string | null | undefined): string {
-  if (!hms) return ''
-  const [hStr, mStr] = hms.split(':')
-  const h = Number(hStr); const m = Number(mStr ?? 0)
-  if (Number.isNaN(h)) return hms
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const h12 = ((h + 11) % 12) + 1
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+  if (!hms) return "";
+  const [hStr, mStr] = hms.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr ?? 0);
+  if (Number.isNaN(h)) return hms;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = ((h + 11) % 12) + 1;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 function shiftMinutes(start?: string | null, end?: string | null): number {
-  if (!start || !end) return 0
-  const [sh, sm] = start.split(':').map(Number)
-  const [eh, em] = end.split(':').map(Number)
-  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0
-  let mins = (eh * 60 + em) - (sh * 60 + sm)
-  if (mins <= 0) mins += 24 * 60 // overnight
-  return mins
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return 0;
+  let mins = eh * 60 + em - (sh * 60 + sm);
+  if (mins <= 0) mins += 24 * 60; // overnight
+  return mins;
 }
 
 function admin() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
-  })
+  });
 }
 
 async function loadTrailer(sb: any, trailerId: string | null) {
-  if (!trailerId) return { name: 'Trailer' }
-  const { data } = await sb.from('trailers').select('name, timezone').eq('id', trailerId).maybeSingle()
-  return data ?? { name: 'Trailer' }
+  if (!trailerId) return { name: "Trailer" };
+  const { data } = await sb
+    .from("trailers")
+    .select("name, timezone")
+    .eq("id", trailerId)
+    .maybeSingle();
+  return data ?? { name: "Trailer" };
 }
 
 async function loadProfile(sb: any, userId: string | null) {
-  if (!userId) return null
-  const { data } = await sb.from('profiles').select('display_name, email').eq('id', userId).maybeSingle()
-  return data
+  if (!userId) return null;
+  const { data } = await sb
+    .from("profiles")
+    .select("display_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+  return data;
 }
 
 // ---- Per-alert-type mappings ----------------------------------------------
 
 const MAPPINGS: Record<string, Mapping> = {
   inventory_order: {
-    template: 'inventory-order-submitted',
-    category: 'inventory',
+    template: "inventory-order-submitted",
+    category: "inventory",
     subject: (_a, ctx) => `Inventory order ready for review — ${ctx.trailer.name}`,
     recipients: async () => getOwners(),
     buildData: async (alert, ctx) => {
-      const sb = admin()
+      const sb = admin();
       const { data: items } = await sb
-        .from('inventory_order_items')
-        .select('item_name, requested_qty, unit, urgency, current_qty, par_qty')
-        .eq('order_id', alert.source_id)
+        .from("inventory_order_items")
+        .select("item_name, requested_qty, unit, urgency, current_qty, par_qty")
+        .eq("order_id", alert.source_id);
       return {
         trailer_name: ctx.trailer.name,
-        submitted_by: ctx.creator?.display_name ?? 'Manager',
+        submitted_by: ctx.creator?.display_name ?? "Manager",
         item_count: items?.length ?? 0,
         critical_count: (items ?? []).filter((i: any) =>
-          ['critical', 'emergency'].includes(i.urgency),
+          ["critical", "emergency"].includes(i.urgency),
         ).length,
         items: items ?? [],
         cta_url: `${SITE_URL}/inventory/orders/${alert.source_id}`,
-      }
+      };
     },
   },
 
   low_stock: {
-    template: 'low-stock-alert',
-    category: 'inventory',
+    template: "low-stock-alert",
+    category: "inventory",
     subject: (_a, ctx) => `Low stock alert — ${ctx.trailer.name}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
@@ -123,8 +138,8 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   critical_stock: {
-    template: 'low-stock-alert',
-    category: 'inventory',
+    template: "low-stock-alert",
+    category: "inventory",
     subject: (_a, ctx) => `Critical stock — ${ctx.trailer.name}`,
     recipients: async () => getAllManagers(),
     buildData: async (alert, ctx) => ({
@@ -136,21 +151,21 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   manager_recap: {
-    template: 'daily-recap-submitted',
-    category: 'operations',
+    template: "daily-recap-submitted",
+    category: "operations",
     subject: (alert, ctx) =>
-      `Daily recap — ${ctx.trailer.name} · ${alert.title?.split('·')?.[1]?.trim() ?? ''}`,
+      `Daily recap — ${ctx.trailer.name} · ${alert.title?.split("·")?.[1]?.trim() ?? ""}`,
     recipients: async () => getOwners(),
     buildData: async (alert, ctx) => {
-      const sb = admin()
+      const sb = admin();
       const { data: recap } = await sb
-        .from('daily_recaps')
-        .select('*')
-        .eq('id', alert.source_id)
-        .maybeSingle()
+        .from("daily_recaps")
+        .select("*")
+        .eq("id", alert.source_id)
+        .maybeSingle();
       return {
         trailer_name: ctx.trailer.name,
-        manager_name: ctx.creator?.display_name ?? 'Manager',
+        manager_name: ctx.creator?.display_name ?? "Manager",
         recap_date: recap?.recap_date,
         shift_score: recap?.shift_score,
         ops_went_well: recap?.ops_went_well,
@@ -159,43 +174,43 @@ const MAPPINGS: Record<string, Mapping> = {
         inv_concerns: recap?.inv_concerns,
         hosp_complaints: recap?.hosp_complaints,
         cta_url: `${SITE_URL}/recaps/${alert.source_id}`,
-      }
+      };
     },
   },
 
   missed_clock_out: {
-    template: 'missed-clock-out',
-    category: 'time_clock',
-    subject: (_a, ctx) => `Missed clock-out — ${ctx.creator?.display_name ?? 'Employee'}`,
+    template: "missed-clock-out",
+    category: "time_clock",
+    subject: (_a, ctx) => `Missed clock-out — ${ctx.creator?.display_name ?? "Employee"}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
       trailer_name: ctx.trailer.name,
-      employee_name: ctx.creator?.display_name ?? 'Employee',
+      employee_name: ctx.creator?.display_name ?? "Employee",
       punch_id: alert.source_id,
       cta_url: `${SITE_URL}/time/punches/${alert.source_id}`,
     }),
   },
 
   missed_clock_in: {
-    template: 'missed-clock-out',
-    category: 'time_clock',
-    subject: (_a, ctx) => `Missed clock-in — ${ctx.creator?.display_name ?? 'Employee'}`,
+    template: "missed-clock-out",
+    category: "time_clock",
+    subject: (_a, ctx) => `Missed clock-in — ${ctx.creator?.display_name ?? "Employee"}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
       trailer_name: ctx.trailer.name,
-      employee_name: ctx.creator?.display_name ?? 'Employee',
+      employee_name: ctx.creator?.display_name ?? "Employee",
       cta_url: `${SITE_URL}/schedule`,
     }),
   },
 
   time_adjustment: {
-    template: 'time-adjustment-request',
-    category: 'time_clock',
-    subject: (_a, ctx) => `Time adjustment request — ${ctx.creator?.display_name ?? 'Employee'}`,
+    template: "time-adjustment-request",
+    category: "time_clock",
+    subject: (_a, ctx) => `Time adjustment request — ${ctx.creator?.display_name ?? "Employee"}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
       trailer_name: ctx.trailer.name,
-      employee_name: ctx.creator?.display_name ?? 'Employee',
+      employee_name: ctx.creator?.display_name ?? "Employee",
       reason: alert.payload?.reason,
       original: alert.payload?.original,
       requested: alert.payload?.requested,
@@ -204,12 +219,12 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   time_off: {
-    template: 'time-off-request',
-    category: 'time_clock',
-    subject: (_a, ctx) => `Time off request — ${ctx.creator?.display_name ?? 'Employee'}`,
+    template: "time-off-request",
+    category: "time_clock",
+    subject: (_a, ctx) => `Time off request — ${ctx.creator?.display_name ?? "Employee"}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
-      employee_name: ctx.creator?.display_name ?? 'Employee',
+      employee_name: ctx.creator?.display_name ?? "Employee",
       start_date: alert.payload?.start_date,
       end_date: alert.payload?.end_date,
       reason: alert.payload?.reason,
@@ -218,21 +233,20 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   availability_request: {
-    template: 'availability-request',
-    category: 'time_clock',
-    subject: (_a, ctx) =>
-      `Unavailability request — ${ctx.creator?.display_name ?? 'Employee'}`,
+    template: "availability-request",
+    category: "time_clock",
+    subject: (_a, ctx) => `Unavailability request — ${ctx.creator?.display_name ?? "Employee"}`,
     recipients: async (alert) => {
-      const owners = await getOwners()
-      const mgrs = await getManagersForTrailer(alert.trailer_id)
-      const seen = new Set<string>()
+      const owners = await getOwners();
+      const mgrs = await getManagersForTrailer(alert.trailer_id);
+      const seen = new Set<string>();
       return [...owners, ...mgrs].filter((r) =>
         seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
-      )
+      );
     },
     buildData: async (alert, ctx) => ({
-      employee_name: ctx.creator?.display_name ?? alert.payload?.employee_name ?? 'Employee',
-      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
+      employee_name: ctx.creator?.display_name ?? alert.payload?.employee_name ?? "Employee",
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || "",
       reason: alert.payload?.reason ?? undefined,
       schedule_name: alert.payload?.schedule_name ?? undefined,
       schedule_status: alert.payload?.schedule_status ?? undefined,
@@ -241,86 +255,85 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   availability_approved: {
-    template: 'availability-approved',
-    category: 'time_clock',
-    subject: () => 'Unavailability approved',
+    template: "availability-approved",
+    category: "time_clock",
+    subject: () => "Unavailability approved",
     recipients: async (alert) => {
-      if (!alert.assigned_user_id) return []
-      const rec = await getEmployee(alert.assigned_user_id)
-      return rec ? [rec] : []
+      if (!alert.assigned_user_id) return [];
+      const rec = await getEmployee(alert.assigned_user_id);
+      return rec ? [rec] : [];
     },
     buildData: async (alert) => ({
-      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
-      decided_by: alert.payload?.decided_by_name ?? 'Management',
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || "",
+      decided_by: alert.payload?.decided_by_name ?? "Management",
       decision_reason: alert.payload?.decision_reason ?? undefined,
     }),
   },
 
   availability_declined: {
-    template: 'availability-declined',
-    category: 'time_clock',
-    subject: () => 'Unavailability declined',
+    template: "availability-declined",
+    category: "time_clock",
+    subject: () => "Unavailability declined",
     recipients: async (alert) => {
-      if (!alert.assigned_user_id) return []
-      const rec = await getEmployee(alert.assigned_user_id)
-      return rec ? [rec] : []
+      if (!alert.assigned_user_id) return [];
+      const rec = await getEmployee(alert.assigned_user_id);
+      return rec ? [rec] : [];
     },
     buildData: async (alert) => ({
-      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || '',
-      decided_by: alert.payload?.decided_by_name ?? 'Management',
+      block_date: fmtDateLabel(alert.payload?.block_date) || alert.payload?.block_date || "",
+      decided_by: alert.payload?.decided_by_name ?? "Management",
       decision_reason: alert.payload?.decision_reason ?? undefined,
     }),
   },
 
-
   schedule_approval: {
-    template: 'schedule-submitted',
-    category: 'schedule',
+    template: "schedule-submitted",
+    category: "schedule",
     subject: (_a, ctx) => `Schedule submitted — ${ctx.trailer.name}`,
     recipients: async () => getOwners(),
     buildData: async (alert, ctx) => {
-      const sb = admin()
+      const sb = admin();
       const { data: sched } = await sb
-        .from('schedules')
-        .select('name, start_date, end_date')
-        .eq('id', alert.source_id)
-        .maybeSingle()
+        .from("schedules")
+        .select("name, start_date, end_date")
+        .eq("id", alert.source_id)
+        .maybeSingle();
       return {
         trailer_name: ctx.trailer.name,
-        submitted_by: ctx.creator?.display_name ?? 'Manager',
+        submitted_by: ctx.creator?.display_name ?? "Manager",
         schedule_name: sched?.name,
         start_date: sched?.start_date,
         end_date: sched?.end_date,
         cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
-      }
+      };
     },
   },
 
   announcement: {
-    template: 'announcement-published',
-    category: 'announcements',
-    subject: (alert) => alert.title || 'New announcement from Dip N Shake OS',
+    template: "announcement-published",
+    category: "announcements",
+    subject: (alert) => alert.title || "New announcement from Dip N Shake OS",
     recipients: async (alert) => {
-      if (alert.trailer_id) return getCrewForTrailer(alert.trailer_id)
-      const owners = await getOwners()
-      const mgrs = await getAllManagers()
-      const seen = new Set<string>()
+      if (alert.trailer_id) return getCrewForTrailer(alert.trailer_id);
+      const owners = await getOwners();
+      const mgrs = await getAllManagers();
+      const seen = new Set<string>();
       return [...owners, ...mgrs].filter((r) =>
         seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
-      )
+      );
     },
     buildData: async (alert, ctx) => ({
       trailer_name: ctx.trailer.name,
       title: alert.title,
       body: alert.description,
-      posted_by: ctx.creator?.display_name ?? 'Dip N Shake OS',
+      posted_by: ctx.creator?.display_name ?? "Dip N Shake OS",
       cta_url: `${SITE_URL}/announcements`,
     }),
   },
 
   checklist_failure: {
-    template: 'critical-alert',
-    category: 'critical',
+    template: "critical-alert",
+    category: "critical",
     subject: (alert, ctx) => `${alert.title} — ${ctx.trailer.name}`,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
@@ -332,8 +345,8 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   maintenance: {
-    template: 'critical-alert',
-    category: 'critical',
+    template: "critical-alert",
+    category: "critical",
     subject: (alert) => alert.title,
     recipients: async () => getAllManagers(),
     buildData: async (alert, ctx) => ({
@@ -345,8 +358,8 @@ const MAPPINGS: Record<string, Mapping> = {
   },
 
   manager_note: {
-    template: 'critical-alert',
-    category: 'operations',
+    template: "critical-alert",
+    category: "operations",
     subject: (alert) => alert.title,
     recipients: async (alert) => getManagersForTrailer(alert.trailer_id),
     buildData: async (alert, ctx) => ({
@@ -362,97 +375,104 @@ const MAPPINGS: Record<string, Mapping> = {
   // always includes owners but also the whole trailer crew when trailer_id
   // is set) doesn't broadcast a private HR document to other crew members.
   hr_document: {
-    template: 'hr-document-assigned',
-    category: 'hr_documents',
+    template: "hr-document-assigned",
+    category: "hr_documents",
     subject: (alert) => `New document to review — ${alert.payload?.title ?? alert.title}`,
     recipients: async (alert) => {
-      const emp = await getEmployee(alert.assigned_user_id)
-      return emp ? [emp] : []
+      const emp = await getEmployee(alert.assigned_user_id);
+      return emp ? [emp] : [];
     },
     buildData: async (alert, ctx) => ({
       title: alert.payload?.title ?? alert.title,
-      due_date: alert.payload?.due_date ?? '—',
-      assigned_by: ctx.creator?.display_name ?? 'Management',
+      due_date: alert.payload?.due_date ?? "—",
+      assigned_by: ctx.creator?.display_name ?? "Management",
     }),
   },
 
   hr_document_signed: {
-    template: 'hr-document-signed',
-    category: 'hr_documents',
+    template: "hr-document-signed",
+    category: "hr_documents",
     subject: (alert) => `Document fully signed — ${alert.payload?.title ?? alert.title}`,
     recipients: async (alert) => {
-      const emp = await getEmployee(alert.assigned_user_id)
-      return emp ? [emp] : []
+      const emp = await getEmployee(alert.assigned_user_id);
+      return emp ? [emp] : [];
     },
     buildData: async (alert, ctx) => ({
       title: alert.payload?.title ?? alert.title,
-      employee_name: alert.payload?.employee_name ?? '—',
-      completed_at: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+      employee_name: alert.payload?.employee_name ?? "—",
+      completed_at: new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
     }),
   },
-}
+};
 
 // ---- Module-specific dispatch helpers --------------------------------------
 // For alerts that need bespoke templates beyond a 1:1 type→template map
 // (e.g. cash drawer close → cash-drawer-submitted OR cash-variance-alert),
 // these helpers override the default mapping.
 async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
-  if (alert.source_module !== 'cash' || alert.type !== 'manager_note') return null
-  const sb = admin()
+  if (alert.source_module !== "cash" || alert.type !== "manager_note") return null;
+  const sb = admin();
   const { data: session } = await sb
-    .from('cash_drawer_sessions')
-    .select('variance, counted_amount, expected_amount, total_cash_sales, closed_by, drawer_id, notes')
-    .eq('id', alert.source_id)
-    .maybeSingle()
-  if (!session) return null
+    .from("cash_drawer_sessions")
+    .select(
+      "variance, counted_amount, expected_amount, total_cash_sales, closed_by, drawer_id, notes",
+    )
+    .eq("id", alert.source_id)
+    .maybeSingle();
+  if (!session) return null;
 
   // Fallback chain for drawer name: live drawer row → payload hint → generic label.
-  let drawerName = 'Cash drawer'
-  const drawerId = (session as any).drawer_id
+  let drawerName = "Cash drawer";
+  const drawerId = (session as any).drawer_id;
   if (drawerId) {
-    const { data: drawer } = await sb.from('cash_drawers').select('name').eq('id', drawerId).maybeSingle()
-    const raw = typeof (drawer as any)?.name === 'string' ? (drawer as any).name.trim() : ''
-    if (raw) drawerName = raw
+    const { data: drawer } = await sb
+      .from("cash_drawers")
+      .select("name")
+      .eq("id", drawerId)
+      .maybeSingle();
+    const raw = typeof (drawer as any)?.name === "string" ? (drawer as any).name.trim() : "";
+    if (raw) drawerName = raw;
   }
-  if (drawerName === 'Cash drawer' && typeof alert.payload?.drawer_name === 'string') {
-    const hint = alert.payload.drawer_name.trim()
-    if (hint) drawerName = hint
+  if (drawerName === "Cash drawer" && typeof alert.payload?.drawer_name === "string") {
+    const hint = alert.payload.drawer_name.trim();
+    if (hint) drawerName = hint;
   }
 
   // Numeric coercion with NaN guards so templates never render "NaN".
   const toNum = (v: unknown): number => {
-    const n = Number(v)
-    return Number.isFinite(n) ? n : 0
-  }
-  const variance = toNum(session.variance)
-  const counted = toNum(session.counted_amount)
-  const expected = toNum(session.expected_amount)
-  const sales = toNum(session.total_cash_sales)
-  const isVariance = Math.abs(variance) >= 5
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const variance = toNum(session.variance);
+  const counted = toNum(session.counted_amount);
+  const expected = toNum(session.expected_amount);
+  const sales = toNum(session.total_cash_sales);
+  const isVariance = Math.abs(variance) >= 5;
 
   // Reason: only include if non-empty after trim; otherwise omit so template shows its own fallback.
-  const rawReason = (session as any).notes
-  const reason = typeof rawReason === 'string' && rawReason.trim() ? rawReason.trim() : undefined
+  const rawReason = (session as any).notes;
+  const reason = typeof rawReason === "string" && rawReason.trim() ? rawReason.trim() : undefined;
 
   // Session link: only include if source_id is a non-empty string.
-  const sessionId = typeof alert.source_id === 'string' && alert.source_id.length > 0 ? alert.source_id : undefined
-  const ctaUrl = sessionId ? `${SITE_URL}/cash?session=${sessionId}` : `${SITE_URL}/cash`
+  const sessionId =
+    typeof alert.source_id === "string" && alert.source_id.length > 0 ? alert.source_id : undefined;
+  const ctaUrl = sessionId ? `${SITE_URL}/cash?session=${sessionId}` : `${SITE_URL}/cash`;
 
   return {
-    template: isVariance ? 'cash-variance-alert' : 'cash-drawer-submitted',
-    category: 'cash',
+    template: isVariance ? "cash-variance-alert" : "cash-drawer-submitted",
+    category: "cash",
     subject: (_a, ctx) => {
-      const trailerName = ctx.trailer?.name || 'Trailer'
+      const trailerName = ctx.trailer?.name || "Trailer";
       return isVariance
-        ? `Cash variance ${variance >= 0 ? '+' : ''}${variance.toFixed(2)} — ${drawerName} · ${trailerName}`
-        : `${drawerName} closed — ${trailerName}`
+        ? `Cash variance ${variance >= 0 ? "+" : ""}${variance.toFixed(2)} — ${drawerName} · ${trailerName}`
+        : `${drawerName} closed — ${trailerName}`;
     },
     recipients: async () => getOwners(),
     buildData: async (_a, ctx) => ({
-      trailer_name: ctx.trailer?.name || 'Trailer',
+      trailer_name: ctx.trailer?.name || "Trailer",
       drawer_name: drawerName,
-      submitted_by: ctx.creator?.display_name?.trim() || 'Manager',
-      closed_by: ctx.creator?.display_name?.trim() || 'Manager',
+      submitted_by: ctx.creator?.display_name?.trim() || "Manager",
+      closed_by: ctx.creator?.display_name?.trim() || "Manager",
       counted: counted.toFixed(2),
       expected: expected.toFixed(2),
       sales: sales.toFixed(2),
@@ -461,26 +481,26 @@ async function resolveCashDrawerMapping(alert: any): Promise<Mapping | null> {
       session_id: sessionId,
       cta_url: ctaUrl,
     }),
-  }
+  };
 }
 
 // Large cash drop ($500+) — emitted as manager_note from cash_drops trigger.
 async function resolveCashDropMapping(alert: any): Promise<Mapping | null> {
-  if (alert.source_module !== 'cash' || alert.type !== 'manager_note') return null
-  if (!alert.payload?.drop_code) return null
-  const sb = admin()
+  if (alert.source_module !== "cash" || alert.type !== "manager_note") return null;
+  if (!alert.payload?.drop_code) return null;
+  const sb = admin();
   const { data: drop } = await sb
-    .from('cash_drops')
-    .select('amount, drop_code, reason, drawer_id, submitted_by')
-    .eq('id', alert.source_id)
-    .maybeSingle()
-  if (!drop) return null
+    .from("cash_drops")
+    .select("amount, drop_code, reason, drawer_id, submitted_by")
+    .eq("id", alert.source_id)
+    .maybeSingle();
+  if (!drop) return null;
   const { data: drawer } = drop.drawer_id
-    ? await sb.from('cash_drawers').select('name').eq('id', drop.drawer_id).maybeSingle()
-    : { data: null }
+    ? await sb.from("cash_drawers").select("name").eq("id", drop.drawer_id).maybeSingle()
+    : { data: null };
   return {
-    template: 'cash-drop-submitted',
-    category: 'cash',
+    template: "cash-drop-submitted",
+    category: "cash",
     subject: (_a, ctx) => `Cash drop ${drop.drop_code} — ${ctx.trailer.name}`,
     recipients: async () => getOwners(),
     buildData: async (_a, ctx) => ({
@@ -489,36 +509,36 @@ async function resolveCashDropMapping(alert: any): Promise<Mapping | null> {
       amount: drop.amount,
       reason: drop.reason,
       drawer_name: (drawer as any)?.name,
-      submitted_by: ctx.creator?.display_name ?? 'Cashier',
+      submitted_by: ctx.creator?.display_name ?? "Cashier",
       drop_id: alert.source_id,
       cta_url: `${SITE_URL}/cash`,
     }),
-  }
+  };
 }
 
 // Schedule published — emitted as manager_note from schedules trigger.
 async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | null> {
-  if (alert.source_module !== 'schedule' || alert.type !== 'manager_note') return null
-  if (alert.payload?.event !== 'schedule_published') return null
-  const sb = admin()
+  if (alert.source_module !== "schedule" || alert.type !== "manager_note") return null;
+  if (alert.payload?.event !== "schedule_published") return null;
+  const sb = admin();
   const { data: sched } = await sb
-    .from('schedules')
-    .select('name, start_date, end_date')
-    .eq('id', alert.source_id)
-    .maybeSingle()
+    .from("schedules")
+    .select("name, start_date, end_date")
+    .eq("id", alert.source_id)
+    .maybeSingle();
   const weekRange = sched
     ? `${fmtDateLabel(sched.start_date)} – ${fmtDateLabel(sched.end_date)}`
-    : ''
+    : "";
   // Load all shifts once; filter per-recipient below.
   const { data: allShifts } = await sb
-    .from('schedule_shifts')
-    .select('shift_date, start_time, end_time, role, employee_id')
-    .eq('schedule_id', alert.source_id)
-    .order('shift_date', { ascending: true })
-    .order('start_time', { ascending: true })
+    .from("schedule_shifts")
+    .select("shift_date, start_time, end_time, role, employee_id")
+    .eq("schedule_id", alert.source_id)
+    .order("shift_date", { ascending: true })
+    .order("start_time", { ascending: true });
   return {
-    template: 'schedule-published',
-    category: 'schedule',
+    template: "schedule-published",
+    category: "schedule",
     subject: (_a, ctx) => `Your schedule is published — ${ctx.trailer.name}`,
     recipients: async () => getCrewForTrailer(alert.trailer_id),
     buildData: async (_a, ctx) => ({
@@ -529,9 +549,12 @@ async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | nu
       cta_url: `${SITE_URL}/schedule?id=${alert.source_id}`,
     }),
     buildDataFor: async (_a, _ctx, recipient) => {
-      const mine = (allShifts ?? []).filter((s: any) => s.employee_id === recipient.user_id)
-      const totalMinutes = mine.reduce((sum: number, s: any) => sum + shiftMinutes(s.start_time, s.end_time), 0)
-      const hours = Math.round((totalMinutes / 60) * 10) / 10
+      const mine = (allShifts ?? []).filter((s: any) => s.employee_id === recipient.user_id);
+      const totalMinutes = mine.reduce(
+        (sum: number, s: any) => sum + shiftMinutes(s.start_time, s.end_time),
+        0,
+      );
+      const hours = Math.round((totalMinutes / 60) * 10) / 10;
       return {
         shifts: mine.map((s: any) => ({
           date: fmtDateLabel(s.shift_date),
@@ -540,30 +563,30 @@ async function resolveSchedulePublishedMapping(alert: any): Promise<Mapping | nu
           role: s.role,
         })),
         total_hours: hours,
-      }
+      };
     },
-  }
+  };
 }
 
 // SOP accepted / training completed — emitted as manager_note from profiles trigger.
 async function resolveTrainingMilestoneMapping(alert: any): Promise<Mapping | null> {
-  if (alert.source_module !== 'training' || alert.type !== 'manager_note') return null
-  const kind = alert.payload?.kind
-  if (kind !== 'training_completed' && kind !== 'sop_accepted') return null
+  if (alert.source_module !== "training" || alert.type !== "manager_note") return null;
+  const kind = alert.payload?.kind;
+  if (kind !== "training_completed" && kind !== "sop_accepted") return null;
   return {
-    template: 'training-completed',
-    category: 'training',
+    template: "training-completed",
+    category: "training",
     subject: (_a, ctx) =>
-      `${kind === 'sop_accepted' ? 'SOP accepted' : 'Training completed'} — ${ctx.creator?.display_name ?? 'Crew'}`,
+      `${kind === "sop_accepted" ? "SOP accepted" : "Training completed"} — ${ctx.creator?.display_name ?? "Crew"}`,
     recipients: async () => getOwners(),
     buildData: async (_a, ctx) => ({
       trailer_name: ctx.trailer.name,
-      employee_name: ctx.creator?.display_name ?? 'Crew',
-      sop_title: kind === 'sop_accepted' ? 'Standard Operating Procedures' : 'Training program',
-      completed_at: new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+      employee_name: ctx.creator?.display_name ?? "Crew",
+      sop_title: kind === "sop_accepted" ? "Standard Operating Procedures" : "Training program",
+      completed_at: new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }),
       cta_url: `${SITE_URL}/training`,
     }),
-  }
+  };
 }
 
 // time_off_decided / time_adjustment_decided carry payload.decision
@@ -571,15 +594,15 @@ async function resolveTrainingMilestoneMapping(alert: any): Promise<Mapping | nu
 // employee directly via assigned_user_id — picks between the matching
 // approved/declined template pair.
 async function resolveTimeOffDecisionMapping(alert: any): Promise<Mapping | null> {
-  if (alert.type !== 'time_off_decided') return null
-  const approved = alert.payload?.decision === 'approved'
+  if (alert.type !== "time_off_decided") return null;
+  const approved = alert.payload?.decision === "approved";
   return {
-    template: approved ? 'time-off-approved' : 'time-off-declined',
-    category: 'time_clock',
-    subject: () => (approved ? 'Time off approved' : 'Time off request declined'),
+    template: approved ? "time-off-approved" : "time-off-declined",
+    category: "time_clock",
+    subject: () => (approved ? "Time off approved" : "Time off request declined"),
     recipients: async (a) => {
-      const emp = await getEmployee(a.assigned_user_id)
-      return emp ? [emp] : []
+      const emp = await getEmployee(a.assigned_user_id);
+      return emp ? [emp] : [];
     },
     buildData: async (a) => ({
       start_date: a.payload?.start_date,
@@ -587,19 +610,19 @@ async function resolveTimeOffDecisionMapping(alert: any): Promise<Mapping | null
       decision_reason: a.payload?.decision_reason,
       decided_by: a.payload?.decided_by_name,
     }),
-  }
+  };
 }
 
 async function resolveTimeAdjustmentDecisionMapping(alert: any): Promise<Mapping | null> {
-  if (alert.type !== 'time_adjustment_decided') return null
-  const approved = alert.payload?.decision === 'approved'
+  if (alert.type !== "time_adjustment_decided") return null;
+  const approved = alert.payload?.decision === "approved";
   return {
-    template: approved ? 'time-adjustment-approved' : 'time-adjustment-declined',
-    category: 'time_clock',
-    subject: () => (approved ? 'Time adjustment approved' : 'Time adjustment declined'),
+    template: approved ? "time-adjustment-approved" : "time-adjustment-declined",
+    category: "time_clock",
+    subject: () => (approved ? "Time adjustment approved" : "Time adjustment declined"),
     recipients: async (a) => {
-      const emp = await getEmployee(a.assigned_user_id)
-      return emp ? [emp] : []
+      const emp = await getEmployee(a.assigned_user_id);
+      return emp ? [emp] : [];
     },
     buildData: async (a) => ({
       shift_date: a.payload?.shift_date,
@@ -609,12 +632,12 @@ async function resolveTimeAdjustmentDecisionMapping(alert: any): Promise<Mapping
       approver_name: a.payload?.decided_by_name,
       punch_id: a.payload?.punch_id,
     }),
-  }
+  };
 }
 
 // ---------------------------------------------------------------------------
 
-export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
+export const Route = createFileRoute("/api/public/hooks/alert-email-dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
@@ -624,43 +647,41 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
         // without the key is rejected.
         const sbAuth = admin();
         const { data: cfg } = await sbAuth
-          .from('email_dispatch_config')
-          .select('dispatch_key')
-          .eq('id', 1)
+          .from("email_dispatch_config")
+          .select("dispatch_key")
+          .eq("id", 1)
           .maybeSingle();
         const expected = (cfg as any)?.dispatch_key as string | undefined;
-        const provided = request.headers.get('x-dispatch-key');
+        const provided = request.headers.get("x-dispatch-key");
         if (!expected || !provided || provided !== expected) {
-          return new Response('Unauthorized', { status: 401 });
+          return new Response("Unauthorized", { status: 401 });
         }
 
-
-
-        let body: any
+        let body: any;
         try {
-          body = await request.json()
+          body = await request.json();
         } catch {
-          return Response.json({ error: 'invalid_json' }, { status: 400 })
+          return Response.json({ error: "invalid_json" }, { status: 400 });
         }
 
-        const alertId: string | undefined = body?.alert_id
-        if (!alertId || typeof alertId !== 'string') {
-          return Response.json({ error: 'missing_alert_id' }, { status: 400 })
+        const alertId: string | undefined = body?.alert_id;
+        if (!alertId || typeof alertId !== "string") {
+          return Response.json({ error: "missing_alert_id" }, { status: 400 });
         }
 
-        const sb = admin()
+        const sb = admin();
         const { data: alert, error } = await sb
-          .from('alerts')
-          .select('*')
-          .eq('id', alertId)
-          .maybeSingle()
+          .from("alerts")
+          .select("*")
+          .eq("id", alertId)
+          .maybeSingle();
         if (error || !alert) {
-          return Response.json({ error: 'alert_not_found' }, { status: 404 })
+          return Response.json({ error: "alert_not_found" }, { status: 404 });
         }
 
         // Idempotency: short-circuit if already processed
-        if (alert.email_status && alert.email_status !== 'none') {
-          return Response.json({ ok: true, skipped: 'already_processed' })
+        if (alert.email_status && alert.email_status !== "none") {
+          return Response.json({ ok: true, skipped: "already_processed" });
         }
 
         // Pick mapping (per-module override first, then per-type default)
@@ -670,22 +691,22 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
           (await resolveSchedulePublishedMapping(alert)) ||
           (await resolveTrainingMilestoneMapping(alert)) ||
           (await resolveTimeOffDecisionMapping(alert)) ||
-          (await resolveTimeAdjustmentDecisionMapping(alert))
-        if (!mapping) mapping = MAPPINGS[alert.type] ?? null
+          (await resolveTimeAdjustmentDecisionMapping(alert));
+        if (!mapping) mapping = MAPPINGS[alert.type] ?? null;
 
         if (!mapping) {
           await sb
-            .from('alerts')
-            .update({ email_status: 'skipped', email_error: `no_mapping:${alert.type}` })
-            .eq('id', alertId)
-          return Response.json({ ok: true, skipped: 'no_mapping', type: alert.type })
+            .from("alerts")
+            .update({ email_status: "skipped", email_error: `no_mapping:${alert.type}` })
+            .eq("id", alertId);
+          return Response.json({ ok: true, skipped: "no_mapping", type: alert.type });
         }
 
         const [trailer, creator] = await Promise.all([
           loadTrailer(sb, alert.trailer_id),
           loadProfile(sb, alert.created_by),
-        ])
-        const ctx = { trailer, creator }
+        ]);
+        const ctx = { trailer, creator };
 
         try {
           // Only fan out to the full trailer roster for categories that are
@@ -695,25 +716,25 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
           // checklist failures — stay narrow (managers + owners) so a coworker
           // no-show doesn't email the whole crew.
           const CREW_FANOUT_CATEGORIES: Category[] = [
-            'schedule',
-            'announcements',
-            'training',
-            'hr_documents',
-          ]
-          const base = await mapping.recipients(alert, sb)
+            "schedule",
+            "announcements",
+            "training",
+            "hr_documents",
+          ];
+          const base = await mapping.recipients(alert, sb);
           const location = CREW_FANOUT_CATEGORIES.includes(mapping.category)
             ? await getLocationRecipientsForCategory(alert.trailer_id, mapping.category)
-            : []
-          const seen = new Set<string>()
+            : [];
+          const seen = new Set<string>();
           const recipients = [...base, ...location].filter((r) =>
             seen.has(r.user_id) ? false : (seen.add(r.user_id), true),
-          )
+          );
           if (recipients.length === 0) {
             await sb
-              .from('alerts')
-              .update({ email_status: 'skipped', email_template: mapping.template })
-              .eq('id', alertId)
-            return Response.json({ ok: true, skipped: 'no_recipients' })
+              .from("alerts")
+              .update({ email_status: "skipped", email_template: mapping.template })
+              .eq("id", alertId);
+            return Response.json({ ok: true, skipped: "no_recipients" });
           }
 
           const result = await enqueueAlertEmail({
@@ -729,18 +750,18 @@ export const Route = createFileRoute('/api/public/hooks/alert-email-dispatch')({
             subject: mapping.subject(alert, ctx),
             sourceModule: alert.source_module,
             sourceId: alert.source_id,
-          })
+          });
 
-          return Response.json({ ok: true, ...result, template: mapping.template })
+          return Response.json({ ok: true, ...result, template: mapping.template });
         } catch (err: any) {
-          console.error('alert-email-dispatch failed', { alertId, error: err })
+          console.error("alert-email-dispatch failed", { alertId, error: err });
           await sb
-            .from('alerts')
-            .update({ email_status: 'failed', email_error: err?.message?.slice(0, 500) })
-            .eq('id', alertId)
-          return Response.json({ ok: false, error: 'Internal server error' }, { status: 500 })
+            .from("alerts")
+            .update({ email_status: "failed", email_error: err?.message?.slice(0, 500) })
+            .eq("id", alertId);
+          return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
         }
       },
     },
   },
-})
+});

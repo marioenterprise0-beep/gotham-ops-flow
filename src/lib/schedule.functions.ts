@@ -42,7 +42,11 @@ function scheduleCoversDate(row: { start_date: string; end_date: string }, iso: 
   return iso >= win.start_date && iso <= win.end_date;
 }
 
-function overlapDays(row: { start_date: string; end_date: string }, reqStart: string, reqEnd: string) {
+function overlapDays(
+  row: { start_date: string; end_date: string },
+  reqStart: string,
+  reqEnd: string,
+) {
   const win = effectiveScheduleWindow(row);
   const start = Math.max(isoToDay(reqStart), isoToDay(win.start_date));
   const end = Math.min(isoToDay(reqEnd), isoToDay(win.end_date));
@@ -296,18 +300,20 @@ export const getSchedule = createServerFn({ method: "POST" })
     }
     shiftsQ = shiftsQ.order("shift_date").order("start_time");
 
-    const [{ data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all([
-      shiftsQ,
-      isPrivileged
-        ? Promise.resolve({ data: [] as Array<{ user_id: string }> })
-        : supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner"),
-      isPrivileged
-        ? Promise.resolve({ data: [] as Array<{ id: string }> })
-        : supabaseAdmin
-            .from("profiles")
-            .select("id")
-            .or("active.eq.false,archived_at.not.is.null"),
-    ]);
+    const [{ data: shiftsRaw, error: shErr }, ownerRolesRes, hiddenProfilesRes] = await Promise.all(
+      [
+        shiftsQ,
+        isPrivileged
+          ? Promise.resolve({ data: [] as Array<{ user_id: string }> })
+          : supabaseAdmin.from("user_roles").select("user_id").eq("role", "owner"),
+        isPrivileged
+          ? Promise.resolve({ data: [] as Array<{ id: string }> })
+          : supabaseAdmin
+              .from("profiles")
+              .select("id")
+              .or("active.eq.false,archived_at.not.is.null"),
+      ],
+    );
     if (shErr) throw new Error(shErr.message);
     const hiddenIds = new Set<string>([
       ...(((ownerRolesRes as any).data ?? []) as any[]).map((r) => r.user_id),
@@ -315,9 +321,7 @@ export const getSchedule = createServerFn({ method: "POST" })
     ]);
     const shifts = isPrivileged
       ? (shiftsRaw ?? [])
-      : (shiftsRaw ?? []).filter(
-          (s: any) => !s.employee_id || !hiddenIds.has(s.employee_id),
-        );
+      : (shiftsRaw ?? []).filter((s: any) => !s.employee_id || !hiddenIds.has(s.employee_id));
 
     // Pull punches in the schedule window so the grid can show actual clocked hours
     // alongside scheduled hours per employee. The window is anchored to the
@@ -353,7 +357,6 @@ export const getSchedule = createServerFn({ method: "POST" })
     }
     return { schedule, shifts, punches, timezone };
   });
-
 
 export const upsertShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -406,7 +409,9 @@ export const upsertShift = createServerFn({ method: "POST" })
         throw new Error("No schedule covers that date. Open or create that week's schedule first.");
       }
       if (destSchedule?.status === "locked" || destSchedule?.status === "published") {
-        throw new Error("Target week's schedule is locked — unlock it before making changes there.");
+        throw new Error(
+          "Target week's schedule is locked — unlock it before making changes there.",
+        );
       }
       targetScheduleId = destSchedule.id;
     }
@@ -436,7 +441,10 @@ export const upsertShift = createServerFn({ method: "POST" })
     if (saved) return saved;
     // RLS may hide the RETURNING row even though the write succeeded — re-fetch.
     const { data: refetched } = await supabase
-      .from("schedule_shifts").select("*").eq("id", shiftId).maybeSingle();
+      .from("schedule_shifts")
+      .select("*")
+      .eq("id", shiftId)
+      .maybeSingle();
     if (refetched) return refetched;
     return { id: shiftId, ...row };
   });
@@ -459,7 +467,6 @@ export const deleteShift = createServerFn({ method: "POST" })
     const { error } = await supabase.from("schedule_shifts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
-
   });
 
 export const transitionSchedule = createServerFn({ method: "POST" })
@@ -746,8 +753,6 @@ export const listEmployees = createServerFn({ method: "POST" })
       }));
   });
 
-
-
 // Find a schedule whose range overlaps the given week; create a draft if none.
 export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -781,7 +786,9 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       );
       if (overlapping.length > 0) {
         return overlapping.sort((a: any, b: any) => {
-          const byOverlap = overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate);
+          const byOverlap =
+            overlapDays(b, data.startDate, data.endDate) -
+            overlapDays(a, data.startDate, data.endDate);
           if (byOverlap !== 0) return byOverlap;
           return String(b.created_at ?? "").localeCompare(String(a.created_at ?? ""));
         })[0];
@@ -799,7 +806,11 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
     if (legacyErr) throw new Error(legacyErr.message);
     const legacyMatch = ((legacyRows ?? []) as any[])
       .filter((row) => overlapDays(row, data.startDate, data.endDate) > 0)
-      .sort((a, b) => overlapDays(b, data.startDate, data.endDate) - overlapDays(a, data.startDate, data.endDate))[0];
+      .sort(
+        (a, b) =>
+          overlapDays(b, data.startDate, data.endDate) -
+          overlapDays(a, data.startDate, data.endDate),
+      )[0];
     if (legacyMatch) return legacyMatch;
     if (!data.autoCreate) return null;
     await requireManager(supabase, userId);
@@ -872,9 +883,7 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
             repeat_weekly: true,
             created_by: userId,
           }))
-          .filter(
-            (r) => !taken.has(`${r.shift_date}|${r.segment}|${r.employee_id ?? "null"}`),
-          );
+          .filter((r) => !taken.has(`${r.shift_date}|${r.segment}|${r.employee_id ?? "null"}`));
         if (newRows.length > 0) {
           await supabase.from("schedule_shifts").insert(newRows);
         }
@@ -921,7 +930,9 @@ export const duplicateShift = createServerFn({ method: "POST" })
         .lte("start_date", newDate)
         .gte("end_date", addDaysIso(newDate, -1));
       if ((rest as any).trailer_id) {
-        candidatesQ = candidatesQ.or(`trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`);
+        candidatesQ = candidatesQ.or(
+          `trailer_id.eq.${(rest as any).trailer_id},trailer_id.is.null`,
+        );
       }
       const { data: candidateSchedules, error: destErr } = await candidatesQ;
       if (destErr) throw new Error(destErr.message);
@@ -950,8 +961,6 @@ export const duplicateShift = createServerFn({ method: "POST" })
       repeat_weekly: false,
       created_by: userId,
     };
-
-
 
     const { data: saved, error: e2 } = await supabase
       .from("schedule_shifts")
@@ -1253,7 +1262,9 @@ export const listAvailabilityForRange = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: rows, error } = await supabase
       .from("availability_blocks")
-      .select("id, user_id, block_date, all_day, reason, status, decided_by, decided_at, decision_note, trailer_id, schedule_id")
+      .select(
+        "id, user_id, block_date, all_day, reason, status, decided_by, decided_at, decision_note, trailer_id, schedule_id",
+      )
       .gte("block_date", data.startDate)
       .lte("block_date", data.endDate);
     if (error) throw new Error(error.message);
@@ -1342,7 +1353,9 @@ export const listPendingAvailability = createServerFn({ method: "POST" })
     await requireManager(supabase, userId);
     let q = supabase
       .from("availability_blocks")
-      .select("id, user_id, block_date, reason, status, trailer_id, schedule_id, created_at, decided_by, decided_at, decision_note")
+      .select(
+        "id, user_id, block_date, reason, status, trailer_id, schedule_id, created_at, decided_by, decided_at, decision_note",
+      )
       .order("created_at", { ascending: false })
       .limit(100);
     if (data.trailerId) q = q.eq("trailer_id", data.trailerId);
@@ -1352,18 +1365,22 @@ export const listPendingAvailability = createServerFn({ method: "POST" })
     const { data: profs } = ids.length
       ? await supabase.from("profiles").select("id, display_name").in("id", ids)
       : { data: [] as any[] };
-    const pmap = new Map<string, string>((profs ?? []).map((p: any) => [p.id, p.display_name ?? "Crew"]));
+    const pmap = new Map<string, string>(
+      (profs ?? []).map((p: any) => [p.id, p.display_name ?? "Crew"]),
+    );
     return (rows ?? []).map((r: any) => ({ ...r, employee_name: pmap.get(r.user_id) ?? "Crew" }));
   });
 
 export const decideAvailability = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      id: z.string().uuid(),
-      decision: z.enum(["approved", "declined"]),
-      note: z.string().max(500).optional(),
-    }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        decision: z.enum(["approved", "declined"]),
+        note: z.string().max(500).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -1479,7 +1496,10 @@ export const claimShift = createServerFn({ method: "POST" })
 export const listClaimRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ status: z.string().optional() }).optional().parse(d ?? {}),
+    z
+      .object({ status: z.string().optional() })
+      .optional()
+      .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -1493,7 +1513,9 @@ export const listClaimRequests = createServerFn({ method: "POST" })
     if (data?.status) q = q.eq("status", data.status);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const ids: string[] = Array.from(new Set((rows ?? []).map((r: any) => r.claimant_id as string).filter(Boolean)));
+    const ids: string[] = Array.from(
+      new Set((rows ?? []).map((r: any) => r.claimant_id as string).filter(Boolean)),
+    );
     let nameMap: Record<string, string> = {};
     if (ids.length) {
       const { data: profs } = await supabase
@@ -1504,7 +1526,10 @@ export const listClaimRequests = createServerFn({ method: "POST" })
         (profs ?? []).map((p: any) => [p.id, (p as any).display_name ?? "Crew"]),
       );
     }
-    return (rows ?? []).map((r: any) => ({ ...r, claimant_name: nameMap[r.claimant_id] ?? "Crew" }));
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      claimant_name: nameMap[r.claimant_id] ?? "Crew",
+    }));
   });
 
 export const decideClaimRequest = createServerFn({ method: "POST" })
@@ -1637,7 +1662,12 @@ export const sendShiftReminders = createServerFn({ method: "POST" })
       await enqueueAlertEmail({
         alertId: null,
         templateName: "shift-reminder",
-        templateData: { recipient_name: name, location, shifts: shiftRows, reminder_for: reminderFor },
+        templateData: {
+          recipient_name: name,
+          location,
+          shifts: shiftRows,
+          reminder_for: reminderFor,
+        },
         recipients: [{ user_id: empId, email, display_name: name, role: "crew" as const }],
         category: "schedule",
         priority: "normal",

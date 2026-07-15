@@ -90,21 +90,39 @@ describe("isWithinGeofence", () => {
     // User is 30 m away, radius is 25, but GPS accuracy of 10 m pushes tolerance to 10 m
     // net check: 30 - 10 = 20 <= 25, should pass
     const thirtyMeters = { lat: trailer.lat + ONE_METER_LAT * 30, lng: trailer.lng };
-    const r = isWithinGeofence(thirtyMeters.lat, thirtyMeters.lng, trailer.lat, trailer.lng, radius, 10);
+    const r = isWithinGeofence(
+      thirtyMeters.lat,
+      thirtyMeters.lng,
+      trailer.lat,
+      trailer.lng,
+      radius,
+      10,
+    );
     expect(r.ok).toBe(true);
   });
 
   it("caps tolerance at 50 m regardless of reported accuracy", () => {
     // User is 200 m away. Even with 200 m reported accuracy, tolerance caps at 50 m.
     const twoHundredMeters = { lat: trailer.lat + ONE_METER_LAT * 200, lng: trailer.lng };
-    const r = isWithinGeofence(twoHundredMeters.lat, twoHundredMeters.lng, trailer.lat, trailer.lng, radius, 200);
+    const r = isWithinGeofence(
+      twoHundredMeters.lat,
+      twoHundredMeters.lng,
+      trailer.lat,
+      trailer.lng,
+      radius,
+      200,
+    );
     expect(r.toleranceM).toBe(50);
     expect(r.ok).toBe(false); // 200 - 50 = 150 > 25
   });
 
   it("respects custom radius", () => {
     const fiftyMeters = { lat: trailer.lat + ONE_METER_LAT * 50, lng: trailer.lng };
-    expect(isWithinGeofence(fiftyMeters.lat, fiftyMeters.lng, trailer.lat, trailer.lng, 25).ok).toBe(false);
-    expect(isWithinGeofence(fiftyMeters.lat, fiftyMeters.lng, trailer.lat, trailer.lng, 60).ok).toBe(true);
+    expect(
+      isWithinGeofence(fiftyMeters.lat, fiftyMeters.lng, trailer.lat, trailer.lng, 25).ok,
+    ).toBe(false);
+    expect(
+      isWithinGeofence(fiftyMeters.lat, fiftyMeters.lng, trailer.lat, trailer.lng, 60).ok,
+    ).toBe(true);
   });
 });

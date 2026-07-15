@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: "⌘K", label: "Open command palette" },
@@ -39,7 +45,7 @@ export function KeyboardShortcuts() {
       if (isTypingTarget(e.target)) return;
 
       // "?" cheatsheet (shift+/)
-      if (e.key === "?" ) {
+      if (e.key === "?") {
         e.preventDefault();
         setOpen((v) => !v);
         return;
@@ -47,8 +53,14 @@ export function KeyboardShortcuts() {
 
       if (pendingG) {
         const map: Record<string, string> = {
-          d: "/", a: "/alerts", t: "/my-tasks", c: "/time-clock",
-          s: "/schedule", i: "/inventory", o: "/operations", ",": "/settings",
+          d: "/",
+          a: "/alerts",
+          t: "/my-tasks",
+          c: "/time-clock",
+          s: "/schedule",
+          i: "/inventory",
+          o: "/operations",
+          ",": "/settings",
         };
         const dest = map[e.key.toLowerCase()];
         if (dest) {

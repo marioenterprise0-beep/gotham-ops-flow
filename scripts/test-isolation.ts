@@ -36,28 +36,70 @@ import { randomUUID } from "node:crypto";
 // The 60 tenant tables, in migration-classification order.
 const TENANT_TABLES: readonly string[] = [
   // Root tenant (2)
-  "stores", "trailers",
+  "stores",
+  "trailers",
   // Org-owned resources (8)
-  "handbook_sections", "hr_document_templates", "inventory_categories",
-  "role_email_policies", "sops", "tab_permissions",
-  "automation_settings", "user_roles",
+  "handbook_sections",
+  "hr_document_templates",
+  "inventory_categories",
+  "role_email_policies",
+  "sops",
+  "tab_permissions",
+  "automation_settings",
+  "user_roles",
   // Direct-fill (32)
-  "active_location_grants", "alerts", "availability_blocks",
-  "cash_drawer_sessions", "cash_drawers", "cash_drops", "change_log",
-  "checklist_sessions", "daily_recaps", "hospitality_incidents",
-  "hr_document_assignments", "inventory_change_requests", "inventory_counts",
-  "inventory_items", "inventory_orders", "invite_codes",
-  "maintenance_requests", "prep_log", "rollover_runs", "schedule_shifts",
-  "schedules", "shift_claim_requests", "shift_notes", "shift_swap_requests",
-  "shift_templates", "shifts", "task_templates", "tasks", "time_corrections",
-  "time_off_requests", "time_punches", "trusted_clock_devices", "waste_log",
+  "active_location_grants",
+  "alerts",
+  "availability_blocks",
+  "cash_drawer_sessions",
+  "cash_drawers",
+  "cash_drops",
+  "change_log",
+  "checklist_sessions",
+  "daily_recaps",
+  "hospitality_incidents",
+  "hr_document_assignments",
+  "inventory_change_requests",
+  "inventory_counts",
+  "inventory_items",
+  "inventory_orders",
+  "invite_codes",
+  "maintenance_requests",
+  "prep_log",
+  "rollover_runs",
+  "schedule_shifts",
+  "schedules",
+  "shift_claim_requests",
+  "shift_notes",
+  "shift_swap_requests",
+  "shift_templates",
+  "shifts",
+  "task_templates",
+  "tasks",
+  "time_corrections",
+  "time_off_requests",
+  "time_punches",
+  "trusted_clock_devices",
+  "waste_log",
   // FK-derived (14)
-  "alert_actions", "hr_document_signatures", "hr_document_template_versions",
-  "inventory_order_items", "inventory_receipts", "sop_acknowledgements",
-  "sop_attachments", "sop_versions", "sop_views", "task_template_versions",
-  "time_audit", "handbook_acknowledgements", "location_access_requests",
+  "alert_actions",
+  "hr_document_signatures",
+  "hr_document_template_versions",
+  "inventory_order_items",
+  "inventory_receipts",
+  "sop_acknowledgements",
+  "sop_attachments",
+  "sop_versions",
+  "sop_views",
+  "task_template_versions",
+  "time_audit",
+  "handbook_acknowledgements",
+  "location_access_requests",
   // Caller-supplied-from-session (4) — same list as CALLER_SUPPLIED_TABLES below
-  "alert_category_reads", "audit_log", "access_log", "employee_pins",
+  "alert_category_reads",
+  "audit_log",
+  "access_log",
+  "employee_pins",
 ];
 
 // Tables whose org_id is supplied by the app from session context, not
@@ -97,9 +139,7 @@ async function check(name: string, fn: () => Promise<void>) {
 async function newClient() {
   // Opt-in SSL only. CI (ephemeral local Postgres) and local socket runs do
   // not need SSL; hosted DBs set PGSSLMODE=require or PGSSL_DISABLE_VERIFY=1.
-  const useSsl =
-    process.env.PGSSLMODE === "require" ||
-    process.env.PGSSL_DISABLE_VERIFY === "1";
+  const useSsl = process.env.PGSSLMODE === "require" || process.env.PGSSL_DISABLE_VERIFY === "1";
   const client = new Client({
     connectionString: process.env.DATABASE_URL || undefined,
     ssl: useSsl ? { rejectUnauthorized: false } : undefined,
@@ -127,11 +167,7 @@ async function hasColumn(c: Client, table: string, column: string) {
 }
 
 // Simulate an authenticated user for the duration of a transaction.
-async function asUser<T>(
-  c: Client,
-  userId: string,
-  body: (tx: Client) => Promise<T>,
-): Promise<T> {
+async function asUser<T>(c: Client, userId: string, body: (tx: Client) => Promise<T>): Promise<T> {
   await c.query("BEGIN");
   try {
     await c.query("SET LOCAL role = authenticated");
@@ -151,9 +187,7 @@ async function asUser<T>(
 
 // ---- Preflight -------------------------------------------------------------
 
-async function preflight(c: Client): Promise<
-  { ready: true } | { ready: false; reason: string }
-> {
+async function preflight(c: Client): Promise<{ ready: true } | { ready: false; reason: string }> {
   const orgsExists = await tableExists(c, "organizations");
   if (!orgsExists) {
     return {
@@ -166,8 +200,7 @@ async function preflight(c: Client): Promise<
   if (!orgMembersExists) {
     return {
       ready: false,
-      reason:
-        "public.organization_members table not found — Phase 1a migration is incomplete.",
+      reason: "public.organization_members table not found — Phase 1a migration is incomplete.",
     };
   }
   // Every tenant table must have organization_id.
@@ -205,17 +238,23 @@ async function main() {
     const userB = randomUUID();
 
     // ---- Setup (service role, bypasses RLS) --------------------------------
-    await c.query(`INSERT INTO public.organizations (id, name)
+    await c.query(
+      `INSERT INTO public.organizations (id, name)
                    VALUES ($1, $3), ($2, $4)`,
-      [orgA, orgB, `${testPrefix}_A`, `${testPrefix}_B`]);
+      [orgA, orgB, `${testPrefix}_A`, `${testPrefix}_B`],
+    );
     // Users must exist in auth.users for FK integrity. Insert bare rows.
-    await c.query(`INSERT INTO auth.users (id, email, aud, role)
+    await c.query(
+      `INSERT INTO auth.users (id, email, aud, role)
                    VALUES ($1, $3, 'authenticated', 'authenticated'),
                           ($2, $4, 'authenticated', 'authenticated')`,
-      [userA, userB, `${testPrefix}_a@test.local`, `${testPrefix}_b@test.local`]);
-    await c.query(`INSERT INTO public.organization_members (user_id, organization_id, org_role)
+      [userA, userB, `${testPrefix}_a@test.local`, `${testPrefix}_b@test.local`],
+    );
+    await c.query(
+      `INSERT INTO public.organization_members (user_id, organization_id, org_role)
                    VALUES ($1, $3, 'org_member'), ($2, $4, 'org_member')`,
-      [userA, userB, orgA, orgB]);
+      [userA, userB, orgA, orgB],
+    );
 
     // ---- orgB canary rows (service-role seed, bypasses RLS) ---------------
     // Without these, Group A's "count rows visible with organization_id=orgB"
@@ -267,8 +306,16 @@ async function main() {
          VALUES ($1, $2, $3, $4, $5),
                 ($6, $7, $8, $9, $10)`,
       [
-        userA, `${testPrefix}_A`, `${testPrefix}_a@test.local`, trailerB, orgA,
-        userB, `${testPrefix}_B`, `${testPrefix}_b@test.local`, trailerB, orgB,
+        userA,
+        `${testPrefix}_A`,
+        `${testPrefix}_a@test.local`,
+        trailerB,
+        orgA,
+        userB,
+        `${testPrefix}_B`,
+        `${testPrefix}_b@test.local`,
+        trailerB,
+        orgB,
       ],
     );
 
@@ -367,19 +414,16 @@ async function main() {
             // Minimal insert: id + organization_id. Table-specific NOT NULL
             // columns may error before RLS runs; that's an acceptable failure
             // mode (they never get to submit an org-B row).
-            await tx.query(
-              `INSERT INTO public.${quoteIdent(t)} (organization_id) VALUES ($1)`,
-              [orgB],
-            );
+            await tx.query(`INSERT INTO public.${quoteIdent(t)} (organization_id) VALUES ($1)`, [
+              orgB,
+            ]);
           });
         } catch (e) {
           rejected = true;
           // Accept either the RLS violation OR a NOT NULL failure — both
           // prevent the cross-org write from succeeding.
           const msg = (e as Error).message;
-          if (
-            !/row-level security|violates|not-null|null value/i.test(msg)
-          ) {
+          if (!/row-level security|violates|not-null|null value/i.test(msg)) {
             throw new Error(`unexpected failure mode: ${msg}`);
           }
         }
@@ -402,10 +446,7 @@ async function main() {
       try {
         await c.query("BEGIN");
         await c.query("SET LOCAL app.active_organization_id = ''");
-        await c.query(
-          `INSERT INTO public.stores (name) VALUES ($1)`,
-          [`${testPrefix}_orphan`],
-        );
+        await c.query(`INSERT INTO public.stores (name) VALUES ($1)`, [`${testPrefix}_orphan`]);
         await c.query("ROLLBACK");
       } catch (e) {
         raised = true;
@@ -452,9 +493,7 @@ async function main() {
         await tx.query(`SET LOCAL app.active_organization_id = '${orgB}'`);
         const r = await tx.query(`SELECT public.is_manager($1) AS ok`, [userA]);
         if (r.rows[0].ok !== false) {
-          throw new Error(
-            `is_manager(userA) returned true in Org-B session — org scoping missing`,
-          );
+          throw new Error(`is_manager(userA) returned true in Org-B session — org scoping missing`);
         }
       });
     });
@@ -469,9 +508,7 @@ async function main() {
           [trailerB],
         );
         if (r.rows[0].n !== 0) {
-          throw new Error(
-            `Org-A manager saw Org-B trailer via list_trailer_geofences()`,
-          );
+          throw new Error(`Org-A manager saw Org-B trailer via list_trailer_geofences()`);
         }
       });
     });
@@ -479,14 +516,11 @@ async function main() {
     await check("F.get_trailer_geofence-cross-org", async () => {
       await asUser(c, userA, async (tx) => {
         await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
-        const r = await tx.query(
-          `SELECT count(*)::int AS n FROM public.get_trailer_geofence($1)`,
-          [trailerB],
-        );
+        const r = await tx.query(`SELECT count(*)::int AS n FROM public.get_trailer_geofence($1)`, [
+          trailerB,
+        ]);
         if (r.rows[0].n !== 0) {
-          throw new Error(
-            `get_trailer_geofence(orgB trailer) returned rows to Org-A manager`,
-          );
+          throw new Error(`get_trailer_geofence(orgB trailer) returned rows to Org-A manager`);
         }
       });
     });
@@ -541,21 +575,20 @@ async function main() {
       try {
         await asUser(c, userA, async (tx) => {
           await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
-          await tx.query(
-            `SELECT public.decide_availability_atomic($1, 'approved', 'x')`,
-            [blockB],
-          );
+          await tx.query(`SELECT public.decide_availability_atomic($1, 'approved', 'x')`, [blockB]);
         });
       } catch (e) {
         raised = true;
-        if (!/cross-tenant|not in active organization|insufficient_privilege/i.test((e as Error).message)) {
+        if (
+          !/cross-tenant|not in active organization|insufficient_privilege/i.test(
+            (e as Error).message,
+          )
+        ) {
           throw new Error(`unexpected error: ${(e as Error).message}`);
         }
       }
       if (!raised) {
-        throw new Error(
-          `decide_availability_atomic accepted Org-B block id from Org-A manager`,
-        );
+        throw new Error(`decide_availability_atomic accepted Org-B block id from Org-A manager`);
       }
     });
 
@@ -586,21 +619,28 @@ async function main() {
     });
 
     // ---- Teardown (service role) ------------------------------------------
-    await c.query(`DELETE FROM public.availability_blocks WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
+    await c.query(`DELETE FROM public.availability_blocks WHERE organization_id IN ($1,$2)`, [
+      orgA,
+      orgB,
+    ]);
     await c.query(`DELETE FROM public.alerts WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
-    await c.query(`DELETE FROM public.automation_settings WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
+    await c.query(`DELETE FROM public.automation_settings WHERE organization_id IN ($1,$2)`, [
+      orgA,
+      orgB,
+    ]);
     await c.query(`DELETE FROM public.user_roles WHERE user_id IN ($1,$2)`, [userA, userB]);
     await c.query(`DELETE FROM public.profiles WHERE id IN ($1,$2)`, [userA, userB]);
     await c.query(`DELETE FROM public.trailers WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
-    await c.query(`DELETE FROM public.organization_members WHERE user_id IN ($1,$2)`, [userA, userB]);
+    await c.query(`DELETE FROM public.organization_members WHERE user_id IN ($1,$2)`, [
+      userA,
+      userB,
+    ]);
     await c.query(`DELETE FROM public.organizations WHERE id IN ($1,$2)`, [orgA, orgB]);
     await c.query(`DELETE FROM auth.users WHERE id IN ($1,$2)`, [userA, userB]);
 
     // ---- Summary ----------------------------------------------------------
     const failed = results.filter((r) => !r.ok);
-    console.log(
-      `\n[isolation] ${results.length - failed.length}/${results.length} passed`,
-    );
+    console.log(`\n[isolation] ${results.length - failed.length}/${results.length} passed`);
     if (failed.length > 0) {
       console.error(`[isolation] FAIL — ${failed.length} assertion(s)`);
       process.exit(1);

@@ -13,7 +13,9 @@ import { RefreshCcw, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/data-health")({
   ssr: false,
-  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "system" } as any }); },
+  beforeLoad: () => {
+    throw redirect({ to: "/admin", search: { tab: "system" } as any });
+  },
   head: () => ({ meta: [{ title: "Data Health · Dip N Shake OS" }] }),
   component: DataHealthPage,
 });
@@ -41,8 +43,11 @@ export function DataHealthPage() {
         title="Data Health"
         action={
           <div className="flex gap-2 items-center">
-            <select value={retention} onChange={(e) => setRetention(Number(e.target.value))}
-              className="text-sm bg-background border border-border rounded-md px-2 py-1">
+            <select
+              value={retention}
+              onChange={(e) => setRetention(Number(e.target.value))}
+              className="text-sm bg-background border border-border rounded-md px-2 py-1"
+            >
               <option value={30}>30d retention</option>
               <option value={60}>60d retention</option>
               <option value={90}>90d retention</option>
@@ -74,11 +79,19 @@ export function DataHealthPage() {
       )}
 
       <Card className="p-0 overflow-hidden">
-        {isLoading && <div className="p-6 text-center text-sm text-muted-foreground">Scanning…</div>}
+        {isLoading && (
+          <div className="p-6 text-center text-sm text-muted-foreground">Scanning…</div>
+        )}
         {data?.domains.map((d, i) => {
           const age = ageDays(d.oldestArchivedAt);
           return (
-            <div key={d.table} className={"p-3 grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px_1fr] gap-2 items-center " + (i ? "border-t border-border" : "")}>
+            <div
+              key={d.table}
+              className={
+                "p-3 grid grid-cols-1 md:grid-cols-[1fr_120px_120px_120px_1fr] gap-2 items-center " +
+                (i ? "border-t border-border" : "")
+              }
+            >
               <div>
                 <div className="text-sm font-medium">{d.label}</div>
                 <div className="text-xs text-muted-foreground">{d.table}</div>
@@ -96,11 +109,15 @@ export function DataHealthPage() {
                 <div className="font-semibold text-amber-600">{d.blocked}</div>
               </div>
               <div className="text-xs">
-                {d.oldestArchivedAt && <div className="text-muted-foreground">Oldest {age}d ago</div>}
+                {d.oldestArchivedAt && (
+                  <div className="text-muted-foreground">Oldest {age}d ago</div>
+                )}
                 {d.blockedSamples.length > 0 ? (
                   <div className="flex items-center gap-1 text-amber-600 mt-1">
                     <AlertTriangle className="h-3 w-3" />
-                    <span className="truncate">{d.blockedSamples.map((s) => s.name).join(", ")}</span>
+                    <span className="truncate">
+                      {d.blockedSamples.map((s) => s.name).join(", ")}
+                    </span>
                   </div>
                 ) : d.totalArchived > 0 ? (
                   <div className="flex items-center gap-1 text-emerald-600 mt-1">

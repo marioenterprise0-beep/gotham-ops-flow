@@ -14,7 +14,11 @@ export function toCSV(headers: string[], rows: (string | number | null | undefin
   return `${head}\n${body}`;
 }
 
-export function downloadCSV(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+export function downloadCSV(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][],
+) {
   const csv = toCSV(headers, rows);
   const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -64,14 +68,21 @@ export function openPrintablePDF(title: string, bodyHTML: string) {
 
 export function htmlTable(headers: string[], rows: (string | number)[][]): string {
   const h = headers.map((x) => `<th>${escapeHTML(String(x))}</th>`).join("");
-  const b = rows.map((r) => `<tr>${r.map((c) => `<td>${escapeHTML(String(c ?? ""))}</td>`).join("")}</tr>`).join("");
+  const b = rows
+    .map((r) => `<tr>${r.map((c) => `<td>${escapeHTML(String(c ?? ""))}</td>`).join("")}</tr>`)
+    .join("");
   return `<table><thead><tr>${h}</tr></thead><tbody>${b}</tbody></table>`;
 }
 
 export function escapeHTML(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 
-export function kpiBlock(items: { label: string; value: string | number; tone?: "ok" | "warn" | "danger" }[]): string {
+export function kpiBlock(
+  items: { label: string; value: string | number; tone?: "ok" | "warn" | "danger" }[],
+): string {
   return `<div class="kpis">${items.map((k) => `<div class="kpi"><div class="l">${escapeHTML(k.label)}</div><div class="v ${k.tone ?? ""}">${escapeHTML(String(k.value))}</div></div>`).join("")}</div>`;
 }

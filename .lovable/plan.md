@@ -20,9 +20,9 @@ Multi-tenancy foundation for Cibora Systems. This project is the SaaS scaffold �
 
 ## Role boundary (hard rule — no server fn checks both in one predicate)
 
-| System | Enum | Purpose | Read by |
-|---|---|---|---|
-| `organization_members.org_role` | `org_owner`, `org_admin`, `org_member` | Org itself — billing, membership, org settings | Org management flows only |
+| System                           | Enum                                                         | Purpose                                                 | Read by                                                                |
+| -------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `organization_members.org_role`  | `org_owner`, `org_admin`, `org_member`                       | Org itself — billing, membership, org settings          | Org management flows only                                              |
 | `user_roles` (per-user, per-org) | `owner`, `manager`, `shift_lead`, `grill`, `prep`, `cashier` | Operational feature access — schedules, cash, inventory | Every business-feature server fn via `has_role(user_id, org_id, role)` |
 
 `is_org_admin(user_id, org_id)` reads `organization_members` only. `is_manager(user_id, org_id)` / `has_role(user_id, org_id, role)` read `user_roles` only. Grep-safe boundary.

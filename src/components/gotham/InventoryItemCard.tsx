@@ -20,20 +20,52 @@ function statusOf(it: any): Status {
 }
 
 const STATUS_STYLE: Record<Status, { bg: string; fg: string; bar: string; label: string }> = {
-  CRITICAL: { bg: "bg-[var(--color-danger-bg)]", fg: "text-[var(--color-danger)]", bar: "bg-[var(--color-danger)]", label: "Critical" },
-  LOW:      { bg: "bg-[var(--color-warning-bg)]", fg: "text-[var(--color-warning)]", bar: "bg-[var(--color-warning)]", label: "Low" },
-  OK:       { bg: "bg-[var(--color-success-bg)]", fg: "text-[var(--color-success)]", bar: "bg-[var(--color-success)]", label: "On par" },
-  OVER:     { bg: "bg-secondary", fg: "text-muted-foreground", bar: "bg-muted-foreground/60", label: "Overstocked" },
+  CRITICAL: {
+    bg: "bg-[var(--color-danger-bg)]",
+    fg: "text-[var(--color-danger)]",
+    bar: "bg-[var(--color-danger)]",
+    label: "Critical",
+  },
+  LOW: {
+    bg: "bg-[var(--color-warning-bg)]",
+    fg: "text-[var(--color-warning)]",
+    bar: "bg-[var(--color-warning)]",
+    label: "Low",
+  },
+  OK: {
+    bg: "bg-[var(--color-success-bg)]",
+    fg: "text-[var(--color-success)]",
+    bar: "bg-[var(--color-success)]",
+    label: "On par",
+  },
+  OVER: {
+    bg: "bg-secondary",
+    fg: "text-muted-foreground",
+    bar: "bg-muted-foreground/60",
+    label: "Overstocked",
+  },
 };
 
 export { statusOf };
 
 export function InventoryItemCard({
-  item, isOwner, isManager, onEdit, onDelete, onCount, counting, deleting,
+  item,
+  isOwner,
+  isManager,
+  onEdit,
+  onDelete,
+  onCount,
+  counting,
+  deleting,
 }: {
-  item: any; isOwner: boolean; isManager: boolean;
-  onEdit: () => void; onDelete: () => void;
-  onCount: (qty: number) => void; counting: boolean; deleting: boolean;
+  item: any;
+  isOwner: boolean;
+  isManager: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onCount: (qty: number) => void;
+  counting: boolean;
+  deleting: boolean;
 }) {
   const status = statusOf(item);
   const style = STATUS_STYLE[status];
@@ -43,11 +75,16 @@ export function InventoryItemCard({
   const [countOpen, setCountOpen] = useState(false);
   const [draft, setDraft] = useState<string>(String(qty));
 
-  useEffect(() => { setDraft(String(qty)); }, [qty, countOpen]);
+  useEffect(() => {
+    setDraft(String(qty));
+  }, [qty, countOpen]);
 
   const submit = () => {
     const n = Number(draft);
-    if (Number.isNaN(n) || n < 0) { toast.error("Enter a valid count"); return; }
+    if (Number.isNaN(n) || n < 0) {
+      toast.error("Enter a valid count");
+      return;
+    }
     onCount(n);
     setCountOpen(false);
   };
@@ -57,7 +94,11 @@ export function InventoryItemCard({
       <div className="flex gap-3">
         <div className="h-20 w-20 shrink-0 rounded-md bg-secondary overflow-hidden grid place-items-center border border-border">
           {item.image_url ? (
-            <SignedImage path={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+            <SignedImage
+              path={item.image_url}
+              alt={item.name}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <Boxes className="h-7 w-7 text-muted-foreground" />
           )}
@@ -65,13 +106,29 @@ export function InventoryItemCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="font-semibold text-[15px] leading-tight line-clamp-2">{item.name}</div>
+              <div className="font-semibold text-[15px] leading-tight line-clamp-2">
+                {item.name}
+              </div>
               <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
-                <span>PAR <span className="text-foreground font-medium">{Number(item.par_level)} {item.unit}</span></span>
-                <span>{"Low ≤ "}<span className="text-foreground font-medium">{Number(item.low_threshold)}</span></span>
+                <span>
+                  PAR{" "}
+                  <span className="text-foreground font-medium">
+                    {Number(item.par_level)} {item.unit}
+                  </span>
+                </span>
+                <span>
+                  {"Low ≤ "}
+                  <span className="text-foreground font-medium">{Number(item.low_threshold)}</span>
+                </span>
               </div>
             </div>
-            <span className={cn("label-caps shrink-0 rounded-full px-2 py-0.5 text-[10px]", style.bg, style.fg)}>
+            <span
+              className={cn(
+                "label-caps shrink-0 rounded-full px-2 py-0.5 text-[10px]",
+                style.bg,
+                style.fg,
+              )}
+            >
               {style.label}
             </span>
           </div>
@@ -81,12 +138,18 @@ export function InventoryItemCard({
               <span>On hand</span>
               <span className="tabular-nums">
                 <span className="text-foreground font-semibold">{qty}</span>
-                <span className="opacity-70"> / {Number(item.par_level)} {item.unit}</span>
+                <span className="opacity-70">
+                  {" "}
+                  / {Number(item.par_level)} {item.unit}
+                </span>
                 <span className="ml-1 opacity-70">· {pct}%</span>
               </span>
             </div>
             <div className="mt-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div className={cn("h-full transition-all", style.bar)} style={{ width: `${Math.min(100, pct)}%` }} />
+              <div
+                className={cn("h-full transition-all", style.bar)}
+                style={{ width: `${Math.min(100, pct)}%` }}
+              />
             </div>
           </div>
         </div>
@@ -118,7 +181,10 @@ export function InventoryItemCard({
                 step="any"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") setCountOpen(false); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submit();
+                  if (e.key === "Escape") setCountOpen(false);
+                }}
                 autoFocus
                 className="h-8 text-sm"
               />
@@ -147,7 +213,9 @@ export function InventoryItemCard({
               <Check className="h-3.5 w-3.5" /> Quick count
             </button>
           )
-        ) : <span />}
+        ) : (
+          <span />
+        )}
 
         {isOwner && !countOpen && (
           <div className="flex items-center gap-1">

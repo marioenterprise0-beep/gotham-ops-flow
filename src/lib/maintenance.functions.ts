@@ -35,7 +35,11 @@ export const submitMaintenanceRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: profile } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("trailer_id")
+      .eq("id", userId)
+      .maybeSingle();
     const { data: row, error } = await (supabase as any)
       .from("maintenance_requests")
       .insert({
@@ -56,10 +60,18 @@ export const submitMaintenanceRequest = createServerFn({ method: "POST" })
 
 export const listMaintenanceRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ includeResolved: z.boolean().optional(), includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .inputValidator((d) =>
+    z
+      .object({ includeResolved: z.boolean().optional(), includeArchived: z.boolean().optional() })
+      .optional()
+      .parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    let q = (supabase as any).from("maintenance_requests").select("*").order("created_at", { ascending: false });
+    let q = (supabase as any)
+      .from("maintenance_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (!data?.includeArchived) q = q.is("archived_at", null);
     if (!data?.includeResolved) q = q.neq("status", "resolved");
     const { data: rows, error } = await q;
@@ -87,10 +99,16 @@ export const updateMaintenanceStatus = createServerFn({ method: "POST" })
       patch.resolved_at = new Date().toISOString();
       patch.resolution_note = data.note ?? null;
     }
-    const { error } = await (supabase as any).from("maintenance_requests").update(patch).eq("id", data.id);
+    const { error } = await (supabase as any)
+      .from("maintenance_requests")
+      .update(patch)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: `maintenance_${data.status}`, entity: "maintenance_request", entity_id: data.id,
+      actor_id: userId,
+      action: `maintenance_${data.status}`,
+      entity: "maintenance_request",
+      entity_id: data.id,
       payload: { note: data.note ?? null },
     });
     return { ok: true };
@@ -98,13 +116,19 @@ export const updateMaintenanceStatus = createServerFn({ method: "POST" })
 
 export const archiveMaintenanceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
     const { error } = await (supabase as any)
       .from("maintenance_requests")
-      .update({ archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null })
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

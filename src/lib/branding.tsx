@@ -51,15 +51,19 @@ async function loadBranding(): Promise<Branding> {
 
 // Shared color math so applyThemeColors() and preview components resolve
 // the exact same surface / border / muted / on-accent values.
-const isHex = (v: string | null | undefined): v is string =>
-  !!v && /^#[0-9a-fA-F]{6}$/.test(v);
+const isHex = (v: string | null | undefined): v is string => !!v && /^#[0-9a-fA-F]{6}$/.test(v);
 const hexToRgb = (hex: string) => {
   const n = parseInt(hex.slice(1), 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 };
 const rgbToHex = (r: number, g: number, b: number) =>
-  "#" + [r, g, b]
-    .map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0"))
+  "#" +
+  [r, g, b]
+    .map((v) =>
+      Math.max(0, Math.min(255, Math.round(v)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
     .join("");
 const luminance = (hex: string) => {
   const { r, g, b } = hexToRgb(hex);
@@ -140,19 +144,34 @@ export function applyThemeColors(b: {
   // Reset any previously-applied inline overrides so a cleared value falls
   // back to the stylesheet defaults cleanly.
   const ALL = [
-    "--background", "--foreground",
-    "--card", "--card-foreground",
-    "--popover", "--popover-foreground",
-    "--secondary", "--secondary-foreground",
-    "--muted", "--muted-foreground",
-    "--accent", "--accent-foreground",
-    "--gold", "--gold-light", "--gold-foreground",
-    "--primary", "--primary-foreground",
-    "--border", "--input", "--ring",
-    "--sidebar", "--sidebar-foreground",
-    "--sidebar-primary", "--sidebar-primary-foreground",
-    "--sidebar-accent", "--sidebar-accent-foreground",
-    "--sidebar-border", "--sidebar-ring",
+    "--background",
+    "--foreground",
+    "--card",
+    "--card-foreground",
+    "--popover",
+    "--popover-foreground",
+    "--secondary",
+    "--secondary-foreground",
+    "--muted",
+    "--muted-foreground",
+    "--accent",
+    "--accent-foreground",
+    "--gold",
+    "--gold-light",
+    "--gold-foreground",
+    "--primary",
+    "--primary-foreground",
+    "--border",
+    "--input",
+    "--ring",
+    "--sidebar",
+    "--sidebar-foreground",
+    "--sidebar-primary",
+    "--sidebar-primary-foreground",
+    "--sidebar-accent",
+    "--sidebar-accent-foreground",
+    "--sidebar-border",
+    "--sidebar-ring",
   ];
   for (const name of ALL) root.style.removeProperty(name);
 
@@ -202,17 +221,34 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    loadBranding().then((b) => { if (!cancelled) { setBranding(b); applyThemeColors(b); } });
+    loadBranding().then((b) => {
+      if (!cancelled) {
+        setBranding(b);
+        applyThemeColors(b);
+      }
+    });
 
     // Refresh when auth changes (owner just saved branding, or new user signs in)
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "TOKEN_REFRESHED") {
-        loadBranding().then((b) => { if (!cancelled) { setBranding(b); applyThemeColors(b); } });
+        loadBranding().then((b) => {
+          if (!cancelled) {
+            setBranding(b);
+            applyThemeColors(b);
+          }
+        });
       }
     });
 
     // Custom event so the Settings screen can trigger an immediate reload after save.
-    const onRefresh = () => { loadBranding().then((b) => { if (!cancelled) { setBranding(b); applyThemeColors(b); } }); };
+    const onRefresh = () => {
+      loadBranding().then((b) => {
+        if (!cancelled) {
+          setBranding(b);
+          applyThemeColors(b);
+        }
+      });
+    };
     window.addEventListener("branding:refresh", onRefresh);
 
     return () => {

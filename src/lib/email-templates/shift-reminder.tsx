@@ -63,7 +63,8 @@ const Email = ({ recipient_name, location, shifts = [], reminder_for = "tomorrow
       )}
 
       <Text style={{ ...styles.text, marginTop: 16 }}>
-        You can clock in up to <strong>15 minutes before</strong> your shift starts from the Dip N Shake OS app.
+        You can clock in up to <strong>15 minutes before</strong> your shift starts from the Dip N
+        Shake OS app.
       </Text>
 
       <OpenGothamButton path="/time-clock" label="Open Time Clock" />
@@ -83,7 +84,14 @@ export const template: TemplateEntry = {
     location: "Henrietta",
     reminder_for: "tomorrow",
     shifts: [
-      { date: "Jun 29", day: "Sun", start: "11:00", end: "17:00", role: "cashier", segment: "open" },
+      {
+        date: "Jun 29",
+        day: "Sun",
+        start: "11:00",
+        end: "17:00",
+        role: "cashier",
+        segment: "open",
+      },
     ],
   },
 };

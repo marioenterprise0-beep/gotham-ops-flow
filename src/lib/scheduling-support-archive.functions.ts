@@ -27,9 +27,7 @@ async function assertOwner(supabase: any, userId: string) {
 // a scheduled shift should NOT cascade to punches (those are independent
 // records of actual work). We surface the link as a dependency only.
 const DEPS: Record<Entity, Array<{ table: string; column: string; label: string }>> = {
-  schedule_shifts: [
-    { table: "time_punches", column: "schedule_shift_id", label: "Time punches" },
-  ],
+  schedule_shifts: [{ table: "time_punches", column: "schedule_shift_id", label: "Time punches" }],
   shift_notes: [],
 };
 
@@ -68,20 +66,27 @@ export const scanScheduleShiftDependencies = createServerFn({ method: "POST" })
 
 export const archiveScheduleShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    reason: z.string().max(300).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        reason: z.string().max(300).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertManager(supabase, userId);
-    const { error } = await sb.from(data.entity).update({
-      archived_at: new Date().toISOString(),
-      archived_by: userId,
-      archive_reason: data.reason ?? null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from(data.entity)
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
@@ -100,9 +105,14 @@ export const restoreScheduleShift = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertOwner(supabase, userId);
-    const { error } = await sb.from(data.entity).update({
-      archived_at: null, archived_by: null, archive_reason: null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from(data.entity)
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
@@ -116,11 +126,15 @@ export const restoreScheduleShift = createServerFn({ method: "POST" })
 
 export const deleteScheduleShift = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    force: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        force: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;

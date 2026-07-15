@@ -4,8 +4,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader, RoleBadge } from "@/components/gotham/primitives";
-import { getMyProfile, updateMyProfile, updateStoreInfo, sendBrandingTestEmail } from "@/lib/settings.functions";
-import { getAutomationSettings, updateAutomationSettings, listRolloverRuns } from "@/lib/automation.functions";
+import {
+  getMyProfile,
+  updateMyProfile,
+  updateStoreInfo,
+  sendBrandingTestEmail,
+} from "@/lib/settings.functions";
+import {
+  getAutomationSettings,
+  updateAutomationSettings,
+  listRolloverRuns,
+} from "@/lib/automation.functions";
 import { GeofencePanel } from "@/components/gotham/geofence-panel";
 import {
   getMyNotificationPreferences,
@@ -68,7 +77,12 @@ function Settings() {
   }, [livePreview]);
 
   // Ensure the live preview doesn't persist when leaving the page.
-  useEffect(() => () => { if (livePreview) refreshBranding(); }, [livePreview]);
+  useEffect(
+    () => () => {
+      if (livePreview) refreshBranding();
+    },
+    [livePreview],
+  );
 
   useEffect(() => {
     if (data?.profile?.display_name) setName(data.profile.display_name);
@@ -86,22 +100,29 @@ function Settings() {
 
   const saveProfile = useMutation({
     mutationFn: () => updateProfile({ data: { displayName: name.trim() } }),
-    onSuccess: () => { toast.success("Profile saved"); syncDomains(qc, "profiles", "users"); refreshRoles(); },
+    onSuccess: () => {
+      toast.success("Profile saved");
+      syncDomains(qc, "profiles", "users");
+      refreshRoles();
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const saveStore = useMutation({
-    mutationFn: () => updateStore({ data: {
-      storeId: data!.store!.id,
-      name: storeName.trim(),
-      location: storeLoc.trim() || undefined,
-      shortName: storeShort.trim() || null,
-      tagline: storeTagline.trim() || null,
-      supportEmail: storeSupportEmail.trim() || null,
-      bgColor,
-      fgColor,
-      accentColor,
-    } }),
+    mutationFn: () =>
+      updateStore({
+        data: {
+          storeId: data!.store!.id,
+          name: storeName.trim(),
+          location: storeLoc.trim() || undefined,
+          shortName: storeShort.trim() || null,
+          tagline: storeTagline.trim() || null,
+          supportEmail: storeSupportEmail.trim() || null,
+          bgColor,
+          fgColor,
+          accentColor,
+        },
+      }),
     onSuccess: () => {
       toast.success("Branding saved");
       syncDomains(qc, "profiles");
@@ -124,19 +145,32 @@ function Settings() {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
           <div>
             <div className="label-caps text-muted-foreground mb-1">Display name</div>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+            />
           </div>
-          <button disabled={!name.trim() || saveProfile.isPending} onClick={() => saveProfile.mutate()}
-            className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
+          <button
+            disabled={!name.trim() || saveProfile.isPending}
+            onClick={() => saveProfile.mutate()}
+            className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50"
+          >
             <Save className="h-3.5 w-3.5" /> Save
           </button>
         </div>
         <div className="mt-4 flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Role:</span>
-          {roleId ? <RoleBadge role={ROLES[roleId].name} /> : <span className="text-muted-foreground">No role</span>}
+          {roleId ? (
+            <RoleBadge role={ROLES[roleId].name} />
+          ) : (
+            <span className="text-muted-foreground">No role</span>
+          )}
         </div>
         {data?.profile?.created_at && (
-          <div className="mt-2 text-xs text-muted-foreground">Member since {new Date(data.profile.created_at).toLocaleDateString()}</div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            Member since {new Date(data.profile.created_at).toLocaleDateString()}
+          </div>
         )}
       </Card>
 
@@ -147,31 +181,67 @@ function Settings() {
             <div className="space-y-3">
               <div>
                 <div className="label-caps text-muted-foreground mb-1">Organization name</div>
-                <input value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="e.g. Acme Coffee Co." className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
-                <div className="mt-1 text-[11px] text-muted-foreground">Full name shown on invoices and PDFs.</div>
+                <input
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  placeholder="e.g. Acme Coffee Co."
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                />
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Full name shown on invoices and PDFs.
+                </div>
               </div>
               <div>
                 <div className="label-caps text-muted-foreground mb-1">Short name / wordmark</div>
-                <input value={storeShort} onChange={(e) => setStoreShort(e.target.value)} maxLength={40} placeholder="e.g. ACME" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
-                <div className="mt-1 text-[11px] text-muted-foreground">Displayed in the top header, sign-in page, and browser tab.</div>
+                <input
+                  value={storeShort}
+                  onChange={(e) => setStoreShort(e.target.value)}
+                  maxLength={40}
+                  placeholder="e.g. ACME"
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                />
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  Displayed in the top header, sign-in page, and browser tab.
+                </div>
               </div>
               <div>
                 <div className="label-caps text-muted-foreground mb-1">Tagline</div>
-                <input value={storeTagline} onChange={(e) => setStoreTagline(e.target.value)} maxLength={200} placeholder="Short line shown on the sign-in page." className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <input
+                  value={storeTagline}
+                  onChange={(e) => setStoreTagline(e.target.value)}
+                  maxLength={200}
+                  placeholder="Short line shown on the sign-in page."
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                />
               </div>
               <div>
                 <div className="label-caps text-muted-foreground mb-1">Support email</div>
-                <input type="email" value={storeSupportEmail} onChange={(e) => setStoreSupportEmail(e.target.value)} placeholder="ops@yourcompany.com" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <input
+                  type="email"
+                  value={storeSupportEmail}
+                  onChange={(e) => setStoreSupportEmail(e.target.value)}
+                  placeholder="ops@yourcompany.com"
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                />
               </div>
               <div>
-                <div className="label-caps text-muted-foreground mb-1">Primary location / address</div>
-                <input value={storeLoc} onChange={(e) => setStoreLoc(e.target.value)} placeholder="e.g. 6th Ave & W 53rd St" className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm" />
+                <div className="label-caps text-muted-foreground mb-1">
+                  Primary location / address
+                </div>
+                <input
+                  value={storeLoc}
+                  onChange={(e) => setStoreLoc(e.target.value)}
+                  placeholder="e.g. 6th Ave & W 53rd St"
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                />
               </div>
               <div className="pt-3 mt-3 border-t border-border">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
                     <div className="text-sm font-semibold mb-1">Theme colors</div>
-                    <div className="text-[11px] text-muted-foreground">Applied instantly across every page for all users.</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Applied instantly across every page for all users.
+                    </div>
                   </div>
                   <LivePreviewToggle
                     active={livePreview}
@@ -184,11 +254,46 @@ function Settings() {
                   <ColorField label="Accent" value={accentColor} onChange={setAccentColor} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <PresetButton label="Midnight Green" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#22C55E"); }} />
-                  <PresetButton label="Midnight Gold" onClick={() => { setBgColor("#08090B"); setFgColor("#F5F5F4"); setAccentColor("#EAB308"); }} />
-                  <PresetButton label="Slate" onClick={() => { setBgColor("#0F172A"); setFgColor("#E2E8F0"); setAccentColor("#3B82F6"); }} />
-                  <PresetButton label="Espresso" onClick={() => { setBgColor("#1C1917"); setFgColor("#FAFAF9"); setAccentColor("#F97316"); }} />
-                  <PresetButton label="Paper" onClick={() => { setBgColor("#FAFAF9"); setFgColor("#0A0A0A"); setAccentColor("#EF4444"); }} />
+                  <PresetButton
+                    label="Midnight Green"
+                    onClick={() => {
+                      setBgColor("#08090B");
+                      setFgColor("#F5F5F4");
+                      setAccentColor("#22C55E");
+                    }}
+                  />
+                  <PresetButton
+                    label="Midnight Gold"
+                    onClick={() => {
+                      setBgColor("#08090B");
+                      setFgColor("#F5F5F4");
+                      setAccentColor("#EAB308");
+                    }}
+                  />
+                  <PresetButton
+                    label="Slate"
+                    onClick={() => {
+                      setBgColor("#0F172A");
+                      setFgColor("#E2E8F0");
+                      setAccentColor("#3B82F6");
+                    }}
+                  />
+                  <PresetButton
+                    label="Espresso"
+                    onClick={() => {
+                      setBgColor("#1C1917");
+                      setFgColor("#FAFAF9");
+                      setAccentColor("#F97316");
+                    }}
+                  />
+                  <PresetButton
+                    label="Paper"
+                    onClick={() => {
+                      setBgColor("#FAFAF9");
+                      setFgColor("#0A0A0A");
+                      setAccentColor("#EF4444");
+                    }}
+                  />
                 </div>
                 <ContrastReport bg={bgColor} fg={fgColor} accent={accentColor} />
                 <ThemePreview
@@ -214,7 +319,8 @@ function Settings() {
                   onClick={() => testEmail.mutate()}
                   className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 mr-2 hover:border-[var(--color-gold)] disabled:opacity-50"
                 >
-                  <Mail className="h-3.5 w-3.5" /> {testEmail.isPending ? "Sending…" : "Send test email"}
+                  <Mail className="h-3.5 w-3.5" />{" "}
+                  {testEmail.isPending ? "Sending…" : "Send test email"}
                 </button>
                 <button
                   type="button"
@@ -226,8 +332,11 @@ function Settings() {
                 >
                   <Wand2 className="h-3.5 w-3.5" /> Apply to current session
                 </button>
-                <button disabled={!storeName.trim() || saveStore.isPending} onClick={() => saveStore.mutate()}
-                  className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50">
+                <button
+                  disabled={!storeName.trim() || saveStore.isPending}
+                  onClick={() => saveStore.mutate()}
+                  className="h-10 rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 disabled:opacity-50"
+                >
                   <Save className="h-3.5 w-3.5" /> Save branding
                 </button>
               </div>
@@ -246,8 +355,13 @@ function Settings() {
       <Card>
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">End your session on this device.</div>
-          <button onClick={async () => { await signOut(); nav({ to: "/auth" }); }}
-            className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]">
+          <button
+            onClick={async () => {
+              await signOut();
+              nav({ to: "/auth" });
+            }}
+            className="h-10 rounded-md border border-border px-4 text-xs font-semibold uppercase tracking-[1.2px] inline-flex items-center gap-2 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+          >
             <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
@@ -262,7 +376,15 @@ function AutomationPanel() {
   return _AutomationPanel();
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
   const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#000000";
   return (
     <div>
@@ -339,9 +461,11 @@ function relLum({ r, g, b }: { r: number; g: number; b: number }) {
   return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
 }
 function contrastRatio(a: string, b: string): number | null {
-  const ra = hexToRgb(a); const rb = hexToRgb(b);
+  const ra = hexToRgb(a);
+  const rb = hexToRgb(b);
   if (!ra || !rb) return null;
-  const la = relLum(ra); const lb = relLum(rb);
+  const la = relLum(ra);
+  const lb = relLum(rb);
   const [lo, hi] = la < lb ? [la, lb] : [lb, la];
   return (hi + 0.05) / (lo + 0.05);
 }
@@ -384,13 +508,16 @@ function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: st
             rating?.tone === "ok"
               ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
               : rating?.tone === "warn"
-              ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
-              : "bg-red-500/15 text-red-500 border-red-500/30";
+                ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+                : "bg-red-500/15 text-red-500 border-red-500/30";
           return (
             <li key={p.label} className="flex items-center gap-3">
               <div
                 className="h-9 w-16 shrink-0 rounded-md border border-border flex items-center justify-center text-[11px] font-semibold"
-                style={{ backgroundColor: /^#[0-9a-fA-F]{6}$/.test(p.b) ? p.b : undefined, color: /^#[0-9a-fA-F]{6}$/.test(p.a) ? p.a : undefined }}
+                style={{
+                  backgroundColor: /^#[0-9a-fA-F]{6}$/.test(p.b) ? p.b : undefined,
+                  color: /^#[0-9a-fA-F]{6}$/.test(p.a) ? p.a : undefined,
+                }}
                 aria-hidden="true"
               >
                 Aa
@@ -403,7 +530,9 @@ function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: st
                 {ratio !== null ? `${ratio.toFixed(2)}:1` : "—"}
               </div>
               {rating && (
-                <span className={`text-[10px] font-semibold uppercase tracking-[1px] px-2 py-1 rounded border ${toneClass}`}>
+                <span
+                  className={`text-[10px] font-semibold uppercase tracking-[1px] px-2 py-1 rounded border ${toneClass}`}
+                >
                   {rating.level}
                 </span>
               )}
@@ -413,7 +542,8 @@ function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: st
       </ul>
       {anyFail && (
         <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
-          One or more pairs fall below the WCAG AA minimum of 4.5:1 for normal text (3:1 for large text). Users with low vision may struggle to read these combinations.
+          One or more pairs fall below the WCAG AA minimum of 4.5:1 for normal text (3:1 for large
+          text). Users with low vision may struggle to read these combinations.
         </div>
       )}
     </div>
@@ -422,10 +552,19 @@ function ContrastReport({ bg, fg, accent }: { bg: string; fg: string; accent: st
 
 // ---------- Live theme preview ----------
 function ThemePreview({
-  bg, fg, accent, orgName, shortName, tagline,
+  bg,
+  fg,
+  accent,
+  orgName,
+  shortName,
+  tagline,
 }: {
-  bg: string; fg: string; accent: string;
-  orgName: string; shortName: string; tagline: string;
+  bg: string;
+  fg: string;
+  accent: string;
+  orgName: string;
+  shortName: string;
+  tagline: string;
 }) {
   // Use the exact same derivation as applyThemeColors() so the preview
   // matches what saving will paint across the app.
@@ -477,11 +616,14 @@ function ThemePreview({
             >
               Live
             </span>
-            <div className="text-[11px]" style={{ color: muted }}>{orgName}</div>
+            <div className="text-[11px]" style={{ color: muted }}>
+              {orgName}
+            </div>
           </div>
           <div className="text-lg font-semibold leading-tight">{tagline}</div>
           <p className="text-[13px] leading-relaxed" style={{ color: muted }}>
-            This is how body copy appears against your chosen background. Interactive elements use your accent color.
+            This is how body copy appears against your chosen background. Interactive elements use
+            your accent color.
           </p>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -513,12 +655,17 @@ function ThemePreview({
             className="mt-2 rounded-md p-3 border"
             style={{ backgroundColor: surface, borderColor: border }}
           >
-            <div className="text-[10px] font-semibold uppercase tracking-[1.2px] mb-1" style={{ color: muted }}>
+            <div
+              className="text-[10px] font-semibold uppercase tracking-[1.2px] mb-1"
+              style={{ color: muted }}
+            >
               Card surface
             </div>
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium">Today's shifts</div>
-              <div className="text-sm font-mono tabular-nums" style={{ color: a }}>12</div>
+              <div className="text-sm font-mono tabular-nums" style={{ color: a }}>
+                12
+              </div>
             </div>
           </div>
         </div>
@@ -535,7 +682,10 @@ function _AutomationPanel() {
   const getFn = useServerFn(getAutomationSettings);
   const saveFn = useServerFn(updateAutomationSettings);
   const runsFn = useServerFn(listRolloverRuns);
-  const { data: settings } = useQuery({ queryKey: ["automation-settings"], queryFn: () => getFn() });
+  const { data: settings } = useQuery({
+    queryKey: ["automation-settings"],
+    queryFn: () => getFn(),
+  });
   const { data: runs = [] } = useQuery<any[]>({
     queryKey: ["rollover-runs"],
     queryFn: () => runsFn({ data: { limit: 10 } }) as any,
@@ -543,7 +693,10 @@ function _AutomationPanel() {
 
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => saveFn({ data: patch as any }),
-    onSuccess: () => { toast.success("Automation updated"); qc.invalidateQueries({ queryKey: ["automation-settings"] }); },
+    onSuccess: () => {
+      toast.success("Automation updated");
+      qc.invalidateQueries({ queryKey: ["automation-settings"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -563,7 +716,9 @@ function _AutomationPanel() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Rollover hour (location local time)</div>
-              <div className="text-xs text-muted-foreground">Runs every 15 minutes; fires once when local hour matches.</div>
+              <div className="text-xs text-muted-foreground">
+                Runs every 15 minutes; fires once when local hour matches.
+              </div>
             </div>
             <select
               value={settings.rollover_hour}
@@ -571,7 +726,12 @@ function _AutomationPanel() {
               className="h-10 rounded-md border border-border bg-card px-3 text-sm"
             >
               {Array.from({ length: 24 }, (_, i) => i).map((h) => (
-                <option key={h} value={h}>{new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric", hour12: true })}</option>
+                <option key={h} value={h}>
+                  {new Date(2000, 0, 1, h).toLocaleTimeString([], {
+                    hour: "numeric",
+                    hour12: true,
+                  })}
+                </option>
               ))}
             </select>
           </div>
@@ -599,7 +759,9 @@ function _AutomationPanel() {
       <SectionHeader eyebrow="History" title="Recent Rollover Runs" />
       <Card className="p-0 overflow-hidden">
         {runs.length === 0 && (
-          <div className="p-4 text-sm text-muted-foreground text-center">No rollovers yet. The dispatcher runs every 15 minutes.</div>
+          <div className="p-4 text-sm text-muted-foreground text-center">
+            No rollovers yet. The dispatcher runs every 15 minutes.
+          </div>
         )}
         {runs.map((r: any, i: number) => (
           <div key={r.id} className={i ? "border-t border-border p-3 text-sm" : "p-3 text-sm"}>
@@ -611,7 +773,8 @@ function _AutomationPanel() {
               <div className="text-xs text-muted-foreground">{r.notes ?? "ok"}</div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              shifts {r.shifts_closed} · punches {r.punches_auto_closed} · tasks missed {r.tasks_missed} · alerts archived {r.alerts_archived}
+              shifts {r.shifts_closed} · punches {r.punches_auto_closed} · tasks missed{" "}
+              {r.tasks_missed} · alerts archived {r.alerts_archived}
             </div>
           </div>
         ))}
@@ -622,9 +785,17 @@ function _AutomationPanel() {
 
 // ---------- Device preview (mobile / tablet mocks) ----------
 function DevicePreview({
-  bg, fg, accent, orgName, shortName,
+  bg,
+  fg,
+  accent,
+  orgName,
+  shortName,
 }: {
-  bg: string; fg: string; accent: string; orgName: string; shortName: string;
+  bg: string;
+  fg: string;
+  accent: string;
+  orgName: string;
+  shortName: string;
 }) {
   const [device, setDevice] = useState<"mobile" | "tablet">("mobile");
   const [screen, setScreen] = useState<"dashboard" | "schedule" | "signin">("dashboard");
@@ -651,12 +822,22 @@ function DevicePreview({
           Device preview
         </div>
         <div className="flex items-center gap-2">
-          <SegBtn active={device === "mobile"} onClick={() => setDevice("mobile")}>Mobile</SegBtn>
-          <SegBtn active={device === "tablet"} onClick={() => setDevice("tablet")}>Tablet</SegBtn>
+          <SegBtn active={device === "mobile"} onClick={() => setDevice("mobile")}>
+            Mobile
+          </SegBtn>
+          <SegBtn active={device === "tablet"} onClick={() => setDevice("tablet")}>
+            Tablet
+          </SegBtn>
           <div className="mx-1 h-4 w-px bg-border" />
-          <SegBtn active={screen === "dashboard"} onClick={() => setScreen("dashboard")}>Dashboard</SegBtn>
-          <SegBtn active={screen === "schedule"} onClick={() => setScreen("schedule")}>Schedule</SegBtn>
-          <SegBtn active={screen === "signin"} onClick={() => setScreen("signin")}>Sign-in</SegBtn>
+          <SegBtn active={screen === "dashboard"} onClick={() => setScreen("dashboard")}>
+            Dashboard
+          </SegBtn>
+          <SegBtn active={screen === "schedule"} onClick={() => setScreen("schedule")}>
+            Schedule
+          </SegBtn>
+          <SegBtn active={screen === "signin"} onClick={() => setScreen("signin")}>
+            Sign-in
+          </SegBtn>
         </div>
       </div>
 
@@ -690,13 +871,40 @@ function DevicePreview({
             <InScreenContrastBadges bg={b} fg={f} accent={a} />
 
             {screen === "dashboard" && (
-              <DashboardMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
+              <DashboardMock
+                b={b}
+                f={f}
+                a={a}
+                muted={muted}
+                surface={surface}
+                border={border}
+                shortName={shortName}
+                onAccent={onAccent}
+              />
             )}
             {screen === "schedule" && (
-              <ScheduleMock f={f} a={a} muted={muted} surface={surface} border={border} shortName={shortName} onAccent={onAccent} />
+              <ScheduleMock
+                f={f}
+                a={a}
+                muted={muted}
+                surface={surface}
+                border={border}
+                shortName={shortName}
+                onAccent={onAccent}
+              />
             )}
             {screen === "signin" && (
-              <SigninMock b={b} f={f} a={a} muted={muted} surface={surface} border={border} orgName={orgName} shortName={shortName} onAccent={onAccent} />
+              <SigninMock
+                b={b}
+                f={f}
+                a={a}
+                muted={muted}
+                surface={surface}
+                border={border}
+                orgName={orgName}
+                shortName={shortName}
+                onAccent={onAccent}
+              />
             )}
           </div>
         </div>
@@ -705,7 +913,15 @@ function DevicePreview({
   );
 }
 
-function SegBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function SegBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -756,22 +972,39 @@ function InScreenContrastBadges({ bg, fg, accent }: { bg: string; fg: string; ac
 }
 
 type MockProps = {
-  b?: string; f: string; a: string; muted: string; surface: string; border: string;
-  shortName?: string; orgName?: string; onAccent?: string;
+  b?: string;
+  f: string;
+  a: string;
+  muted: string;
+  surface: string;
+  border: string;
+  shortName?: string;
+  orgName?: string;
+  onAccent?: string;
 };
 
 function TopBar({ f, a, muted, border, surface, shortName, onAccent }: MockProps) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: border, backgroundColor: surface }}>
+    <div
+      className="flex items-center justify-between px-3 py-2 border-b"
+      style={{ borderColor: border, backgroundColor: surface }}
+    >
       <div className="flex items-center gap-1.5 min-w-0">
-        <div className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0" style={{ backgroundColor: a, color: onAccent ?? "#000" }}>
+        <div
+          className="h-4 w-4 rounded grid place-items-center text-[8px] font-bold shrink-0"
+          style={{ backgroundColor: a, color: onAccent ?? "#000" }}
+        >
           {shortName?.slice(0, 1).toUpperCase() ?? "O"}
         </div>
-        <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{shortName}</div>
+        <div className="text-[10px] font-semibold truncate" style={{ color: f }}>
+          {shortName}
+        </div>
       </div>
       <div className="flex items-center gap-1">
         <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: a }} />
-        <div className="text-[9px]" style={{ color: muted }}>Live</div>
+        <div className="text-[9px]" style={{ color: muted }}>
+          Live
+        </div>
       </div>
     </div>
   );
@@ -780,9 +1013,19 @@ function TopBar({ f, a, muted, border, surface, shortName, onAccent }: MockProps
 function DashboardMock({ f, a, muted, surface, border, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
+      <TopBar
+        f={f}
+        a={a}
+        muted={muted}
+        border={border}
+        surface={surface}
+        shortName={shortName}
+        onAccent={onAccent}
+      />
       <div className="p-3 space-y-2 overflow-hidden">
-        <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Today</div>
+        <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>
+          Today
+        </div>
         <div className="text-sm font-semibold">Good morning</div>
         <div className="grid grid-cols-2 gap-2">
           {[
@@ -791,21 +1034,44 @@ function DashboardMock({ f, a, muted, surface, border, shortName, onAccent }: Mo
             { label: "Tasks", value: "8/12" },
             { label: "Alerts", value: "2" },
           ].map((s) => (
-            <div key={s.label} className="rounded-md p-2 border" style={{ borderColor: border, backgroundColor: surface }}>
-              <div className="text-[8px] uppercase tracking-[1px]" style={{ color: muted }}>{s.label}</div>
-              <div className="text-sm font-semibold" style={{ color: s.label === "Sales" ? a : f }}>{s.value}</div>
+            <div
+              key={s.label}
+              className="rounded-md p-2 border"
+              style={{ borderColor: border, backgroundColor: surface }}
+            >
+              <div className="text-[8px] uppercase tracking-[1px]" style={{ color: muted }}>
+                {s.label}
+              </div>
+              <div className="text-sm font-semibold" style={{ color: s.label === "Sales" ? a : f }}>
+                {s.value}
+              </div>
             </div>
           ))}
         </div>
-        <div className="rounded-md p-2 border" style={{ borderColor: border, backgroundColor: surface }}>
+        <div
+          className="rounded-md p-2 border"
+          style={{ borderColor: border, backgroundColor: surface }}
+        >
           <div className="flex items-center justify-between mb-1">
-            <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Next up</div>
-            <div className="text-[9px] font-semibold" style={{ color: a }}>View all</div>
+            <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>
+              Next up
+            </div>
+            <div className="text-[9px] font-semibold" style={{ color: a }}>
+              View all
+            </div>
           </div>
           {["Prep station open", "Lunch rush", "Cash drop"].map((t, i) => (
-            <div key={t} className="flex items-center justify-between py-1" style={{ borderTop: i === 0 ? "none" : `1px solid ${border}` }}>
-              <div className="text-[10px]" style={{ color: f }}>{t}</div>
-              <div className="text-[9px]" style={{ color: muted }}>{9 + i}:00</div>
+            <div
+              key={t}
+              className="flex items-center justify-between py-1"
+              style={{ borderTop: i === 0 ? "none" : `1px solid ${border}` }}
+            >
+              <div className="text-[10px]" style={{ color: f }}>
+                {t}
+              </div>
+              <div className="text-[9px]" style={{ color: muted }}>
+                {9 + i}:00
+              </div>
             </div>
           ))}
         </div>
@@ -831,16 +1097,28 @@ function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: Moc
   ];
   return (
     <div className="h-full w-full flex flex-col">
-      <TopBar f={f} a={a} muted={muted} border={border} surface={surface} shortName={shortName} onAccent={onAccent} />
+      <TopBar
+        f={f}
+        a={a}
+        muted={muted}
+        border={border}
+        surface={surface}
+        shortName={shortName}
+        onAccent={onAccent}
+      />
       <div className="p-3 space-y-2 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold">This week</div>
-          <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>Jun 3–9</div>
+          <div className="text-[9px] uppercase tracking-[1px]" style={{ color: muted }}>
+            Jun 3–9
+          </div>
         </div>
         <div className="flex items-center justify-between">
           {days.map((d, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <div className="text-[9px]" style={{ color: muted }}>{d}</div>
+              <div className="text-[9px]" style={{ color: muted }}>
+                {d}
+              </div>
               <div
                 className="h-6 w-6 rounded-full grid place-items-center text-[10px] font-semibold"
                 style={
@@ -854,7 +1132,10 @@ function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: Moc
             </div>
           ))}
         </div>
-        <div className="rounded-md border overflow-hidden" style={{ borderColor: border, backgroundColor: surface }}>
+        <div
+          className="rounded-md border overflow-hidden"
+          style={{ borderColor: border, backgroundColor: surface }}
+        >
           {shifts.map((s, i) => (
             <div
               key={s.name}
@@ -862,10 +1143,16 @@ function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: Moc
               style={{ borderTop: i === 0 ? "none" : `1px solid ${border}` }}
             >
               <div className="min-w-0">
-                <div className="text-[10px] font-semibold truncate" style={{ color: f }}>{s.name}</div>
-                <div className="text-[9px]" style={{ color: muted }}>{s.role}</div>
+                <div className="text-[10px] font-semibold truncate" style={{ color: f }}>
+                  {s.name}
+                </div>
+                <div className="text-[9px]" style={{ color: muted }}>
+                  {s.role}
+                </div>
               </div>
-              <div className="text-[10px] font-mono tabular-nums" style={{ color: s.tone }}>{s.time}</div>
+              <div className="text-[10px] font-mono tabular-nums" style={{ color: s.tone }}>
+                {s.time}
+              </div>
             </div>
           ))}
         </div>
@@ -877,18 +1164,31 @@ function ScheduleMock({ f, a, muted, surface, border, shortName, onAccent }: Moc
 function SigninMock({ b, f, a, muted, surface, border, orgName, shortName, onAccent }: MockProps) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center px-4 gap-3 text-center">
-      <div className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold" style={{ backgroundColor: a, color: onAccent ?? b }}>
+      <div
+        className="h-10 w-10 rounded-xl grid place-items-center text-sm font-bold"
+        style={{ backgroundColor: a, color: onAccent ?? b }}
+      >
         {shortName?.slice(0, 1).toUpperCase() ?? "O"}
       </div>
       <div>
-        <div className="text-[11px] uppercase tracking-[1.4px]" style={{ color: muted }}>Welcome to</div>
-        <div className="text-base font-semibold leading-tight" style={{ color: f }}>{orgName}</div>
+        <div className="text-[11px] uppercase tracking-[1.4px]" style={{ color: muted }}>
+          Welcome to
+        </div>
+        <div className="text-base font-semibold leading-tight" style={{ color: f }}>
+          {orgName}
+        </div>
       </div>
       <div className="w-full space-y-1.5">
-        <div className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center" style={{ borderColor: border, backgroundColor: surface, color: muted }}>
+        <div
+          className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center"
+          style={{ borderColor: border, backgroundColor: surface, color: muted }}
+        >
           you@work.com
         </div>
-        <div className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center" style={{ borderColor: border, backgroundColor: surface, color: muted }}>
+        <div
+          className="h-7 w-full rounded-md border px-2 text-[10px] flex items-center"
+          style={{ borderColor: border, backgroundColor: surface, color: muted }}
+        >
           ••••••••
         </div>
         <button
@@ -899,12 +1199,24 @@ function SigninMock({ b, f, a, muted, surface, border, orgName, shortName, onAcc
           Sign in
         </button>
       </div>
-      <div className="text-[9px]" style={{ color: muted }}>Secure staff access</div>
+      <div className="text-[9px]" style={{ color: muted }}>
+        Secure staff access
+      </div>
     </div>
   );
 }
 
-function ToggleRow({ label, help, checked, onChange }: { label: string; help: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleRow({
+  label,
+  help,
+  checked,
+  onChange,
+}: {
+  label: string;
+  help: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="min-w-0">
@@ -917,7 +1229,9 @@ function ToggleRow({ label, help, checked, onChange }: { label: string; help: st
         className={`relative h-6 w-11 rounded-full border transition shrink-0 ${checked ? "bg-[var(--color-gold)] border-[var(--color-gold)]" : "bg-card border-border"}`}
         aria-pressed={checked}
       >
-        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`} />
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-[22px]" : "left-0.5"}`}
+        />
       </button>
     </div>
   );
@@ -934,7 +1248,8 @@ function PushNotificationsPanel() {
     const result = await requestPermission();
     setBusy(false);
     if (result === "granted") toast.success("Push notifications enabled");
-    else if (result === "denied") toast.error("Notifications blocked — enable them in your browser settings");
+    else if (result === "denied")
+      toast.error("Notifications blocked — enable them in your browser settings");
   };
 
   return (
@@ -944,17 +1259,19 @@ function PushNotificationsPanel() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-sm font-semibold inline-flex items-center gap-2">
-              {permission === "granted"
-                ? <Bell className="h-3.5 w-3.5 text-[var(--color-gold)]" />
-                : <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
+              {permission === "granted" ? (
+                <Bell className="h-3.5 w-3.5 text-[var(--color-gold)]" />
+              ) : (
+                <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
               Browser push notifications
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {permission === "granted"
                 ? "You'll receive alerts even when the app is in the background."
                 : permission === "denied"
-                ? "Notifications are blocked. Allow them in your browser / device settings."
-                : "Get notified of critical alerts and announcements when the app is in the background."}
+                  ? "Notifications are blocked. Allow them in your browser / device settings."
+                  : "Get notified of critical alerts and announcements when the app is in the background."}
             </div>
           </div>
           {permission !== "granted" && permission !== "denied" && (
@@ -986,7 +1303,10 @@ function NotificationsPanel() {
 
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => saveFn({ data: patch as any }),
-    onSuccess: () => { toast.success("Preferences saved"); qc.invalidateQueries({ queryKey: ["my-notif-prefs"] }); },
+    onSuccess: () => {
+      toast.success("Preferences saved");
+      qc.invalidateQueries({ queryKey: ["my-notif-prefs"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -1020,7 +1340,10 @@ function NotificationsPanel() {
               <div className="text-sm font-semibold inline-flex items-center gap-2">
                 <Mail className="h-3.5 w-3.5 text-[var(--color-gold)]" /> Delivery frequency
               </div>
-              <div className="text-xs text-muted-foreground">Immediate sends each event live; daily digest batches; critical-only suppresses non-urgent.</div>
+              <div className="text-xs text-muted-foreground">
+                Immediate sends each event live; daily digest batches; critical-only suppresses
+                non-urgent.
+              </div>
             </div>
             <select
               disabled={!prefs.email_enabled}
@@ -1035,7 +1358,10 @@ function NotificationsPanel() {
           </div>
           <div className="pt-2 border-t border-border space-y-2">
             <div className="label-caps text-muted-foreground">Quiet hours</div>
-            <div className="text-xs text-muted-foreground -mt-1">Non-critical emails are held during this window in your timezone. Critical alerts always go through.</div>
+            <div className="text-xs text-muted-foreground -mt-1">
+              Non-critical emails are held during this window in your timezone. Critical alerts
+              always go through.
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
               <div>
                 <div className="label-caps text-muted-foreground mb-1 text-[10px]">Start</div>
@@ -1065,8 +1391,19 @@ function NotificationsPanel() {
                   onChange={(e) => save.mutate({ quietHoursTimezone: e.target.value })}
                   className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm disabled:opacity-50"
                 >
-                  {["America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Phoenix","America/Anchorage","Pacific/Honolulu","UTC"].map((tz) => (
-                    <option key={tz} value={tz}>{tz}</option>
+                  {[
+                    "America/New_York",
+                    "America/Chicago",
+                    "America/Denver",
+                    "America/Los_Angeles",
+                    "America/Phoenix",
+                    "America/Anchorage",
+                    "Pacific/Honolulu",
+                    "UTC",
+                  ].map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -1079,7 +1416,11 @@ function NotificationsPanel() {
               <ToggleRow
                 key={cat}
                 label={CATEGORY_LABELS[cat]}
-                help={cat === "critical" ? "Always recommended on — covers safety and outage events." : ""}
+                help={
+                  cat === "critical"
+                    ? "Always recommended on — covers safety and outage events."
+                    : ""
+                }
                 checked={categories[cat] !== false}
                 onChange={(v) => save.mutate({ categories: { ...categories, [cat]: v } })}
               />
@@ -1090,4 +1431,3 @@ function NotificationsPanel() {
     </>
   );
 }
-

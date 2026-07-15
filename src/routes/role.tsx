@@ -7,6 +7,8 @@ export const Route = createFileRoute("/role")({
 
 function RoleRedirect() {
   const nav = useNavigate();
-  useEffect(() => { nav({ to: "/auth" }); }, [nav]);
+  useEffect(() => {
+    nav({ to: "/auth" });
+  }, [nav]);
   return null;
 }

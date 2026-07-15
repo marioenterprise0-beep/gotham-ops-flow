@@ -34,12 +34,12 @@ its own GitHub Actions auto-release workflow) and iPad PWA support — not just 
 
 All routes are files in `src/routes/`. `routeTree.gen.ts` is auto-generated — never edit it. `__root.tsx` is the only app shell. File→URL mapping:
 
-| File | URL |
-|---|---|
-| `index.tsx` | `/` |
-| `users.tsx` | `/users` |
-| `users/$id.tsx` | `/users/:id` |
-| `_layout.tsx` | layout wrapper (renders `<Outlet />`) |
+| File            | URL                                   |
+| --------------- | ------------------------------------- |
+| `index.tsx`     | `/`                                   |
+| `users.tsx`     | `/users`                              |
+| `users/$id.tsx` | `/users/:id`                          |
+| `_layout.tsx`   | layout wrapper (renders `<Outlet />`) |
 
 Sub-namespaces: `src/routes/api/` for HTTP handlers, `src/routes/lovable/` for Lovable platform webhooks (email send, auth hooks, queue processor), `src/routes/email/` for user-facing email pages (unsubscribe).
 
@@ -76,11 +76,11 @@ Never call `createServerFn` inside route files — keep all server logic in `*.f
 
 ## Supabase Clients
 
-| Import | Key Used | Use When |
-|---|---|---|
-| `@/integrations/supabase/client` → `supabase` | anon/publishable | Client components, RLS-enforced queries |
-| `@/integrations/supabase/client.server` → `supabaseAdmin` | service role | Trusted server-only ops that bypass RLS |
-| `context.supabase` (from `requireSupabaseAuth`) | user JWT | Server functions — user-scoped, RLS enforced |
+| Import                                                    | Key Used         | Use When                                     |
+| --------------------------------------------------------- | ---------------- | -------------------------------------------- |
+| `@/integrations/supabase/client` → `supabase`             | anon/publishable | Client components, RLS-enforced queries      |
+| `@/integrations/supabase/client.server` → `supabaseAdmin` | service role     | Trusted server-only ops that bypass RLS      |
+| `context.supabase` (from `requireSupabaseAuth`)           | user JWT         | Server functions — user-scoped, RLS enforced |
 
 `src/integrations/supabase/types.ts` is auto-generated from the schema — never edit by hand.
 
@@ -103,13 +103,13 @@ To add a new email: create a template in `src/lib/email-templates/`, register it
 
 ## Environment Variables
 
-| Variable | Side | Purpose |
-|---|---|---|
-| `VITE_SUPABASE_URL` | client + server | Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | client + server | Anon/publishable key |
-| `SUPABASE_URL` | server only | Same URL for server-side auth middleware |
-| `SUPABASE_PUBLISHABLE_KEY` | server only | Anon key for auth middleware |
-| `SUPABASE_SERVICE_ROLE_KEY` | server only | Admin client + email queue |
+| Variable                        | Side            | Purpose                                  |
+| ------------------------------- | --------------- | ---------------------------------------- |
+| `VITE_SUPABASE_URL`             | client + server | Supabase project URL                     |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | client + server | Anon/publishable key                     |
+| `SUPABASE_URL`                  | server only     | Same URL for server-side auth middleware |
+| `SUPABASE_PUBLISHABLE_KEY`      | server only     | Anon key for auth middleware             |
+| `SUPABASE_SERVICE_ROLE_KEY`     | server only     | Admin client + email queue               |
 
 **Important**: On Cloudflare Workers, `process.env` reads at module scope resolve to `undefined` — always read env vars inside a function/handler, never at module top level. See `src/lib/config.server.ts` for the pattern.
 

@@ -25,7 +25,9 @@ export default defineTool({
       .limit(cap);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     // Filter to unresolved: prefer explicit resolved_at when present, else return all non-archived.
-    const rows = (data ?? []).filter((r: Record<string, unknown>) => !("resolved_at" in r) || r.resolved_at == null);
+    const rows = (data ?? []).filter(
+      (r: Record<string, unknown>) => !("resolved_at" in r) || r.resolved_at == null,
+    );
     return {
       content: [{ type: "text", text: JSON.stringify(rows, null, 2) }],
       structuredContent: { count: rows.length, alerts: rows },

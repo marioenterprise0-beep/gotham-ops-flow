@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
           return new Response("Server not configured", { status: 500 });
         }
 
-        const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+        const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
         const reminderFor = (body.reminder_for as string) === "today" ? "today" : "tomorrow";
 
         const supabase = createClient(supabaseUrl, serviceKey, {
@@ -44,13 +44,15 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
         if (shiftsErr) {
           console.error("shift-reminders: failed to query shifts", shiftsErr);
           return new Response(JSON.stringify({ ok: false, error: shiftsErr.message }), {
-            status: 500, headers: { "Content-Type": "application/json" },
+            status: 500,
+            headers: { "Content-Type": "application/json" },
           });
         }
 
         if (!shifts || shifts.length === 0) {
           return new Response(JSON.stringify({ ok: true, sent: 0, date: dateStr }), {
-            status: 200, headers: { "Content-Type": "application/json" },
+            status: 200,
+            headers: { "Content-Type": "application/json" },
           });
         }
 
@@ -99,7 +101,12 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
             await enqueueAlertEmail({
               alertId: null,
               templateName: "shift-reminder",
-              templateData: { recipient_name: name, location, shifts: shiftRows, reminder_for: reminderFor },
+              templateData: {
+                recipient_name: name,
+                location,
+                shifts: shiftRows,
+                reminder_for: reminderFor,
+              },
               recipients: [{ user_id: empId, email, display_name: name, role: "crew" as const }],
               category: "schedule",
               priority: "normal",
@@ -115,7 +122,8 @@ export const Route = createFileRoute("/api/public/hooks/shift-reminders")({
         }
 
         return new Response(JSON.stringify({ ok: true, sent, date: dateStr }), {
-          status: 200, headers: { "Content-Type": "application/json" },
+          status: 200,
+          headers: { "Content-Type": "application/json" },
         });
       },
     },

@@ -3,8 +3,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  CommandDialog, CommandInput, CommandList, CommandEmpty,
-  CommandGroup, CommandItem, CommandSeparator, CommandShortcut,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
 import { canSee, useRole } from "@/lib/role";
@@ -13,32 +19,51 @@ import { actOnAlert, markCategoryRead } from "@/lib/alerts.functions";
 import { completeTask } from "@/lib/tasks.functions";
 import { toast } from "sonner";
 import {
-  Home, ListChecks, Clock, Banknote, ClipboardCheck, ScrollText, CalendarDays,
-  Timer, Boxes, BookOpen, Star, Activity, Bell, Shield, Users as UsersIcon,
-  KeyRound, BarChart3, Settings as SettingsIcon, LogOut, CheckCircle2,
-  AlertTriangle, Megaphone, CheckCheck,
+  Home,
+  ListChecks,
+  Clock,
+  Banknote,
+  ClipboardCheck,
+  ScrollText,
+  CalendarDays,
+  Timer,
+  Boxes,
+  BookOpen,
+  Star,
+  Activity,
+  Bell,
+  Shield,
+  Users as UsersIcon,
+  KeyRound,
+  BarChart3,
+  Settings as SettingsIcon,
+  LogOut,
+  CheckCircle2,
+  AlertTriangle,
+  Megaphone,
+  CheckCheck,
 } from "lucide-react";
 
 type Gate = "manager" | "analytics" | "owner" | undefined;
 const ROUTES: { to: string; label: string; icon: any; gate?: Gate; key: string }[] = [
-  { to: "/",            key: "dashboard",   label: "Dashboard",    icon: Home },
-  { to: "/my-tasks",    key: "my-tasks",    label: "My Tasks",     icon: ListChecks },
-  { to: "/time-clock",  key: "time-clock",  label: "Time Clock",   icon: Clock },
-  { to: "/cash",        key: "cash",        label: "Cash",         icon: Banknote },
-  { to: "/operations",  key: "operations",  label: "Operations",   icon: ClipboardCheck },
-  { to: "/recaps",      key: "recaps",      label: "Daily Recap",  icon: ScrollText,   gate: "manager" },
-  { to: "/schedule",    key: "schedule",    label: "Scheduling",   icon: CalendarDays },
-  { to: "/labor",       key: "labor",       label: "Labor",        icon: Timer,        gate: "manager" },
-  { to: "/inventory",   key: "inventory",   label: "Inventory",    icon: Boxes },
-  
-  { to: "/sops",        key: "sops",        label: "SOPs",         icon: BookOpen },
-  { to: "/hospitality", key: "hospitality", label: "Hospitality",  icon: Star },
-  { to: "/health",      key: "health",      label: "Health Score", icon: Activity,     gate: "manager" },
-  { to: "/alerts",      key: "alerts",      label: "Alerts",       icon: Bell,         gate: "manager" },
-  { to: "/manager",     key: "manager",     label: "Manager",      icon: Shield,       gate: "manager" },
-  { to: "/admin",       key: "admin",       label: "Admin",        icon: Shield,       gate: "owner" },
-  { to: "/analytics",   key: "analytics",   label: "Analytics",    icon: BarChart3,    gate: "analytics" },
-  { to: "/settings",    key: "settings",    label: "Settings",     icon: SettingsIcon },
+  { to: "/", key: "dashboard", label: "Dashboard", icon: Home },
+  { to: "/my-tasks", key: "my-tasks", label: "My Tasks", icon: ListChecks },
+  { to: "/time-clock", key: "time-clock", label: "Time Clock", icon: Clock },
+  { to: "/cash", key: "cash", label: "Cash", icon: Banknote },
+  { to: "/operations", key: "operations", label: "Operations", icon: ClipboardCheck },
+  { to: "/recaps", key: "recaps", label: "Daily Recap", icon: ScrollText, gate: "manager" },
+  { to: "/schedule", key: "schedule", label: "Scheduling", icon: CalendarDays },
+  { to: "/labor", key: "labor", label: "Labor", icon: Timer, gate: "manager" },
+  { to: "/inventory", key: "inventory", label: "Inventory", icon: Boxes },
+
+  { to: "/sops", key: "sops", label: "SOPs", icon: BookOpen },
+  { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
+  { to: "/health", key: "health", label: "Health Score", icon: Activity, gate: "manager" },
+  { to: "/alerts", key: "alerts", label: "Alerts", icon: Bell, gate: "manager" },
+  { to: "/manager", key: "manager", label: "Manager", icon: Shield, gate: "manager" },
+  { to: "/admin", key: "admin", label: "Admin", icon: Shield, gate: "owner" },
+  { to: "/analytics", key: "analytics", label: "Analytics", icon: BarChart3, gate: "analytics" },
+  { to: "/settings", key: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
 export function CommandPalette() {
@@ -64,12 +89,17 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const visibleRoutes = useMemo(() => ROUTES.filter((r) => {
-    if (r.gate === "owner") { if (roleId !== "owner") return false; }
-    else if (r.gate && !canSee(roleId, r.gate)) return false;
-    if (roleId !== "owner" && disabledTabs?.has?.(r.key)) return false;
-    return true;
-  }), [roleId, disabledTabs]);
+  const visibleRoutes = useMemo(
+    () =>
+      ROUTES.filter((r) => {
+        if (r.gate === "owner") {
+          if (roleId !== "owner") return false;
+        } else if (r.gate && !canSee(roleId, r.gate)) return false;
+        if (roleId !== "owner" && disabledTabs?.has?.(r.key)) return false;
+        return true;
+      }),
+    [roleId, disabledTabs],
+  );
 
   // Recent open alerts
   const { data: alerts = [] } = useQuery({
@@ -107,7 +137,10 @@ export function CommandPalette() {
   const complete = useServerFn(completeTask);
   const markCat = useServerFn(markCategoryRead);
 
-  function go(to: string) { setOpen(false); nav({ to: to as any }); }
+  function go(to: string) {
+    setOpen(false);
+    nav({ to: to as any });
+  }
 
   async function quickResolve(alertId: string, title: string) {
     setOpen(false);
@@ -165,7 +198,13 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go("/time-clock")}>
             <Clock className="h-4 w-4 mr-2" /> Open time clock
           </CommandItem>
-          <CommandItem onSelect={async () => { setOpen(false); await signOut(); nav({ to: "/auth" }); }}>
+          <CommandItem
+            onSelect={async () => {
+              setOpen(false);
+              await signOut();
+              nav({ to: "/auth" });
+            }}
+          >
             <LogOut className="h-4 w-4 mr-2" /> Sign out
           </CommandItem>
         </CommandGroup>
@@ -194,11 +233,15 @@ export function CommandPalette() {
                   value={`alert ${a.title} ${a.type} ${a.source_module ?? ""}`}
                   onSelect={() => quickResolve(a.id, a.title)}
                 >
-                  <AlertTriangle className={
-                    a.priority === "critical" ? "h-4 w-4 mr-2 text-red-500"
-                    : a.priority === "high" ? "h-4 w-4 mr-2 text-orange-500"
-                    : "h-4 w-4 mr-2 text-muted-foreground"
-                  } />
+                  <AlertTriangle
+                    className={
+                      a.priority === "critical"
+                        ? "h-4 w-4 mr-2 text-red-500"
+                        : a.priority === "high"
+                          ? "h-4 w-4 mr-2 text-orange-500"
+                          : "h-4 w-4 mr-2 text-muted-foreground"
+                    }
+                  />
                   <span className="truncate">{a.title}</span>
                   <CommandShortcut>resolve</CommandShortcut>
                 </CommandItem>

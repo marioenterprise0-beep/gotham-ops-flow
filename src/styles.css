@@ -61,73 +61,92 @@
   --radius: 0.75rem;
 
   /* Modern dark theme — near-black surfaces, off-white text, restrained accents */
-  --background: #08090B;
-  --foreground: #F5F5F4;
+  --background: #08090b;
+  --foreground: #f5f5f4;
 
   --card: #101114;
-  --card-foreground: #F5F5F4;
-  --popover: #14161A;
-  --popover-foreground: #F5F5F4;
+  --card-foreground: #f5f5f4;
+  --popover: #14161a;
+  --popover-foreground: #f5f5f4;
 
-  --ink: #F5F5F4;
-  --primary: #EF4444;
-  --primary-foreground: #0A0A0A;
+  --ink: #f5f5f4;
+  --primary: #ef4444;
+  --primary-foreground: #0a0a0a;
 
-  --secondary: #17191D;
-  --secondary-foreground: #F5F5F4;
-  --graphite: #17191D;
+  --secondary: #17191d;
+  --secondary-foreground: #f5f5f4;
+  --graphite: #17191d;
 
-  --muted: #17191D;
-  --muted-foreground: #A1A1AA;
+  --muted: #17191d;
+  --muted-foreground: #a1a1aa;
 
-  --accent: #22C55E;
-  --accent-foreground: #0A0A0A;
+  --accent: #22c55e;
+  --accent-foreground: #0a0a0a;
 
   /* Legacy "gold" tokens re-mapped to green accent so existing usages stay themed. */
-  --gold: #22C55E;
-  --gold-light: #4ADE80;
-  --gold-foreground: #0A0A0A;
+  --gold: #22c55e;
+  --gold-light: #4ade80;
+  --gold-foreground: #0a0a0a;
 
-  --success: #22C55E;
-  --success-foreground: #0A0A0A;
-  --success-bg: #052E16;
-  --warning: #F59E0B;
-  --warning-foreground: #0A0A0A;
-  --warning-bg: #2A1F00;
-  --danger: #EF4444;
-  --danger-bg: #2A0A0A;
-  --destructive: #EF4444;
-  --destructive-foreground: #F5F5F4;
+  --success: #22c55e;
+  --success-foreground: #0a0a0a;
+  --success-bg: #052e16;
+  --warning: #f59e0b;
+  --warning-foreground: #0a0a0a;
+  --warning-bg: #2a1f00;
+  --danger: #ef4444;
+  --danger-bg: #2a0a0a;
+  --destructive: #ef4444;
+  --destructive-foreground: #f5f5f4;
 
-  --border: #23262C;
-  --input: #1B1D22;
-  --ring: #EF4444;
+  --border: #23262c;
+  --input: #1b1d22;
+  --ring: #ef4444;
 
-  --sidebar: #0B0C0F;
-  --sidebar-foreground: #E4E4E7;
-  --sidebar-primary: #EF4444;
-  --sidebar-primary-foreground: #0A0A0A;
-  --sidebar-accent: #14161A;
-  --sidebar-accent-foreground: #F5F5F4;
-  --sidebar-border: #23262C;
-  --sidebar-ring: #EF4444;
+  --sidebar: #0b0c0f;
+  --sidebar-foreground: #e4e4e7;
+  --sidebar-primary: #ef4444;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #14161a;
+  --sidebar-accent-foreground: #f5f5f4;
+  --sidebar-border: #23262c;
+  --sidebar-ring: #ef4444;
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html { background-color: var(--color-background); color-scheme: dark; }
-  html, body {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    background-color: var(--color-background);
+    color-scheme: dark;
+  }
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     font-weight: 400;
   }
-  .font-display, .font-han { font-family: "Bebas Neue", sans-serif; letter-spacing: 0.04em; }
-  h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.01em; }
+  .font-display,
+  .font-han {
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.04em;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
 }
 
-@utility text-balance { text-wrap: balance; }
+@utility text-balance {
+  text-wrap: balance;
+}
 
 @utility label-caps {
   font-size: 11px;
@@ -137,38 +156,53 @@
 }
 
 @utility surface-dark {
-  background-color: #0A0A0A;
-  color: #FFFFFF;
+  background-color: #0a0a0a;
+  color: #ffffff;
 }
 
 @utility surface-graphite {
-  background-color: #1C1C1C;
-  color: #FFFFFF;
+  background-color: #1c1c1c;
+  color: #ffffff;
 }
 
 @utility card-shadow {
-  box-shadow: 0 1px 2px rgba(10,10,10,0.04), 0 4px 16px -8px rgba(10,10,10,0.08);
+  box-shadow:
+    0 1px 2px rgba(10, 10, 10, 0.04),
+    0 4px 16px -8px rgba(10, 10, 10, 0.08);
 }
 
 @layer base {
   /* Tactile feedback for all interactive buttons (including raw <button> elements) */
-  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
-    transition: transform 150ms ease-out, filter 150ms ease-out, background-color 150ms ease-out, box-shadow 150ms ease-out;
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    transition:
+      transform 150ms ease-out,
+      filter 150ms ease-out,
+      background-color 150ms ease-out,
+      box-shadow 150ms ease-out;
   }
-  button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
     transform: scale(0.97);
     filter: brightness(0.95);
   }
-  button:disabled, [role="button"][aria-disabled="true"] {
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
     cursor: not-allowed;
   }
 }
 
 @keyframes button-flash {
-  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ring) 55%, transparent); }
-  100% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-ring) 0%, transparent); }
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ring) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--color-ring) 0%, transparent);
+  }
 }
-.animate-button-flash { animation: button-flash 450ms ease-out; }
+.animate-button-flash {
+  animation: button-flash 450ms ease-out;
+}
 
 /* ─── iPad PWA optimizations ─────────────────────────────────────────────── */
 
@@ -185,7 +219,10 @@
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
 }
-input, textarea, select, [contenteditable] {
+input,
+textarea,
+select,
+[contenteditable] {
   -webkit-touch-callout: default;
   -webkit-user-select: text;
   user-select: text;

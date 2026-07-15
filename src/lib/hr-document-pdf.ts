@@ -14,7 +14,11 @@ const DARK: [number, number, number] = [10, 10, 10];
 const PAGE_MARGIN = 40;
 const CONTENT_WIDTH = 515;
 
-type SignatureRow = { signer_role_label: string; typed_full_name: string | null; signed_at: string | null };
+type SignatureRow = {
+  signer_role_label: string;
+  typed_full_name: string | null;
+  signed_at: string | null;
+};
 
 export type HrDocumentPdfInput = {
   title: string;
@@ -22,7 +26,11 @@ export type HrDocumentPdfInput = {
   field_values: Record<string, string>;
 };
 
-function resolveBlank(key: string, fieldValues: Record<string, string>, placeholder: string): string {
+function resolveBlank(
+  key: string,
+  fieldValues: Record<string, string>,
+  placeholder: string,
+): string {
   const saved = fieldValues[key];
   if (saved !== undefined && saved !== null && String(saved).trim() !== "") return String(saved);
   return placeholder.trim() === "" ? "(left blank)" : placeholder;
@@ -31,18 +39,24 @@ function resolveBlank(key: string, fieldValues: Record<string, string>, placehol
 // Mirrors renderInline's tag+blank tokenizing, but produces plain text —
 // PDF body text here doesn't need the <b>/<font> styling, just the
 // content, so tags are stripped rather than re-rendered as rich text.
-function resolveInlineText(text: string, blockIndex: number, fieldValues: Record<string, string>): string {
+function resolveInlineText(
+  text: string,
+  blockIndex: number,
+  fieldValues: Record<string, string>,
+): string {
   let blankIdx = 0;
-  return text
-    .replace(/<\/?b>|<font[^>]*>|<\/font>/gi, "")
-    .replace(/_{3,}/g, () => {
-      const key = `b${blockIndex}_u${blankIdx++}`;
-      const saved = fieldValues[key];
-      return saved && String(saved).trim() !== "" ? `[${saved}]` : "________";
-    });
+  return text.replace(/<\/?b>|<font[^>]*>|<\/font>/gi, "").replace(/_{3,}/g, () => {
+    const key = `b${blockIndex}_u${blankIdx++}`;
+    const saved = fieldValues[key];
+    return saved && String(saved).trim() !== "" ? `[${saved}]` : "________";
+  });
 }
 
-function checkboxLine(segments: { label: string }[], baseKey: string, fieldValues: Record<string, string>): string {
+function checkboxLine(
+  segments: { label: string }[],
+  baseKey: string,
+  fieldValues: Record<string, string>,
+): string {
   return segments
     .map((seg, i) => {
       const checked = fieldValues[`${baseKey}_cb${i}`] === "true";
@@ -51,7 +65,10 @@ function checkboxLine(segments: { label: string }[], baseKey: string, fieldValue
     .join("    ");
 }
 
-export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: SignatureRow[]): { blob: Blob; filename: string } {
+export function buildHrDocumentPdf(
+  assignment: HrDocumentPdfInput,
+  signatures: SignatureRow[],
+): { blob: Blob; filename: string } {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const fv = assignment.field_values ?? {};
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -63,7 +80,11 @@ export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: S
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(110);
-  doc.text(`Dip N Shake · Completed record · Generated ${new Date().toLocaleString()}`, PAGE_MARGIN, 66);
+  doc.text(
+    `Dip N Shake · Completed record · Generated ${new Date().toLocaleString()}`,
+    PAGE_MARGIN,
+    66,
+  );
   doc.setTextColor(0);
 
   function ensureSpace(needed: number) {
@@ -107,7 +128,11 @@ export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: S
 
     if (block.type === "bullet") {
       const cb = splitCheckboxSegments(block.text);
-      writeText(cb ? checkboxLine(cb, `b${blockIndex}`, fv) : `•  ${resolveInlineText(block.text, blockIndex, fv)}`);
+      writeText(
+        cb
+          ? checkboxLine(cb, `b${blockIndex}`, fv)
+          : `•  ${resolveInlineText(block.text, blockIndex, fv)}`,
+      );
       continue;
     }
 
@@ -123,7 +148,8 @@ export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: S
         return row.map((cell, ci) => {
           const cb = splitCheckboxSegments(cell);
           if (cb) return checkboxLine(cb, `b${blockIndex}_r${ri}_c${ci}`, fv);
-          if (isFillablePlaceholder(cell)) return resolveBlank(`b${blockIndex}_r${ri}_c${ci}`, fv, cell);
+          if (isFillablePlaceholder(cell))
+            return resolveBlank(`b${blockIndex}_r${ri}_c${ci}`, fv, cell);
           return cell;
         });
       });
@@ -165,7 +191,11 @@ export function buildHrDocumentPdf(assignment: HrDocumentPdfInput, signatures: S
   return { blob, filename };
 }
 
-export async function uploadHrDocumentPdf(supabase: any, assignmentId: string, blob: Blob): Promise<string> {
+export async function uploadHrDocumentPdf(
+  supabase: any,
+  assignmentId: string,
+  blob: Blob,
+): Promise<string> {
   const path = `hr-docs/completed/${assignmentId}.pdf`;
   const { error } = await supabase.storage
     .from("gotham-photos")

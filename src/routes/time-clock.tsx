@@ -10,14 +10,29 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogAction,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import {
-  clockIn, clockOut, getMyActivePunch, getMyWeek,
-  submitCorrection, submitTimeOff, submitShiftNote, listMyRequests,
-  listEmployeesForPunchAdmin, listPunchesForAdmin,
-  managerClockInEmployee, managerClockOutEmployee, managerEditPunch, managerDeletePunch,
+  clockIn,
+  clockOut,
+  getMyActivePunch,
+  getMyWeek,
+  submitCorrection,
+  submitTimeOff,
+  submitShiftNote,
+  listMyRequests,
+  listEmployeesForPunchAdmin,
+  listPunchesForAdmin,
+  managerClockInEmployee,
+  managerClockOutEmployee,
+  managerEditPunch,
+  managerDeletePunch,
 } from "@/lib/timeclock.functions";
 
 import { listMyScheduleShifts } from "@/lib/schedule.functions";
@@ -25,10 +40,21 @@ import { listMyTasks } from "@/lib/tasks.functions";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, LogIn, LogOut, FileText, Calendar, MessageSquare, MapPin, AlertTriangle, Coffee, CameraIcon } from "lucide-react";
+import {
+  Clock,
+  LogIn,
+  LogOut,
+  FileText,
+  Calendar,
+  MessageSquare,
+  MapPin,
+  AlertTriangle,
+  Coffee,
+  CameraIcon,
+} from "lucide-react";
 
-const BREAK_KEY  = "gotham:break-start:v1";
-const BREAK_ACC  = "gotham:break-acc:v1";   // accumulated break minutes from prior breaks this punch
+const BREAK_KEY = "gotham:break-start:v1";
+const BREAK_ACC = "gotham:break-acc:v1"; // accumulated break minutes from prior breaks this punch
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -57,7 +83,11 @@ function TimeClockPage() {
   const inFn = useServerFn(clockIn);
   const outFn = useServerFn(clockOut);
 
-  const { data: active } = useQuery({ queryKey: ["my-active-punch"], queryFn: () => activeFn(), refetchInterval: 30_000 });
+  const { data: active } = useQuery({
+    queryKey: ["my-active-punch"],
+    queryFn: () => activeFn(),
+    refetchInterval: 30_000,
+  });
   const { data: week } = useQuery({ queryKey: ["my-week"], queryFn: () => weekFn({ data: {} }) });
 
   const shiftsFn = useServerFn(listMyScheduleShifts);
@@ -68,14 +98,20 @@ function TimeClockPage() {
   });
 
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Break tracking — persisted in localStorage so it survives page refresh
   const [onBreak, setOnBreak] = useState<boolean>(() => !!localStorage.getItem(BREAK_KEY));
   const [breakStart, setBreakStart] = useState<number | null>(() => {
-    const v = localStorage.getItem(BREAK_KEY); return v ? Number(v) : null;
+    const v = localStorage.getItem(BREAK_KEY);
+    return v ? Number(v) : null;
   });
-  const [breakAccMin, setBreakAccMin] = useState<number>(() => Number(localStorage.getItem(BREAK_ACC) ?? "0"));
+  const [breakAccMin, setBreakAccMin] = useState<number>(() =>
+    Number(localStorage.getItem(BREAK_ACC) ?? "0"),
+  );
 
   const breakElapsedMin = onBreak && breakStart ? (now.getTime() - breakStart) / 60000 : 0;
   const totalBreakMin = breakAccMin + breakElapsedMin;
@@ -83,21 +119,29 @@ function TimeClockPage() {
   function startBreak() {
     const t = Date.now();
     localStorage.setItem(BREAK_KEY, String(t));
-    setBreakStart(t); setOnBreak(true);
+    setBreakStart(t);
+    setOnBreak(true);
   }
   function endBreak() {
     const extra = breakStart ? (Date.now() - breakStart) / 60000 : 0;
     const newAcc = breakAccMin + extra;
     localStorage.setItem(BREAK_ACC, String(newAcc));
     localStorage.removeItem(BREAK_KEY);
-    setBreakAccMin(newAcc); setBreakStart(null); setOnBreak(false);
+    setBreakAccMin(newAcc);
+    setBreakStart(null);
+    setOnBreak(false);
   }
   function clearBreakState() {
-    localStorage.removeItem(BREAK_KEY); localStorage.removeItem(BREAK_ACC);
-    setOnBreak(false); setBreakStart(null); setBreakAccMin(0);
+    localStorage.removeItem(BREAK_KEY);
+    localStorage.removeItem(BREAK_ACC);
+    setOnBreak(false);
+    setBreakStart(null);
+    setBreakAccMin(0);
   }
   // Reset break state when no active punch
-  useEffect(() => { if (!active) clearBreakState(); }, [active]);
+  useEffect(() => {
+    if (!active) clearBreakState();
+  }, [active]);
 
   // Selfie capture
   const selfieRef = useRef<HTMLInputElement>(null);
@@ -121,7 +165,10 @@ function TimeClockPage() {
       };
 
       // Detect file picker dismissed without selecting (focus returns to window)
-      const onWindowFocus = () => setTimeout(() => { if (!input.files?.length) settle(null); }, 300);
+      const onWindowFocus = () =>
+        setTimeout(() => {
+          if (!input.files?.length) settle(null);
+        }, 300);
       // Hard fallback — never block clock-in longer than 30s
       const timer = setTimeout(() => settle(null), 30_000);
 
@@ -134,12 +181,21 @@ function TimeClockPage() {
         try {
           const ext = file.name.split(".").pop() ?? "jpg";
           const path = `selfies/${Date.now()}_clockin.${ext}`;
-          const { error } = await supabase.storage.from("gotham-photos").upload(path, file, { upsert: true });
-          if (error) { settle(null); return; }
-          const { data: signed } = await supabase.storage.from("gotham-photos").createSignedUrl(path, 60 * 60 * 8);
+          const { error } = await supabase.storage
+            .from("gotham-photos")
+            .upload(path, file, { upsert: true });
+          if (error) {
+            settle(null);
+            return;
+          }
+          const { data: signed } = await supabase.storage
+            .from("gotham-photos")
+            .createSignedUrl(path, 60 * 60 * 8);
           setSelfieUrl(signed?.signedUrl ?? null);
           settle(signed?.signedUrl ?? null);
-        } catch { settle(null); }
+        } catch {
+          settle(null);
+        }
       };
 
       window.addEventListener("focus", onWindowFocus, { once: true });
@@ -154,13 +210,13 @@ function TimeClockPage() {
 
   // Next upcoming shift (only relevant when not clocked in)
   const nextShift = !active
-    ? (upcomingShifts as any[])
+    ? ((upcomingShifts as any[])
         .filter((s) => s.shift_date >= now.toISOString().slice(0, 10))
         .sort((a, b) =>
           a.shift_date !== b.shift_date
             ? a.shift_date.localeCompare(b.shift_date)
             : a.start_time.localeCompare(b.start_time),
-        )[0] ?? null
+        )[0] ?? null)
     : null;
   const nextShiftStart = nextShift
     ? new Date(`${nextShift.shift_date}T${nextShift.start_time}`)
@@ -173,7 +229,12 @@ function TimeClockPage() {
     if (typeof navigator === "undefined" || !navigator.geolocation) return null;
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          }),
         () => resolve(null),
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
       );
@@ -190,18 +251,25 @@ function TimeClockPage() {
       // the file picker can hang the clock-in for up to 30s if dismissed
       // without the window losing focus. Fire-and-forget so the punch is
       // never blocked by photo capture.
-      const isTouch = typeof window !== "undefined" &&
-        (("ontouchstart" in window) || (navigator as any).maxTouchPoints > 0);
+      const isTouch =
+        typeof window !== "undefined" &&
+        ("ontouchstart" in window || (navigator as any).maxTouchPoints > 0);
       if (isTouch) {
         void captureSelfie().catch(() => null);
       }
-      return inFn({ data: {
-        deviceInfo: {
-          ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "",
-          ...(geo.accuracy > 30 ? { low_gps_accuracy: true, gps_accuracy_m: Math.round(geo.accuracy) } : {}),
+      return inFn({
+        data: {
+          deviceInfo: {
+            ua: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : "",
+            ...(geo.accuracy > 30
+              ? { low_gps_accuracy: true, gps_accuracy_m: Math.round(geo.accuracy) }
+              : {}),
+          },
+          lat: geo.lat,
+          lng: geo.lng,
+          accuracy: geo.accuracy,
         },
-        lat: geo.lat, lng: geo.lng, accuracy: geo.accuracy,
-      } });
+      });
     },
     onSuccess: (result) => {
       if (!result.ok) {
@@ -209,13 +277,19 @@ function TimeClockPage() {
         return;
       }
       const assigned = (result as any).assignedTaskCount ?? 0;
-      toast.success(assigned > 0 ? `Clocked in · ${assigned} task${assigned === 1 ? "" : "s"} assigned` : "Clocked in");
+      toast.success(
+        assigned > 0
+          ? `Clocked in · ${assigned} task${assigned === 1 ? "" : "s"} assigned`
+          : "Clocked in",
+      );
       qc.invalidateQueries({ queryKey: ["my-tasks"] });
       syncDomains(qc, "timeclock", "labor", "operations", "tasks");
     },
     onError: (e: Error) => {
       if (e.message === "LOCATION_OFF") {
-        setGeoBlock("Location access is required to clock in. Please enable location in your browser settings and try again on-site.");
+        setGeoBlock(
+          "Location access is required to clock in. Please enable location in your browser settings and try again on-site.",
+        );
         return;
       }
       toast.error(e.message);
@@ -231,21 +305,27 @@ function TimeClockPage() {
     },
     refetchInterval: 30_000,
   });
-  const incompleteTasks = myTasks.filter((t: any) => t.status !== "done" && t.status !== "signed_off" && t.status !== "missed");
+  const incompleteTasks = myTasks.filter(
+    (t: any) => t.status !== "done" && t.status !== "signed_off" && t.status !== "missed",
+  );
   const [confirmOut, setConfirmOut] = useState(false);
 
   const outM = useMutation({
     mutationFn: () => {
       // End break if active before clocking out
       if (onBreak && breakStart) endBreak();
-      const finalBreakMin = Math.round(onBreak && breakStart
-        ? breakAccMin + (Date.now() - breakStart) / 60000
-        : breakAccMin);
+      const finalBreakMin = Math.round(
+        onBreak && breakStart ? breakAccMin + (Date.now() - breakStart) / 60000 : breakAccMin,
+      );
       return outFn({ data: { breakMinutes: finalBreakMin } });
     },
     onSuccess: (result: any) => {
       const missed = result?.missedTaskCount ?? 0;
-      toast.success(missed > 0 ? `Clocked out · ${missed} task${missed === 1 ? "" : "s"} marked missed` : "Clocked out");
+      toast.success(
+        missed > 0
+          ? `Clocked out · ${missed} task${missed === 1 ? "" : "s"} marked missed`
+          : "Clocked out",
+      );
       setConfirmOut(false);
       clearBreakState();
       qc.invalidateQueries({ queryKey: ["my-tasks"] });
@@ -259,7 +339,6 @@ function TimeClockPage() {
     else outM.mutate();
   };
 
-
   return (
     <AppShell>
       <div>
@@ -268,7 +347,14 @@ function TimeClockPage() {
       </div>
 
       {/* Hidden file input for selfie capture (opens front camera on mobile) */}
-      <input ref={selfieRef} type="file" accept="image/*" capture="user" className="hidden" aria-hidden />
+      <input
+        ref={selfieRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        aria-hidden
+      />
 
       {/* Next shift card — shown when not clocked in */}
       {!active && nextShift && (
@@ -328,9 +414,11 @@ function TimeClockPage() {
         </div>
         {active && (
           <div className="mt-2 text-3xl font-display text-foreground">
-            {onBreak
-              ? <span className="text-[var(--color-gold)]">{fmtDuration(elapsed)}</span>
-              : fmtDuration(elapsed - totalBreakMin)}
+            {onBreak ? (
+              <span className="text-[var(--color-gold)]">{fmtDuration(elapsed)}</span>
+            ) : (
+              fmtDuration(elapsed - totalBreakMin)
+            )}
           </div>
         )}
         {active && totalBreakMin > 0 && (
@@ -343,12 +431,23 @@ function TimeClockPage() {
         )}
         <div className="mt-4 flex flex-col items-center gap-3">
           {!active ? (
-            <Button size="lg" className="px-10 h-14 text-base" onClick={() => inM.mutate()} disabled={inM.isPending || selfieUploading}>
+            <Button
+              size="lg"
+              className="px-10 h-14 text-base"
+              onClick={() => inM.mutate()}
+              disabled={inM.isPending || selfieUploading}
+            >
               <LogIn className="h-5 w-5" /> {inM.isPending ? "Clocking in…" : "Clock In"}
             </Button>
           ) : (
             <>
-              <Button size="lg" variant="destructive" className="px-10 h-14 text-base" onClick={handleClockOut} disabled={outM.isPending}>
+              <Button
+                size="lg"
+                variant="destructive"
+                className="px-10 h-14 text-base"
+                onClick={handleClockOut}
+                disabled={outM.isPending}
+              >
                 <LogOut className="h-5 w-5" /> Clock Out
               </Button>
               {!onBreak ? (
@@ -356,7 +455,11 @@ function TimeClockPage() {
                   <Coffee className="h-4 w-4" /> Start Break
                 </Button>
               ) : (
-                <Button size="sm" onClick={endBreak} className="gap-2 bg-[var(--color-gold)] text-[#0A0A0A] hover:bg-[var(--color-gold)]/90">
+                <Button
+                  size="sm"
+                  onClick={endBreak}
+                  className="gap-2 bg-[var(--color-gold)] text-[#0A0A0A] hover:bg-[var(--color-gold)]/90"
+                >
                   <Coffee className="h-4 w-4" /> End Break
                 </Button>
               )}
@@ -371,13 +474,19 @@ function TimeClockPage() {
           <div className="grid grid-cols-3 gap-3">
             <KPI label="Scheduled" value={fmtDuration(week.scheduledMin)} />
             <KPI label="Worked" value={fmtDuration(week.workedMin)} />
-            <KPI label="Difference" value={(week.diffMin >= 0 ? "+" : "") + fmtDuration(Math.abs(week.diffMin))} tone={week.diffMin < -30 ? "warning" : "default"} />
+            <KPI
+              label="Difference"
+              value={(week.diffMin >= 0 ? "+" : "") + fmtDuration(Math.abs(week.diffMin))}
+              tone={week.diffMin < -30 ? "warning" : "default"}
+            />
           </div>
           {week.flags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {week.flags.map((f: string) => (
                 <StatusPill key={f} tone={f === "no_break_on_long_shift" ? "danger" : "warning"}>
-                  {f === "no_break_on_long_shift" ? "Long shift — no break recorded" : f.replace(/_/g, " ")}
+                  {f === "no_break_on_long_shift"
+                    ? "Long shift — no break recorded"
+                    : f.replace(/_/g, " ")}
                 </StatusPill>
               ))}
             </div>
@@ -388,19 +497,33 @@ function TimeClockPage() {
       <SectionHeader eyebrow="Requests & notes" title="SUBMIT" />
       <Tabs defaultValue="note">
         <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="note"><MessageSquare className="h-3.5 w-3.5 mr-1" />Note</TabsTrigger>
-          <TabsTrigger value="correction"><FileText className="h-3.5 w-3.5 mr-1" />Correction</TabsTrigger>
-          <TabsTrigger value="timeoff"><Calendar className="h-3.5 w-3.5 mr-1" />Time off</TabsTrigger>
+          <TabsTrigger value="note">
+            <MessageSquare className="h-3.5 w-3.5 mr-1" />
+            Note
+          </TabsTrigger>
+          <TabsTrigger value="correction">
+            <FileText className="h-3.5 w-3.5 mr-1" />
+            Correction
+          </TabsTrigger>
+          <TabsTrigger value="timeoff">
+            <Calendar className="h-3.5 w-3.5 mr-1" />
+            Time off
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="note"><NoteForm /></TabsContent>
-        <TabsContent value="correction"><CorrectionForm /></TabsContent>
-        <TabsContent value="timeoff"><TimeOffForm /></TabsContent>
+        <TabsContent value="note">
+          <NoteForm />
+        </TabsContent>
+        <TabsContent value="correction">
+          <CorrectionForm />
+        </TabsContent>
+        <TabsContent value="timeoff">
+          <TimeOffForm />
+        </TabsContent>
       </Tabs>
 
       <MyHistory />
       <ManagePunchesPanel />
       <div className="h-6" />
-
 
       <AlertDialog open={!!geoBlock} onOpenChange={(o) => !o && setGeoBlock(null)}>
         <AlertDialogContent>
@@ -433,28 +556,50 @@ function TimeClockPage() {
               <div>
                 <div className="mb-2">If you clock out now, these will be marked missed:</div>
                 <ul className="list-disc pl-5 space-y-1 max-h-48 overflow-auto text-sm">
-                  {incompleteTasks.slice(0, 10).map((t: any) => <li key={t.id}>{t.title}</li>)}
-                  {incompleteTasks.length > 10 && <li className="text-muted-foreground">+ {incompleteTasks.length - 10} more</li>}
+                  {incompleteTasks.slice(0, 10).map((t: any) => (
+                    <li key={t.id}>{t.title}</li>
+                  ))}
+                  {incompleteTasks.length > 10 && (
+                    <li className="text-muted-foreground">+ {incompleteTasks.length - 10} more</li>
+                  )}
                 </ul>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOut(false)}>Keep working</Button>
-            <AlertDialogAction onClick={() => outM.mutate()} disabled={outM.isPending}>Clock out anyway</AlertDialogAction>
+            <Button variant="outline" onClick={() => setConfirmOut(false)}>
+              Keep working
+            </Button>
+            <AlertDialogAction onClick={() => outM.mutate()} disabled={outM.isPending}>
+              Clock out anyway
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </AppShell>
   );
 }
 
-function KPI({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "warning" }) {
+function KPI({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "warning";
+}) {
   return (
     <Card className="p-3 text-center">
       <div className="label-caps text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-xl font-display", tone === "warning" ? "text-[var(--color-warning,#C0392B)]" : "text-foreground")}>{value}</div>
+      <div
+        className={cn(
+          "mt-1 text-xl font-display",
+          tone === "warning" ? "text-[var(--color-warning,#C0392B)]" : "text-foreground",
+        )}
+      >
+        {value}
+      </div>
     </Card>
   );
 }
@@ -465,14 +610,25 @@ function NoteForm() {
   const fn = useServerFn(submitShiftNote);
   const m = useMutation({
     mutationFn: () => fn({ data: { note } }),
-    onSuccess: () => { toast.success("Note submitted"); setNote(""); syncDomains(qc, "labor", "timeclock"); },
+    onSuccess: () => {
+      toast.success("Note submitted");
+      setNote("");
+      syncDomains(qc, "labor", "timeclock");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
     <Card className="mt-3 p-4 space-y-3">
       <Label>Note</Label>
-      <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Forgot to clock out, stayed 15 minutes late." />
-      <Button onClick={() => m.mutate()} disabled={!note.trim() || m.isPending}>Submit note</Button>
+      <Textarea
+        rows={3}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="e.g. Forgot to clock out, stayed 15 minutes late."
+      />
+      <Button onClick={() => m.mutate()} disabled={!note.trim() || m.isPending}>
+        Submit note
+      </Button>
     </Card>
   );
 }
@@ -480,21 +636,38 @@ function NoteForm() {
 function CorrectionForm() {
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [type, setType] = useState<"missed_in" | "missed_out" | "wrong_time" | "extra_time" | "left_early" | "stayed_late" | "other">("missed_out");
+  const [type, setType] = useState<
+    | "missed_in"
+    | "missed_out"
+    | "wrong_time"
+    | "extra_time"
+    | "left_early"
+    | "stayed_late"
+    | "other"
+  >("missed_out");
   const [forDate, setForDate] = useState(today);
   const [inTime, setInTime] = useState("");
   const [outTime, setOutTime] = useState("");
   const [reason, setReason] = useState("");
   const fn = useServerFn(submitCorrection);
   const m = useMutation({
-    mutationFn: () => fn({
-      data: {
-        type, forDate, reason,
-        requestedIn: inTime ? new Date(`${forDate}T${inTime}:00`).toISOString() : null,
-        requestedOut: outTime ? new Date(`${forDate}T${outTime}:00`).toISOString() : null,
-      },
-    }),
-    onSuccess: () => { toast.success("Correction sent for approval"); setReason(""); setInTime(""); setOutTime(""); syncDomains(qc, "labor", "timeclock", "alerts"); },
+    mutationFn: () =>
+      fn({
+        data: {
+          type,
+          forDate,
+          reason,
+          requestedIn: inTime ? new Date(`${forDate}T${inTime}:00`).toISOString() : null,
+          requestedOut: outTime ? new Date(`${forDate}T${outTime}:00`).toISOString() : null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Correction sent for approval");
+      setReason("");
+      setInTime("");
+      setOutTime("");
+      syncDomains(qc, "labor", "timeclock", "alerts");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
@@ -502,7 +675,11 @@ function CorrectionForm() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Type</Label>
-          <select value={type} onChange={(e) => setType(e.target.value as any)} className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as any)}
+            className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+          >
             <option value="missed_in">Missed clock in</option>
             <option value="missed_out">Missed clock out</option>
             <option value="wrong_time">Wrong time</option>
@@ -529,7 +706,9 @@ function CorrectionForm() {
         <Label>Reason</Label>
         <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
       </div>
-      <Button onClick={() => m.mutate()} disabled={!reason.trim() || m.isPending}>Send to owner</Button>
+      <Button onClick={() => m.mutate()} disabled={!reason.trim() || m.isPending}>
+        Send to owner
+      </Button>
     </Card>
   );
 }
@@ -546,28 +725,69 @@ function TimeOffForm() {
   const [notes, setNotes] = useState("");
   const fn = useServerFn(submitTimeOff);
   const m = useMutation({
-    mutationFn: () => fn({ data: { startDate, endDate, fullDay, startTime: startTime || null, endTime: endTime || null, reason, notes } }),
-    onSuccess: () => { toast.success("Time off requested"); setReason(""); setNotes(""); syncDomains(qc, "labor", "timeclock", "alerts"); },
+    mutationFn: () =>
+      fn({
+        data: {
+          startDate,
+          endDate,
+          fullDay,
+          startTime: startTime || null,
+          endTime: endTime || null,
+          reason,
+          notes,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Time off requested");
+      setReason("");
+      setNotes("");
+      syncDomains(qc, "labor", "timeclock", "alerts");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
     <Card className="mt-3 p-4 space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Start date</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-        <div><Label>End date</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+        <div>
+          <Label>Start date</Label>
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </div>
+        <div>
+          <Label>End date</Label>
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </div>
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={fullDay} onChange={(e) => setFullDay(e.target.checked)} /> Full day(s)
+        <input type="checkbox" checked={fullDay} onChange={(e) => setFullDay(e.target.checked)} />{" "}
+        Full day(s)
       </label>
       {!fullDay && (
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Start time</Label><Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} /></div>
-          <div><Label>End time</Label><Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} /></div>
+          <div>
+            <Label>Start time</Label>
+            <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </div>
+          <div>
+            <Label>End time</Label>
+            <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </div>
         </div>
       )}
-      <div><Label>Reason</Label><Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Family event" /></div>
-      <div><Label>Notes (optional)</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-      <Button onClick={() => m.mutate()} disabled={!reason.trim() || m.isPending}>Submit request</Button>
+      <div>
+        <Label>Reason</Label>
+        <Input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Family event"
+        />
+      </div>
+      <div>
+        <Label>Notes (optional)</Label>
+        <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </div>
+      <Button onClick={() => m.mutate()} disabled={!reason.trim() || m.isPending}>
+        Submit request
+      </Button>
     </Card>
   );
 }
@@ -577,23 +797,66 @@ function MyHistory() {
   const { data } = useQuery({ queryKey: ["my-requests"], queryFn: () => fn() });
   if (!data) return null;
   const items = [
-    ...data.corrections.map((c: any) => ({ kind: "Correction", title: c.type.replace(/_/g, " "), status: c.status, date: c.for_date, created: c.created_at, note: c.reason })),
-    ...data.timeOff.map((t: any) => ({ kind: "Time off", title: `${t.start_date} → ${t.end_date}`, status: t.status, date: t.start_date, created: t.created_at, note: t.reason })),
-    ...data.notes.map((n: any) => ({ kind: "Note", title: n.note.slice(0, 80), status: "submitted", date: n.for_date, created: n.created_at, note: null })),
-  ].sort((a, b) => (a.created < b.created ? 1 : -1)).slice(0, 20);
+    ...data.corrections.map((c: any) => ({
+      kind: "Correction",
+      title: c.type.replace(/_/g, " "),
+      status: c.status,
+      date: c.for_date,
+      created: c.created_at,
+      note: c.reason,
+    })),
+    ...data.timeOff.map((t: any) => ({
+      kind: "Time off",
+      title: `${t.start_date} → ${t.end_date}`,
+      status: t.status,
+      date: t.start_date,
+      created: t.created_at,
+      note: t.reason,
+    })),
+    ...data.notes.map((n: any) => ({
+      kind: "Note",
+      title: n.note.slice(0, 80),
+      status: "submitted",
+      date: n.for_date,
+      created: n.created_at,
+      note: null,
+    })),
+  ]
+    .sort((a, b) => (a.created < b.created ? 1 : -1))
+    .slice(0, 20);
   if (items.length === 0) return null;
   return (
     <>
       <SectionHeader eyebrow="Audit trail" title="MY SUBMISSIONS" />
       <Card className="p-0 overflow-hidden">
         {items.map((it, i) => (
-          <div key={i} className={cn("p-3 flex items-center justify-between gap-3", i && "border-t border-border")}>
+          <div
+            key={i}
+            className={cn(
+              "p-3 flex items-center justify-between gap-3",
+              i && "border-t border-border",
+            )}
+          >
             <div className="min-w-0">
-              <div className="text-sm font-medium truncate">{it.kind} · {it.title}</div>
+              <div className="text-sm font-medium truncate">
+                {it.kind} · {it.title}
+              </div>
               {it.note && <div className="text-xs text-muted-foreground truncate">{it.note}</div>}
-              <div className="text-[11px] text-muted-foreground mt-0.5">{new Date(it.created).toLocaleString()}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                {new Date(it.created).toLocaleString()}
+              </div>
             </div>
-            <StatusPill tone={it.status === "approved" ? "success" : it.status === "declined" ? "danger" : "warning"}>{it.status}</StatusPill>
+            <StatusPill
+              tone={
+                it.status === "approved"
+                  ? "success"
+                  : it.status === "declined"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              {it.status}
+            </StatusPill>
           </div>
         ))}
       </Card>
@@ -628,7 +891,6 @@ function joinLocal(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString();
 }
 
-
 function ManagePunchesPanel() {
   const qc = useQueryClient();
   const { roleId, actualRoleId } = useRole();
@@ -652,13 +914,20 @@ function ManagePunchesPanel() {
   async function handleDeletePunch(p: any) {
     const who = employees.find((e) => e.id === p.employee_id)?.display_name ?? "this employee";
     const when = new Date(p.clock_in_at).toLocaleString();
-    if (!window.confirm(`Delete punch for ${who} starting ${when}?\n\nThis removes it from labor hours. This cannot be undone from the UI.`)) return;
+    if (
+      !window.confirm(
+        `Delete punch for ${who} starting ${when}?\n\nThis removes it from labor hours. This cannot be undone from the UI.`,
+      )
+    )
+      return;
     try {
       await delFn({ data: { id: p.id } });
       toast.success("Punch deleted");
       refetch();
       syncDomains(qc, "timeclock", "labor");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   }
 
   const { data: employees = [] } = useQuery<any[]>({
@@ -668,7 +937,8 @@ function ManagePunchesPanel() {
   });
   const { data: punches = [], refetch } = useQuery<any[]>({
     queryKey: ["mgr-punches", employeeId, startDate, endDate],
-    queryFn: () => punchesFn({ data: { employeeId: employeeId || null, startDate, endDate } }) as Promise<any[]>,
+    queryFn: () =>
+      punchesFn({ data: { employeeId: employeeId || null, startDate, endDate } }) as Promise<any[]>,
     enabled: isOwner,
   });
 
@@ -676,7 +946,9 @@ function ManagePunchesPanel() {
 
   const empName = (id: string | null) => employees.find((e) => e.id === id)?.display_name ?? "—";
   const openPunches = punches.filter((p) => p.status === "open");
-  const employeesNotClockedIn = employees.filter((e) => !openPunches.some((p) => p.employee_id === e.id));
+  const employeesNotClockedIn = employees.filter(
+    (e) => !openPunches.some((p) => p.employee_id === e.id),
+  );
 
   function refresh() {
     refetch();
@@ -690,47 +962,77 @@ function ManagePunchesPanel() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button
             onClick={() => setMode("clock_in")}
-            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition">
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition"
+          >
             <div className="text-sm font-semibold">Clock in employee</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Start a shift for someone who forgot to clock in.</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Start a shift for someone who forgot to clock in.
+            </div>
           </button>
           <button
             onClick={() => setMode("clock_out")}
             disabled={openPunches.length === 0}
-            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition disabled:opacity-50 disabled:cursor-not-allowed">
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <div className="text-sm font-semibold">Clock out employee</div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {openPunches.length === 0 ? "No employees currently clocked in." : `${openPunches.length} currently open`}
+              {openPunches.length === 0
+                ? "No employees currently clocked in."
+                : `${openPunches.length} currently open`}
             </div>
           </button>
           <button
             onClick={() => setMode("add_shift")}
-            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition">
+            className="text-left rounded-lg border border-input p-3 hover:border-[var(--color-gold)] transition"
+          >
             <div className="text-sm font-semibold">Add completed shift</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Log a full shift after the fact (forgot to clock out).</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Log a full shift after the fact (forgot to clock out).
+            </div>
           </button>
         </div>
 
         {openPunches.length > 0 && (
           <div className="rounded-lg border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 p-3">
-            <div className="text-xs uppercase tracking-wide text-[var(--color-gold)] font-semibold mb-2">Currently clocked in</div>
+            <div className="text-xs uppercase tracking-wide text-[var(--color-gold)] font-semibold mb-2">
+              Currently clocked in
+            </div>
             <div className="space-y-2">
               {openPunches.map((p) => {
                 const start = new Date(p.clock_in_at);
-                const live = Math.max(0, (Date.now() - start.getTime()) / 60000 - (p.break_minutes ?? 0));
+                const live = Math.max(
+                  0,
+                  (Date.now() - start.getTime()) / 60000 - (p.break_minutes ?? 0),
+                );
                 return (
                   <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
                     <div className="min-w-0">
                       <div className="font-medium truncate">{empName(p.employee_id)}</div>
-                      <div className="text-xs text-muted-foreground">Since {start.toLocaleTimeString()} · {fmtDuration(live)} so far</div>
+                      <div className="text-xs text-muted-foreground">
+                        Since {start.toLocaleTimeString()} · {fmtDuration(live)} so far
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={async () => {
-                        try { await outFn({ data: { punchId: p.id, clockOutAt: new Date().toISOString() } });
-                          toast.success("Clocked out"); refresh();
-                        } catch (e: any) { toast.error(e.message); }
-                      }}>Clock out now</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(p)}>Edit</Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await outFn({
+                              data: { punchId: p.id, clockOutAt: new Date().toISOString() },
+                            });
+                            toast.success("Clocked out");
+                            refresh();
+                          } catch (e: any) {
+                            toast.error(e.message);
+                          }
+                        }}
+                      >
+                        Clock out now
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(p)}>
+                        Edit
+                      </Button>
                     </div>
                   </div>
                 );
@@ -742,35 +1044,76 @@ function ManagePunchesPanel() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-border">
           <div>
             <Label>Filter employee</Label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}
-              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+            <select
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
+              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+            >
               <option value="">All employees</option>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.display_name || e.email}</option>)}
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.display_name || e.email}
+                </option>
+              ))}
             </select>
           </div>
-          <div><Label>From</Label><Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></div>
-          <div><Label>To</Label><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></div>
+          <div>
+            <Label>From</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <Label>To</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
         </div>
 
         <div className="border rounded-md divide-y divide-border">
-          {punches.length === 0 && <div className="p-3 text-sm text-muted-foreground">No punches in range.</div>}
+          {punches.length === 0 && (
+            <div className="p-3 text-sm text-muted-foreground">No punches in range.</div>
+          )}
           {punches.map((p) => {
             const start = new Date(p.clock_in_at);
             const end = p.clock_out_at ? new Date(p.clock_out_at) : null;
-            const minutes = end ? Math.max(0, (end.getTime() - start.getTime()) / 60000 - (p.break_minutes ?? 0)) : 0;
+            const minutes = end
+              ? Math.max(0, (end.getTime() - start.getTime()) / 60000 - (p.break_minutes ?? 0))
+              : 0;
             return (
               <div key={p.id} className="p-3 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <div className="text-sm font-medium">{empName(p.employee_id)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {start.toLocaleString()} → {end ? end.toLocaleString() : <span className="text-[var(--color-gold)] font-semibold">OPEN</span>}
-                    {end && <> · {fmtDuration(minutes)} worked · break {p.break_minutes ?? 0}m</>}
+                    {start.toLocaleString()} →{" "}
+                    {end ? (
+                      end.toLocaleString()
+                    ) : (
+                      <span className="text-[var(--color-gold)] font-semibold">OPEN</span>
+                    )}
+                    {end && (
+                      <>
+                        {" "}
+                        · {fmtDuration(minutes)} worked · break {p.break_minutes ?? 0}m
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StatusPill tone={p.status === "open" ? "warning" : p.status === "auto_closed" ? "danger" : "success"}>{p.status}</StatusPill>
-                  <Button size="sm" onClick={() => setEditing(p)}>Edit</Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDeletePunch(p)}>Delete</Button>
+                  <StatusPill
+                    tone={
+                      p.status === "open"
+                        ? "warning"
+                        : p.status === "auto_closed"
+                          ? "danger"
+                          : "success"
+                    }
+                  >
+                    {p.status}
+                  </StatusPill>
+                  <Button size="sm" onClick={() => setEditing(p)}>
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => handleDeletePunch(p)}>
+                    Delete
+                  </Button>
                 </div>
               </div>
             );
@@ -782,19 +1125,29 @@ function ManagePunchesPanel() {
         <PunchFormDialog
           title="Clock in employee"
           employees={employeesNotClockedIn}
-          initial={{ employee_id: "", clock_in_at: new Date().toISOString(), clock_out_at: null, break_minutes: 0, notes: "" }}
+          initial={{
+            employee_id: "",
+            clock_in_at: new Date().toISOString(),
+            clock_out_at: null,
+            break_minutes: 0,
+            notes: "",
+          }}
           requireEmployee
           hideClockOut
           onClose={() => setMode(null)}
           onSubmit={async (vals) => {
-            await inFn({ data: {
-              employeeId: vals.employee_id,
-              clockInAt: vals.clock_in_at,
-              clockOutAt: null,
-              breakMinutes: 0,
-              notes: vals.notes || undefined,
-            } });
-            toast.success("Clocked in"); setMode(null); refresh();
+            await inFn({
+              data: {
+                employeeId: vals.employee_id,
+                clockInAt: vals.clock_in_at,
+                clockOutAt: null,
+                breakMinutes: 0,
+                notes: vals.notes || undefined,
+              },
+            });
+            toast.success("Clocked in");
+            setMode(null);
+            refresh();
           }}
         />
       )}
@@ -805,7 +1158,9 @@ function ManagePunchesPanel() {
           onClose={() => setMode(null)}
           onSubmit={async (punchId, clockOutAt) => {
             await outFn({ data: { punchId, clockOutAt } });
-            toast.success("Clocked out"); setMode(null); refresh();
+            toast.success("Clocked out");
+            setMode(null);
+            refresh();
           }}
         />
       )}
@@ -824,14 +1179,18 @@ function ManagePunchesPanel() {
           requireClockOut
           onClose={() => setMode(null)}
           onSubmit={async (vals) => {
-            await inFn({ data: {
-              employeeId: vals.employee_id,
-              clockInAt: vals.clock_in_at,
-              clockOutAt: vals.clock_out_at || null,
-              breakMinutes: vals.break_minutes,
-              notes: vals.notes || undefined,
-            } });
-            toast.success("Shift added"); setMode(null); refresh();
+            await inFn({
+              data: {
+                employeeId: vals.employee_id,
+                clockInAt: vals.clock_in_at,
+                clockOutAt: vals.clock_out_at || null,
+                breakMinutes: vals.break_minutes,
+                notes: vals.notes || undefined,
+              },
+            });
+            toast.success("Shift added");
+            setMode(null);
+            refresh();
           }}
         />
       )}
@@ -849,15 +1208,19 @@ function ManagePunchesPanel() {
           }}
           onClose={() => setEditing(null)}
           onSubmit={async (vals) => {
-            await editFn({ data: {
-              id: editing.id,
-              clockInAt: vals.clock_in_at,
-              clockOutAt: vals.clock_out_at || null,
-              breakMinutes: vals.break_minutes,
-              notes: vals.notes ?? null,
-              status: vals.status,
-            } });
-            toast.success("Punch updated"); setEditing(null); refresh();
+            await editFn({
+              data: {
+                id: editing.id,
+                clockInAt: vals.clock_in_at,
+                clockOutAt: vals.clock_out_at || null,
+                breakMinutes: vals.break_minutes,
+                notes: vals.notes ?? null,
+                status: vals.status,
+              },
+            });
+            toast.success("Punch updated");
+            setEditing(null);
+            refresh();
           }}
         />
       )}
@@ -866,7 +1229,10 @@ function ManagePunchesPanel() {
 }
 
 function ClockOutPickerDialog({
-  openPunches, empName, onClose, onSubmit,
+  openPunches,
+  empName,
+  onClose,
+  onSubmit,
 }: {
   openPunches: any[];
   empName: (id: string | null) => string;
@@ -880,23 +1246,38 @@ function ClockOutPickerDialog({
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (!punchId) { toast.error("Pick an employee"); return; }
-    if (!outDate || !outTime) { toast.error("Clock-out time required"); return; }
+    if (!punchId) {
+      toast.error("Pick an employee");
+      return;
+    }
+    if (!outDate || !outTime) {
+      toast.error("Clock-out time required");
+      return;
+    }
     setBusy(true);
-    try { await onSubmit(punchId, joinLocal(outDate, outTime)); }
-    catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
+    try {
+      await onSubmit(punchId, joinLocal(outDate, outTime));
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && onClose()}>
       <AlertDialogContent className="max-w-lg">
-        <AlertDialogHeader><AlertDialogTitle>Clock out employee</AlertDialogTitle></AlertDialogHeader>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Clock out employee</AlertDialogTitle>
+        </AlertDialogHeader>
         <div className="space-y-3">
           <div>
             <Label>Employee (currently clocked in)</Label>
-            <select value={punchId} onChange={(e) => setPunchId(e.target.value)}
-              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+            <select
+              value={punchId}
+              onChange={(e) => setPunchId(e.target.value)}
+              className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+            >
               {openPunches.map((p) => (
                 <option key={p.id} value={p.id}>
                   {empName(p.employee_id)} · in since {new Date(p.clock_in_at).toLocaleTimeString()}
@@ -907,18 +1288,40 @@ function ClockOutPickerDialog({
           <div className="space-y-2">
             <Label>Clock out at</Label>
             <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
-              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+              <div>
+                <span className="text-xs text-muted-foreground">Date</span>
+                <Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} />
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Time</span>
+                <Input
+                  type="time"
+                  step={60}
+                  value={outTime}
+                  onChange={(e) => setOutTime(e.target.value)}
+                />
+              </div>
             </div>
-            <button type="button" className="text-xs text-muted-foreground underline"
-              onClick={() => { const n = splitLocal(new Date().toISOString()); setOutDate(n.date); setOutTime(n.time); }}>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline"
+              onClick={() => {
+                const n = splitLocal(new Date().toISOString());
+                setOutDate(n.date);
+                setOutTime(n.time);
+              }}
+            >
               Use current time
             </button>
           </div>
         </div>
         <AlertDialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Clock out"}</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? "Saving…" : "Clock out"}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -926,16 +1329,37 @@ function ClockOutPickerDialog({
 }
 
 function PunchFormDialog({
-  title, employees, initial, requireEmployee, hideClockOut, requireClockOut, onClose, onSubmit,
+  title,
+  employees,
+  initial,
+  requireEmployee,
+  hideClockOut,
+  requireClockOut,
+  onClose,
+  onSubmit,
 }: {
   title: string;
   employees: any[];
-  initial: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: string };
+  initial: {
+    employee_id: string;
+    clock_in_at: string;
+    clock_out_at: string | null;
+    break_minutes: number;
+    notes: string;
+    status?: string;
+  };
   requireEmployee?: boolean;
   hideClockOut?: boolean;
   requireClockOut?: boolean;
   onClose: () => void;
-  onSubmit: (vals: { employee_id: string; clock_in_at: string; clock_out_at: string | null; break_minutes: number; notes: string; status?: "open" | "closed" | "auto_closed" }) => Promise<void>;
+  onSubmit: (vals: {
+    employee_id: string;
+    clock_in_at: string;
+    clock_out_at: string | null;
+    break_minutes: number;
+    notes: string;
+    status?: "open" | "closed" | "auto_closed";
+  }) => Promise<void>;
 }) {
   const [employee, setEmployee] = useState(initial.employee_id);
   const initIn = splitLocal(initial.clock_in_at);
@@ -946,18 +1370,30 @@ function PunchFormDialog({
   const [outTime, setOutTime] = useState(initOut.time);
   const [breakMin, setBreakMin] = useState(initial.break_minutes ?? 0);
   const [notes, setNotes] = useState(initial.notes ?? "");
-  const [status, setStatus] = useState<string>(initial.status ?? (initial.clock_out_at ? "closed" : "open"));
+  const [status, setStatus] = useState<string>(
+    initial.status ?? (initial.clock_out_at ? "closed" : "open"),
+  );
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (requireEmployee && !employee) { toast.error("Pick an employee"); return; }
-    if (!inDate || !inTime) { toast.error("Clock-in date and time required"); return; }
+    if (requireEmployee && !employee) {
+      toast.error("Pick an employee");
+      return;
+    }
+    if (!inDate || !inTime) {
+      toast.error("Clock-in date and time required");
+      return;
+    }
     const clockIn = joinLocal(inDate, inTime);
     const hasOut = !hideClockOut && Boolean(outDate && outTime);
     if (!hideClockOut) {
-      if (requireClockOut && !hasOut) { toast.error("Clock-out date and time required"); return; }
+      if (requireClockOut && !hasOut) {
+        toast.error("Clock-out date and time required");
+        return;
+      }
       if ((outDate && !outTime) || (!outDate && outTime)) {
-        toast.error("Clock-out needs both date and time"); return;
+        toast.error("Clock-out needs both date and time");
+        return;
       }
     }
     setBusy(true);
@@ -970,53 +1406,113 @@ function PunchFormDialog({
         notes,
         status: status as any,
       });
-    } catch (e: any) { toast.error(e.message); }
-    finally { setBusy(false); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
   }
-
 
   return (
     <AlertDialog open onOpenChange={(o) => !o && onClose()}>
       <AlertDialogContent className="max-w-lg">
-        <AlertDialogHeader><AlertDialogTitle>{title}</AlertDialogTitle></AlertDialogHeader>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+        </AlertDialogHeader>
         <div className="space-y-3">
           {requireEmployee && (
             <div>
               <Label>Employee</Label>
-              <select value={employee} onChange={(e) => setEmployee(e.target.value)}
-                className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+              <select
+                value={employee}
+                onChange={(e) => setEmployee(e.target.value)}
+                className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+              >
                 <option value="">Select employee…</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.display_name || e.email}</option>)}
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.display_name || e.email}
+                  </option>
+                ))}
               </select>
             </div>
           )}
           <div className="space-y-2">
             <Label>Clock in</Label>
             <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={inDate} onChange={(e) => setInDate(e.target.value)} /></div>
-              <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={inTime} onChange={(e) => setInTime(e.target.value)} /></div>
+              <div>
+                <span className="text-xs text-muted-foreground">Date</span>
+                <Input type="date" value={inDate} onChange={(e) => setInDate(e.target.value)} />
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Time</span>
+                <Input
+                  type="time"
+                  step={60}
+                  value={inTime}
+                  onChange={(e) => setInTime(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           {!hideClockOut && (
             <div className="space-y-2">
-              <Label>Clock out {!requireClockOut && <span className="text-xs text-muted-foreground font-normal">(leave blank to keep open)</span>}</Label>
+              <Label>
+                Clock out{" "}
+                {!requireClockOut && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (leave blank to keep open)
+                  </span>
+                )}
+              </Label>
               <div className="grid grid-cols-2 gap-3">
-                <div><span className="text-xs text-muted-foreground">Date</span><Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} /></div>
-                <div><span className="text-xs text-muted-foreground">Time</span><Input type="time" step={60} value={outTime} onChange={(e) => setOutTime(e.target.value)} /></div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Date</span>
+                  <Input type="date" value={outDate} onChange={(e) => setOutDate(e.target.value)} />
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Time</span>
+                  <Input
+                    type="time"
+                    step={60}
+                    value={outTime}
+                    onChange={(e) => setOutTime(e.target.value)}
+                  />
+                </div>
               </div>
               {!requireClockOut && (outDate || outTime) && (
-                <button type="button" className="text-xs text-muted-foreground underline"
-                  onClick={() => { setOutDate(""); setOutTime(""); }}>Clear clock-out</button>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline"
+                  onClick={() => {
+                    setOutDate("");
+                    setOutTime("");
+                  }}
+                >
+                  Clear clock-out
+                </button>
               )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <div><Label>Break (min)</Label><Input type="number" min={0} max={480} value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} /></div>
+            <div>
+              <Label>Break (min)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={480}
+                value={breakMin}
+                onChange={(e) => setBreakMin(Number(e.target.value))}
+              />
+            </div>
             {!requireEmployee && (
               <div>
                 <Label>Status</Label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)}
-                  className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm">
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="mt-1 w-full h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                >
                   <option value="open">Open</option>
                   <option value="closed">Closed</option>
                   <option value="auto_closed">Auto-closed</option>
@@ -1024,12 +1520,19 @@ function PunchFormDialog({
               </div>
             )}
           </div>
-          <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+          <div>
+            <Label>Notes</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
         </div>
 
         <AlertDialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? "Saving…" : "Save"}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

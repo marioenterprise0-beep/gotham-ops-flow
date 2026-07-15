@@ -32,20 +32,32 @@ function bandLabel(b: HealthScore["band"]) {
   return b === "green" ? "Healthy" : b === "yellow" ? "Needs Attention" : "Action Needed";
 }
 function bandColor(b: HealthScore["band"]) {
-  return b === "green" ? "var(--color-success)" : b === "yellow" ? "var(--color-warning)" : "var(--color-danger)";
+  return b === "green"
+    ? "var(--color-success)"
+    : b === "yellow"
+      ? "var(--color-warning)"
+      : "var(--color-danger)";
 }
 
 function Sparkline({ data, color }: { data: { date: string; score: number }[]; color: string }) {
   if (data.length === 0) return null;
-  const w = 600, h = 80, pad = 4;
+  const w = 600,
+    h = 80,
+    pad = 4;
   const xs = (i: number) => pad + (i * (w - pad * 2)) / (data.length - 1);
   const ys = (v: number) => h - pad - (v / 100) * (h - pad * 2);
   const d = data.map((p, i) => `${i === 0 ? "M" : "L"} ${xs(i)} ${ys(p.score)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-20">
-      <path d={`${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z`} fill={color} fillOpacity="0.1" />
+      <path
+        d={`${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z`}
+        fill={color}
+        fillOpacity="0.1"
+      />
       <path d={d} fill="none" stroke={color} strokeWidth="2" />
-      {data.map((p, i) => <circle key={i} cx={xs(i)} cy={ys(p.score)} r="2.5" fill={color} />)}
+      {data.map((p, i) => (
+        <circle key={i} cx={xs(i)} cy={ys(p.score)} r="2.5" fill={color} />
+      ))}
     </svg>
   );
 }
@@ -88,9 +100,16 @@ function HealthPage() {
         action={
           <div className="flex gap-1 rounded-md border border-border p-0.5 bg-background">
             {RANGES.map((r) => (
-              <button key={r.v} onClick={() => setDays(r.v)}
-                className={cn("px-3 py-1 text-xs font-semibold rounded",
-                  days === r.v ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-muted-foreground hover:text-foreground")}>
+              <button
+                key={r.v}
+                onClick={() => setDays(r.v)}
+                className={cn(
+                  "px-3 py-1 text-xs font-semibold rounded",
+                  days === r.v
+                    ? "bg-[var(--color-gold)] text-[#0A0A0A]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
                 {r.label}
               </button>
             ))}
@@ -98,9 +117,17 @@ function HealthPage() {
         }
       />
 
-      {isLoading && <Card><div className="p-6 text-center text-sm text-muted-foreground">Calculating…</div></Card>}
+      {isLoading && (
+        <Card>
+          <div className="p-6 text-center text-sm text-muted-foreground">Calculating…</div>
+        </Card>
+      )}
       {!isLoading && (!data || data.trend.length === 0) && (
-        <EmptyState icon={Activity} title="Data appears after shift completion" hint="Your store health score is built from shift recaps, punches, inventory, and SOP completion. Finish a shift to see the first reading." />
+        <EmptyState
+          icon={Activity}
+          title="Data appears after shift completion"
+          hint="Your store health score is built from shift recaps, punches, inventory, and SOP completion. Finish a shift to see the first reading."
+        />
       )}
 
       {data && data.trend.length > 0 && (
@@ -108,8 +135,10 @@ function HealthPage() {
           <Card goldAccent className="mb-3">
             <div className="flex items-center justify-between gap-6 flex-wrap">
               <div className="flex items-center gap-5">
-                <div className="grid place-items-center h-24 w-24 rounded-full border-4"
-                  style={{ borderColor: bandColor(data.band), color: bandColor(data.band) }}>
+                <div
+                  className="grid place-items-center h-24 w-24 rounded-full border-4"
+                  style={{ borderColor: bandColor(data.band), color: bandColor(data.band) }}
+                >
                   <span className="font-display text-4xl font-bold">{data.overall}</span>
                 </div>
                 <div>
@@ -135,14 +164,21 @@ function HealthPage() {
                       <Activity className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">{c.label}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{Math.round(c.weight * 100)}%</span>
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(c.weight * 100)}%
+                    </span>
                   </div>
                   <div className="flex items-baseline gap-2 mb-2">
-                    <span className="font-display text-3xl" style={{ color: bandColor(b) }}>{c.score}</span>
+                    <span className="font-display text-3xl" style={{ color: bandColor(b) }}>
+                      {c.score}
+                    </span>
                     <span className="text-xs text-muted-foreground">/ 100</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-secondary overflow-hidden mb-2">
-                    <div className="h-full" style={{ width: `${c.score}%`, backgroundColor: bandColor(b) }} />
+                    <div
+                      className="h-full"
+                      style={{ width: `${c.score}%`, backgroundColor: bandColor(b) }}
+                    />
                   </div>
                   <div className="text-xs text-muted-foreground">{c.detail}</div>
                 </Card>

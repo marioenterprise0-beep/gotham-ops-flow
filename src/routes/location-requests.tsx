@@ -21,7 +21,9 @@ import { GeofencePanel } from "@/components/gotham/geofence-panel";
 
 export const Route = createFileRoute("/location-requests")({
   ssr: false,
-  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "locations" } as any }); },
+  beforeLoad: () => {
+    throw redirect({ to: "/admin", search: { tab: "locations" } as any });
+  },
   head: () => ({ meta: [{ title: "Location Access · Dip N Shake OS" }] }),
   component: LocationRequests,
 });
@@ -42,8 +44,12 @@ type Req = {
 };
 
 const STATUS_TONE: Record<string, "warning" | "success" | "danger" | "info"> = {
-  pending: "warning", approved: "success", used: "info", declined: "danger",
-  expired: "danger", cancelled: "info",
+  pending: "warning",
+  approved: "success",
+  used: "info",
+  declined: "danger",
+  expired: "danger",
+  cancelled: "info",
 };
 
 export function LocationRequests() {
@@ -65,7 +71,11 @@ export function LocationRequests() {
   const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [noteFor, setNoteFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [issuedCode, setIssuedCode] = useState<{ id: string; code: string; expiresAt: string } | null>(null);
+  const [issuedCode, setIssuedCode] = useState<{
+    id: string;
+    code: string;
+    expiresAt: string;
+  } | null>(null);
 
   const visible = useMemo(
     () => rows.filter((r) => (filter === "all" ? true : r.status === "pending")),
@@ -73,10 +83,12 @@ export function LocationRequests() {
   );
 
   const approve = useMutation({
-    mutationFn: (vars: { id: string; note?: string }) => approveFn({ data: vars }) as Promise<{ ok: true; code: string; expiresAt: string }>,
+    mutationFn: (vars: { id: string; note?: string }) =>
+      approveFn({ data: vars }) as Promise<{ ok: true; code: string; expiresAt: string }>,
     onSuccess: (d, vars) => {
       setIssuedCode({ id: vars.id, code: d.code, expiresAt: d.expiresAt });
-      setNoteFor(null); setNote("");
+      setNoteFor(null);
+      setNote("");
       syncDomains(qc, "alerts");
       qc.invalidateQueries({ queryKey: ["location-requests"] });
     },
@@ -87,14 +99,16 @@ export function LocationRequests() {
     mutationFn: (vars: { id: string; note?: string }) => declineFn({ data: vars }),
     onSuccess: () => {
       toast.success("Request declined");
-      setNoteFor(null); setNote("");
+      setNoteFor(null);
+      setNote("");
       syncDomains(qc, "alerts");
       qc.invalidateQueries({ queryKey: ["location-requests"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const trailerName = (id?: string | null) => (id ? trailers.find((t) => t.id === id)?.name ?? "Location" : "—");
+  const trailerName = (id?: string | null) =>
+    id ? (trailers.find((t) => t.id === id)?.name ?? "Location") : "—";
 
   return (
     <EmbedShell>
@@ -108,8 +122,18 @@ export function LocationRequests() {
         title={isOwner ? "Owner review" : "My requests"}
         action={
           <div className="flex gap-2">
-            <button onClick={() => setFilter("pending")} className={`rounded-md border border-border px-2.5 py-1 text-xs font-semibold ${filter === "pending" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground"}`}>Pending</button>
-            <button onClick={() => setFilter("all")} className={`rounded-md border border-border px-2.5 py-1 text-xs font-semibold ${filter === "all" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground"}`}>All</button>
+            <button
+              onClick={() => setFilter("pending")}
+              className={`rounded-md border border-border px-2.5 py-1 text-xs font-semibold ${filter === "pending" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground"}`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setFilter("all")}
+              className={`rounded-md border border-border px-2.5 py-1 text-xs font-semibold ${filter === "all" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "text-muted-foreground"}`}
+            >
+              All
+            </button>
           </div>
         }
       />
@@ -133,8 +157,12 @@ export function LocationRequests() {
                 <div className="label-caps text-muted-foreground mt-1">
                   {new Date(r.created_at).toLocaleString()} · {r.duration_minutes} min
                 </div>
-                {r.reason && <div className="text-xs text-muted-foreground mt-1">Reason: {r.reason}</div>}
-                {r.decision_note && <div className="text-xs text-muted-foreground mt-1">Note: {r.decision_note}</div>}
+                {r.reason && (
+                  <div className="text-xs text-muted-foreground mt-1">Reason: {r.reason}</div>
+                )}
+                {r.decision_note && (
+                  <div className="text-xs text-muted-foreground mt-1">Note: {r.decision_note}</div>
+                )}
               </div>
               <StatusPill tone={STATUS_TONE[r.status] ?? "info"}>{r.status}</StatusPill>
             </div>
@@ -154,23 +182,49 @@ export function LocationRequests() {
                 {noteFor === r.id ? (
                   <div className="space-y-2">
                     <textarea
-                      value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} rows={2}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value.slice(0, 500))}
+                      rows={2}
                       placeholder="Optional note"
                       className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                     />
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => { setNoteFor(null); setNote(""); }} className="rounded-md border border-border px-3 py-1.5 text-xs">Cancel</button>
-                      <button disabled={decline.isPending} onClick={() => decline.mutate({ id: r.id, note: note || undefined })} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-[var(--color-danger)] inline-flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setNoteFor(null);
+                          setNote("");
+                        }}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={decline.isPending}
+                        onClick={() => decline.mutate({ id: r.id, note: note || undefined })}
+                        className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-[var(--color-danger)] inline-flex items-center gap-1"
+                      >
                         <X className="h-3.5 w-3.5" /> Decline
                       </button>
-                      <button disabled={approve.isPending} onClick={() => approve.mutate({ id: r.id, note: note || undefined })} className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1">
+                      <button
+                        disabled={approve.isPending}
+                        onClick={() => approve.mutate({ id: r.id, note: note || undefined })}
+                        className="rounded-md bg-[var(--color-gold)] text-[#0A0A0A] px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1"
+                      >
                         <Check className="h-3.5 w-3.5" /> Approve & issue code
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex justify-end">
-                    <button onClick={() => { setNoteFor(r.id); setNote(""); }} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Review</button>
+                    <button
+                      onClick={() => {
+                        setNoteFor(r.id);
+                        setNote("");
+                      }}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold"
+                    >
+                      Review
+                    </button>
                   </div>
                 )}
               </div>
@@ -192,7 +246,15 @@ function ActiveGrantsSection({ trailerName }: { trailerName: (id?: string | null
   const qc = useQueryClient();
   const listFn = useServerFn(listActiveLocationGrants);
   const revokeFn = useServerFn(revokeLocationGrant);
-  const { data: grants = [], isLoading } = useQuery<Array<{ id: string; user_id: string; user_name: string; trailer_id: string; expires_at: string }>>({
+  const { data: grants = [], isLoading } = useQuery<
+    Array<{
+      id: string;
+      user_id: string;
+      user_name: string;
+      trailer_id: string;
+      expires_at: string;
+    }>
+  >({
     queryKey: ["active-location-grants"],
     queryFn: () => listFn() as any,
     refetchInterval: 15000,
@@ -217,11 +279,16 @@ function ActiveGrantsSection({ trailerName }: { trailerName: (id?: string | null
       )}
       <div className="space-y-2">
         {grants.map((g) => {
-          const minsLeft = Math.max(0, Math.round((new Date(g.expires_at).getTime() - Date.now()) / 60000));
+          const minsLeft = Math.max(
+            0,
+            Math.round((new Date(g.expires_at).getTime() - Date.now()) / 60000),
+          );
           return (
             <Card key={g.id} className="p-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-sm font-semibold">{g.user_name} · {trailerName(g.trailer_id)}</div>
+                <div className="text-sm font-semibold">
+                  {g.user_name} · {trailerName(g.trailer_id)}
+                </div>
                 <div className="label-caps text-muted-foreground mt-1">
                   Expires {new Date(g.expires_at).toLocaleTimeString()} · {minsLeft} min left
                 </div>

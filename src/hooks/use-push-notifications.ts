@@ -5,11 +5,7 @@ import { useRole } from "@/lib/role";
 export type PushPermission = "default" | "granted" | "denied" | "unsupported";
 
 function isSupported() {
-  return (
-    typeof window !== "undefined" &&
-    "Notification" in window &&
-    "serviceWorker" in navigator
-  );
+  return typeof window !== "undefined" && "Notification" in window && "serviceWorker" in navigator;
 }
 
 async function registerSW(): Promise<ServiceWorkerRegistration | null> {
@@ -50,7 +46,9 @@ export function usePushNotifications() {
   // Register service worker once on mount.
   useEffect(() => {
     if (!isSupported()) return;
-    registerSW().then((reg) => { regRef.current = reg; });
+    registerSW().then((reg) => {
+      regRef.current = reg;
+    });
     setPermission(Notification.permission as PushPermission);
   }, []);
 
@@ -62,37 +60,35 @@ export function usePushNotifications() {
 
     const channel = supabase
       .channel("push-alerts")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "alerts" },
-        (payload) => {
-          // Only notify if page is hidden so we don't double-alert.
-          if (document.visibilityState !== "hidden") return;
-          const alert = payload.new as any;
-          const isAnnouncement =
-            alert.source_module === "announcements" || alert.type === "announcement";
-          // A crew member's OWN targeted alert (e.g. an HR document sent to
-          // them) must push regardless of type — this was a real pre-existing
-          // gap: assigned_user_id alerts (also used for task assignment)
-          // never pushed to crew, only to managers/owners or announcements.
-          const isTargetedAtMe = !!userId && alert.assigned_user_id === userId;
-          if (!isManagerOrOwner && !isAnnouncement && !isTargetedAtMe) return;
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, (payload) => {
+        // Only notify if page is hidden so we don't double-alert.
+        if (document.visibilityState !== "hidden") return;
+        const alert = payload.new as any;
+        const isAnnouncement =
+          alert.source_module === "announcements" || alert.type === "announcement";
+        // A crew member's OWN targeted alert (e.g. an HR document sent to
+        // them) must push regardless of type — this was a real pre-existing
+        // gap: assigned_user_id alerts (also used for task assignment)
+        // never pushed to crew, only to managers/owners or announcements.
+        const isTargetedAtMe = !!userId && alert.assigned_user_id === userId;
+        if (!isManagerOrOwner && !isAnnouncement && !isTargetedAtMe) return;
 
-          const reg = regRef.current;
-          if (!reg) return;
-          const url = alert.source_module === "hr_documents" ? "/hr-documents" : "/alerts";
-          showNotification(
-            reg,
-            alert.title ?? "New alert",
-            alert.description ?? `Priority: ${alert.priority}`,
-            alert.priority ?? "normal",
-            url,
-          );
-        },
-      )
+        const reg = regRef.current;
+        if (!reg) return;
+        const url = alert.source_module === "hr_documents" ? "/hr-documents" : "/alerts";
+        showNotification(
+          reg,
+          alert.title ?? "New alert",
+          alert.description ?? `Priority: ${alert.priority}`,
+          alert.priority ?? "normal",
+          url,
+        );
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loading, session?.access_token, permission, roleId, userId]);
 
   const requestPermission = async (): Promise<PushPermission> => {
