@@ -21,6 +21,11 @@
  *   E. Role-boundary invariant — no function definition in public schema
  *      references both organization_members.org_role and user_roles.role
  *      in the same predicate.
+ *   F. SECURITY DEFINER org-safety (Phase 1a SECDEF fixes) — 8 assertions
+ *      covering is_manager, list_trailer_geofences, get_trailer_geofence,
+ *      kiosk_device_required, my_trailer_id, current_user_trailer,
+ *      decide_availability_atomic, request_availability_atomic. Read
+ *      assertions exercise orgB canary rows so Group A is non-trivial.
  */
 
 import { Client } from "pg";
@@ -212,6 +217,61 @@ async function main() {
                    VALUES ($1, $3, 'org_member'), ($2, $4, 'org_member')`,
       [userA, userB, orgA, orgB]);
 
+    // ---- orgB canary rows (service-role seed, bypasses RLS) ---------------
+    // Without these, Group A's "count rows visible with organization_id=orgB"
+    // is trivially zero because nothing was seeded. Canaries make Group A a
+    // real read-isolation test and back the Group F read assertions.
+    const trailerB = randomUUID();
+    await c.query(
+      `INSERT INTO public.trailers (id, name, organization_id, active)
+         VALUES ($1, $2, $3, true)`,
+      [trailerB, `${testPrefix}_trailerB`, orgB],
+    );
+    const trailerA = randomUUID();
+    await c.query(
+      `INSERT INTO public.trailers (id, name, organization_id, active)
+         VALUES ($1, $2, $3, true)`,
+      [trailerA, `${testPrefix}_trailerA`, orgA],
+    );
+    // Make userA an org_manager in Org A so is_manager() returns true there
+    // and we can exercise the "manager in one org, no rights in another"
+    // path — the exact bug the SECDEF fixes remediate.
+    await c.query(
+      `INSERT INTO public.user_roles (user_id, role, organization_id)
+         VALUES ($1, 'manager', $2), ($3, 'manager', $4)`,
+      [userA, orgA, userB, orgB],
+    );
+    // Availability block in Org B, owned by userB — decide_availability
+    // must reject an Org-A caller pointing at this id.
+    const blockB = randomUUID();
+    await c.query(
+      `INSERT INTO public.availability_blocks
+         (id, user_id, block_date, all_day, status, trailer_id, organization_id)
+         VALUES ($1, $2, current_date + 30, true, 'pending', $3, $4)`,
+      [blockB, userB, trailerB, orgB],
+    );
+    // automation_settings row per org so kiosk_device_required is
+    // observable per-tenant.
+    await c.query(
+      `INSERT INTO public.automation_settings (scope, kiosk_device_required, organization_id)
+         VALUES ('global', true,  $1),
+                ('global', false, $2)`,
+      [orgA, orgB],
+    );
+    // profiles.trailer_id pointing at the wrong org (userA's profile points
+    // at trailerB) exercises the my_trailer_id / current_user_trailer guard.
+    // We seed a profile row for each user; handle_new_user usually creates it,
+    // but the isolation suite inserts users directly.
+    await c.query(
+      `INSERT INTO public.profiles (id, display_name, email, trailer_id, active_organization_id)
+         VALUES ($1, $2, $3, $4, $5),
+                ($6, $7, $8, $9, $10)`,
+      [
+        userA, `${testPrefix}_A`, `${testPrefix}_a@test.local`, trailerB, orgA,
+        userB, `${testPrefix}_B`, `${testPrefix}_b@test.local`, trailerB, orgB,
+      ],
+    );
+
     // ---- Group A: cross-org read isolation ---------------------------------
     // Ambient: as userA, SELECT * with no filter on any tenant table must
     // return zero rows belonging to orgB.
@@ -323,7 +383,157 @@ async function main() {
       }
     });
 
+    // ---- Group F: SECURITY DEFINER org-safety ------------------------------
+    // Each assertion exercises one of the six fixed SECDEF functions. Reads
+    // rely on the orgB canary rows seeded above; mutations must raise.
+
+    await check("F.is_manager-orgscoped", async () => {
+      // userA is a manager in Org A only. In an Org-B session, is_manager()
+      // must return false — pre-fix it returned true globally.
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgB}'`);
+        const r = await tx.query(`SELECT public.is_manager($1) AS ok`, [userA]);
+        if (r.rows[0].ok !== false) {
+          throw new Error(
+            `is_manager(userA) returned true in Org-B session — org scoping missing`,
+          );
+        }
+      });
+    });
+
+    await check("F.list_trailer_geofences-isolation", async () => {
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+        const r = await tx.query(
+          `SELECT count(*)::int AS n
+             FROM public.list_trailer_geofences()
+            WHERE id = $1`,
+          [trailerB],
+        );
+        if (r.rows[0].n !== 0) {
+          throw new Error(
+            `Org-A manager saw Org-B trailer via list_trailer_geofences()`,
+          );
+        }
+      });
+    });
+
+    await check("F.get_trailer_geofence-cross-org", async () => {
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+        const r = await tx.query(
+          `SELECT count(*)::int AS n FROM public.get_trailer_geofence($1)`,
+          [trailerB],
+        );
+        if (r.rows[0].n !== 0) {
+          throw new Error(
+            `get_trailer_geofence(orgB trailer) returned rows to Org-A manager`,
+          );
+        }
+      });
+    });
+
+    await check("F.kiosk_device_required-per-org", async () => {
+      // orgA row = true, orgB row = false. Session dictates which wins.
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+        const rA = await tx.query(`SELECT public.kiosk_device_required() AS v`);
+        if (rA.rows[0].v !== true) {
+          throw new Error(`kiosk_device_required() = ${rA.rows[0].v} in Org-A, expected true`);
+        }
+      });
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgB}'`);
+        const rB = await tx.query(`SELECT public.kiosk_device_required() AS v`);
+        if (rB.rows[0].v !== false) {
+          throw new Error(`kiosk_device_required() = ${rB.rows[0].v} in Org-B, expected false`);
+        }
+      });
+    });
+
+    await check("F.my_trailer_id-org-guarded", async () => {
+      // userA.profile.trailer_id points at trailerB (Org B). In an Org-A
+      // session the function must return NULL, not the stale pointer.
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+        const r = await tx.query(`SELECT public.my_trailer_id() AS tid`);
+        if (r.rows[0].tid !== null) {
+          throw new Error(
+            `my_trailer_id() returned ${r.rows[0].tid} for Org-A session pointing at Org-B trailer`,
+          );
+        }
+      });
+    });
+
+    await check("F.current_user_trailer-org-guarded", async () => {
+      await asUser(c, userA, async (tx) => {
+        await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+        const r = await tx.query(`SELECT public.current_user_trailer() AS tid`);
+        if (r.rows[0].tid !== null) {
+          throw new Error(
+            `current_user_trailer() returned ${r.rows[0].tid} for Org-A session pointing at Org-B trailer`,
+          );
+        }
+      });
+    });
+
+    await check("F.decide_availability-cross-org", async () => {
+      // userA is a manager in Org A. Passing an Org-B block id must raise.
+      let raised = false;
+      try {
+        await asUser(c, userA, async (tx) => {
+          await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+          await tx.query(
+            `SELECT public.decide_availability_atomic($1, 'approved', 'x')`,
+            [blockB],
+          );
+        });
+      } catch (e) {
+        raised = true;
+        if (!/cross-tenant|not in active organization|insufficient_privilege/i.test((e as Error).message)) {
+          throw new Error(`unexpected error: ${(e as Error).message}`);
+        }
+      }
+      if (!raised) {
+        throw new Error(
+          `decide_availability_atomic accepted Org-B block id from Org-A manager`,
+        );
+      }
+    });
+
+    await check("F.request_availability-cross-org", async () => {
+      // userA is only a member of Org A. Requesting a block against Org B's
+      // trailer must raise even if the session GUC is unset or points at A.
+      let raised = false;
+      try {
+        await asUser(c, userA, async (tx) => {
+          await tx.query(`SET LOCAL app.active_organization_id = '${orgA}'`);
+          await tx.query(
+            `SELECT public.request_availability_atomic(
+               (current_date + 45)::date, 'x', true, $1, NULL, 'n', 's', 'e')`,
+            [trailerB],
+          );
+        });
+      } catch (e) {
+        raised = true;
+        if (!/cross-tenant|not a member|insufficient_privilege/i.test((e as Error).message)) {
+          throw new Error(`unexpected error: ${(e as Error).message}`);
+        }
+      }
+      if (!raised) {
+        throw new Error(
+          `request_availability_atomic accepted Org-B trailer id from Org-A employee`,
+        );
+      }
+    });
+
     // ---- Teardown (service role) ------------------------------------------
+    await c.query(`DELETE FROM public.availability_blocks WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
+    await c.query(`DELETE FROM public.alerts WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
+    await c.query(`DELETE FROM public.automation_settings WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
+    await c.query(`DELETE FROM public.user_roles WHERE user_id IN ($1,$2)`, [userA, userB]);
+    await c.query(`DELETE FROM public.profiles WHERE id IN ($1,$2)`, [userA, userB]);
+    await c.query(`DELETE FROM public.trailers WHERE organization_id IN ($1,$2)`, [orgA, orgB]);
     await c.query(`DELETE FROM public.organization_members WHERE user_id IN ($1,$2)`, [userA, userB]);
     await c.query(`DELETE FROM public.organizations WHERE id IN ($1,$2)`, [orgA, orgB]);
     await c.query(`DELETE FROM auth.users WHERE id IN ($1,$2)`, [userA, userB]);
