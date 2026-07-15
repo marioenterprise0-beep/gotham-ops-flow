@@ -120,7 +120,16 @@ export const createOrganization = createServerFn({ method: "POST" })
           : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
       const { data: inserted, error } = await supabaseAdmin
         .from("organizations")
-        .insert({ name: data.name, slug: candidate })
+        .insert({
+          name: data.name,
+          slug: candidate,
+          // Defaults on the column would set both of these, but we set them
+          // explicitly so grep for 'trialing' / trial-window logic lands here.
+          // Enum values are locked to the Phase 2 lockout matrix — see
+          // public.org_billing_status. Do not invent variants.
+          status: "trialing",
+          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        })
         .select("id, slug")
         .single();
       if (!error && inserted) {
