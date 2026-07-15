@@ -15,6 +15,7 @@ export default tseslint.config(
       "src/routes/\\[.mcp\\]/**",
       "src/routes/\\[.well-known\\]/**",
       "src/routes/\\[.\\]lovable.oauth.consent.tsx",
+      "src/integrations/supabase/types.ts",
     ],
   },
   {
