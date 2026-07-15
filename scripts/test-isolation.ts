@@ -90,13 +90,14 @@ async function check(name: string, fn: () => Promise<void>) {
 // ---- DB helpers ------------------------------------------------------------
 
 async function newClient() {
+  // Opt-in SSL only. CI (ephemeral local Postgres) and local socket runs do
+  // not need SSL; hosted DBs set PGSSLMODE=require or PGSSL_DISABLE_VERIFY=1.
+  const useSsl =
+    process.env.PGSSLMODE === "require" ||
+    process.env.PGSSL_DISABLE_VERIFY === "1";
   const client = new Client({
-    // pg reads PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE from env by default.
-    // On Lovable Cloud sandbox these are pre-set. In CI, set them from secrets.
     connectionString: process.env.DATABASE_URL || undefined,
-    ssl: process.env.PGSSL_DISABLE_VERIFY === "1" || !!process.env.PGHOST
-      ? { rejectUnauthorized: false }
-      : undefined,
+    ssl: useSsl ? { rejectUnauthorized: false } : undefined,
   });
   await client.connect();
   return client;
