@@ -24,10 +24,7 @@ export default defineTool({
     const ids = Array.from(new Set((data ?? []).map((p) => p.employee_id)));
     const names = new Map<string, string>();
     if (ids.length) {
-      const { data: profs } = await sb
-        .from("profiles")
-        .select("id, display_name")
-        .in("id", ids);
+      const { data: profs } = await sb.from("profiles").select("id, display_name").in("id", ids);
       for (const p of profs ?? []) names.set(p.id, p.display_name);
     }
     const now = Date.now();

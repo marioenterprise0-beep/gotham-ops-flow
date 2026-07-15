@@ -28,16 +28,16 @@ async function assertOwner(supabase: any, userId: string) {
 const DEPS: Record<Entity, Array<{ table: string; column: string; label: string }>> = {
   inventory_counts: [],
   trailers: [
-    { table: "profiles",          column: "trailer_id", label: "Users assigned" },
-    { table: "inventory_items",   column: "trailer_id", label: "Inventory items" },
-    { table: "schedules",         column: "trailer_id", label: "Schedules" },
-    { table: "schedule_shifts",   column: "trailer_id", label: "Scheduled shifts" },
-    { table: "time_punches",      column: "trailer_id", label: "Time punches" },
-    { table: "cash_drawers",      column: "trailer_id", label: "Cash drawers" },
-    { table: "shifts",            column: "trailer_id", label: "Operations shifts" },
+    { table: "profiles", column: "trailer_id", label: "Users assigned" },
+    { table: "inventory_items", column: "trailer_id", label: "Inventory items" },
+    { table: "schedules", column: "trailer_id", label: "Schedules" },
+    { table: "schedule_shifts", column: "trailer_id", label: "Scheduled shifts" },
+    { table: "time_punches", column: "trailer_id", label: "Time punches" },
+    { table: "cash_drawers", column: "trailer_id", label: "Cash drawers" },
+    { table: "shifts", column: "trailer_id", label: "Operations shifts" },
   ],
   stores: [
-    { table: "profiles",        column: "store_id", label: "Users assigned" },
+    { table: "profiles", column: "store_id", label: "Users assigned" },
     { table: "inventory_items", column: "store_id", label: "Inventory items" },
   ],
 };
@@ -77,11 +77,15 @@ export const scanMasterDataDependencies = createServerFn({ method: "POST" })
 
 export const archiveMasterData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    reason: z.string().max(300).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        reason: z.string().max(300).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
@@ -135,11 +139,15 @@ export const restoreMasterData = createServerFn({ method: "POST" })
 
 export const deleteMasterData = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    force: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        force: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;

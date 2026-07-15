@@ -3,9 +3,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/gotham/primitives";
-import { archiveInventoryItem, deleteInventoryItem, listInventory, scanInventoryDependencies, submitCount } from "@/lib/inventory.functions";
+import {
+  archiveInventoryItem,
+  deleteInventoryItem,
+  listInventory,
+  scanInventoryDependencies,
+  submitCount,
+} from "@/lib/inventory.functions";
 import { Input } from "@/components/ui/input";
-import { Beef, Boxes, Carrot, Croissant, Milk, Package, Plus, Search, Soup, Sparkles, X } from "lucide-react";
+import {
+  Beef,
+  Boxes,
+  Carrot,
+  Croissant,
+  Milk,
+  Package,
+  Plus,
+  Search,
+  Soup,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { EditItemModal, type Item } from "@/routes/inventory";
 import { useRole } from "@/lib/role";
 import { syncDomains } from "@/lib/sync-bus";
@@ -21,14 +39,34 @@ export const Route = createFileRoute("/inventory-guide")({
   component: () => null,
 });
 
-const CATEGORY_ORDER = ["protein", "bun", "produce", "sauce", "packaging", "supplies", "other"] as const;
+const CATEGORY_ORDER = [
+  "protein",
+  "bun",
+  "produce",
+  "sauce",
+  "packaging",
+  "supplies",
+  "other",
+] as const;
 const CATEGORY_LABELS: Record<string, string> = {
-  protein: "Proteins", bun: "Buns & Bread", sauce: "Sauces",
-  produce: "Produce", dairy: "Dairy", packaging: "Packaging", supplies: "Supplies", other: "Other",
+  protein: "Proteins",
+  bun: "Buns & Bread",
+  sauce: "Sauces",
+  produce: "Produce",
+  dairy: "Dairy",
+  packaging: "Packaging",
+  supplies: "Supplies",
+  other: "Other",
 };
 const CATEGORY_ICON: Record<string, typeof Beef> = {
-  protein: Beef, bun: Croissant, sauce: Soup, produce: Carrot, dairy: Milk,
-  packaging: Package, supplies: Sparkles, other: Boxes,
+  protein: Beef,
+  bun: Croissant,
+  sauce: Soup,
+  produce: Carrot,
+  dairy: Milk,
+  packaging: Package,
+  supplies: Sparkles,
+  other: Boxes,
 };
 
 export function InventoryGuideView() {
@@ -54,23 +92,39 @@ export function InventoryGuideView() {
   const FANOUT = ["inventory", "orders", "alerts", "operations", "dashboard", "history"] as const;
   const archiveM = useMutation({
     mutationFn: (id: string) => archiveFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item archived"); syncDomains(qc, ...FANOUT); },
+    onSuccess: () => {
+      toast.success("Item archived");
+      syncDomains(qc, ...FANOUT);
+    },
     onError: (e: any) => toast.error(e?.message ?? "Failed"),
   });
   const delM = useMutation({
     mutationFn: (id: string) => removeFn({ data: { id } }),
-    onSuccess: () => { toast.success("Item deleted"); syncDomains(qc, ...FANOUT); },
+    onSuccess: () => {
+      toast.success("Item deleted");
+      syncDomains(qc, ...FANOUT);
+    },
     onError: (e: any) => toast.error(e?.message ?? "Failed to remove item"),
   });
   async function handleRemove(item: Item) {
     try {
-      const { counts, total } = await scanFn({ data: { id: item.id } }) as { counts: Record<string, number>; total: number };
+      const { counts, total } = (await scanFn({ data: { id: item.id } })) as {
+        counts: Record<string, number>;
+        total: number;
+      };
       if (total === 0) {
         if (confirm(`Permanently delete ${item.name}? No references found.`)) delM.mutate(item.id);
         return;
       }
-      const summary = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(" · ");
-      if (confirm(`"${item.name}" is referenced in ${total} place(s): ${summary}.\n\nOK = Archive (keeps history)\nCancel = Keep`)) {
+      const summary = Object.entries(counts)
+        .filter(([, n]) => n > 0)
+        .map(([k, n]) => `${n} ${k}`)
+        .join(" · ");
+      if (
+        confirm(
+          `"${item.name}" is referenced in ${total} place(s): ${summary}.\n\nOK = Archive (keeps history)\nCancel = Keep`,
+        )
+      ) {
         archiveM.mutate(item.id);
       }
     } catch (e: any) {
@@ -81,7 +135,10 @@ export function InventoryGuideView() {
   const countM = useMutation({
     mutationFn: ({ itemId, countQty }: { itemId: string; countQty: number }) =>
       countFn({ data: { itemId, countQty } }),
-    onSuccess: () => { toast.success("Count recorded"); syncDomains(qc, "inventory"); },
+    onSuccess: () => {
+      toast.success("Count recorded");
+      syncDomains(qc, "inventory");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -90,8 +147,9 @@ export function InventoryGuideView() {
     return (items as any[]).filter((it) => {
       if (it.archived_at) return false;
       if (!lc) return true;
-      return [it.name, it.category, it.storage_location, it.count_instructions]
-        .some((v) => (v ?? "").toString().toLowerCase().includes(lc));
+      return [it.name, it.category, it.storage_location, it.count_instructions].some((v) =>
+        (v ?? "").toString().toLowerCase().includes(lc),
+      );
     });
   }, [items, q]);
 
@@ -164,11 +222,15 @@ export function InventoryGuideView() {
         </Card>
         <Card className="!p-3">
           <div className="label-caps text-[var(--color-danger)] text-[10px]">Critical</div>
-          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-danger)]">{criticalCount}</div>
+          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-danger)]">
+            {criticalCount}
+          </div>
         </Card>
         <Card className="!p-3">
           <div className="label-caps text-[var(--color-warning)] text-[10px]">Low</div>
-          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-warning)]">{lowCount}</div>
+          <div className="text-2xl font-semibold leading-none mt-1 text-[var(--color-warning)]">
+            {lowCount}
+          </div>
         </Card>
       </div>
 
@@ -243,10 +305,16 @@ export function InventoryGuideView() {
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="truncate">{CATEGORY_LABELS[c] ?? c}</span>
                     </span>
-                    <span className={cn(
-                      "text-[11px] tabular-nums rounded-full px-1.5 py-0.5",
-                      active ? "bg-[var(--color-gold)]/15 text-[var(--color-gold)]" : "bg-secondary text-muted-foreground",
-                    )}>{byCat[c]?.length ?? 0}</span>
+                    <span
+                      className={cn(
+                        "text-[11px] tabular-nums rounded-full px-1.5 py-0.5",
+                        active
+                          ? "bg-[var(--color-gold)]/15 text-[var(--color-gold)]"
+                          : "bg-secondary text-muted-foreground",
+                      )}
+                    >
+                      {byCat[c]?.length ?? 0}
+                    </span>
                   </button>
                 );
               })}
@@ -281,7 +349,9 @@ export function InventoryGuideView() {
               <section
                 key={cat}
                 id={`cat-${cat}`}
-                ref={(el) => { sectionRefs.current[cat] = el; }}
+                ref={(el) => {
+                  sectionRefs.current[cat] = el;
+                }}
                 className="scroll-mt-24"
               >
                 <div className="flex items-end justify-between gap-2 mb-3">

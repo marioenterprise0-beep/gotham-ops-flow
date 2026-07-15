@@ -6,9 +6,17 @@ const CATEGORIES = ["greeting", "accuracy", "upsell", "wait_ack", "recovery", "o
 
 export const listHospitality = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    month: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
-  }).parse(d ?? {}))
+  .inputValidator((d) =>
+    z
+      .object({
+        month: z
+          .string()
+          .regex(/^\d{4}-\d{2}$/)
+          .nullable()
+          .optional(),
+      })
+      .parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     let start: Date, end: Date;
@@ -17,7 +25,8 @@ export const listHospitality = createServerFn({ method: "POST" })
       start = new Date(y, m - 1, 1, 0, 0, 0, 0);
       end = new Date(y, m, 0, 23, 59, 59, 999);
     } else {
-      start = new Date(); start.setHours(0, 0, 0, 0);
+      start = new Date();
+      start.setHours(0, 0, 0, 0);
       end = new Date();
     }
     const { data: rows, error } = await supabase
@@ -38,7 +47,16 @@ export const listHospitality = createServerFn({ method: "POST" })
     }
     const breakdown = CATEGORIES.map((c) => ({
       key: c,
-      label: ({ greeting: "Greeting", accuracy: "Order Accuracy", upsell: "Upselling", wait_ack: "Wait Acknowledgement", recovery: "Guest Recovery", other: "Other" } as any)[c],
+      label: (
+        {
+          greeting: "Greeting",
+          accuracy: "Order Accuracy",
+          upsell: "Upselling",
+          wait_ack: "Wait Acknowledgement",
+          recovery: "Guest Recovery",
+          other: "Other",
+        } as any
+      )[c],
       pct: Math.max(0, 100 - cats[c].penalty),
       count: cats[c].count,
     }));
@@ -51,15 +69,23 @@ export const listHospitalityToday = listHospitality;
 
 export const logHospitalityIncident = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    type: z.enum(CATEGORIES),
-    severity: z.enum(["low", "medium", "high"]).default("low"),
-    notes: z.string().trim().max(500).optional(),
-    recovery_action: z.string().trim().max(500).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        type: z.enum(CATEGORIES),
+        severity: z.enum(["low", "medium", "high"]).default("low"),
+        notes: z.string().trim().max(500).optional(),
+        recovery_action: z.string().trim().max(500).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: prof } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("trailer_id")
+      .eq("id", userId)
+      .maybeSingle();
     const { error } = await supabase.from("hospitality_incidents").insert({
       type: data.type,
       severity: data.severity,

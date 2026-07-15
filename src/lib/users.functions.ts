@@ -146,7 +146,12 @@ export const deleteInvite = createServerFn({ method: "POST" })
 
 export const listUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .inputValidator((d) =>
+    z
+      .object({ includeArchived: z.boolean().optional() })
+      .optional()
+      .parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
@@ -189,18 +194,53 @@ export const scanUserDependencies = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
     const targets: Array<{ key: string; label: string; table: string; column: string }> = [
-      { key: "schedule_shifts", label: "Scheduled shifts", table: "schedule_shifts", column: "employee_id" },
+      {
+        key: "schedule_shifts",
+        label: "Scheduled shifts",
+        table: "schedule_shifts",
+        column: "employee_id",
+      },
       { key: "time_punches", label: "Time punches", table: "time_punches", column: "employee_id" },
       { key: "tasks_assigned", label: "Tasks assigned", table: "tasks", column: "assignee_id" },
-      { key: "cash_sessions", label: "Cash drawer sessions", table: "cash_drawer_sessions", column: "opened_by" },
+      {
+        key: "cash_sessions",
+        label: "Cash drawer sessions",
+        table: "cash_drawer_sessions",
+        column: "opened_by",
+      },
       { key: "cash_drops", label: "Cash drops", table: "cash_drops", column: "submitted_by" },
       { key: "daily_recaps", label: "Daily recaps", table: "daily_recaps", column: "manager_id" },
-      { key: "hospitality", label: "Hospitality logs", table: "hospitality_incidents", column: "logged_by" },
+      {
+        key: "hospitality",
+        label: "Hospitality logs",
+        table: "hospitality_incidents",
+        column: "logged_by",
+      },
       { key: "waste_log", label: "Waste log entries", table: "waste_log", column: "logged_by" },
-      { key: "inventory_counts", label: "Inventory counts", table: "inventory_counts", column: "counted_by" },
-      { key: "inventory_orders", label: "Inventory orders", table: "inventory_orders", column: "created_by" },
-      { key: "time_off", label: "Time-off requests", table: "time_off_requests", column: "employee_id" },
-      { key: "time_corrections", label: "Time corrections", table: "time_corrections", column: "employee_id" },
+      {
+        key: "inventory_counts",
+        label: "Inventory counts",
+        table: "inventory_counts",
+        column: "counted_by",
+      },
+      {
+        key: "inventory_orders",
+        label: "Inventory orders",
+        table: "inventory_orders",
+        column: "created_by",
+      },
+      {
+        key: "time_off",
+        label: "Time-off requests",
+        table: "time_off_requests",
+        column: "employee_id",
+      },
+      {
+        key: "time_corrections",
+        label: "Time corrections",
+        table: "time_corrections",
+        column: "employee_id",
+      },
       { key: "shift_notes", label: "Shift notes", table: "shift_notes", column: "author_id" },
     ];
     const counts: Record<string, { label: string; count: number }> = {};
@@ -234,7 +274,12 @@ export const archiveUser = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     const { error } = await supabaseAdmin
       .from("profiles")
-      .update({ archived_at: now, archived_by: userId, archive_reason: data.reason ?? null, active: false })
+      .update({
+        archived_at: now,
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+        active: false,
+      })
       .eq("id", data.userId);
     if (error) throw new Error(error.message);
     // Revoke all active sessions immediately so archived users can't keep using the app.
@@ -269,18 +314,28 @@ export const restoreUser = createServerFn({ method: "POST" })
 
 export const hardDeleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ userId: z.string().uuid(), force: z.boolean().optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ userId: z.string().uuid(), force: z.boolean().optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireOwner(supabase, userId);
     if (data.userId === userId) throw new Error("You cannot delete your own account.");
     await assertCanActOnTarget(supabase, userId, data.userId);
     const tables: Array<[string, string]> = [
-      ["schedule_shifts", "employee_id"], ["time_punches", "employee_id"], ["tasks", "assignee_id"],
-      ["cash_drawer_sessions", "opened_by"], ["cash_drops", "submitted_by"], ["daily_recaps", "manager_id"],
-      ["hospitality_incidents", "logged_by"], ["waste_log", "logged_by"], ["inventory_counts", "counted_by"],
-      ["inventory_orders", "created_by"], ["time_off_requests", "employee_id"],
-      ["time_corrections", "employee_id"], ["shift_notes", "author_id"],
+      ["schedule_shifts", "employee_id"],
+      ["time_punches", "employee_id"],
+      ["tasks", "assignee_id"],
+      ["cash_drawer_sessions", "opened_by"],
+      ["cash_drops", "submitted_by"],
+      ["daily_recaps", "manager_id"],
+      ["hospitality_incidents", "logged_by"],
+      ["waste_log", "logged_by"],
+      ["inventory_counts", "counted_by"],
+      ["inventory_orders", "created_by"],
+      ["time_off_requests", "employee_id"],
+      ["time_corrections", "employee_id"],
+      ["shift_notes", "author_id"],
     ];
     let total = 0;
     for (const [tbl, col] of tables) {
@@ -385,10 +440,12 @@ export const setUserTrailer = createServerFn({ method: "POST" })
 export const setUserPayRate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      userId: z.string().uuid(),
-      payRate: z.number().min(0).max(999.99).nullable(),
-    }).parse(d),
+    z
+      .object({
+        userId: z.string().uuid(),
+        payRate: z.number().min(0).max(999.99).nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;

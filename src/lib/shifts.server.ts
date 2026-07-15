@@ -61,23 +61,33 @@ export async function ensureActiveShiftForTrailer(
   actorId: string,
 ): Promise<{ shift: any; created: boolean } | null> {
   const { data: existing } = await supabase
-    .from("shifts").select("*")
-    .eq("trailer_id", trailerId).eq("status", "active").maybeSingle();
+    .from("shifts")
+    .select("*")
+    .eq("trailer_id", trailerId)
+    .eq("status", "active")
+    .maybeSingle();
   if (existing) return { shift: existing, created: false };
 
   const { data: store } = await supabase
-    .from("stores").select("id").order("created_at").limit(1).maybeSingle();
+    .from("stores")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
   if (!store) return null;
 
   const phase = phaseFromHour();
   const { data: created, error } = await supabase
-    .from("shifts").insert({
+    .from("shifts")
+    .insert({
       store_id: store.id,
       trailer_id: trailerId,
       phase,
       opened_by: actorId,
       status: "active",
-    }).select().single();
+    })
+    .select()
+    .single();
   if (error || !created) return null;
 
   for (const ph of ["opening", "closing", phase] as Phase[]) {
@@ -122,23 +132,26 @@ export async function instantiatePersonalTasks(
   // Skip templates this user already has on this shift.
   const tplIds = templates.map((t: any) => t.id);
   const { data: existing } = await supabase
-    .from("tasks").select("template_id")
+    .from("tasks")
+    .select("template_id")
     .in("template_id", tplIds)
     .eq("assignee_user_id", userId)
     .eq("shift_id", shiftId);
   const seen = new Set((existing ?? []).map((r: any) => r.template_id));
-  const toInsert = templates.filter((t: any) => !seen.has(t.id)).map((t: any) => ({
-    template_id: t.id,
-    shift_id: shiftId,
-    phase,
-    title: t.title,
-    description: t.description,
-    assignee_role: t.role,
-    assignee_user_id: userId,
-    requires_signoff: t.requires_signoff,
-    status: "todo" as const,
-    trailer_id: trailerId,
-  }));
+  const toInsert = templates
+    .filter((t: any) => !seen.has(t.id))
+    .map((t: any) => ({
+      template_id: t.id,
+      shift_id: shiftId,
+      phase,
+      title: t.title,
+      description: t.description,
+      assignee_role: t.role,
+      assignee_user_id: userId,
+      requires_signoff: t.requires_signoff,
+      status: "todo" as const,
+      trailer_id: trailerId,
+    }));
   if (toInsert.length === 0) return 0;
   const { error } = await supabase.from("tasks").insert(toInsert);
   if (error) return 0;
@@ -162,7 +175,8 @@ export async function closeUserIncompleteTasks(
   userId: string,
 ): Promise<number> {
   const { data: rows } = await supabase
-    .from("tasks").select("id")
+    .from("tasks")
+    .select("id")
     .eq("shift_id", shiftId)
     .eq("assignee_user_id", userId)
     .not("status", "in", "(done,signed_off,missed)");

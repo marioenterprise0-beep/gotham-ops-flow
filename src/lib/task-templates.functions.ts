@@ -7,7 +7,12 @@ const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier
 const PHASE = z.enum(["opening", "mid", "closing", "emergency"]);
 
 async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "owner").maybeSingle();
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "owner")
+    .maybeSingle();
   if (!data) throw new Error("Owner role required");
 }
 
@@ -17,9 +22,14 @@ export const listTaskTemplates = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     let q = context.supabase
       .from("task_templates")
-      .select("id, trailer_id, role, phase, title, description, requires_signoff, position, active, created_at, archived_at, archived_by, archive_reason")
+      .select(
+        "id, trailer_id, role, phase, title, description, requires_signoff, position, active, created_at, archived_at, archived_by, archive_reason",
+      )
       .order("trailer_id", { ascending: true, nullsFirst: true })
-      .order("phase").order("role").order("position").order("title");
+      .order("phase")
+      .order("role")
+      .order("position")
+      .order("title");
     if (!data.includeArchived) q = q.is("archived_at", null);
     const { data: rows, error } = await q;
     if (error) throw error;
@@ -28,17 +38,21 @@ export const listTaskTemplates = createServerFn({ method: "POST" })
 
 export const upsertTaskTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(),
-    trailer_id: z.string().uuid().nullable(),
-    role: ROLE,
-    phase: PHASE,
-    title: z.string().min(1).max(200),
-    description: z.string().max(500).nullable().optional(),
-    requires_signoff: z.boolean().default(false),
-    position: z.number().int().min(0).max(9999).default(0),
-    active: z.boolean().default(true),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        trailer_id: z.string().uuid().nullable(),
+        role: ROLE,
+        phase: PHASE,
+        title: z.string().min(1).max(200),
+        description: z.string().max(500).nullable().optional(),
+        requires_signoff: z.boolean().default(false),
+        position: z.number().int().min(0).max(9999).default(0),
+        active: z.boolean().default(true),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
@@ -54,8 +68,12 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
       created_by: userId,
     };
     if (data.id) {
-      const { data: r, error } = await supabase.from("task_templates")
-        .update(row).eq("id", data.id).select().single();
+      const { data: r, error } = await supabase
+        .from("task_templates")
+        .update(row)
+        .eq("id", data.id)
+        .select()
+        .single();
       if (error) throw error;
       return r;
     }
@@ -66,12 +84,17 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
 
 export const deleteTaskTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     if (!data.force) {
-      const { count } = await supabase.from("tasks").select("id", { count: "exact", head: true }).eq("template_id", data.id);
+      const { count } = await supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("template_id", data.id);
       if ((count ?? 0) > 0) {
         const err: any = new Error("HAS_DEPENDENCIES");
         err.code = "HAS_DEPENDENCIES";
@@ -88,24 +111,43 @@ export const scanTaskTemplateDependencies = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { count: tasksCount } = await context.supabase.from("tasks").select("id", { count: "exact", head: true }).eq("template_id", data.id);
-    const { count: versionsCount } = await context.supabase.from("task_template_versions").select("id", { count: "exact", head: true }).eq("template_id", data.id);
-    const t = tasksCount ?? 0, v = versionsCount ?? 0;
+    const { count: tasksCount } = await context.supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("template_id", data.id);
+    const { count: versionsCount } = await context.supabase
+      .from("task_template_versions")
+      .select("id", { count: "exact", head: true })
+      .eq("template_id", data.id);
+    const t = tasksCount ?? 0,
+      v = versionsCount ?? 0;
     return { tasks: t, versions: v, total: t + v, hasDependencies: t > 0 };
   });
 
 export const archiveTaskTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("task_templates").update({
-      archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null, active: false,
-    } as any).eq("id", data.id);
+    const { error } = await supabase
+      .from("task_templates")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+        active: false,
+      } as any)
+      .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "task_template_archived", entity: "task_template", entity_id: data.id, payload: { reason: data.reason ?? null },
+      actor_id: userId,
+      action: "task_template_archived",
+      entity: "task_template",
+      entity_id: data.id,
+      payload: { reason: data.reason ?? null },
     });
     return { ok: true };
   });
@@ -116,9 +158,15 @@ export const restoreTaskTemplate = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("task_templates").update({
-      archived_at: null, archived_by: null, archive_reason: null, active: true,
-    } as any).eq("id", data.id);
+    const { error } = await supabase
+      .from("task_templates")
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+        active: true,
+      } as any)
+      .eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });
@@ -141,9 +189,15 @@ export const listTemplateVersions = createServerFn({ method: "GET" })
       // email is no longer SELECT-granted to authenticated (see migration
       // 20260621280000) — this read is already behind assertOwner above.
       const { data: profs } = await supabaseAdmin
-        .from("profiles").select("id, display_name, email").in("id", actorIds);
-      actors = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.display_name || p.email || "—"]));
+        .from("profiles")
+        .select("id, display_name, email")
+        .in("id", actorIds);
+      actors = Object.fromEntries(
+        (profs ?? []).map((p: any) => [p.id, p.display_name || p.email || "—"]),
+      );
     }
-    return (rows ?? []).map((r: any) => ({ ...r, actor_name: r.actor_id ? actors[r.actor_id] ?? "—" : "System" }));
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      actor_name: r.actor_id ? (actors[r.actor_id] ?? "—") : "System",
+    }));
   });
-

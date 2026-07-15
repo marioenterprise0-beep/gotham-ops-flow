@@ -24,16 +24,30 @@ export const Route = createFileRoute("/prep-log")({
 });
 
 const PREP_CATEGORIES = [
-  { key: "proteins",  label: "Proteins" },
-  { key: "buns",      label: "Buns & Bread" },
-  { key: "sauces",    label: "Sauces" },
-  { key: "produce",   label: "Produce" },
-  { key: "dairy",     label: "Dairy" },
-  { key: "supplies",  label: "Supplies" },
-  { key: "general",   label: "General" },
+  { key: "proteins", label: "Proteins" },
+  { key: "buns", label: "Buns & Bread" },
+  { key: "sauces", label: "Sauces" },
+  { key: "produce", label: "Produce" },
+  { key: "dairy", label: "Dairy" },
+  { key: "supplies", label: "Supplies" },
+  { key: "general", label: "General" },
 ];
 
-const COMMON_UNITS = ["lbs", "oz", "kg", "g", "pieces", "trays", "portions", "gallons", "quarts", "cups", "bags", "cases", "units"];
+const COMMON_UNITS = [
+  "lbs",
+  "oz",
+  "kg",
+  "g",
+  "pieces",
+  "trays",
+  "portions",
+  "gallons",
+  "quarts",
+  "cups",
+  "bags",
+  "cases",
+  "units",
+];
 
 function PrepLogPage() {
   const qc = useQueryClient();
@@ -60,19 +74,22 @@ function PrepLogPage() {
   const [notes, setNotes] = useState("");
 
   const addM = useMutation({
-    mutationFn: () => logFn({
-      data: {
-        itemName: itemName.trim(),
-        category,
-        quantity: Number(quantity),
-        unit: unit === "__custom" ? customUnit.trim() : unit,
-        notes: notes.trim() || undefined,
-        trailerId: trailerScope ?? null,
-      },
-    }),
+    mutationFn: () =>
+      logFn({
+        data: {
+          itemName: itemName.trim(),
+          category,
+          quantity: Number(quantity),
+          unit: unit === "__custom" ? customUnit.trim() : unit,
+          notes: notes.trim() || undefined,
+          trailerId: trailerScope ?? null,
+        },
+      }),
     onSuccess: () => {
       toast.success("Prep logged");
-      setItemName(""); setQuantity(""); setNotes("");
+      setItemName("");
+      setQuantity("");
+      setNotes("");
       syncDomains(qc, "prep");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -80,7 +97,10 @@ function PrepLogPage() {
 
   const delM = useMutation({
     mutationFn: (id: string) => delFn({ data: { id } }),
-    onSuccess: () => { toast.success("Entry removed"); syncDomains(qc, "prep"); },
+    onSuccess: () => {
+      toast.success("Entry removed");
+      syncDomains(qc, "prep");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -89,7 +109,8 @@ function PrepLogPage() {
     items: entries.filter((e) => e.category === c.key),
   })).filter((c) => c.items.length > 0);
 
-  const canSubmit = itemName.trim() && Number(quantity) > 0 && (unit !== "__custom" || customUnit.trim());
+  const canSubmit =
+    itemName.trim() && Number(quantity) > 0 && (unit !== "__custom" || customUnit.trim());
 
   return (
     <AppShell>
@@ -125,7 +146,9 @@ function PrepLogPage() {
               className="mt-1 w-full h-10 rounded-md border border-input bg-transparent px-3 text-sm"
             >
               {PREP_CATEGORIES.map((c) => (
-                <option key={c.key} value={c.key}>{c.label}</option>
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
               ))}
             </select>
           </div>
@@ -148,7 +171,11 @@ function PrepLogPage() {
               onChange={(e) => setUnit(e.target.value)}
               className="mt-1 w-full h-10 rounded-md border border-input bg-transparent px-3 text-sm"
             >
-              {COMMON_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              {COMMON_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
               <option value="__custom">Other…</option>
             </select>
             {unit === "__custom" && (
@@ -188,7 +215,9 @@ function PrepLogPage() {
         <Card className="text-center py-8">
           <ChefHat className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
           <div className="text-sm font-medium">No prep logged for {date}</div>
-          <div className="text-xs text-muted-foreground mt-1">Log what you prepped above and it'll appear here.</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Log what you prepped above and it'll appear here.
+          </div>
         </Card>
       ) : (
         <>
@@ -203,7 +232,13 @@ function PrepLogPage() {
               <div className="label-caps text-muted-foreground mb-1">{cat.label}</div>
               <Card className="p-0 overflow-hidden">
                 {cat.items.map((e: any, i: number) => (
-                  <div key={e.id} className={cn("p-3 flex items-center justify-between gap-3", i && "border-t border-border")}>
+                  <div
+                    key={e.id}
+                    className={cn(
+                      "p-3 flex items-center justify-between gap-3",
+                      i && "border-t border-border",
+                    )}
+                  >
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{e.item_name}</div>
                       <div className="text-xs text-muted-foreground">
@@ -211,7 +246,12 @@ function PrepLogPage() {
                         {e.notes && <span> · {e.notes}</span>}
                       </div>
                       <div className="text-[11px] text-muted-foreground mt-0.5">
-                        {e.logged_by_name} · {new Date(e.logged_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true })}
+                        {e.logged_by_name} ·{" "}
+                        {new Date(e.logged_at).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
                       </div>
                     </div>
                     {(isManager || e.logged_by === e.logged_by) && (

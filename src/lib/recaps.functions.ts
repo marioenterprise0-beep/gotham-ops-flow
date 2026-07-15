@@ -38,7 +38,6 @@ const RECAP_FIELDS = {
   nextShiftNotes: z.string().max(4000).optional().nullable(),
 };
 
-
 function toRow(d: any, managerId: string) {
   return {
     manager_id: managerId,
@@ -66,14 +65,17 @@ function toRow(d: any, managerId: string) {
   };
 }
 
-
 export const saveRecap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(),
-    submit: z.boolean().optional(),
-    ...RECAP_FIELDS,
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        submit: z.boolean().optional(),
+        ...RECAP_FIELDS,
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     // Any authenticated employee can save their own recap.
@@ -82,7 +84,6 @@ export const saveRecap = createServerFn({ method: "POST" })
       const { isManager } = await getRoles(supabase, userId);
       if (isManager) await requireTabAccess(supabase, userId, "recaps", "edit");
     }
-
 
     const row = toRow(data, userId);
 
@@ -123,19 +124,25 @@ export const saveRecap = createServerFn({ method: "POST" })
 
 export const listRecaps = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    scope: z.enum(["mine", "today", "pending", "all"]).default("all"),
-    trailerId: z.string().uuid().nullable().optional(),
-    from: z.string().optional(),
-    to: z.string().optional(),
-    includeArchived: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        scope: z.enum(["mine", "today", "pending", "all"]).default("all"),
+        trailerId: z.string().uuid().nullable().optional(),
+        from: z.string().optional(),
+        to: z.string().optional(),
+        includeArchived: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { isOwner, isManager } = await getRoles(supabase, userId);
     let q = supabase
       .from("daily_recaps")
-      .select("id, recap_date, manager_id, trailer_id, location, shift_score, status, kind, crew_summary, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at, archived_at, archived_by, archive_reason")
+      .select(
+        "id, recap_date, manager_id, trailer_id, location, shift_score, status, kind, crew_summary, submitted_at, reviewed_at, reviewed_by, owner_comment, created_at, archived_at, archived_by, archive_reason",
+      )
       .order("recap_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(200);
@@ -145,10 +152,13 @@ export const listRecaps = createServerFn({ method: "POST" })
     if (!isOwner && !isManager) {
       q = q.eq("manager_id", userId);
     } else if (!isOwner && isManager) {
-      const { data: prof } = await supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle();
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("trailer_id")
+        .eq("id", userId)
+        .maybeSingle();
       if (prof?.trailer_id) q = q.eq("trailer_id", prof.trailer_id);
     }
-
 
     if (data.scope === "mine") q = q.eq("manager_id", userId);
     if (data.scope === "today") q = q.eq("recap_date", new Date().toISOString().slice(0, 10));
@@ -161,13 +171,21 @@ export const listRecaps = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Attach manager names
-    const managerIds = Array.from(new Set((rows ?? []).map((r: any) => r.manager_id).filter(Boolean)));
+    const managerIds = Array.from(
+      new Set((rows ?? []).map((r: any) => r.manager_id).filter(Boolean)),
+    );
     let nameMap: Record<string, string> = {};
     if (managerIds.length) {
-      const { data: profs } = await supabase.from("profiles").select("id, display_name").in("id", managerIds);
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", managerIds);
       nameMap = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.display_name]));
     }
-    return (rows ?? []).map((r: any) => ({ ...r, manager_name: nameMap[r.manager_id] ?? "Manager" }));
+    return (rows ?? []).map((r: any) => ({
+      ...r,
+      manager_name: nameMap[r.manager_id] ?? "Manager",
+    }));
   });
 
 export const getRecap = createServerFn({ method: "POST" })
@@ -183,7 +201,11 @@ export const getRecap = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     let manager_name = "Manager";
     if (r.manager_id) {
-      const { data: p } = await supabase.from("profiles").select("display_name").eq("id", r.manager_id).maybeSingle();
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", r.manager_id)
+        .maybeSingle();
       manager_name = (p as any)?.display_name ?? manager_name;
     }
     return { ...r, manager_name };
@@ -195,22 +217,32 @@ async function sendNightSummaryEmail(supabase: any, managerId: string, recap: an
 
   // Gather labor hours for this recap date
   const dateStart = `${recap.recap_date}T00:00:00`;
-  const dateEnd   = `${recap.recap_date}T23:59:59`;
-  const [{ data: punches }, { data: cashSessions }, { data: critAlerts }, { data: trailer }] = await Promise.all([
-    supabase.from("time_punches").select("clock_in_at, clock_out_at, break_minutes")
-      .is("archived_at", null)
-      .gte("clock_in_at", dateStart).lte("clock_in_at", dateEnd)
-      .not("clock_out_at", "is", null),
-    supabase.from("cash_drawer_sessions").select("variance")
-      .gte("closed_at", dateStart).lte("closed_at", dateEnd)
-      .not("closed_at", "is", null),
-    supabase.from("alerts").select("id")
-      .eq("priority", "critical").eq("status", "open")
-      .is("archived_at", null),
-    recap.trailer_id
-      ? supabase.from("trailers").select("name").eq("id", recap.trailer_id).maybeSingle()
-      : { data: null },
-  ]);
+  const dateEnd = `${recap.recap_date}T23:59:59`;
+  const [{ data: punches }, { data: cashSessions }, { data: critAlerts }, { data: trailer }] =
+    await Promise.all([
+      supabase
+        .from("time_punches")
+        .select("clock_in_at, clock_out_at, break_minutes")
+        .is("archived_at", null)
+        .gte("clock_in_at", dateStart)
+        .lte("clock_in_at", dateEnd)
+        .not("clock_out_at", "is", null),
+      supabase
+        .from("cash_drawer_sessions")
+        .select("variance")
+        .gte("closed_at", dateStart)
+        .lte("closed_at", dateEnd)
+        .not("closed_at", "is", null),
+      supabase
+        .from("alerts")
+        .select("id")
+        .eq("priority", "critical")
+        .eq("status", "open")
+        .is("archived_at", null),
+      recap.trailer_id
+        ? supabase.from("trailers").select("name").eq("id", recap.trailer_id).maybeSingle()
+        : { data: null },
+    ]);
 
   let workedMin = 0;
   let crewCount = 0;
@@ -223,14 +255,21 @@ async function sendNightSummaryEmail(supabase: any, managerId: string, recap: an
   }
   crewCount = empSet.size || (punches ?? []).length;
 
-  const totalVariance = (cashSessions ?? []).reduce((sum: number, s: any) => sum + Number(s.variance ?? 0), 0);
+  const totalVariance = (cashSessions ?? []).reduce(
+    (sum: number, s: any) => sum + Number(s.variance ?? 0),
+    0,
+  );
   const varStr = (totalVariance >= 0 ? "+" : "") + `$${Math.abs(totalVariance).toFixed(2)}`;
   const hoursStr = `${(workedMin / 60).toFixed(1)}h`;
   const trailerName = (trailer?.data as any)?.name ?? "Dip N Shake";
 
   let managerName = "Manager";
   if (managerId) {
-    const { data: prof } = await supabase.from("profiles").select("display_name").eq("id", managerId).maybeSingle();
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", managerId)
+      .maybeSingle();
     managerName = (prof as any)?.display_name ?? managerName;
   }
 
@@ -258,11 +297,15 @@ async function sendNightSummaryEmail(supabase: any, managerId: string, recap: an
 
 export const reviewRecap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid(),
-    action: z.enum(["review", "archive"]),
-    comment: z.string().max(2000).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        action: z.enum(["review", "archive"]),
+        comment: z.string().max(2000).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { isOwner } = await getRoles(supabase, userId);

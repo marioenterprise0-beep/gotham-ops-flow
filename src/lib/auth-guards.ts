@@ -79,7 +79,8 @@ export async function requireTabAccess(
   } else {
     // No explicit row → fall back to role baseline
     if (roles.includes("manager")) effective = "edit";
-    else if (roles.some((r) => ["shift_lead", "grill", "prep", "cashier"].includes(r))) effective = "view";
+    else if (roles.some((r) => ["shift_lead", "grill", "prep", "cashier"].includes(r)))
+      effective = "view";
     else effective = "none";
   }
 

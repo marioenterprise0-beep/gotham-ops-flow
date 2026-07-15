@@ -14,12 +14,19 @@ const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier
 
 export const listSops = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d ?? {}))
+  .inputValidator((d) =>
+    z
+      .object({ includeArchived: z.boolean().optional() })
+      .optional()
+      .parse(d ?? {}),
+  )
   .handler(async ({ context, data }) => {
     const includeArchived = !!data?.includeArchived;
     let q = context.supabase
       .from("sops")
-      .select("id, title, category, role, body, pass_standard, version, archived_at, archive_reason, updated_at")
+      .select(
+        "id, title, category, role, body, pass_standard, version, archived_at, archive_reason, updated_at",
+      )
       .order("updated_at", { ascending: false });
     if (!includeArchived) q = q.is("archived_at", null);
     const { data: rows, error } = await q;
@@ -29,14 +36,18 @@ export const listSops = createServerFn({ method: "POST" })
 
 export const upsertSop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid().optional(),
-    title: z.string().min(1).max(200),
-    category: z.string().min(1).max(60),
-    role: z.enum(ROLE_VALUES).optional(),
-    body: z.string().min(1).max(8000),
-    passStandard: z.string().max(500).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        title: z.string().min(1).max(200),
+        category: z.string().min(1).max(60),
+        role: z.enum(ROLE_VALUES).optional(),
+        body: z.string().min(1).max(8000),
+        passStandard: z.string().max(500).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
@@ -45,32 +56,53 @@ export const upsertSop = createServerFn({ method: "POST" })
 
     if (data.id) {
       // Snapshot prior version before update
-      const { data: prev } = await supabase.from("sops").select("id, title, body, category, role, pass_standard, version").eq("id", data.id).maybeSingle();
+      const { data: prev } = await supabase
+        .from("sops")
+        .select("id, title, body, category, role, pass_standard, version")
+        .eq("id", data.id)
+        .maybeSingle();
       if (prev) {
         await supabase.from("sop_versions").insert({
-          sop_id: prev.id, version: prev.version, title: prev.title, body: prev.body,
-          category: prev.category, role: prev.role, pass_standard: prev.pass_standard,
+          sop_id: prev.id,
+          version: prev.version,
+          title: prev.title,
+          body: prev.body,
+          category: prev.category,
+          role: prev.role,
+          pass_standard: prev.pass_standard,
           edited_by: userId,
         });
       }
-      const { error } = await supabase.from("sops").update({
-        title: data.title, category: data.category, role: data.role ?? null,
-        body: data.body, pass_standard: data.passStandard ?? null,
-        version: ((prev?.version as number) ?? 1) + 1,
-        updated_at: now,
-      }).eq("id", data.id);
+      const { error } = await supabase
+        .from("sops")
+        .update({
+          title: data.title,
+          category: data.category,
+          role: data.role ?? null,
+          body: data.body,
+          pass_standard: data.passStandard ?? null,
+          version: ((prev?.version as number) ?? 1) + 1,
+          updated_at: now,
+        })
+        .eq("id", data.id);
       if (error) throw error;
     } else {
       const { error } = await supabase.from("sops").insert({
-        title: data.title, category: data.category, role: data.role ?? null,
-        body: data.body, pass_standard: data.passStandard ?? null,
+        title: data.title,
+        category: data.category,
+        role: data.role ?? null,
+        body: data.body,
+        pass_standard: data.passStandard ?? null,
         updated_at: now,
       });
       if (error) throw error;
     }
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: data.id ? "update_sop" : "create_sop", entity: "sop",
-      entity_id: data.id ?? null, payload: { title: data.title, category: data.category },
+      actor_id: userId,
+      action: data.id ? "update_sop" : "create_sop",
+      entity: "sop",
+      entity_id: data.id ?? null,
+      payload: { title: data.title, category: data.category },
     });
     return { ok: true };
   });
@@ -95,25 +127,36 @@ export const scanSopDependencies = createServerFn({ method: "POST" })
         .select("id", { count: "exact", head: true })
         .eq(t.column, data.id);
       const c = count ?? 0;
-      if (c > 0) { counts[t.key] = { label: t.label, count: c }; total += c; }
+      if (c > 0) {
+        counts[t.key] = { label: t.label, count: c };
+        total += c;
+      }
     }
     return { counts, totalRefs: total };
   });
 
 export const archiveSop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("sops").update({
-      archived_at: new Date().toISOString(),
-      archived_by: userId,
-      archive_reason: data.reason ?? null,
-    }).eq("id", data.id);
+    const { error } = await supabase
+      .from("sops")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
+      .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "archive_sop", entity: "sop", entity_id: data.id,
+      actor_id: userId,
+      action: "archive_sop",
+      entity: "sop",
+      entity_id: data.id,
       payload: { reason: data.reason ?? null },
     });
     return { ok: true, archived: true };
@@ -125,33 +168,51 @@ export const restoreSop = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { error } = await supabase.from("sops").update({
-      archived_at: null, archived_by: null, archive_reason: null,
-    }).eq("id", data.id);
+    const { error } = await supabase
+      .from("sops")
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+      })
+      .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "restore_sop", entity: "sop", entity_id: data.id, payload: {},
+      actor_id: userId,
+      action: "restore_sop",
+      entity: "sop",
+      entity_id: data.id,
+      payload: {},
     });
     return { ok: true, restored: true };
   });
 
 export const deleteSop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), force: z.boolean().optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), force: z.boolean().optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     const tables: Array<[string, string]> = [
-      ["sop_acknowledgements", "sop_id"], ["sop_views", "sop_id"],
-      ["sop_versions", "sop_id"], ["sop_attachments", "sop_id"],
+      ["sop_acknowledgements", "sop_id"],
+      ["sop_views", "sop_id"],
+      ["sop_versions", "sop_id"],
+      ["sop_attachments", "sop_id"],
     ];
     let total = 0;
     for (const [tbl, col] of tables) {
-      const { count } = await (supabase as any).from(tbl).select("id", { count: "exact", head: true }).eq(col, data.id);
+      const { count } = await (supabase as any)
+        .from(tbl)
+        .select("id", { count: "exact", head: true })
+        .eq(col, data.id);
       total += count ?? 0;
     }
     if (total > 0 && !data.force) {
-      const err: any = new Error(`SOP has ${total} historical reference(s). Archive instead, or pass force=true.`);
+      const err: any = new Error(
+        `SOP has ${total} historical reference(s). Archive instead, or pass force=true.`,
+      );
       err.code = "HAS_DEPENDENCIES";
       err.totalRefs = total;
       throw err;
@@ -159,7 +220,11 @@ export const deleteSop = createServerFn({ method: "POST" })
     const { error } = await supabase.from("sops").delete().eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "delete_sop", entity: "sop", entity_id: data.id, payload: { force: !!data.force },
+      actor_id: userId,
+      action: "delete_sop",
+      entity: "sop",
+      entity_id: data.id,
+      payload: { force: !!data.force },
     });
     return { ok: true, deleted: true };
   });
@@ -191,7 +256,8 @@ export const listSopAttachments = createServerFn({ method: "GET" })
     const out: any[] = [];
     for (const r of rows ?? []) {
       const { data: signed } = await context.supabase.storage
-        .from("gotham-photos").createSignedUrl(r.storage_path, 60 * 60);
+        .from("gotham-photos")
+        .createSignedUrl(r.storage_path, 60 * 60);
       out.push({ ...r, url: signed?.signedUrl ?? null });
     }
     return out;
@@ -199,18 +265,24 @@ export const listSopAttachments = createServerFn({ method: "GET" })
 
 export const addSopAttachment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    sopId: z.string().uuid(),
-    storagePath: z.string().min(1).max(500),
-    label: z.string().max(120).optional(),
-    contentType: z.string().max(120).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        sopId: z.string().uuid(),
+        storagePath: z.string().min(1).max(500),
+        label: z.string().max(120).optional(),
+        contentType: z.string().max(120).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
     const { error } = await supabase.from("sop_attachments").insert({
-      sop_id: data.sopId, storage_path: data.storagePath,
-      label: data.label ?? null, content_type: data.contentType ?? null,
+      sop_id: data.sopId,
+      storage_path: data.storagePath,
+      label: data.label ?? null,
+      content_type: data.contentType ?? null,
       uploaded_by: userId,
     });
     if (error) throw error;
@@ -223,7 +295,11 @@ export const deleteSopAttachment = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
-    const { data: row } = await supabase.from("sop_attachments").select("storage_path").eq("id", data.id).maybeSingle();
+    const { data: row } = await supabase
+      .from("sop_attachments")
+      .select("storage_path")
+      .eq("id", data.id)
+      .maybeSingle();
     if (row?.storage_path) {
       await supabase.storage.from("gotham-photos").remove([row.storage_path]);
     }
@@ -245,13 +321,17 @@ export const recordSopView = createServerFn({ method: "POST" })
 
 export const acknowledgeSop = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ sopId: z.string().uuid(), version: z.number().int().min(1) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ sopId: z.string().uuid(), version: z.number().int().min(1) }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase.from("sop_acknowledgements").upsert(
-      { sop_id: data.sopId, user_id: userId, version: data.version },
-      { onConflict: "sop_id,user_id,version" },
-    );
+    const { error } = await supabase
+      .from("sop_acknowledgements")
+      .upsert(
+        { sop_id: data.sopId, user_id: userId, version: data.version },
+        { onConflict: "sop_id,user_id,version" },
+      );
     if (error) throw error;
     return { ok: true };
   });
@@ -274,12 +354,21 @@ export const getSopAckRollup = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertOwner(supabase, userId);
 
-    const [{ data: sops }, { data: profiles }, { data: acks }, { data: views }] = await Promise.all([
-      supabase.from("sops").select("id, title, category, version, updated_at").is("archived_at", null),
-      supabase.from("profiles").select("id, display_name, active").eq("active", true).is("archived_at", null),
-      supabase.from("sop_acknowledgements").select("sop_id, user_id, version, acknowledged_at"),
-      supabase.from("sop_views").select("sop_id, user_id, viewed_at"),
-    ]);
+    const [{ data: sops }, { data: profiles }, { data: acks }, { data: views }] = await Promise.all(
+      [
+        supabase
+          .from("sops")
+          .select("id, title, category, version, updated_at")
+          .is("archived_at", null),
+        supabase
+          .from("profiles")
+          .select("id, display_name, active")
+          .eq("active", true)
+          .is("archived_at", null),
+        supabase.from("sop_acknowledgements").select("sop_id, user_id, version, acknowledged_at"),
+        supabase.from("sop_views").select("sop_id, user_id, viewed_at"),
+      ],
+    );
 
     const profileList = (profiles ?? []) as any[];
     const totalUsers = profileList.length;
@@ -294,7 +383,8 @@ export const getSopAckRollup = createServerFn({ method: "GET" })
     for (const a of (acks ?? []) as any[]) {
       const k = `${a.sop_id}|${a.user_id}`;
       const prev = latestAck.get(k);
-      if (!prev || prev.at < a.acknowledged_at) latestAck.set(k, { version: a.version, at: a.acknowledged_at });
+      if (!prev || prev.at < a.acknowledged_at)
+        latestAck.set(k, { version: a.version, at: a.acknowledged_at });
     }
 
     return ((sops ?? []) as any[]).map((s) => {
@@ -319,11 +409,17 @@ export const getSopAckRollup = createServerFn({ method: "GET" })
         }
       }
       return {
-        sop_id: s.id, title: s.title, category: s.category, version: s.version,
+        sop_id: s.id,
+        title: s.title,
+        category: s.category,
+        version: s.version,
         updated_at: s.updated_at,
-        total_users: totalUsers, viewed_count: viewedCount,
-        ack_current: ackCurrent, ack_stale: ackStale,
-        pending, acknowledged,
+        total_users: totalUsers,
+        viewed_count: viewedCount,
+        ack_current: ackCurrent,
+        ack_stale: ackStale,
+        pending,
+        acknowledged,
       };
     });
   });

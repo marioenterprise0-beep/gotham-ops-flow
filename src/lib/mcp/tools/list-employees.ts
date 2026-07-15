@@ -19,10 +19,7 @@ export default defineTool({
     }
     const { supabaseForUser } = await import("../supabase-user-client");
     const sb = supabaseForUser(ctx);
-    let q = sb
-      .from("profiles")
-      .select("id, display_name, email, active")
-      .order("display_name");
+    let q = sb.from("profiles").select("id, display_name, email, active").order("display_name");
     if (!includeInactive) q = q.eq("active", true);
     const { data: profiles, error } = await q;
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };

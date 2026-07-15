@@ -38,11 +38,17 @@ function shortDay(iso: string) {
 export const getAnalytics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      range: RANGE.default("week"),
-      trailerId: z.string().uuid().nullable().optional(),
-      month: z.string().regex(/^\d{4}-\d{2}$/).nullable().optional(),
-    }).parse(d ?? {}),
+    z
+      .object({
+        range: RANGE.default("week"),
+        trailerId: z.string().uuid().nullable().optional(),
+        month: z
+          .string()
+          .regex(/^\d{4}-\d{2}$/)
+          .nullable()
+          .optional(),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -62,31 +68,54 @@ export const getAnalytics = createServerFn({ method: "POST" })
     const trailerFilter = data.trailerId ?? null;
 
     // Tasks completion
-    let tasksQ = supabase.from("tasks").select("status, created_at, completed_at, trailer_id").is("archived_at", null)
-      .gte("created_at", startIso).lte("created_at", endIso);
+    let tasksQ = supabase
+      .from("tasks")
+      .select("status, created_at, completed_at, trailer_id")
+      .is("archived_at", null)
+      .gte("created_at", startIso)
+      .lte("created_at", endIso);
     if (trailerFilter) tasksQ = tasksQ.eq("trailer_id", trailerFilter);
 
     // Waste by item -> category
-    let wasteQ = supabase.from("waste_log").select("qty, item_id, logged_at, trailer_id").is("archived_at", null)
-      .gte("logged_at", startIso).lte("logged_at", endIso);
+    let wasteQ = supabase
+      .from("waste_log")
+      .select("qty, item_id, logged_at, trailer_id")
+      .is("archived_at", null)
+      .gte("logged_at", startIso)
+      .lte("logged_at", endIso);
     if (trailerFilter) wasteQ = wasteQ.eq("trailer_id", trailerFilter);
 
     // Inventory counts (variance)
-    let countsQ = supabase.from("inventory_counts").select("variance, expected_qty, counted_at, trailer_id").is("archived_at", null)
-      .gte("counted_at", startIso).lte("counted_at", endIso);
+    let countsQ = supabase
+      .from("inventory_counts")
+      .select("variance, expected_qty, counted_at, trailer_id")
+      .is("archived_at", null)
+      .gte("counted_at", startIso)
+      .lte("counted_at", endIso);
     if (trailerFilter) countsQ = countsQ.eq("trailer_id", trailerFilter);
 
     // Hospitality incidents
-    let hospQ = supabase.from("hospitality_incidents").select("type, severity, logged_at, trailer_id").is("archived_at", null)
-      .gte("logged_at", startIso).lte("logged_at", endIso);
+    let hospQ = supabase
+      .from("hospitality_incidents")
+      .select("type, severity, logged_at, trailer_id")
+      .is("archived_at", null)
+      .gte("logged_at", startIso)
+      .lte("logged_at", endIso);
     if (trailerFilter) hospQ = hospQ.eq("trailer_id", trailerFilter);
 
     // Shifts for opening time
-    let shiftsQ = supabase.from("shifts").select("opened_at, phase, status, shift_date, trailer_id").is("archived_at", null)
-      .gte("shift_date", startDate).lte("shift_date", endDate);
+    let shiftsQ = supabase
+      .from("shifts")
+      .select("opened_at, phase, status, shift_date, trailer_id")
+      .is("archived_at", null)
+      .gte("shift_date", startDate)
+      .lte("shift_date", endDate);
     if (trailerFilter) shiftsQ = shiftsQ.eq("trailer_id", trailerFilter);
 
-    const itemsQ = supabase.from("inventory_items").select("id, category, cost_per_unit").is("archived_at", null);
+    const itemsQ = supabase
+      .from("inventory_items")
+      .select("id, category, cost_per_unit")
+      .is("archived_at", null);
 
     const [
       { data: tasks },
@@ -99,31 +128,51 @@ export const getAnalytics = createServerFn({ method: "POST" })
 
     // KPIs
     const totalTasks = tasks?.length ?? 0;
-    const doneTasks = (tasks ?? []).filter((t: any) => t.status === "done" || t.status === "signed_off").length;
+    const doneTasks = (tasks ?? []).filter(
+      (t: any) => t.status === "done" || t.status === "signed_off",
+    ).length;
     const taskCompPct = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-    const totalCounted = (counts ?? []).reduce((s: number, c: any) => s + Number(c.expected_qty ?? 0), 0);
-    const totalVar = (counts ?? []).reduce((s: number, c: any) => s + Math.abs(Number(c.variance ?? 0)), 0);
+    const totalCounted = (counts ?? []).reduce(
+      (s: number, c: any) => s + Number(c.expected_qty ?? 0),
+      0,
+    );
+    const totalVar = (counts ?? []).reduce(
+      (s: number, c: any) => s + Math.abs(Number(c.variance ?? 0)),
+      0,
+    );
     const invVarPct = totalCounted > 0 ? +((totalVar / totalCounted) * 100).toFixed(1) : 0;
 
     // Waste cost approximation
     const itemMap = new Map<string, { category: string; cost: number }>(
-      (items ?? []).map((i: any) => [i.id, { category: i.category ?? "Other", cost: Number(i.cost_per_unit ?? 0) }]),
+      (items ?? []).map((i: any) => [
+        i.id,
+        { category: i.category ?? "Other", cost: Number(i.cost_per_unit ?? 0) },
+      ]),
     );
     const wasteCost = (waste ?? []).reduce((s: number, w: any) => {
       const it = itemMap.get(w.item_id);
       return s + Number(w.qty ?? 0) * (it?.cost ?? 0);
     }, 0);
-    const wastePct = totalCounted > 0 ? +(((wasteCost / Math.max(1, totalCounted)) * 100)).toFixed(1) : +wasteCost.toFixed(1);
+    const wastePct =
+      totalCounted > 0
+        ? +((wasteCost / Math.max(1, totalCounted)) * 100).toFixed(1)
+        : +wasteCost.toFixed(1);
 
     // Waste by category
     const wasteByCatMap = new Map<string, number>();
     for (const w of waste ?? []) {
       const it = itemMap.get((w as any).item_id);
       const cat = it?.category ?? "Other";
-      wasteByCatMap.set(cat, (wasteByCatMap.get(cat) ?? 0) + Number((w as any).qty ?? 0) * (it?.cost ?? 1));
+      wasteByCatMap.set(
+        cat,
+        (wasteByCatMap.get(cat) ?? 0) + Number((w as any).qty ?? 0) * (it?.cost ?? 1),
+      );
     }
-    const wasteByCat = Array.from(wasteByCatMap.entries()).map(([c, v]) => ({ c, v: +v.toFixed(1) }));
+    const wasteByCat = Array.from(wasteByCatMap.entries()).map(([c, v]) => ({
+      c,
+      v: +v.toFixed(1),
+    }));
 
     // Task completion trend per day
     const completedPerDay = new Map<string, { total: number; done: number }>();
@@ -165,8 +214,10 @@ export const getAnalytics = createServerFn({ method: "POST" })
       const sev = (h as any).severity === "high" ? 3 : (h as any).severity === "medium" ? 2 : 1;
       hospMap.set(t, { count: prev.count + 1, sev: prev.sev + sev });
     }
-    const hospBreakdown = Array.from(hospMap.entries())
-      .map(([c, { count, sev }]) => ({ c, v: Math.max(0, 100 - Math.round((sev / Math.max(1, count)) * 25)) }));
+    const hospBreakdown = Array.from(hospMap.entries()).map(([c, { count, sev }]) => ({
+      c,
+      v: Math.max(0, 100 - Math.round((sev / Math.max(1, count)) * 25)),
+    }));
 
     // Quality score: 100 - normalized incidents
     const incidentCount = hosp?.length ?? 0;
@@ -174,9 +225,13 @@ export const getAnalytics = createServerFn({ method: "POST" })
 
     // Opening / closing %: completed phase tasks (signed_off) / total in phase
     const phaseStats = (phase: "opening" | "closing") => {
-      const subset = (tasks ?? []).filter((t: any) => t.phase === phase || (phase === "opening" && !t.phase));
+      const subset = (tasks ?? []).filter(
+        (t: any) => t.phase === phase || (phase === "opening" && !t.phase),
+      );
       const total = subset.length;
-      const done = subset.filter((t: any) => t.status === "done" || t.status === "signed_off").length;
+      const done = subset.filter(
+        (t: any) => t.status === "done" || t.status === "signed_off",
+      ).length;
       return total ? Math.round((done / total) * 100) : 0;
     };
 

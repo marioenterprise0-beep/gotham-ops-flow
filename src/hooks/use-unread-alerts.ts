@@ -21,7 +21,10 @@ export function useUnreadAlerts() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (loading || !session?.access_token) { setCount(0); return; }
+    if (loading || !session?.access_token) {
+      setCount(0);
+      return;
+    }
     let cancelled = false;
 
     const refresh = async () => {

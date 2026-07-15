@@ -3,7 +3,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState, useCallback } from "react";
 import {
-  kioskWhoAmI, kioskListEmployees, kioskClockIn, kioskClockOut,
+  kioskWhoAmI,
+  kioskListEmployees,
+  kioskClockIn,
+  kioskClockOut,
 } from "@/lib/kiosk.functions";
 import { Button } from "@/components/ui/button";
 import { Clock, LogIn, LogOut, ArrowLeft, Delete, CheckCircle2, XCircle } from "lucide-react";
@@ -37,10 +40,22 @@ function KioskPage() {
   }, []);
 
   if (token === undefined) {
-    return <FullScreenCenter><div className="text-white/60">Loading…</div></FullScreenCenter>;
+    return (
+      <FullScreenCenter>
+        <div className="text-white/60">Loading…</div>
+      </FullScreenCenter>
+    );
   }
   if (!token) return <NotRegistered />;
-  return <KioskAuthed token={token} onReset={() => { localStorage.removeItem(TOKEN_KEY); setToken(""); }} />;
+  return (
+    <KioskAuthed
+      token={token}
+      onReset={() => {
+        localStorage.removeItem(TOKEN_KEY);
+        setToken("");
+      }}
+    />
+  );
 }
 
 function NotRegistered() {
@@ -50,9 +65,9 @@ function NotRegistered() {
         <div className="text-6xl">🔒</div>
         <h1 className="text-3xl font-bold text-white">This iPad isn't registered</h1>
         <p className="text-white/70">
-          An owner must sign in and register this device before the kiosk can be used.
-          Go to <span className="font-mono text-gold">Trusted Devices</span> in the app,
-          sign in as owner, and tap "Register this device".
+          An owner must sign in and register this device before the kiosk can be used. Go to{" "}
+          <span className="font-mono text-gold">Trusted Devices</span> in the app, sign in as owner,
+          and tap "Register this device".
         </p>
       </div>
     </FullScreenCenter>
@@ -112,18 +127,30 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
       let lat: number | undefined, lng: number | undefined, accuracy: number | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000, maximumAge: 60000 });
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            timeout: 4000,
+            maximumAge: 60000,
+          });
         });
-        lat = pos.coords.latitude; lng = pos.coords.longitude; accuracy = pos.coords.accuracy;
-      } catch { /* kiosk without geo — server injects trailer coords */ }
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        accuracy = pos.coords.accuracy;
+      } catch {
+        /* kiosk without geo — server injects trailer coords */
+      }
       if (mode === "in") {
-        return clockInFn({ data: { deviceToken: token, employeeId: picked.id, pin, lat, lng, accuracy } });
+        return clockInFn({
+          data: { deviceToken: token, employeeId: picked.id, pin, lat, lng, accuracy },
+        });
       }
       return clockOutFn({ data: { deviceToken: token, employeeId: picked.id, pin } });
     },
     onSuccess: (res) => {
       if (res && "ok" in res && res.ok) {
-        setFlash({ kind: "ok", msg: `${res.employeeName} · Clocked ${mode === "in" ? "in" : "out"}` });
+        setFlash({
+          kind: "ok",
+          msg: `${res.employeeName} · Clocked ${mode === "in" ? "in" : "out"}`,
+        });
       } else {
         setFlash({ kind: "err", msg: (res as any)?.message ?? "Failed" });
         setPin("");
@@ -136,7 +163,11 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
   });
 
   if (who.isLoading) {
-    return <FullScreenCenter><div className="text-white/60">Verifying device…</div></FullScreenCenter>;
+    return (
+      <FullScreenCenter>
+        <div className="text-white/60">Verifying device…</div>
+      </FullScreenCenter>
+    );
   }
   if (who.data && !who.data.ok) {
     return (
@@ -144,7 +175,9 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
         <div className="text-center space-y-4">
           <XCircle className="w-16 h-16 mx-auto text-red-400" />
           <div className="text-2xl text-white">{who.data.message}</div>
-          <Button size="lg" variant="secondary" onClick={onReset}>Reset device</Button>
+          <Button size="lg" variant="secondary" onClick={onReset}>
+            Reset device
+          </Button>
         </div>
       </FullScreenCenter>
     );
@@ -156,7 +189,9 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
   if (flash) {
     return (
       <FullScreenCenter>
-        <div className={`text-center space-y-6 ${flash.kind === "ok" ? "text-green-300" : "text-red-300"}`}>
+        <div
+          className={`text-center space-y-6 ${flash.kind === "ok" ? "text-green-300" : "text-red-300"}`}
+        >
           {flash.kind === "ok" ? (
             <CheckCircle2 className="w-32 h-32 mx-auto" />
           ) : (
@@ -173,10 +208,7 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
     return (
       <FullScreenBg>
         <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-6 py-8">
-          <button
-            onClick={reset}
-            className="flex items-center gap-2 text-white/70 mb-6 text-lg"
-          >
+          <button onClick={reset} className="flex items-center gap-2 text-white/70 mb-6 text-lg">
             <ArrowLeft className="w-5 h-5" /> Back
           </button>
           <div className="text-center mb-8">
@@ -195,12 +227,16 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
             ))}
           </div>
           <div className="grid grid-cols-3 gap-3 flex-1 max-h-[420px]">
-            {["1","2","3","4","5","6","7","8","9"].map((n) => (
-              <KeypadBtn key={n} onClick={() => pin.length < 4 && setPin(pin + n)}>{n}</KeypadBtn>
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => (
+              <KeypadBtn key={n} onClick={() => pin.length < 4 && setPin(pin + n)}>
+                {n}
+              </KeypadBtn>
             ))}
             <KeypadBtn onClick={() => setPin("")}>Clear</KeypadBtn>
             <KeypadBtn onClick={() => pin.length < 4 && setPin(pin + "0")}>0</KeypadBtn>
-            <KeypadBtn onClick={() => setPin(pin.slice(0, -1))}><Delete className="w-6 h-6 mx-auto" /></KeypadBtn>
+            <KeypadBtn onClick={() => setPin(pin.slice(0, -1))}>
+              <Delete className="w-6 h-6 mx-auto" />
+            </KeypadBtn>
           </div>
           <Button
             size="lg"
@@ -208,7 +244,17 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
             disabled={pin.length !== 4 || submit.isPending}
             onClick={() => submit.mutate()}
           >
-            {submit.isPending ? "…" : mode === "in" ? <><LogIn className="w-6 h-6 mr-2" /> Clock In</> : <><LogOut className="w-6 h-6 mr-2" /> Clock Out</>}
+            {submit.isPending ? (
+              "…"
+            ) : mode === "in" ? (
+              <>
+                <LogIn className="w-6 h-6 mr-2" /> Clock In
+              </>
+            ) : (
+              <>
+                <LogOut className="w-6 h-6 mr-2" /> Clock Out
+              </>
+            )}
           </Button>
         </div>
       </FullScreenBg>
@@ -228,7 +274,9 @@ function KioskAuthed({ token, onReset }: { token: string; onReset: () => void })
       <div className="px-8 pb-8 flex-1 overflow-auto">
         {roster.isLoading && <div className="text-white/50 text-center pt-16">Loading crew…</div>}
         {roster.data && roster.data.length === 0 && (
-          <div className="text-white/50 text-center pt-16">No active employees assigned to this location.</div>
+          <div className="text-white/50 text-center pt-16">
+            No active employees assigned to this location.
+          </div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {(roster.data ?? []).map((e) => (

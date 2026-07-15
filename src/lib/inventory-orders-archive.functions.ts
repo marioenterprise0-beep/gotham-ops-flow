@@ -30,9 +30,7 @@ async function assertOwner(supabase: any, userId: string) {
 
 // Dependency map: entity -> [child_table, fk_column, label][]
 const DEPS: Record<Entity, Array<{ table: string; column: string; label: string }>> = {
-  inventory_orders: [
-    { table: "inventory_order_items", column: "order_id", label: "Order items" },
-  ],
+  inventory_orders: [{ table: "inventory_order_items", column: "order_id", label: "Order items" }],
   inventory_order_items: [],
   inventory_receipts: [],
   inventory_change_requests: [],
@@ -73,12 +71,16 @@ export const scanInventoryOrdersDependencies = createServerFn({ method: "POST" }
 
 export const archiveInventoryOrdersEntity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    reason: z.string().max(300).optional(),
-    cascade: z.boolean().optional(), // also archive children
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        reason: z.string().max(300).optional(),
+        cascade: z.boolean().optional(), // also archive children
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
@@ -116,9 +118,14 @@ export const restoreInventoryOrdersEntity = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertOwner(supabase, userId);
-    const { error } = await sb.from(data.entity).update({
-      archived_at: null, archived_by: null, archive_reason: null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from(data.entity)
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
@@ -132,11 +139,15 @@ export const restoreInventoryOrdersEntity = createServerFn({ method: "POST" })
 
 export const deleteInventoryOrdersEntity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    force: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        force: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;

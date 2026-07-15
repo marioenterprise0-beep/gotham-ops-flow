@@ -39,7 +39,13 @@ function renderInline(
       if (blockIndex !== undefined) {
         const fieldKey = `b${blockIndex}_u${blankCounter.n++}`;
         nodes.push(
-          <FillSlot key={`${keyPrefix}t${key++}`} fieldKey={fieldKey} placeholder="" fill={fill} className="inline-block w-28 mx-1 align-baseline" />,
+          <FillSlot
+            key={`${keyPrefix}t${key++}`}
+            fieldKey={fieldKey}
+            placeholder=""
+            fill={fill}
+            className="inline-block w-28 mx-1 align-baseline"
+          />,
         );
       } else {
         nodes.push(<span key={`${keyPrefix}t${key++}`}>{m[3]}</span>);
@@ -65,7 +71,9 @@ function renderInline(
       tagName === "b" ? (
         <strong key={`${keyPrefix}t${key++}`}>{innerNodes}</strong>
       ) : (
-        <span key={`${keyPrefix}t${key++}`} style={color ? { color } : undefined}>{innerNodes}</span>
+        <span key={`${keyPrefix}t${key++}`} style={color ? { color } : undefined}>
+          {innerNodes}
+        </span>
       ),
     );
     pos += m.index + m[0].length + close.index + close[0].length;
@@ -118,7 +126,17 @@ export type FillContext = {
   editable?: boolean;
 };
 
-function FillSlot({ fieldKey, placeholder, fill, className }: { fieldKey: string; placeholder: string; fill?: FillContext; className?: string }) {
+function FillSlot({
+  fieldKey,
+  placeholder,
+  fill,
+  className,
+}: {
+  fieldKey: string;
+  placeholder: string;
+  fill?: FillContext;
+  className?: string;
+}) {
   const saved = fill?.fieldValues?.[fieldKey];
   if (saved !== undefined && saved !== null && saved !== "") {
     return <span className={cn("font-medium text-[var(--color-gold)]", className)}>{saved}</span>;
@@ -143,14 +161,26 @@ function FillSlot({ fieldKey, placeholder, fill, className }: { fieldKey: string
 // independently the moment it's saved checked; unchecked boxes are simply
 // never saved (blank/unchecked is already the natural default, no need to
 // lock a negative).
-function CheckboxRow({ baseKey, segments, fill }: { baseKey: string; segments: { checked: boolean; label: string }[]; fill?: FillContext }) {
+function CheckboxRow({
+  baseKey,
+  segments,
+  fill,
+}: {
+  baseKey: string;
+  segments: { checked: boolean; label: string }[];
+  fill?: FillContext;
+}) {
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-1">
       {segments.map((seg, i) => {
         const key = `${baseKey}_cb${i}`;
         const saved = fill?.fieldValues?.[key];
         const isLocked = saved === "true";
-        const checked = isLocked ? true : fill?.editable ? fill.draftValues?.[key] === "true" : seg.checked;
+        const checked = isLocked
+          ? true
+          : fill?.editable
+            ? fill.draftValues?.[key] === "true"
+            : seg.checked;
         return (
           <label
             key={i}
@@ -175,7 +205,9 @@ function CheckboxRow({ baseKey, segments, fill }: { baseKey: string; segments: {
 }
 
 export function StructuredBlock({
-  block, blockIndex, fill,
+  block,
+  blockIndex,
+  fill,
 }: {
   block: HandbookBlock;
   blockIndex?: number;
@@ -184,14 +216,23 @@ export function StructuredBlock({
   switch (block.type) {
     case "heading":
       return (
-        <h3 className={cn("font-display mt-5 mb-2", block.level === "h1" ? "text-lg text-[var(--color-gold)]" : "text-base")}>
+        <h3
+          className={cn(
+            "font-display mt-5 mb-2",
+            block.level === "h1" ? "text-lg text-[var(--color-gold)]" : "text-base",
+          )}
+        >
           {block.text}
         </h3>
       );
     case "paragraph":
       if (isSoleBold(block.text)) {
         const m = block.text.trim().match(/^<b>([\s\S]*)<\/b>$/);
-        return <h4 className="font-semibold text-sm mt-4 mb-1.5">{m ? renderInline(m[1]) : block.text}</h4>;
+        return (
+          <h4 className="font-semibold text-sm mt-4 mb-1.5">
+            {m ? renderInline(m[1]) : block.text}
+          </h4>
+        );
       }
       if (blockIndex !== undefined && isFillablePlaceholder(block.text)) {
         return (
@@ -200,7 +241,11 @@ export function StructuredBlock({
           </div>
         );
       }
-      return <p className="text-sm leading-relaxed text-foreground/90 mb-2">{renderInline(block.text, blockIndex, fill)}</p>;
+      return (
+        <p className="text-sm leading-relaxed text-foreground/90 mb-2">
+          {renderInline(block.text, blockIndex, fill)}
+        </p>
+      );
     case "bullet": {
       const cbSegments = blockIndex !== undefined ? splitCheckboxSegments(block.text) : null;
       if (cbSegments) {
@@ -229,15 +274,36 @@ export function StructuredBlock({
           <table className="w-full text-xs">
             <tbody>
               {block.rows.map((row, ri) => (
-                <tr key={ri} className={cn(ri === 0 ? "bg-secondary font-semibold" : ri % 2 ? "bg-card" : "bg-secondary/30")}>
+                <tr
+                  key={ri}
+                  className={cn(
+                    ri === 0
+                      ? "bg-secondary font-semibold"
+                      : ri % 2
+                        ? "bg-card"
+                        : "bg-secondary/30",
+                  )}
+                >
                   {row.map((cell, ci) => {
-                    const cbSegments = ri > 0 && blockIndex !== undefined ? splitCheckboxSegments(cell) : null;
+                    const cbSegments =
+                      ri > 0 && blockIndex !== undefined ? splitCheckboxSegments(cell) : null;
                     return (
-                      <td key={ci} className="px-2.5 py-1.5 border-b border-border align-top min-w-[7rem]">
+                      <td
+                        key={ci}
+                        className="px-2.5 py-1.5 border-b border-border align-top min-w-[7rem]"
+                      >
                         {cbSegments ? (
-                          <CheckboxRow baseKey={`b${blockIndex}_r${ri}_c${ci}`} segments={cbSegments} fill={fill} />
+                          <CheckboxRow
+                            baseKey={`b${blockIndex}_r${ri}_c${ci}`}
+                            segments={cbSegments}
+                            fill={fill}
+                          />
                         ) : ri > 0 && blockIndex !== undefined && isFillablePlaceholder(cell) ? (
-                          <FillSlot fieldKey={`b${blockIndex}_r${ri}_c${ci}`} placeholder={cell} fill={fill} />
+                          <FillSlot
+                            fieldKey={`b${blockIndex}_r${ri}_c${ci}`}
+                            placeholder={cell}
+                            fill={fill}
+                          />
                         ) : (
                           cell
                         )}
@@ -283,7 +349,9 @@ export function renderStructuredBlocks(blocks: HandbookBlock[], fill?: FillConte
       return;
     }
     flushBullets();
-    out.push(<StructuredBlock key={`b-${key++}`} block={block} blockIndex={blockIndex} fill={fill} />);
+    out.push(
+      <StructuredBlock key={`b-${key++}`} block={block} blockIndex={blockIndex} fill={fill} />,
+    );
   });
   flushBullets();
   return out;

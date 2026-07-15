@@ -52,11 +52,14 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
   });
 
   const submit = useMutation({
-    mutationFn: () => submitFn({ data: {
-      requestedTrailerId: trailerId,
-      reason: reason.trim(),
-      durationMinutes: duration,
-    } }),
+    mutationFn: () =>
+      submitFn({
+        data: {
+          requestedTrailerId: trailerId,
+          reason: reason.trim(),
+          durationMinutes: duration,
+        },
+      }),
     onSuccess: () => {
       toast.success("Request sent to owner");
       setReason("");
@@ -70,7 +73,8 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
       redeemFn({ data: { requestId: vars.id, code: vars.code } }),
     onSuccess: () => {
       toast.success("Access activated");
-      setCodeReqId(null); setCode("");
+      setCodeReqId(null);
+      setCode("");
       qc.invalidateQueries({ queryKey: ["active-location-grant"] });
       qc.invalidateQueries({ queryKey: ["my-location-requests"] });
       qc.invalidateQueries(); // Refresh trailer-scoped data
@@ -85,19 +89,26 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl w-full max-w-md p-5 card-shadow max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-card border border-border rounded-xl w-full max-w-md p-5 card-shadow max-h-[90vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-xl flex items-center gap-2">
             <MapPin className="h-5 w-5 text-[var(--color-gold)]" /> REQUEST LOCATION ACCESS
           </h3>
-          <button onClick={onClose} className="text-muted-foreground"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="text-muted-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {grant.data && (
           <div className="mb-3 rounded-md border border-[var(--color-gold)]/40 bg-[var(--color-gold)]/10 p-3 text-xs">
             <div className="label-caps text-muted-foreground">Active grant</div>
             <div className="text-sm font-semibold">{trailerName(grant.data.trailer_id)}</div>
-            <div className="text-muted-foreground">expires {new Date(grant.data.expires_at).toLocaleString()}</div>
+            <div className="text-muted-foreground">
+              expires {new Date(grant.data.expires_at).toLocaleString()}
+            </div>
           </div>
         )}
 
@@ -109,13 +120,18 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">{trailerName(r.requested_trailer_id)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {r.code_expires_at ? `expires ${new Date(r.code_expires_at).toLocaleTimeString()}` : ""}
+                    {r.code_expires_at
+                      ? `expires ${new Date(r.code_expires_at).toLocaleTimeString()}`
+                      : ""}
                   </div>
                 </div>
                 {codeReqId === r.id ? (
                   <div className="mt-2 flex gap-2">
                     <input
-                      autoFocus inputMode="numeric" pattern="\d*" maxLength={6}
+                      autoFocus
+                      inputMode="numeric"
+                      pattern="\d*"
+                      maxLength={6}
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       placeholder="6-digit code"
@@ -130,7 +146,13 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => { setCodeReqId(r.id); setCode(""); }} className="mt-2 text-xs underline text-muted-foreground hover:text-foreground">
+                  <button
+                    onClick={() => {
+                      setCodeReqId(r.id);
+                      setCode("");
+                    }}
+                    className="mt-2 text-xs underline text-muted-foreground hover:text-foreground"
+                  >
                     Enter code
                   </button>
                 )}
@@ -144,7 +166,8 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
             <div className="label-caps text-muted-foreground">Pending owner approval</div>
             {pending.map((r) => (
               <div key={r.id} className="text-xs text-muted-foreground">
-                {trailerName(r.requested_trailer_id)} · {r.duration_minutes} min · {new Date(r.created_at).toLocaleTimeString()}
+                {trailerName(r.requested_trailer_id)} · {r.duration_minutes} min ·{" "}
+                {new Date(r.created_at).toLocaleTimeString()}
               </div>
             ))}
           </div>
@@ -158,28 +181,48 @@ export function LocationRequestDialog({ onClose }: { onClose: () => void }) {
             <>
               <label className="block">
                 <div className="label-caps text-muted-foreground mb-1">Trailer</div>
-                <select value={trailerId} onChange={(e) => setTrailerId(e.target.value)} className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm">
-                  {eligibleTrailers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <select
+                  value={trailerId}
+                  onChange={(e) => setTrailerId(e.target.value)}
+                  className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
+                >
+                  {eligibleTrailers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="block">
                 <div className="label-caps text-muted-foreground mb-1">Reason</div>
                 <textarea
-                  value={reason} onChange={(e) => setReason(e.target.value.slice(0, 1000))}
-                  rows={3} placeholder="Why do you need access to this location?"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value.slice(0, 1000))}
+                  rows={3}
+                  placeholder="Why do you need access to this location?"
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm"
                 />
               </label>
               <label className="block">
                 <div className="label-caps text-muted-foreground mb-1">Duration (minutes)</div>
                 <input
-                  type="number" min={15} max={480} value={duration}
-                  onChange={(e) => setDuration(Math.min(480, Math.max(15, Number(e.target.value) || 60)))}
+                  type="number"
+                  min={15}
+                  max={480}
+                  value={duration}
+                  onChange={(e) =>
+                    setDuration(Math.min(480, Math.max(15, Number(e.target.value) || 60)))
+                  }
                   className="w-full h-10 rounded-md border border-border bg-card px-3 text-sm"
                 />
               </label>
               <div className="flex justify-end gap-2 pt-1">
-                <button onClick={onClose} className="rounded-md border border-border px-3 py-2 text-sm">Cancel</button>
+                <button
+                  onClick={onClose}
+                  className="rounded-md border border-border px-3 py-2 text-sm"
+                >
+                  Cancel
+                </button>
                 <button
                   disabled={!trailerId || !reason.trim() || submit.isPending}
                   onClick={() => submit.mutate()}

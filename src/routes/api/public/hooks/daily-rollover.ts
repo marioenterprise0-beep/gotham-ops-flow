@@ -30,11 +30,13 @@ export const Route = createFileRoute("/api/public/hooks/daily-rollover")({
         if (error) {
           console.error("daily-rollover dispatch failed", { error });
           return new Response(JSON.stringify({ ok: false, error: "Internal server error" }), {
-            status: 500, headers: { "Content-Type": "application/json" },
+            status: 500,
+            headers: { "Content-Type": "application/json" },
           });
         }
         return new Response(JSON.stringify({ ok: true, trailers_rolled: data }), {
-          status: 200, headers: { "Content-Type": "application/json" },
+          status: 200,
+          headers: { "Content-Type": "application/json" },
         });
       },
     },

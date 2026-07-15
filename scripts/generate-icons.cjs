@@ -85,8 +85,8 @@ const MASKABLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 5
 
 const ICON_SIZES = [
   // PWA icons
-  { size: 72,  name: "icon-72x72.png",   maskable: false },
-  { size: 96,  name: "icon-96x96.png",   maskable: false },
+  { size: 72, name: "icon-72x72.png", maskable: false },
+  { size: 96, name: "icon-96x96.png", maskable: false },
   { size: 128, name: "icon-128x128.png", maskable: false },
   { size: 144, name: "icon-144x144.png", maskable: false },
   { size: 152, name: "icon-152x152.png", maskable: false },
@@ -100,7 +100,7 @@ const ICON_SIZES = [
   { size: 120, name: "apple-touch-icon-120x120.png", maskable: false },
   { size: 152, name: "apple-touch-icon-152x152.png", maskable: false },
   { size: 167, name: "apple-touch-icon-167x167.png", maskable: false },
-  { size: 180, name: "apple-touch-icon.png",         maskable: false },
+  { size: 180, name: "apple-touch-icon.png", maskable: false },
 ];
 
 async function generateIcons() {
@@ -114,19 +114,13 @@ async function generateIcons() {
   for (const { size, name, maskable } of ICON_SIZES) {
     const svg = Buffer.from(maskable ? MASKABLE_SVG : ICON_SVG);
     const outPath = path.join(iconsDir, name);
-    await sharp(svg)
-      .resize(size, size)
-      .png({ compressionLevel: 9 })
-      .toFile(outPath);
+    await sharp(svg).resize(size, size).png({ compressionLevel: 9 }).toFile(outPath);
     console.log(`✓ Generated ${name} (${size}x${size})`);
   }
 
   // Generate 1024x1024 for Electron
   const electronIcon1024 = path.join(electronBuildDir, "icon.png");
-  await sharp(Buffer.from(ICON_SVG))
-    .resize(1024, 1024)
-    .png()
-    .toFile(electronIcon1024);
+  await sharp(Buffer.from(ICON_SVG)).resize(1024, 1024).png().toFile(electronIcon1024);
   console.log("✓ Generated electron/build/icon.png (1024x1024)");
 
   // Generate ICNS via iconset (macOS only)
@@ -138,7 +132,10 @@ async function generateIcons() {
     await sharp(Buffer.from(ICON_SVG)).resize(s, s).png().toFile(base);
     if (s <= 512) {
       const ret = path.join(iconsetDir, `icon_${s}x${s}@2x.png`);
-      await sharp(Buffer.from(ICON_SVG)).resize(s * 2, s * 2).png().toFile(ret);
+      await sharp(Buffer.from(ICON_SVG))
+        .resize(s * 2, s * 2)
+        .png()
+        .toFile(ret);
     }
     console.log(`✓ iconset ${s}x${s}`);
   }
@@ -147,4 +144,7 @@ async function generateIcons() {
   console.log("\nAll icons generated successfully!");
 }
 
-generateIcons().catch((err) => { console.error(err); process.exit(1); });
+generateIcons().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

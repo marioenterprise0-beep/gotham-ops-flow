@@ -27,34 +27,55 @@ type Phase = "opening" | "mid" | "closing" | "emergency";
 // Minimal stand-in templates — real seeder uses TEMPLATES from shifts.functions.ts.
 // We only need >0 rows per phase to exercise the audit gate.
 const TPL: Record<Phase, Array<{ title: string; section: string }>> = {
-  opening: [{ title: "test open 1", section: "TEST" }, { title: "test open 2", section: "TEST" }],
+  opening: [
+    { title: "test open 1", section: "TEST" },
+    { title: "test open 2", section: "TEST" },
+  ],
   closing: [{ title: "test close 1", section: "TEST" }],
-  mid:     [{ title: "test mid 1", section: "TEST" }],
+  mid: [{ title: "test mid 1", section: "TEST" }],
   emergency: [{ title: "test inv 1", section: "TEST" }],
 };
 
-async function seedPhaseIfMissing(shiftId: string, trailerId: string | null, phase: Phase, actorId: string | null) {
+async function seedPhaseIfMissing(
+  shiftId: string,
+  trailerId: string | null,
+  phase: Phase,
+  actorId: string | null,
+) {
   const { count } = await sb
-    .from("tasks").select("id", { count: "exact", head: true })
-    .eq("shift_id", shiftId).eq("phase", phase);
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("shift_id", shiftId)
+    .eq("phase", phase);
   if ((count ?? 0) > 0) return 0;
   const rows = TPL[phase].map((t) => ({
-    shift_id: shiftId, phase, title: t.title, description: t.section,
-    status: "todo" as const, trailer_id: trailerId,
+    shift_id: shiftId,
+    phase,
+    title: t.title,
+    description: t.section,
+    status: "todo" as const,
+    trailer_id: trailerId,
   }));
   await sb.from("tasks").insert(rows);
   if (rows.length > 0 && (phase === "opening" || phase === "closing")) {
     await sb.from("audit_log").insert({
-      actor_id: actorId, action: "seed_required_checklist", entity: "shift",
-      entity_id: shiftId, payload: { phase, trigger: "open_shift", seeded: rows.length, trailer_id: trailerId },
+      actor_id: actorId,
+      action: "seed_required_checklist",
+      entity: "shift",
+      entity_id: shiftId,
+      payload: { phase, trigger: "open_shift", seeded: rows.length, trailer_id: trailerId },
     });
   }
   return rows.length;
 }
 
 async function auditCount(shiftId: string, phase?: Phase): Promise<number> {
-  let q = sb.from("audit_log").select("id", { count: "exact", head: true })
-    .eq("entity", "shift").eq("entity_id", shiftId).eq("action", "seed_required_checklist");
+  let q = sb
+    .from("audit_log")
+    .select("id", { count: "exact", head: true })
+    .eq("entity", "shift")
+    .eq("entity_id", shiftId)
+    .eq("action", "seed_required_checklist");
   if (phase) q = q.eq("payload->>phase", phase);
   const { count, error } = await q;
   if (error) throw error;
@@ -62,19 +83,38 @@ async function auditCount(shiftId: string, phase?: Phase): Promise<number> {
 }
 
 function assert(cond: unknown, msg: string) {
-  if (!cond) { console.error("❌", msg); process.exit(1); }
+  if (!cond) {
+    console.error("❌", msg);
+    process.exit(1);
+  }
   console.log("✅", msg);
 }
 
 async function main() {
-  const { data: store } = await sb.from("stores").select("id").order("created_at").limit(1).maybeSingle();
-  const { data: trailer } = await sb.from("trailers").select("id").order("created_at").limit(1).maybeSingle();
+  const { data: store } = await sb
+    .from("stores")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  const { data: trailer } = await sb
+    .from("trailers")
+    .select("id")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
   if (!store) throw new Error("No store configured");
 
-  const { data: shift, error } = await sb.from("shifts").insert({
-    store_id: store.id, trailer_id: trailer?.id ?? null,
-    phase: "opening", status: "active",
-  }).select().single();
+  const { data: shift, error } = await sb
+    .from("shifts")
+    .insert({
+      store_id: store.id,
+      trailer_id: trailer?.id ?? null,
+      phase: "opening",
+      status: "active",
+    })
+    .select()
+    .single();
   if (error) throw error;
   const shiftId = shift.id;
   console.log(`▶  Test shift ${shiftId}`);
@@ -93,14 +133,23 @@ async function main() {
     const b2 = await seedPhaseIfMissing(shiftId, trailer?.id ?? null, "closing", null);
     assert(a2 === 0, "run 2 opening inserted 0 tasks (no-op)");
     assert(b2 === 0, "run 2 closing inserted 0 tasks (no-op)");
-    assert((await auditCount(shiftId, "opening")) === 1, "still 1 audit row for opening after no-op run 2");
-    assert((await auditCount(shiftId, "closing")) === 1, "still 1 audit row for closing after no-op run 2");
+    assert(
+      (await auditCount(shiftId, "opening")) === 1,
+      "still 1 audit row for opening after no-op run 2",
+    );
+    assert(
+      (await auditCount(shiftId, "closing")) === 1,
+      "still 1 audit row for closing after no-op run 2",
+    );
 
     // Run 3: delete opening tasks (simulate reactivation) — should emit 1 new audit row.
     await sb.from("tasks").delete().eq("shift_id", shiftId).eq("phase", "opening");
     const a3 = await seedPhaseIfMissing(shiftId, trailer?.id ?? null, "opening", null);
     assert(a3 > 0, `reactivation re-inserted ${a3} opening tasks`);
-    assert((await auditCount(shiftId, "opening")) === 2, "opening audit count incremented to 2 after reactivation");
+    assert(
+      (await auditCount(shiftId, "opening")) === 2,
+      "opening audit count incremented to 2 after reactivation",
+    );
     assert((await auditCount(shiftId, "closing")) === 1, "closing audit unchanged");
 
     // Run 4: mid and emergency must never emit seed_required_checklist.
@@ -121,4 +170,7 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error("❌ Test failed:", e.message); process.exit(1); });
+main().catch((e) => {
+  console.error("❌ Test failed:", e.message);
+  process.exit(1);
+});

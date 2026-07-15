@@ -7,7 +7,12 @@ type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 type TabAccess = "none" | "view" | "edit";
 
 const ROLE_RANK: Record<RoleId, number> = {
-  owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1,
+  owner: 6,
+  manager: 5,
+  shift_lead: 4,
+  grill: 3,
+  prep: 2,
+  cashier: 1,
 };
 
 const RANK: Record<TabAccess, number> = { none: 0, view: 1, edit: 2 };
@@ -17,19 +22,33 @@ function pickPrimary(rs: RoleId[]): RoleId | null {
   return [...rs].sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a])[0];
 }
 
-function getTabAccess(tabKey: string, isOwner: boolean, tabAccess: Record<string, TabAccess>): TabAccess {
+function getTabAccess(
+  tabKey: string,
+  isOwner: boolean,
+  tabAccess: Record<string, TabAccess>,
+): TabAccess {
   if (isOwner) return "edit";
   return tabAccess[tabKey] ?? "view"; // safe default — never grant unknown tabs
 }
 
 function initials(name: string): string {
-  return name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  return name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
-function canSee(roleId: RoleId | null, module: "manager" | "analytics" | "hospitality_log"): boolean {
+function canSee(
+  roleId: RoleId | null,
+  module: "manager" | "analytics" | "hospitality_log",
+): boolean {
   if (!roleId) return false;
-  if (module === "manager" || module === "analytics") return roleId === "owner" || roleId === "manager";
-  if (module === "hospitality_log") return roleId === "owner" || roleId === "manager" || roleId === "shift_lead";
+  if (module === "manager" || module === "analytics")
+    return roleId === "owner" || roleId === "manager";
+  if (module === "hospitality_log")
+    return roleId === "owner" || roleId === "manager" || roleId === "shift_lead";
   return true;
 }
 
@@ -37,7 +56,12 @@ function canSee(roleId: RoleId | null, module: "manager" | "analytics" | "hospit
 function resolveTabAccess(
   roles: RoleId[],
   tabKey: string,
-  perms: Array<{ scope_type: "role" | "user"; scope_id: string; access_level: TabAccess; enabled: boolean }>,
+  perms: Array<{
+    scope_type: "role" | "user";
+    scope_id: string;
+    access_level: TabAccess;
+    enabled: boolean;
+  }>,
   userId: string,
 ): TabAccess {
   if (roles.includes("owner")) return "edit";
@@ -45,7 +69,9 @@ function resolveTabAccess(
   const userRow = perms.find((p) => p.scope_type === "user" && p.scope_id === userId);
   if (userRow) return userRow.enabled ? userRow.access_level : "none";
 
-  const roleRows = perms.filter((p) => p.scope_type === "role" && roles.includes(p.scope_id as RoleId));
+  const roleRows = perms.filter(
+    (p) => p.scope_type === "role" && roles.includes(p.scope_id as RoleId),
+  );
   if (roleRows.length > 0) {
     return roleRows.reduce<TabAccess>((best, r) => {
       const lvl: TabAccess = r.enabled ? r.access_level : "none";
@@ -104,7 +130,12 @@ describe("resolveTabAccess", () => {
 
   it("user-scoped row takes priority over role-scoped rows", () => {
     const perms = [
-      { scope_type: "role" as const, scope_id: "manager", access_level: "edit" as const, enabled: true },
+      {
+        scope_type: "role" as const,
+        scope_id: "manager",
+        access_level: "edit" as const,
+        enabled: true,
+      },
       { scope_type: "user" as const, scope_id: uid, access_level: "view" as const, enabled: true },
     ];
     expect(resolveTabAccess(["manager"], "analytics", perms, uid)).toBe("view");
@@ -119,8 +150,18 @@ describe("resolveTabAccess", () => {
 
   it("takes most permissive across multiple role rows", () => {
     const perms = [
-      { scope_type: "role" as const, scope_id: "shift_lead", access_level: "view" as const, enabled: true },
-      { scope_type: "role" as const, scope_id: "manager", access_level: "edit" as const, enabled: true },
+      {
+        scope_type: "role" as const,
+        scope_id: "shift_lead",
+        access_level: "view" as const,
+        enabled: true,
+      },
+      {
+        scope_type: "role" as const,
+        scope_id: "manager",
+        access_level: "edit" as const,
+        enabled: true,
+      },
     ];
     expect(resolveTabAccess(["manager", "shift_lead"], "labor", perms, uid)).toBe("edit");
   });

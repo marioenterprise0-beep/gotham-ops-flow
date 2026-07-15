@@ -51,26 +51,38 @@ export const scanLocationRequestDependencies = createServerFn({ method: "POST" }
 
 export const archiveLocationRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid(),
-    reason: z.string().max(300).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reason: z.string().max(300).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertManager(supabase, userId);
-    const { error } = await sb.from("location_access_requests").update({
-      archived_at: new Date().toISOString(),
-      archived_by: userId,
-      archive_reason: data.reason ?? null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from("location_access_requests")
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     // Also resolve any open linked alert so it disappears from the alert center.
-    await sb.from("alerts").update({
-      status: "resolved",
-      resolved_by: userId,
-      resolved_at: new Date().toISOString(),
-    }).eq("source_id", data.id).eq("source_module", "location").in("status", ["pending", "open"]);
+    await sb
+      .from("alerts")
+      .update({
+        status: "resolved",
+        resolved_by: userId,
+        resolved_at: new Date().toISOString(),
+      })
+      .eq("source_id", data.id)
+      .eq("source_module", "location")
+      .in("status", ["pending", "open"]);
     await supabase.from("audit_log").insert({
       actor_id: userId,
       action: "location_access_requests_archived",
@@ -88,9 +100,14 @@ export const restoreLocationRequest = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertOwner(supabase, userId);
-    const { error } = await sb.from("location_access_requests").update({
-      archived_at: null, archived_by: null, archive_reason: null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from("location_access_requests")
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
@@ -104,10 +121,14 @@ export const restoreLocationRequest = createServerFn({ method: "POST" })
 
 export const deleteLocationRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    id: z.string().uuid(),
-    force: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        force: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;

@@ -35,7 +35,9 @@ export const getHandbook = createServerFn({ method: "GET" })
     // scanSopDependencies's table loop in sops.functions.ts).
     const { data, error } = await (context.supabase as any)
       .from("handbook_sections")
-      .select("id, part_number, part_title, section_number, section_title, body_blocks, is_policy, display_order, version, updated_at")
+      .select(
+        "id, part_number, part_title, section_number, section_title, body_blocks, is_policy, display_order, version, updated_at",
+      )
       .order("display_order", { ascending: true });
     if (error) throw error;
     return (data ?? []) as HandbookSection[];
@@ -57,10 +59,12 @@ export const acknowledgeHandbook = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const version = await getCurrentHandbookVersion(supabase);
-    const { error } = await (supabase as any).from("handbook_acknowledgements").upsert(
-      { user_id: userId, handbook_version: version, full_name_typed: data.fullNameTyped.trim() },
-      { onConflict: "user_id,handbook_version" },
-    );
+    const { error } = await (supabase as any)
+      .from("handbook_acknowledgements")
+      .upsert(
+        { user_id: userId, handbook_version: version, full_name_typed: data.fullNameTyped.trim() },
+        { onConflict: "user_id,handbook_version" },
+      );
     if (error) throw error;
     // Milestone column — mirrors sop_accepted_at / training_completed_at.
     // Only the FIRST-ever ack flips this null->non-null and fires the
@@ -100,8 +104,14 @@ export const getHandbookAckRollup = createServerFn({ method: "GET" })
 
     const version = await getCurrentHandbookVersion(supabase);
     const [{ data: profiles }, { data: acks }] = await Promise.all([
-      supabase.from("profiles").select("id, display_name, active").eq("active", true).is("archived_at", null),
-      (supabase as any).from("handbook_acknowledgements").select("user_id, handbook_version, acknowledged_at"),
+      supabase
+        .from("profiles")
+        .select("id, display_name, active")
+        .eq("active", true)
+        .is("archived_at", null),
+      (supabase as any)
+        .from("handbook_acknowledgements")
+        .select("user_id, handbook_version, acknowledged_at"),
     ]);
 
     const latestAck = new Map<string, { version: number; at: string }>();
@@ -125,5 +135,11 @@ export const getHandbookAckRollup = createServerFn({ method: "GET" })
         stale.push({ id: p.id, name: p.display_name });
       }
     }
-    return { currentVersion: version, totalUsers: (profiles ?? []).length, current, stale, pending };
+    return {
+      currentVersion: version,
+      totalUsers: (profiles ?? []).length,
+      current,
+      stale,
+      pending,
+    };
   });

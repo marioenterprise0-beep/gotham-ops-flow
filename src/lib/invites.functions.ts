@@ -30,16 +30,21 @@ export const listInvites = createServerFn({ method: "GET" })
 
 export const createInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    role: z.enum(ROLE_VALUES),
-    note: z.string().max(200).optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        role: z.enum(ROLE_VALUES),
+        note: z.string().max(200).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await requireOwner(supabase, userId);
     if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
-      if (!(await isOwner(supabase, userId))) throw new Error("Only owners can issue owner or manager invites");
+      if (!(await isOwner(supabase, userId)))
+        throw new Error("Only owners can issue owner or manager invites");
     }
     const code = randomCode();
     const { data: row, error } = await supabase

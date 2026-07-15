@@ -36,7 +36,11 @@ export function OnlineDot() {
       title={online ? "Online" : "Offline"}
       className="inline-flex items-center gap-1.5 text-xs text-white/70"
     >
-      {online ? <Wifi className="h-3.5 w-3.5 text-[var(--color-success)]" /> : <WifiOff className="h-3.5 w-3.5 text-[var(--color-danger)]" />}
+      {online ? (
+        <Wifi className="h-3.5 w-3.5 text-[var(--color-success)]" />
+      ) : (
+        <WifiOff className="h-3.5 w-3.5 text-[var(--color-danger)]" />
+      )}
     </span>
   );
 }

@@ -25,9 +25,7 @@ async function assertOwner(supabase: any, userId: string) {
 }
 
 const DEPS: Record<Entity, Array<{ table: string; column: string; label: string }>> = {
-  alerts: [
-    { table: "alert_actions", column: "alert_id", label: "Alert actions" },
-  ],
+  alerts: [{ table: "alert_actions", column: "alert_id", label: "Alert actions" }],
   alert_actions: [],
 };
 
@@ -66,12 +64,16 @@ export const scanAlertDependencies = createServerFn({ method: "POST" })
 
 export const archiveAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    reason: z.string().max(300).optional(),
-    cascade: z.boolean().optional(),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        reason: z.string().max(300).optional(),
+        cascade: z.boolean().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
@@ -109,9 +111,14 @@ export const restoreAlert = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const sb: any = supabase;
     await assertOwner(supabase, userId);
-    const { error } = await sb.from(data.entity).update({
-      archived_at: null, archived_by: null, archive_reason: null,
-    }).eq("id", data.id);
+    const { error } = await sb
+      .from(data.entity)
+      .update({
+        archived_at: null,
+        archived_by: null,
+        archive_reason: null,
+      })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
       actor_id: userId,
@@ -125,11 +132,15 @@ export const restoreAlert = createServerFn({ method: "POST" })
 
 export const deleteAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({
-    entity: ENTITY,
-    id: z.string().uuid(),
-    force: z.boolean().default(false),
-  }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({
+        entity: ENTITY,
+        id: z.string().uuid(),
+        force: z.boolean().default(false),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;

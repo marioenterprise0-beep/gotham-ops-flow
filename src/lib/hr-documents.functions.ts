@@ -61,14 +61,19 @@ export const listHrTemplates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
-      .object({ category: z.enum(["onboarding", "training", "hr", "operations"]).optional(), includeArchived: z.boolean().optional() })
+      .object({
+        category: z.enum(["onboarding", "training", "hr", "operations"]).optional(),
+        includeArchived: z.boolean().optional(),
+      })
       .optional()
       .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     let q = (context.supabase as any)
       .from("hr_document_templates")
-      .select("id, doc_code, category, title, body_blocks, signer_roles, owner_only, version, archived_at, archive_reason, created_at, updated_at")
+      .select(
+        "id, doc_code, category, title, body_blocks, signer_roles, owner_only, version, archived_at, archive_reason, created_at, updated_at",
+      )
       .order("category", { ascending: true })
       .order("doc_code", { ascending: true });
     if (!data?.includeArchived) q = q.is("archived_at", null);
@@ -80,17 +85,26 @@ export const listHrTemplates = createServerFn({ method: "POST" })
 
 export const archiveHrTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireOwner(supabase, userId);
     const { error } = await (supabase as any)
       .from("hr_document_templates")
-      .update({ archived_at: new Date().toISOString(), archived_by: userId, archive_reason: data.reason ?? null })
+      .update({
+        archived_at: new Date().toISOString(),
+        archived_by: userId,
+        archive_reason: data.reason ?? null,
+      })
       .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "archive_hr_template", entity: "hr_document_template", entity_id: data.id,
+      actor_id: userId,
+      action: "archive_hr_template",
+      entity: "hr_document_template",
+      entity_id: data.id,
       payload: { reason: data.reason ?? null },
     });
     return { ok: true };
@@ -108,7 +122,11 @@ export const restoreHrTemplate = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "restore_hr_template", entity: "hr_document_template", entity_id: data.id, payload: {},
+      actor_id: userId,
+      action: "restore_hr_template",
+      entity: "hr_document_template",
+      entity_id: data.id,
+      payload: {},
     });
     return { ok: true };
   });
@@ -160,7 +178,9 @@ export const assignHrDocument = createServerFn({ method: "POST" })
       category = tpl.category ?? null;
     } else {
       title = data.customTitle ?? "Custom document";
-      signerRoles = data.customSignerRoles?.length ? data.customSignerRoles : ["Employee Signature"];
+      signerRoles = data.customSignerRoles?.length
+        ? data.customSignerRoles
+        : ["Employee Signature"];
     }
 
     // Only non-blank values lock a field — an empty string sent by the form
@@ -251,7 +271,8 @@ export const signHrDocument = createServerFn({ method: "POST" })
     if (assignment.status === "voided") throw new Error("This document has been voided");
 
     if (EMPLOYEE_LABEL_RE.test(data.signerRoleLabel)) {
-      if (assignment.employee_id !== userId) throw new Error("Only the assigned employee can sign this row");
+      if (assignment.employee_id !== userId)
+        throw new Error("Only the assigned employee can sign this row");
     } else if (DIRECTOR_LABEL_RE.test(data.signerRoleLabel)) {
       await requireOwner(supabase, userId);
     } else {
@@ -271,7 +292,11 @@ export const signHrDocument = createServerFn({ method: "POST" })
     // Server-captured timestamp — never trust a client-sent one.
     const { error: updErr } = await (supabase as any)
       .from("hr_document_signatures")
-      .update({ signer_user_id: userId, typed_full_name: data.typedFullName.trim(), signed_at: new Date().toISOString() })
+      .update({
+        signer_user_id: userId,
+        typed_full_name: data.typedFullName.trim(),
+        signed_at: new Date().toISOString(),
+      })
       .eq("id", sigRow.id);
     if (updErr) throw updErr;
 
@@ -302,7 +327,10 @@ export const markHrDocumentViewed = createServerFn({ method: "POST" })
     if (a.employee_id === userId && !a.viewed_at) {
       await (supabase as any)
         .from("hr_document_assignments")
-        .update({ viewed_at: new Date().toISOString(), status: a.status === "pending" ? "viewed" : a.status })
+        .update({
+          viewed_at: new Date().toISOString(),
+          status: a.status === "pending" ? "viewed" : a.status,
+        })
         .eq("id", data.id);
     }
     return { ok: true };
@@ -310,17 +338,27 @@ export const markHrDocumentViewed = createServerFn({ method: "POST" })
 
 export const voidHrAssignment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId);
     const { error } = await (supabase as any)
       .from("hr_document_assignments")
-      .update({ status: "voided", voided_at: new Date().toISOString(), voided_by: userId, void_reason: data.reason ?? null })
+      .update({
+        status: "voided",
+        voided_at: new Date().toISOString(),
+        voided_by: userId,
+        void_reason: data.reason ?? null,
+      })
       .eq("id", data.id);
     if (error) throw error;
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "void_hr_document", entity: "hr_document_assignment", entity_id: data.id,
+      actor_id: userId,
+      action: "void_hr_document",
+      entity: "hr_document_assignment",
+      entity_id: data.id,
       payload: { reason: data.reason ?? null },
     });
     return { ok: true };
@@ -351,7 +389,8 @@ export const fillHrDocumentFields = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw error;
     if (!a) throw new Error("Assignment not found");
-    if (a.status === "voided" || a.status === "signed") throw new Error("This document can no longer be edited");
+    if (a.status === "voided" || a.status === "signed")
+      throw new Error("This document can no longer be edited");
 
     const existing: Record<string, string> = a.field_values ?? {};
     const merged = { ...existing };
@@ -373,8 +412,11 @@ export const fillHrDocumentFields = createServerFn({ method: "POST" })
     if (updErr) throw updErr;
 
     await supabase.from("audit_log").insert({
-      actor_id: userId, action: "fill_hr_document_fields", entity: "hr_document_assignment",
-      entity_id: data.assignmentId, payload: { fields: filledKeys },
+      actor_id: userId,
+      action: "fill_hr_document_fields",
+      entity: "hr_document_assignment",
+      entity_id: data.assignmentId,
+      payload: { fields: filledKeys },
     });
     return { ok: true, updated: true };
   });
@@ -454,7 +496,10 @@ export const getHrCompletionOverview = createServerFn({ method: "GET" })
       : { data: [] as any[] };
     const nameMap = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
 
-    return withSigs.map((a: any) => ({ ...a, employee_name: nameMap.get(a.employee_id) ?? "Unknown" })) as HrCompletionRow[];
+    return withSigs.map((a: any) => ({
+      ...a,
+      employee_name: nameMap.get(a.employee_id) ?? "Unknown",
+    })) as HrCompletionRow[];
   });
 
 // RLS on hr_document_assignments already restricts the SELECT to the
@@ -504,7 +549,11 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
 // someone's notification_preferences mute toggle.
 export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -556,7 +605,9 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
 
     // Configurable via env so the recipient list can be rotated without a
     // code change; falls back to the original addresses if unset.
-    const complianceEmails = (process.env.HR_COMPLIANCE_EMAILS ?? "hello@dipnshake.com,mario@dipnshake.com")
+    const complianceEmails = (
+      process.env.HR_COMPLIANCE_EMAILS ?? "hello@dipnshake.com,mario@dipnshake.com"
+    )
       .split(",")
       .map((e) => e.trim())
       .filter(Boolean);
@@ -570,7 +621,9 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
     const templateData = {
       title: a.title,
       employee_name: profile?.display_name ?? "Employee",
-      completed_at: a.completed_at ? new Date(a.completed_at).toLocaleString() : new Date().toLocaleString(),
+      completed_at: a.completed_at
+        ? new Date(a.completed_at).toLocaleString()
+        : new Date().toLocaleString(),
       pdf_url: signed?.signedUrl ?? null,
     };
 

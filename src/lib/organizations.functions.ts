@@ -20,14 +20,16 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 48) || "org";
+  return (
+    input
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 48) || "org"
+  );
 }
 
 export const listMyOrganizations = createServerFn({ method: "GET" })
@@ -115,9 +117,7 @@ export const createOrganization = createServerFn({ method: "POST" })
     let orgId: string | null = null;
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidate =
-        attempt === 0
-          ? baseSlug
-          : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+        attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
       const { data: inserted, error } = await supabaseAdmin
         .from("organizations")
         .insert({

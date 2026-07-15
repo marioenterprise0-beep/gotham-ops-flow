@@ -24,8 +24,14 @@ export function SignedImage({
 
   useEffect(() => {
     let cancelled = false;
-    if (!path) { setUrl(null); return; }
-    if (/^https?:\/\//i.test(path)) { setUrl(path); return; }
+    if (!path) {
+      setUrl(null);
+      return;
+    }
+    if (/^https?:\/\//i.test(path)) {
+      setUrl(path);
+      return;
+    }
 
     const cacheKey = `${bucket}:${path}`;
     const hit = cache.get(cacheKey);
@@ -39,7 +45,9 @@ export function SignedImage({
       cache.set(cacheKey, { url: data.signedUrl, expiresAt: Date.now() + 55 * 60 * 1000 });
       setUrl(data.signedUrl);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [path, bucket]);
 
   if (!url) return null;

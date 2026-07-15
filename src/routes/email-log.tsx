@@ -5,7 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { AppShell } from "@/components/gotham/AppShell";
 import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
-import { listEmailDeliveryLog, emailDeliveryStats, resendEmailFromLog, getEmailQueueDepths } from "@/lib/notifications.functions";
+import {
+  listEmailDeliveryLog,
+  emailDeliveryStats,
+  resendEmailFromLog,
+  getEmailQueueDepths,
+} from "@/lib/notifications.functions";
 import { useRole } from "@/lib/role";
 import { toast } from "sonner";
 
@@ -77,22 +82,25 @@ function EmailLogPage() {
     <AppShell>
       <SectionHeader eyebrow="Notifications" title="Email Delivery Log" />
 
-
-      {depths && (depths.transactional_emails_dlq + depths.auth_emails_dlq > 0 ||
-        depths.transactional_emails + depths.auth_emails > 50) && (
-        <Card className="border-[var(--color-danger)]/40 bg-[var(--color-danger)]/5">
-          <div className="text-sm flex flex-wrap items-center gap-3">
-            <span className="font-semibold text-[var(--color-danger)]">Queue health</span>
-            <span className="text-muted-foreground">
-              Pending: {depths.transactional_emails + depths.auth_emails} ·
-              {" "}DLQ: <span className="text-[var(--color-danger)] font-semibold">{depths.transactional_emails_dlq + depths.auth_emails_dlq}</span>
-            </span>
-            <span className="text-xs text-muted-foreground">
-              (tx {depths.transactional_emails}/{depths.transactional_emails_dlq}, auth {depths.auth_emails}/{depths.auth_emails_dlq})
-            </span>
-          </div>
-        </Card>
-      )}
+      {depths &&
+        (depths.transactional_emails_dlq + depths.auth_emails_dlq > 0 ||
+          depths.transactional_emails + depths.auth_emails > 50) && (
+          <Card className="border-[var(--color-danger)]/40 bg-[var(--color-danger)]/5">
+            <div className="text-sm flex flex-wrap items-center gap-3">
+              <span className="font-semibold text-[var(--color-danger)]">Queue health</span>
+              <span className="text-muted-foreground">
+                Pending: {depths.transactional_emails + depths.auth_emails} · DLQ:{" "}
+                <span className="text-[var(--color-danger)] font-semibold">
+                  {depths.transactional_emails_dlq + depths.auth_emails_dlq}
+                </span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                (tx {depths.transactional_emails}/{depths.transactional_emails_dlq}, auth{" "}
+                {depths.auth_emails}/{depths.auth_emails_dlq})
+              </span>
+            </div>
+          </Card>
+        )}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatCard label="Total" value={stats?.total ?? 0} />
@@ -110,7 +118,9 @@ function EmailLogPage() {
                 key={r.label}
                 onClick={() => setHours(r.hours)}
                 className={`px-3 h-9 text-xs font-semibold uppercase tracking-[1.2px] ${
-                  hours === r.hours ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "bg-card text-muted-foreground"
+                  hours === r.hours
+                    ? "bg-[var(--color-gold)] text-[#0A0A0A]"
+                    : "bg-card text-muted-foreground"
                 }`}
               >
                 {r.label}
@@ -124,7 +134,9 @@ function EmailLogPage() {
           >
             <option value="">All templates</option>
             {templates.map((t) => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t}>
+                {t}
+              </option>
             ))}
           </select>
           <select
@@ -132,14 +144,20 @@ function EmailLogPage() {
             onChange={(e) => setStatus(e.target.value)}
             className="h-9 rounded-md border border-border bg-card px-3 text-sm"
           >
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
         </div>
       </Card>
 
       <Card className="p-0 overflow-hidden">
         {rows.length === 0 && (
-          <div className="p-6 text-sm text-muted-foreground text-center">No emails in this window.</div>
+          <div className="p-6 text-sm text-muted-foreground text-center">
+            No emails in this window.
+          </div>
         )}
         {rows.map((r: any, i: number) => {
           const canResend = r.status === "failed" || r.status === "dlq" || r.status === "bounced";
@@ -161,11 +179,20 @@ function EmailLogPage() {
                 </div>
               </div>
               <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between gap-2">
-                <span className="truncate">{r.template_name} · {r.recipient_email}</span>
-                <span className="shrink-0">{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
+                <span className="truncate">
+                  {r.template_name} · {r.recipient_email}
+                </span>
+                <span className="shrink-0">
+                  {new Date(r.created_at).toLocaleString([], {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                </span>
               </div>
               {r.error_message && (
-                <div className="text-xs text-[var(--color-danger)] mt-1 truncate">{r.error_message}</div>
+                <div className="text-xs text-[var(--color-danger)] mt-1 truncate">
+                  {r.error_message}
+                </div>
               )}
             </div>
           );
@@ -177,11 +204,23 @@ function EmailLogPage() {
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number; tone?: "ok" | "bad" | "warn" }) {
+function StatCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "ok" | "bad" | "warn";
+}) {
   const color =
-    tone === "ok" ? "text-[var(--color-success)]" :
-    tone === "bad" ? "text-[var(--color-danger)]" :
-    tone === "warn" ? "text-[var(--color-gold)]" : "text-foreground";
+    tone === "ok"
+      ? "text-[var(--color-success)]"
+      : tone === "bad"
+        ? "text-[var(--color-danger)]"
+        : tone === "warn"
+          ? "text-[var(--color-gold)]"
+          : "text-foreground";
   return (
     <Card className="text-center">
       <div className="label-caps text-muted-foreground">{label}</div>
@@ -194,12 +233,15 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     sent: "bg-[var(--color-success)]/15 text-[var(--color-success)] border-[var(--color-success)]/30",
     queued: "bg-[var(--color-gold)]/15 text-[var(--color-gold)] border-[var(--color-gold)]/30",
-    failed: "bg-[var(--color-danger)]/15 text-[var(--color-danger)] border-[var(--color-danger)]/30",
+    failed:
+      "bg-[var(--color-danger)]/15 text-[var(--color-danger)] border-[var(--color-danger)]/30",
     dlq: "bg-[var(--color-danger)]/15 text-[var(--color-danger)] border-[var(--color-danger)]/30",
     suppressed: "bg-muted text-muted-foreground border-border",
   };
   return (
-    <span className={`inline-flex items-center px-2 h-5 rounded text-[10px] font-semibold uppercase tracking-[1px] border ${map[status] ?? "bg-card border-border"}`}>
+    <span
+      className={`inline-flex items-center px-2 h-5 rounded text-[10px] font-semibold uppercase tracking-[1px] border ${map[status] ?? "bg-card border-border"}`}
+    >
       {status}
     </span>
   );

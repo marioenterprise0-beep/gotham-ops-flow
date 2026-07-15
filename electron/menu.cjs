@@ -116,7 +116,8 @@ function buildMenu(autoUpdater) {
         },
         {
           label: "Report an Issue",
-          click: () => shell.openExternal("https://github.com/marioenterprise0-beep/gothamhalaldash/issues"),
+          click: () =>
+            shell.openExternal("https://github.com/marioenterprise0-beep/gothamhalaldash/issues"),
         },
       ],
     },

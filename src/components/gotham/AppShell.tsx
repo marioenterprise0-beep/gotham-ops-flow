@@ -1,5 +1,38 @@
 import { Link, Outlet, useRouterState, useNavigate, Navigate } from "@tanstack/react-router";
-import { Home, ClipboardCheck, ClipboardList, Boxes, BookOpen, BarChart3, Shield, Star, LogOut, Settings as SettingsIcon, ScrollText, Users as UsersIcon, CalendarDays, ListChecks, KeyRound, Clock, Timer, Bell, Activity, Banknote, Keyboard, MapPin, Archive, HeartPulse, ChevronLeft, ChevronRight, HardHat, Briefcase, Crown, Utensils, FileText, Wrench } from "lucide-react";
+import {
+  Home,
+  ClipboardCheck,
+  ClipboardList,
+  Boxes,
+  BookOpen,
+  BarChart3,
+  Shield,
+  Star,
+  LogOut,
+  Settings as SettingsIcon,
+  ScrollText,
+  Users as UsersIcon,
+  CalendarDays,
+  ListChecks,
+  KeyRound,
+  Clock,
+  Timer,
+  Bell,
+  Activity,
+  Banknote,
+  Keyboard,
+  MapPin,
+  Archive,
+  HeartPulse,
+  ChevronLeft,
+  ChevronRight,
+  HardHat,
+  Briefcase,
+  Crown,
+  Utensils,
+  FileText,
+  Wrench,
+} from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,33 +47,32 @@ import { OnlineIndicator, OnlineDot } from "@/components/gotham/OnlineIndicator"
 import { LocationRequestDialog } from "@/components/gotham/LocationRequestDialog";
 import { OrgSwitcher } from "@/components/gotham/OrgSwitcher";
 
-
 type Tab = { to: string; key: string; label: string; icon: typeof Home };
 
 const ALL_TABS: Tab[] = [
-  { to: "/",                  key: "dashboard",          label: "Dashboard",          icon: Home },
-  { to: "/my-tasks",          key: "my-tasks",           label: "My Tasks",           icon: ListChecks },
-  { to: "/time-clock",        key: "time-clock",         label: "Time Clock",         icon: Clock },
-  { to: "/cash",              key: "cash",               label: "Cash",               icon: Banknote },
-  { to: "/operations",        key: "operations",         label: "Operations",         icon: ClipboardCheck },
-  { to: "/recaps",            key: "recaps",             label: "Daily Recap",        icon: ScrollText },
-  { to: "/prep-log",          key: "prep-log",           label: "Prep Log",           icon: Utensils },
-  { to: "/schedule",          key: "schedule",           label: "Scheduling",         icon: CalendarDays },
-  { to: "/labor",             key: "labor",              label: "Labor",              icon: Timer },
-  { to: "/inventory",         key: "inventory",          label: "Inventory",          icon: Boxes },
-  { to: "/sops",              key: "sops",               label: "SOPs",               icon: BookOpen },
-  { to: "/handbook",          key: "handbook",           label: "Handbook",           icon: FileText },
-  { to: "/hr-documents",      key: "hr-documents",       label: "My HR Documents",    icon: ClipboardList },
-  { to: "/hospitality",       key: "hospitality",        label: "Hospitality",        icon: Star },
-  { to: "/maintenance",       key: "maintenance",        label: "Maintenance",        icon: Wrench },
-  { to: "/health",            key: "health",             label: "Health Score",       icon: Activity },
-  { to: "/alerts",            key: "alerts",             label: "Alerts",             icon: Bell },
-  { to: "/manager",           key: "manager",            label: "Command Center",     icon: Shield },
-  { to: "/admin",             key: "admin",              label: "Admin",              icon: Shield },
-  { to: "/archive-center",    key: "archive-center",     label: "Archive Center",     icon: Archive },
-  { to: "/integrity",         key: "integrity",          label: "Data Integrity",     icon: Shield },
-  { to: "/analytics",         key: "analytics",          label: "Analytics",          icon: BarChart3 },
-  { to: "/settings",          key: "settings",           label: "Settings",           icon: SettingsIcon },
+  { to: "/", key: "dashboard", label: "Dashboard", icon: Home },
+  { to: "/my-tasks", key: "my-tasks", label: "My Tasks", icon: ListChecks },
+  { to: "/time-clock", key: "time-clock", label: "Time Clock", icon: Clock },
+  { to: "/cash", key: "cash", label: "Cash", icon: Banknote },
+  { to: "/operations", key: "operations", label: "Operations", icon: ClipboardCheck },
+  { to: "/recaps", key: "recaps", label: "Daily Recap", icon: ScrollText },
+  { to: "/prep-log", key: "prep-log", label: "Prep Log", icon: Utensils },
+  { to: "/schedule", key: "schedule", label: "Scheduling", icon: CalendarDays },
+  { to: "/labor", key: "labor", label: "Labor", icon: Timer },
+  { to: "/inventory", key: "inventory", label: "Inventory", icon: Boxes },
+  { to: "/sops", key: "sops", label: "SOPs", icon: BookOpen },
+  { to: "/handbook", key: "handbook", label: "Handbook", icon: FileText },
+  { to: "/hr-documents", key: "hr-documents", label: "My HR Documents", icon: ClipboardList },
+  { to: "/hospitality", key: "hospitality", label: "Hospitality", icon: Star },
+  { to: "/maintenance", key: "maintenance", label: "Maintenance", icon: Wrench },
+  { to: "/health", key: "health", label: "Health Score", icon: Activity },
+  { to: "/alerts", key: "alerts", label: "Alerts", icon: Bell },
+  { to: "/manager", key: "manager", label: "Command Center", icon: Shield },
+  { to: "/admin", key: "admin", label: "Admin", icon: Shield },
+  { to: "/archive-center", key: "archive-center", label: "Archive Center", icon: Archive },
+  { to: "/integrity", key: "integrity", label: "Data Integrity", icon: Shield },
+  { to: "/analytics", key: "analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/settings", key: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
 // Workspace modes — role-tailored navigation. Owners can switch modes.
@@ -48,13 +80,41 @@ export type WorkspaceMode = "crew" | "manager" | "owner";
 
 const MODE_TABS: Record<WorkspaceMode, string[]> = {
   crew: [
-    "dashboard", "my-tasks", "time-clock", "cash", "operations",
-    "recaps", "prep-log", "schedule", "inventory", "sops", "handbook", "hr-documents", "maintenance", "alerts", "settings",
+    "dashboard",
+    "my-tasks",
+    "time-clock",
+    "cash",
+    "operations",
+    "recaps",
+    "prep-log",
+    "schedule",
+    "inventory",
+    "sops",
+    "handbook",
+    "hr-documents",
+    "maintenance",
+    "alerts",
+    "settings",
   ],
   manager: [
-    "dashboard", "my-tasks", "time-clock", "cash", "operations",
-    "recaps", "prep-log", "schedule", "labor", "inventory", "sops", "handbook", "hr-documents",
-    "hospitality", "maintenance", "alerts", "manager", "settings",
+    "dashboard",
+    "my-tasks",
+    "time-clock",
+    "cash",
+    "operations",
+    "recaps",
+    "prep-log",
+    "schedule",
+    "labor",
+    "inventory",
+    "sops",
+    "handbook",
+    "hr-documents",
+    "hospitality",
+    "maintenance",
+    "alerts",
+    "manager",
+    "settings",
   ],
   // Owner sees everything EXCEPT Health Score — it's reached via the
   // Store Health card on the dashboard, not the sidebar.
@@ -64,9 +124,9 @@ const MODE_TABS: Record<WorkspaceMode, string[]> = {
 const HIDDEN_OWNER_PATHS = ["/trusted-devices"];
 
 const MODE_META: Record<WorkspaceMode, { label: string; tagline: string; icon: typeof HardHat }> = {
-  crew:    { label: "Crew",    tagline: "I came to work.",   icon: HardHat },
+  crew: { label: "Crew", tagline: "I came to work.", icon: HardHat },
   manager: { label: "Manager", tagline: "I run this shift.", icon: Briefcase },
-  owner:   { label: "Owner",   tagline: "Full access.",      icon: Crown },
+  owner: { label: "Owner", tagline: "Full access.", icon: Crown },
 };
 
 const COLLAPSE_KEY = "gotham:sidebar-collapsed:v1";
@@ -79,7 +139,8 @@ function defaultMode(roleId: string | null): WorkspaceMode {
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { roleId, actualRoleId, actAsRole, setActAsRole, session, loading, disabledTabs } = useRole();
+  const { roleId, actualRoleId, actAsRole, setActAsRole, session, loading, disabledTabs } =
+    useRole();
   const isRealOwner = actualRoleId === "owner";
   const isOwner = roleId === "owner"; // effective
   const unreadAlerts = useUnreadAlerts();
@@ -104,7 +165,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
   function toggleCollapsed() {
     setCollapsed((v) => {
       const next = !v;
-      try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0"); } catch {}
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {}
       return next;
     });
   }
@@ -131,7 +194,12 @@ export function AppShell({ children }: { children?: ReactNode }) {
   const allowedPaths = useMemo(() => new Set(tabs.map((t) => t.to)), [tabs]);
 
   const branding = useBranding();
-  if (loading || (session && !roleId)) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading {branding.orgName}…</div>;
+  if (loading || (session && !roleId))
+    return (
+      <div className="min-h-screen grid place-items-center text-muted-foreground">
+        Loading {branding.orgName}…
+      </div>
+    );
   if (!session && pathname !== "/auth") return <Navigate to="/auth" />;
 
   // Allow /auth and any sub-paths whose top-level is allowed.
@@ -139,7 +207,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
     pathname === "/auth" ||
     pathname === "/" ||
     HIDDEN_OWNER_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    Array.from(allowedPaths).some((p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")));
+    Array.from(allowedPaths).some(
+      (p) => p !== "/" && (pathname === p || pathname.startsWith(p + "/")),
+    );
   if (session && !pathAllowed) {
     return <Navigate to="/" />;
   }
@@ -149,19 +219,32 @@ export function AppShell({ children }: { children?: ReactNode }) {
       <CommandPalette />
       <KeyboardShortcuts />
       <OnlineIndicator />
-      <TopBar mode={mode} setMode={setMode} canSwitch={isRealOwner} impersonating={!!actAsRole && isRealOwner} />
-
+      <TopBar
+        mode={mode}
+        setMode={setMode}
+        canSwitch={isRealOwner}
+        impersonating={!!actAsRole && isRealOwner}
+      />
 
       <div className="flex-1 flex">
-        <aside className={cn(
-          "hidden lg:flex shrink-0 border-r border-border bg-card flex-col transition-[width] duration-200",
-          collapsed ? "w-14" : "w-56",
-        )}>
-          <div className={cn("flex items-center gap-2 px-2 pt-3", collapsed ? "justify-center" : "justify-between px-3")}>
+        <aside
+          className={cn(
+            "hidden lg:flex shrink-0 border-r border-border bg-card flex-col transition-[width] duration-200",
+            collapsed ? "w-14" : "w-56",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-2 px-2 pt-3",
+              collapsed ? "justify-center" : "justify-between px-3",
+            )}
+          >
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="label-caps text-muted-foreground text-[10px]">Workspace</span>
-                <span className="text-xs font-semibold text-foreground">{MODE_META[mode].label}</span>
+                <span className="text-xs font-semibold text-foreground">
+                  {MODE_META[mode].label}
+                </span>
               </div>
             )}
             <button
@@ -170,7 +253,11 @@ export function AppShell({ children }: { children?: ReactNode }) {
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="inline-grid h-7 w-7 place-items-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition"
             >
-              {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+              {collapsed ? (
+                <ChevronRight className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronLeft className="h-3.5 w-3.5" />
+              )}
             </button>
           </div>
 
@@ -185,16 +272,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
                   title={collapsed ? t.label : undefined}
                   className={cn(
                     "group flex items-center rounded-md text-sm font-medium transition-colors",
-                    collapsed
-                      ? "justify-center h-9 w-9 mx-auto"
-                      : "gap-3 px-3 py-2 border-l-2",
+                    collapsed ? "justify-center h-9 w-9 mx-auto" : "gap-3 px-3 py-2 border-l-2",
                     active
-                      ? (collapsed
-                          ? "bg-[var(--sidebar-accent)] text-[var(--color-gold)]"
-                          : "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--sidebar-accent)]")
-                      : (collapsed
-                          ? "text-foreground/70 hover:bg-secondary hover:text-foreground"
-                          : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground"),
+                      ? collapsed
+                        ? "bg-[var(--sidebar-accent)] text-[var(--color-gold)]"
+                        : "border-l-[var(--color-gold)] text-[var(--color-gold)] bg-[var(--sidebar-accent)]"
+                      : collapsed
+                        ? "text-foreground/70 hover:bg-secondary hover:text-foreground"
+                        : "border-l-transparent text-foreground/70 hover:bg-secondary hover:text-foreground",
                   )}
                 >
                   <span className="relative inline-flex">
@@ -219,9 +304,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </aside>
 
         <main className="flex-1 min-w-0 pb-24 lg:pb-6 pt-4">
-          <div className="mx-auto w-full max-w-5xl px-4">
-            {children ?? <Outlet />}
-          </div>
+          <div className="mx-auto w-full max-w-5xl px-4">{children ?? <Outlet />}</div>
         </main>
       </div>
 
@@ -238,7 +321,9 @@ export function AppShell({ children }: { children?: ReactNode }) {
                   className="relative flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 px-2 py-2.5 label-caps text-white/60 data-[active=true]:text-[var(--color-gold)]"
                   data-active={active}
                 >
-                  {active && <span className="absolute top-0 inset-x-3 h-[2px] bg-[var(--color-gold)] rounded-full" />}
+                  {active && (
+                    <span className="absolute top-0 inset-x-3 h-[2px] bg-[var(--color-gold)] rounded-full" />
+                  )}
                   <span className="relative inline-flex">
                     <Icon className="h-5 w-5" strokeWidth={1.75} />
                     {t.key === "alerts" && unreadAlerts > 0 && (
@@ -262,12 +347,23 @@ function isActive(pathname: string, to: string) {
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
-function WorkspaceSwitcher({ mode, setMode, canSwitch }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean }) {
+function WorkspaceSwitcher({
+  mode,
+  setMode,
+  canSwitch,
+}: {
+  mode: WorkspaceMode;
+  setMode: (m: WorkspaceMode) => void;
+  canSwitch: boolean;
+}) {
   const Meta = MODE_META[mode];
   const Icon = Meta.icon;
   if (!canSwitch) {
     return (
-      <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title={Meta.tagline}>
+      <div
+        className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]"
+        title={Meta.tagline}
+      >
         <Icon className="h-3.5 w-3.5 text-[var(--color-gold)]" />
         <span className="text-xs font-medium text-white/90">{Meta.label}</span>
       </div>
@@ -305,7 +401,9 @@ function TrailerSwitcher() {
   const isManager = roleId === "manager";
   if (trailers.length === 0) return null;
   const homeName = trailers.find((t) => t.id === homeTrailerId)?.name ?? "—";
-  const scopeName = trailerScope ? (trailers.find((t) => t.id === trailerScope)?.name ?? homeName) : homeName;
+  const scopeName = trailerScope
+    ? (trailers.find((t) => t.id === trailerScope)?.name ?? homeName)
+    : homeName;
   if (!isOwner) {
     if (isManager) {
       return (
@@ -325,7 +423,10 @@ function TrailerSwitcher() {
       );
     }
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]" title="Locked to your assigned location">
+      <div
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]"
+        title="Locked to your assigned location"
+      >
         <span className="label-caps text-white/50">Location</span>
         <span className="text-xs font-medium text-[var(--color-gold)]">🔒 {homeName}</span>
       </div>
@@ -339,18 +440,35 @@ function TrailerSwitcher() {
       title="Location scope"
     >
       <option value="">All locations (Company)</option>
-      {trailers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+      {trailers.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.name}
+        </option>
+      ))}
     </select>
   );
 }
 
-function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMode; setMode: (m: WorkspaceMode) => void; canSwitch: boolean; impersonating?: boolean }) {
+function TopBar({
+  mode,
+  setMode,
+  canSwitch,
+  impersonating,
+}: {
+  mode: WorkspaceMode;
+  setMode: (m: WorkspaceMode) => void;
+  canSwitch: boolean;
+  impersonating?: boolean;
+}) {
   const { roleId, user, signOut } = useRole();
   const branding = useBranding();
   const nav = useNavigate();
   const role = roleId ? ROLES[roleId] : null;
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const timeStr = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
 
   return (
@@ -362,11 +480,12 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
       )}
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none uppercase">{branding.shortName}</span>
+          <span className="font-display text-2xl tracking-[0.15em] text-[var(--color-gold)] leading-none uppercase">
+            {branding.shortName}
+          </span>
         </Link>
 
         <WorkspaceSwitcher mode={mode} setMode={setMode} canSwitch={canSwitch} />
-
 
         <div className="hidden lg:flex items-center gap-3 px-3 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A]">
           <span className="h-2 w-2 rounded-full bg-[var(--color-success)] animate-pulse" />
@@ -377,17 +496,23 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
 
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+          onClick={() =>
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
+          }
           className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-xs text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
           title="Open command palette (⌘K)"
         >
           <span>Search</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">⌘K</kbd>
+          <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#2A2A2A] text-[10px] font-mono">
+            ⌘K
+          </kbd>
         </button>
 
         <button
           type="button"
-          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", shiftKey: true }))}
+          onClick={() =>
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "?", shiftKey: true }))
+          }
           className="hidden md:grid h-9 w-9 place-items-center rounded-md bg-[#1C1C1C] border border-[#2A2A2A] text-white/60 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
           title="Keyboard shortcuts (?)"
         >
@@ -405,11 +530,21 @@ function TopBar({ mode, setMode, canSwitch, impersonating }: { mode: WorkspaceMo
               <span className="text-sm font-medium text-white">{user}</span>
             </div>
           )}
-          <Link to="/settings" title="Settings" className="h-9 w-9 rounded-full bg-[var(--color-gold)] text-[#0A0A0A] grid place-items-center font-semibold text-sm hover:ring-2 hover:ring-[var(--color-gold)]/40 transition">{initials(user)}</Link>
+          <Link
+            to="/settings"
+            title="Settings"
+            className="h-9 w-9 rounded-full bg-[var(--color-gold)] text-[#0A0A0A] grid place-items-center font-semibold text-sm hover:ring-2 hover:ring-[var(--color-gold)]/40 transition"
+          >
+            {initials(user)}
+          </Link>
           <button
-            onClick={async () => { await signOut(); nav({ to: "/auth" }); }}
+            onClick={async () => {
+              await signOut();
+              nav({ to: "/auth" });
+            }}
             title="Sign out"
-            className="hidden sm:grid h-9 w-9 place-items-center rounded-md border border-[#2A2A2A] text-white/70 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition">
+            className="hidden sm:grid h-9 w-9 place-items-center rounded-md border border-[#2A2A2A] text-white/70 hover:text-[var(--color-gold)] hover:border-[var(--color-gold)] transition"
+          >
             <LogOut className="h-4 w-4" />
           </button>
         </div>

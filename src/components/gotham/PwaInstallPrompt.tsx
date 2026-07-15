@@ -9,9 +9,11 @@ export function PwaInstallPrompt() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const isIos = /ipad|iphone|ipod/i.test(navigator.userAgent) ||
+    const isIos =
+      /ipad|iphone|ipod/i.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as { standalone?: boolean }).standalone === true;
     const dismissed = sessionStorage.getItem("pwa-prompt-dismissed");
 
@@ -52,9 +54,7 @@ export function PwaInstallPrompt() {
         />
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-amber-400">
-            Install {branding.orgName}
-          </p>
+          <p className="text-sm font-semibold text-amber-400">Install {branding.orgName}</p>
           <p className="mt-0.5 text-xs text-zinc-400 leading-relaxed">
             Add to your Home Screen for fast access — works offline and looks great on iPad.
           </p>
@@ -62,7 +62,9 @@ export function PwaInstallPrompt() {
           {/* Step-by-step instructions */}
           <div className="mt-2 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-xs text-zinc-300">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px] flex-shrink-0">1</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px] flex-shrink-0">
+                1
+              </span>
               <span>Tap</span>
               <span className="inline-flex items-center gap-0.5 rounded bg-zinc-700/80 px-1.5 py-0.5 font-medium text-zinc-200">
                 <Share className="h-3 w-3" />
@@ -71,7 +73,9 @@ export function PwaInstallPrompt() {
               <span>in the toolbar</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-zinc-300">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px] flex-shrink-0">2</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 font-bold text-[10px] flex-shrink-0">
+                2
+              </span>
               <span>Tap</span>
               <span className="inline-flex items-center gap-0.5 rounded bg-zinc-700/80 px-1.5 py-0.5 font-medium text-zinc-200">
                 <Plus className="h-3 w-3" />

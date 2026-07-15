@@ -6,16 +6,62 @@ import { toast } from "sonner";
 
 export type RoleId = "owner" | "manager" | "shift_lead" | "grill" | "prep" | "cashier";
 
-export const ROLES: Record<RoleId, { id: RoleId; name: string; short: string; blurb: string; color: string }> = {
-  owner:      { id: "owner",      name: "Owner",            short: "OW", blurb: "Full visibility across all stores and KPIs.",            color: "#C9973A" },
-  manager:    { id: "manager",    name: "Manager",          short: "MG", blurb: "Approvals, analytics, crew oversight.",                   color: "#C0392B" },
-  shift_lead: { id: "shift_lead", name: "Shift Lead",       short: "SL", blurb: "Runs the shift. Signs off opening & closing.",           color: "#C9973A" },
-  grill:      { id: "grill",      name: "Grill Master",     short: "GR", blurb: "Owns the flat top. Smash standard & temps.",             color: "#8B4513" },
-  prep:       { id: "prep",       name: "Prep",             short: "PR", blurb: "Mise en place, thaw protocol, stock.",                   color: "#2D6CDF" },
-  cashier:    { id: "cashier",    name: "Cashier / Front",  short: "CA", blurb: "Greet, take orders, drinks, packaging.",                 color: "#7B3FA0" },
+export const ROLES: Record<
+  RoleId,
+  { id: RoleId; name: string; short: string; blurb: string; color: string }
+> = {
+  owner: {
+    id: "owner",
+    name: "Owner",
+    short: "OW",
+    blurb: "Full visibility across all stores and KPIs.",
+    color: "#C9973A",
+  },
+  manager: {
+    id: "manager",
+    name: "Manager",
+    short: "MG",
+    blurb: "Approvals, analytics, crew oversight.",
+    color: "#C0392B",
+  },
+  shift_lead: {
+    id: "shift_lead",
+    name: "Shift Lead",
+    short: "SL",
+    blurb: "Runs the shift. Signs off opening & closing.",
+    color: "#C9973A",
+  },
+  grill: {
+    id: "grill",
+    name: "Grill Master",
+    short: "GR",
+    blurb: "Owns the flat top. Smash standard & temps.",
+    color: "#8B4513",
+  },
+  prep: {
+    id: "prep",
+    name: "Prep",
+    short: "PR",
+    blurb: "Mise en place, thaw protocol, stock.",
+    color: "#2D6CDF",
+  },
+  cashier: {
+    id: "cashier",
+    name: "Cashier / Front",
+    short: "CA",
+    blurb: "Greet, take orders, drinks, packaging.",
+    color: "#7B3FA0",
+  },
 };
 
-const ROLE_RANK: Record<RoleId, number> = { owner: 6, manager: 5, shift_lead: 4, grill: 3, prep: 2, cashier: 1 };
+const ROLE_RANK: Record<RoleId, number> = {
+  owner: 6,
+  manager: 5,
+  shift_lead: 4,
+  grill: 3,
+  prep: 2,
+  cashier: 1,
+};
 
 export type Trailer = { id: string; name: string };
 export type TabAccess = "none" | "view" | "edit";
@@ -23,9 +69,9 @@ export type TabAccess = "none" | "view" | "edit";
 type Ctx = {
   loading: boolean;
   session: Session | null;
-  roleId: RoleId | null;          // EFFECTIVE role (respects owner impersonation)
-  actualRoleId: RoleId | null;    // REAL role from user_roles — use for security-critical checks only
-  actAsRole: RoleId | null;       // owner-only "view as" override
+  roleId: RoleId | null; // EFFECTIVE role (respects owner impersonation)
+  actualRoleId: RoleId | null; // REAL role from user_roles — use for security-critical checks only
+  actAsRole: RoleId | null; // owner-only "view as" override
   setActAsRole: (r: RoleId | null) => void;
   roles: RoleId[];
   user: string;
@@ -47,7 +93,6 @@ const RoleCtx = createContext<Ctx | null>(null);
 const RANK: Record<TabAccess, number> = { none: 0, view: 1, edit: 2 };
 const ACT_AS_KEY = "gotham:act-as-role:v1";
 
-
 function pickPrimary(rs: RoleId[]): RoleId | null {
   if (rs.length === 0) return null;
   return [...rs].sort((a, b) => ROLE_RANK[b] - ROLE_RANK[a])[0];
@@ -66,16 +111,20 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [actAsRole, setActAsRoleState] = useState<RoleId | null>(() => {
     if (typeof window === "undefined") return null;
     const v = localStorage.getItem(ACT_AS_KEY);
-    return (v && v in ROLES) ? (v as RoleId) : null;
+    return v && v in ROLES ? (v as RoleId) : null;
   });
   const qc = useQueryClient();
-
 
   const loadProfileAndRoles = async (uid: string) => {
     const [{ data: roleRows }, { data: profile }, { data: trailerRows }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase.from("profiles").select("display_name, trailer_id").eq("id", uid).maybeSingle(),
-      supabase.from("trailers").select("id, name").eq("active", true).is("archived_at", null).order("name"),
+      supabase
+        .from("trailers")
+        .select("id, name")
+        .eq("active", true)
+        .is("archived_at", null)
+        .order("name"),
     ]);
     const rs = ((roleRows ?? []) as { role: RoleId }[]).map((r) => r.role);
     setRoles(rs);
@@ -91,18 +140,29 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s?.user) {
-        setTimeout(() => { loadProfileAndRoles(s.user.id); }, 0);
+        setTimeout(() => {
+          loadProfileAndRoles(s.user.id);
+        }, 0);
         if (event === "SIGNED_IN") {
           setTimeout(() => {
             void supabase.from("access_log").insert({
-              user_id: s.user.id, event: "login",
-              user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : null,
+              user_id: s.user.id,
+              event: "login",
+              user_agent:
+                typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 200) : null,
             });
-            void supabase.from("profiles").update({ last_login_at: new Date().toISOString() }).eq("id", s.user.id);
+            void supabase
+              .from("profiles")
+              .update({ last_login_at: new Date().toISOString() })
+              .eq("id", s.user.id);
           }, 0);
         }
       } else {
-        setRoles([]); setUser("Crew"); setHomeTrailerId(null); setTrailers([]); setTrailerScopeState(null);
+        setRoles([]);
+        setUser("Crew");
+        setHomeTrailerId(null);
+        setTrailers([]);
+        setTrailerScopeState(null);
       }
       setLoading(false);
     });
@@ -134,7 +194,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const roleAccess = new Map<string, TabAccess>();
     const userAccess = new Map<string, TabAccess>();
     for (const p of (perms ?? []) as any[]) {
-      const lvl: TabAccess = (p.access_level as TabAccess) ?? (p.enabled === false ? "none" : "edit");
+      const lvl: TabAccess =
+        (p.access_level as TabAccess) ?? (p.enabled === false ? "none" : "edit");
       if (p.scope_type === "user" && p.scope_id === uid) {
         userAccess.set(p.tab_key, lvl);
       } else if (p.scope_type === "role" && rs.includes(p.scope_id as RoleId)) {
@@ -143,18 +204,24 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
     }
     const merged: Record<string, TabAccess> = {};
-    roleAccess.forEach((v, k) => { merged[k] = v; });
-    userAccess.forEach((v, k) => { merged[k] = v; });
+    roleAccess.forEach((v, k) => {
+      merged[k] = v;
+    });
+    userAccess.forEach((v, k) => {
+      merged[k] = v;
+    });
     const disabled = new Set<string>();
     for (const [k, v] of Object.entries(merged)) if (v === "none") disabled.add(k);
     setTabAccess(merged);
     setDisabledTabs(disabled);
   };
 
-
   useEffect(() => {
     if (session?.user) void loadPermissions(session.user.id, roles);
-    else { setDisabledTabs(new Set()); setTabAccess({}); }
+    else {
+      setDisabledTabs(new Set());
+      setTabAccess({});
+    }
   }, [session?.user?.id, roles.join(",")]);
 
   const refreshPermissions = async () => {
@@ -167,11 +234,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-
   const actualPrimary = pickPrimary(roles);
   const isActualOwner = actualPrimary === "owner";
   // Owner can "view as" another role. For everyone else, ignore actAsRole.
-  const effectivePrimary: RoleId | null = (isActualOwner && actAsRole) ? actAsRole : actualPrimary;
+  const effectivePrimary: RoleId | null = isActualOwner && actAsRole ? actAsRole : actualPrimary;
   const isOwner = effectivePrimary === "owner";
 
   const setActAsRole = (r: RoleId | null) => {
@@ -190,7 +256,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   // Recompute permissions when impersonation changes.
   useEffect(() => {
     if (!session?.user) return;
-    const effRoles: RoleId[] = (isActualOwner && actAsRole) ? [actAsRole] : roles;
+    const effRoles: RoleId[] = isActualOwner && actAsRole ? [actAsRole] : roles;
     void loadPermissions(session.user.id, effRoles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actAsRole, isActualOwner]);
@@ -208,7 +274,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     if (id === trailerScope) return;
     const prev = trailerScope;
     setTrailerScopeState(id);
-    const newName = id ? (trailers.find((t) => t.id === id)?.name ?? "Selected location") : "All locations";
+    const newName = id
+      ? (trailers.find((t) => t.id === id)?.name ?? "Selected location")
+      : "All locations";
     toast.success(`Now viewing: ${newName}`);
     if (session?.user) {
       void supabase.from("access_log").insert({
@@ -230,29 +298,34 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const effectiveTrailer = isOwner ? trailerScope : homeTrailerId;
 
   return (
-    <RoleCtx.Provider value={{
-      loading,
-      session,
-      roleId: effectivePrimary,
-      actualRoleId: actualPrimary,
-      actAsRole,
-      setActAsRole,
-      roles,
-      user,
-      userId: session?.user?.id ?? null,
-      homeTrailerId,
-      trailers,
-      trailerScope: effectiveTrailer,
-      setTrailerScope,
-      setRoleId: () => { void signOut(); },
-      signOut,
-      refreshRoles,
-      disabledTabs,
-      tabAccess,
-      getTabAccess,
-      refreshPermissions,
-
-    }}>{children}</RoleCtx.Provider>
+    <RoleCtx.Provider
+      value={{
+        loading,
+        session,
+        roleId: effectivePrimary,
+        actualRoleId: actualPrimary,
+        actAsRole,
+        setActAsRole,
+        roles,
+        user,
+        userId: session?.user?.id ?? null,
+        homeTrailerId,
+        trailers,
+        trailerScope: effectiveTrailer,
+        setTrailerScope,
+        setRoleId: () => {
+          void signOut();
+        },
+        signOut,
+        refreshRoles,
+        disabledTabs,
+        tabAccess,
+        getTabAccess,
+        refreshPermissions,
+      }}
+    >
+      {children}
+    </RoleCtx.Provider>
   );
 }
 
@@ -264,11 +337,18 @@ export function useRole() {
 
 export function canSee(roleId: RoleId | null, module: "manager" | "analytics" | "hospitality_log") {
   if (!roleId) return false;
-  if (module === "manager" || module === "analytics") return roleId === "owner" || roleId === "manager";
-  if (module === "hospitality_log") return roleId === "owner" || roleId === "manager" || roleId === "shift_lead";
+  if (module === "manager" || module === "analytics")
+    return roleId === "owner" || roleId === "manager";
+  if (module === "hospitality_log")
+    return roleId === "owner" || roleId === "manager" || roleId === "shift_lead";
   return true;
 }
 
 export function initials(name: string) {
-  return name.split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+  return name
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }

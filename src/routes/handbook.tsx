@@ -12,7 +12,10 @@ import { syncDomains } from "@/lib/sync-bus";
 import { toast } from "sonner";
 import { renderStructuredBlocks } from "@/components/gotham/StructuredBlocks";
 import {
-  getHandbook, acknowledgeHandbook, getMyHandbookAck, getHandbookAckRollup,
+  getHandbook,
+  acknowledgeHandbook,
+  getMyHandbookAck,
+  getHandbookAckRollup,
   type HandbookSection,
 } from "@/lib/handbook.functions";
 
@@ -41,7 +44,11 @@ function SectionView({ section }: { section: HandbookSection }) {
   );
 }
 
-type MyAck = { currentVersion: number; isCurrent: boolean; ack: { full_name_typed: string; acknowledged_at: string } | null };
+type MyAck = {
+  currentVersion: number;
+  isCurrent: boolean;
+  ack: { full_name_typed: string; acknowledged_at: string } | null;
+};
 
 function AckBanner({ myAck }: { myAck: MyAck | undefined }) {
   const qc = useQueryClient();
@@ -70,11 +77,13 @@ function AckBanner({ myAck }: { myAck: MyAck | undefined }) {
         <ShieldCheck className="h-5 w-5 text-[var(--color-gold)] shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm">
-            {isReack ? "The handbook has been updated — please re-acknowledge" : "Please acknowledge the handbook"}
+            {isReack
+              ? "The handbook has been updated — please re-acknowledge"
+              : "Please acknowledge the handbook"}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 mb-3">
-            By typing your full name and confirming below, you acknowledge that you have received, read, and
-            understand the Dip N Shake Employee Handbook (version {myAck.currentVersion}).
+            By typing your full name and confirming below, you acknowledge that you have received,
+            read, and understand the Dip N Shake Employee Handbook (version {myAck.currentVersion}).
           </p>
           <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
             <input
@@ -84,7 +93,11 @@ function AckBanner({ myAck }: { myAck: MyAck | undefined }) {
               className="rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[var(--color-gold)]/40 sm:w-56"
             />
             <label className="flex items-center gap-1.5 text-xs text-foreground/90">
-              <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+              />
               I have read and understand this handbook
             </label>
             <button
@@ -113,7 +126,10 @@ function AckRollupCard() {
 
   return (
     <Card className="!p-4 mb-4">
-      <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center justify-between gap-2">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2"
+      >
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Users className="h-4 w-4 text-[var(--color-gold)]" />
           Handbook acknowledgment — {data.current.length}/{data.totalUsers} current
@@ -123,16 +139,28 @@ function AckRollupCard() {
       {open && (
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
-            <div className="label-caps text-muted-foreground mb-1">Current ({data.current.length})</div>
-            {data.current.map((p: any) => <div key={p.id}>{p.name}</div>)}
+            <div className="label-caps text-muted-foreground mb-1">
+              Current ({data.current.length})
+            </div>
+            {data.current.map((p: any) => (
+              <div key={p.id}>{p.name}</div>
+            ))}
           </div>
           <div>
-            <div className="label-caps text-[var(--color-warning)] mb-1">Stale ({data.stale.length})</div>
-            {data.stale.map((p: any) => <div key={p.id}>{p.name}</div>)}
+            <div className="label-caps text-[var(--color-warning)] mb-1">
+              Stale ({data.stale.length})
+            </div>
+            {data.stale.map((p: any) => (
+              <div key={p.id}>{p.name}</div>
+            ))}
           </div>
           <div>
-            <div className="label-caps text-[var(--color-danger)] mb-1">Pending ({data.pending.length})</div>
-            {data.pending.map((p: any) => <div key={p.id}>{p.name}</div>)}
+            <div className="label-caps text-[var(--color-danger)] mb-1">
+              Pending ({data.pending.length})
+            </div>
+            {data.pending.map((p: any) => (
+              <div key={p.id}>{p.name}</div>
+            ))}
           </div>
         </div>
       )}
@@ -169,7 +197,8 @@ function HandbookPage() {
     const lc = q.trim().toLowerCase();
     if (!lc) return baseSections;
     return baseSections.filter((s) => {
-      if (s.section_title.toLowerCase().includes(lc) || s.part_title.toLowerCase().includes(lc)) return true;
+      if (s.section_title.toLowerCase().includes(lc) || s.part_title.toLowerCase().includes(lc))
+        return true;
       return s.body_blocks.some((b) => "text" in b && b.text.toLowerCase().includes(lc));
     });
   }, [baseSections, q]);
@@ -224,7 +253,9 @@ function HandbookPage() {
             onClick={() => setView("full")}
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider",
-              view === "full" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground",
+              view === "full"
+                ? "bg-[#0A0A0A] text-[var(--color-gold)]"
+                : "bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             <BookOpen className="h-3.5 w-3.5" /> Full Handbook
@@ -233,7 +264,9 @@ function HandbookPage() {
             onClick={() => setView("policies")}
             className={cn(
               "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border-l border-border",
-              view === "policies" ? "bg-[#0A0A0A] text-[var(--color-gold)]" : "bg-card text-muted-foreground hover:text-foreground",
+              view === "policies"
+                ? "bg-[#0A0A0A] text-[var(--color-gold)]"
+                : "bg-card text-muted-foreground hover:text-foreground",
             )}
           >
             <ScrollText className="h-3.5 w-3.5" /> Company Policies
@@ -313,7 +346,9 @@ function HandbookPage() {
               {filtered.map((s) => (
                 <section
                   key={s.id}
-                  ref={(el) => { sectionRefs.current[s.section_number] = el; }}
+                  ref={(el) => {
+                    sectionRefs.current[s.section_number] = el;
+                  }}
                 >
                   <SectionView section={s} />
                 </section>

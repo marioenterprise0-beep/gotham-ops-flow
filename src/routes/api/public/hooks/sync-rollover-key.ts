@@ -11,7 +11,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-rollover-key")({
         const expected = process.env.ROLLOVER_DISPATCH_KEY;
         if (!expected) {
           return new Response(JSON.stringify({ ok: false, error: "env not set" }), {
-            status: 500, headers: { "Content-Type": "application/json" },
+            status: 500,
+            headers: { "Content-Type": "application/json" },
           });
         }
         const provided = request.headers.get("x-rollover-key");
@@ -25,11 +26,13 @@ export const Route = createFileRoute("/api/public/hooks/sync-rollover-key")({
           .eq("id", 1);
         if (error) {
           return new Response(JSON.stringify({ ok: false, error: error.message }), {
-            status: 500, headers: { "Content-Type": "application/json" },
+            status: 500,
+            headers: { "Content-Type": "application/json" },
           });
         }
         return new Response(JSON.stringify({ ok: true }), {
-          status: 200, headers: { "Content-Type": "application/json" },
+          status: 200,
+          headers: { "Content-Type": "application/json" },
         });
       },
     },

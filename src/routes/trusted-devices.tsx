@@ -9,14 +9,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { useRole } from "@/lib/role";
 import {
-  listKioskDevices, registerKioskDevice, revokeKioskDevice, renameKioskDevice,
-  setKioskDeviceRequired, getKioskSettings, reissueKioskDeviceToken,
+  listKioskDevices,
+  registerKioskDevice,
+  revokeKioskDevice,
+  renameKioskDevice,
+  setKioskDeviceRequired,
+  getKioskSettings,
+  reissueKioskDeviceToken,
 } from "@/lib/kiosk.functions";
 import { listTrailerGeofences } from "@/lib/timeclock.functions";
 import { Tablet, Copy, Check, ShieldAlert, ShieldCheck } from "lucide-react";
@@ -71,7 +81,9 @@ export function TrustedDevicesManager() {
   const [showRegister, setShowRegister] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newTrailerId, setNewTrailerId] = useState<string>("");
-  const [issued, setIssued] = useState<{ token: string; label: string; deviceId: string } | null>(null);
+  const [issued, setIssued] = useState<{ token: string; label: string; deviceId: string } | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
 
   const register = useMutation({
@@ -79,7 +91,8 @@ export function TrustedDevicesManager() {
     onSuccess: (res) => {
       setShowRegister(false);
       setIssued({ token: res.token, label: res.device.label, deviceId: res.device.id });
-      setNewLabel(""); setNewTrailerId("");
+      setNewLabel("");
+      setNewTrailerId("");
       qc.invalidateQueries({ queryKey: ["kiosk", "devices"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Failed to register"),
@@ -104,7 +117,8 @@ export function TrustedDevicesManager() {
   });
 
   const rename = useMutation({
-    mutationFn: async ({ id, label }: { id: string; label: string }) => renameFn({ data: { deviceId: id, label } }),
+    mutationFn: async ({ id, label }: { id: string; label: string }) =>
+      renameFn({ data: { deviceId: id, label } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["kiosk", "devices"] }),
   });
 
@@ -126,22 +140,30 @@ export function TrustedDevicesManager() {
     window.location.assign(kioskUrl.toString());
   };
 
-  const trailerName = (id: string) => trailers.data?.find((t: any) => t.id === id)?.name ?? id.slice(0, 8);
+  const trailerName = (id: string) =>
+    trailers.data?.find((t: any) => t.id === id)?.name ?? id.slice(0, 8);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-4">
-      <SectionHeader title="Trusted Devices" eyebrow="Kiosk iPads authorized to clock employees in/out" />
+      <SectionHeader
+        title="Trusted Devices"
+        eyebrow="Kiosk iPads authorized to clock employees in/out"
+      />
 
       <Card>
         <div className="flex items-center justify-between gap-4 p-2">
           <div>
             <div className="font-semibold flex items-center gap-2">
-              {settings.data?.kioskDeviceRequired ? <ShieldCheck className="w-4 h-4 text-green-500" /> : <ShieldAlert className="w-4 h-4 text-yellow-500" />}
+              {settings.data?.kioskDeviceRequired ? (
+                <ShieldCheck className="w-4 h-4 text-green-500" />
+              ) : (
+                <ShieldAlert className="w-4 h-4 text-yellow-500" />
+              )}
               Kiosk-only clock in/out
             </div>
             <div className="text-sm text-muted-foreground">
-              When enabled, employees can only punch in/out from a registered iPad.
-              You can still manually clock people in/out from the Time Clock admin.
+              When enabled, employees can only punch in/out from a registered iPad. You can still
+              manually clock people in/out from the Time Clock admin.
             </div>
           </div>
           <Switch
@@ -155,7 +177,9 @@ export function TrustedDevicesManager() {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <div className="font-semibold">Registered devices</div>
-          <Button size="sm" onClick={() => setShowRegister(true)}>Register a device</Button>
+          <Button size="sm" onClick={() => setShowRegister(true)}>
+            Register a device
+          </Button>
         </div>
         {devices.isLoading ? (
           <div className="text-sm text-muted-foreground py-6">Loading…</div>
@@ -178,7 +202,9 @@ export function TrustedDevicesManager() {
                           rename.mutate({ id: d.id, label: label.trim() });
                         }
                       }}
-                    >{d.label}</button>
+                    >
+                      {d.label}
+                    </button>
                     {d.revoked_at ? (
                       <StatusPill tone="danger">Revoked</StatusPill>
                     ) : (
@@ -186,8 +212,10 @@ export function TrustedDevicesManager() {
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {trailerName(d.trailer_id)} · Registered {new Date(d.approved_at).toLocaleDateString()}
-                    {d.last_used_at && ` · Last used ${new Date(d.last_used_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
+                    {trailerName(d.trailer_id)} · Registered{" "}
+                    {new Date(d.approved_at).toLocaleDateString()}
+                    {d.last_used_at &&
+                      ` · Last used ${new Date(d.last_used_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`}
                   </div>
                 </div>
                 {!d.revoked_at && (
@@ -197,16 +225,24 @@ export function TrustedDevicesManager() {
                       variant="outline"
                       disabled={reinstall.isPending}
                       onClick={() => reinstall.mutate(d.id)}
-                    >Reinstall</Button>
+                    >
+                      Reinstall
+                    </Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => {
-                        if (confirm(`Revoke "${d.label}"? It will stop accepting punches immediately.`)) {
+                        if (
+                          confirm(
+                            `Revoke "${d.label}"? It will stop accepting punches immediately.`,
+                          )
+                        ) {
                           revoke.mutate(d.id);
                         }
                       }}
-                    >Revoke</Button>
+                    >
+                      Revoke
+                    </Button>
                   </div>
                 )}
               </div>
@@ -234,7 +270,9 @@ export function TrustedDevicesManager() {
               >
                 <option value="">Select…</option>
                 {(trailers.data ?? []).map((t: any) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -248,11 +286,15 @@ export function TrustedDevicesManager() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowRegister(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setShowRegister(false)}>
+              Cancel
+            </Button>
             <Button
               disabled={!newLabel.trim() || !newTrailerId || register.isPending}
               onClick={() => register.mutate()}
-            >{register.isPending ? "Registering…" : "Register"}</Button>
+            >
+              {register.isPending ? "Registering…" : "Register"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -279,14 +321,24 @@ export function TrustedDevicesManager() {
                     setTimeout(() => setCopied(false), 1500);
                   }}
                 >
-                  {copied ? <><Check className="w-4 h-4 mr-1" /> Copied</> : <><Copy className="w-4 h-4 mr-1" /> Copy</>}
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" /> Copy
+                    </>
+                  )}
                 </Button>
                 <Button className="flex-1" onClick={installOnThisDevice}>
                   Install on this iPad
                 </Button>
               </div>
               <div className="text-xs text-muted-foreground">
-                After installing, sign out (owner) and open <span className="font-mono">/kiosk</span> — the iPad will boot into kiosk mode. Add to Home Screen for full-screen.
+                After installing, sign out (owner) and open{" "}
+                <span className="font-mono">/kiosk</span> — the iPad will boot into kiosk mode. Add
+                to Home Screen for full-screen.
               </div>
             </div>
           )}
