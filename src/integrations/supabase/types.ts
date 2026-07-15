@@ -2311,6 +2311,8 @@ export type Database = {
           id: string
           name: string
           slug: string | null
+          status: Database["public"]["Enums"]["org_billing_status"]
+          trial_ends_at: string
           updated_at: string
         }
         Insert: {
@@ -2318,6 +2320,8 @@ export type Database = {
           id?: string
           name: string
           slug?: string | null
+          status?: Database["public"]["Enums"]["org_billing_status"]
+          trial_ends_at?: string
           updated_at?: string
         }
         Update: {
@@ -2325,6 +2329,8 @@ export type Database = {
           id?: string
           name?: string
           slug?: string | null
+          status?: Database["public"]["Enums"]["org_billing_status"]
+          trial_ends_at?: string
           updated_at?: string
         }
         Relationships: []
@@ -4601,6 +4607,13 @@ export type Database = {
         | "used"
         | "expired"
       maintenance_status: "open" | "in_progress" | "resolved"
+      org_billing_status:
+        | "trialing"
+        | "trial_expired"
+        | "active"
+        | "past_due_locked"
+        | "suspended"
+        | "cancelled"
       org_role: "org_owner" | "org_admin" | "org_member"
       punch_status: "open" | "closed" | "edited" | "voided" | "auto_closed"
       recap_status: "draft" | "submitted" | "reviewed" | "archived"
@@ -4841,6 +4854,14 @@ export const Constants = {
         "expired",
       ],
       maintenance_status: ["open", "in_progress", "resolved"],
+      org_billing_status: [
+        "trialing",
+        "trial_expired",
+        "active",
+        "past_due_locked",
+        "suspended",
+        "cancelled",
+      ],
       org_role: ["org_owner", "org_admin", "org_member"],
       punch_status: ["open", "closed", "edited", "voided", "auto_closed"],
       recap_status: ["draft", "submitted", "reviewed", "archived"],
