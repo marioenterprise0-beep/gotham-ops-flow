@@ -4499,6 +4499,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_active_org_context: { Args: never; Returns: undefined }
       sweep_missed_clock_in: { Args: never; Returns: undefined }
       sweep_missed_clock_out: { Args: never; Returns: undefined }
     }
