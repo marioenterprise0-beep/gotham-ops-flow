@@ -266,6 +266,11 @@ DECLARE
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables LOOP
+    -- Skip tables that don't exist in this DB (CI ephemeral schema only has
+    -- what this file creates; prod has the full tenant schema).
+    IF to_regclass('public.' || quote_ident(t)) IS NULL THEN
+      CONTINUE;
+    END IF;
     EXECUTE format('ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS organization_id uuid REFERENCES public.organizations(id) ON DELETE RESTRICT', t);
     -- Backfill: single-tenant snapshot → all existing rows belong to seed org.
     EXECUTE format(
@@ -280,6 +285,12 @@ BEGIN
     );
     -- NOT NULL — no fallback, ever.
     EXECUTE format('ALTER TABLE public.%I ALTER COLUMN organization_id SET NOT NULL', t);
+    -- Session-default (shipped migration 20260714064615): so app inserts
+    -- that omit organization_id get filled from the session GUC.
+    EXECUTE format(
+      'ALTER TABLE public.%I ALTER COLUMN organization_id SET DEFAULT public.current_organization_id()',
+      t
+    );
     -- Index for RLS predicate perf.
     EXECUTE format(
       'CREATE INDEX IF NOT EXISTS %I ON public.%I (organization_id)',
@@ -324,6 +335,9 @@ DECLARE
   pol record;
 BEGIN
   FOREACH t IN ARRAY tenant_tables LOOP
+    IF to_regclass('public.' || quote_ident(t)) IS NULL THEN
+      CONTINUE;
+    END IF;
     -- Drop every existing policy on this table so old permissive policies
     -- cannot leak across orgs during rollout.
     FOR pol IN
@@ -389,11 +403,15 @@ CREATE POLICY "orgmem_admin_manage" ON public.organization_members FOR ALL TO au
 -- 7. email_send_log — nullable attribution column (service-role only, no RLS exposure)
 -- =============================================================================
 
-ALTER TABLE public.email_send_log
-  ADD COLUMN IF NOT EXISTS organization_id uuid
-    REFERENCES public.organizations(id) ON DELETE SET NULL;
-CREATE INDEX IF NOT EXISTS email_send_log_organization_id_idx
-  ON public.email_send_log (organization_id);
+DO $$ BEGIN
+  IF to_regclass('public.email_send_log') IS NOT NULL THEN
+    ALTER TABLE public.email_send_log
+      ADD COLUMN IF NOT EXISTS organization_id uuid
+        REFERENCES public.organizations(id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS email_send_log_organization_id_idx
+      ON public.email_send_log (organization_id);
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 8. Verification — fail the migration if any tenant table is misconfigured
@@ -427,7 +445,9 @@ BEGIN
      SELECT 1 FROM information_schema.columns
       WHERE table_schema='public' AND table_name=t
         AND column_name='organization_id' AND is_nullable='NO'
-   );
+   )
+     -- Only verify tables that exist in this DB (CI ephemeral skip).
+     AND to_regclass('public.'||t) IS NOT NULL;
   IF missing IS NOT NULL THEN
     RAISE EXCEPTION 'Phase 1a verify FAILED — organization_id NOT NULL missing on: %', missing;
   END IF;
