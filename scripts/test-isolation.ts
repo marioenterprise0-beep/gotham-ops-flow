@@ -203,16 +203,33 @@ async function preflight(c: Client): Promise<{ ready: true } | { ready: false; r
       reason: "public.organization_members table not found — Phase 1a migration is incomplete.",
     };
   }
-  // Every tenant table must have organization_id.
-  const missing: string[] = [];
+  // Hard-fail if ANY of the 60 declared tenant tables is absent. A silent
+  // skip here would let the suite green against an incomplete schema (e.g.
+  // an ephemeral CI DB that never received the base schema dump) and hide
+  // the exact regression this preflight exists to catch.
+  const absentTables: string[] = [];
+  const missingOrgIdCol: string[] = [];
   for (const t of TENANT_TABLES) {
-    if (!(await tableExists(c, t))) continue; // table not in this DB — skip
-    if (!(await hasColumn(c, t, "organization_id"))) missing.push(t);
+    if (!(await tableExists(c, t))) {
+      absentTables.push(t);
+      continue;
+    }
+    if (!(await hasColumn(c, t, "organization_id"))) missingOrgIdCol.push(t);
   }
-  if (missing.length > 0) {
+  if (absentTables.length > 0) {
     return {
       ready: false,
-      reason: `Tenant tables missing organization_id column: ${missing.join(", ")}`,
+      reason:
+        `Tenant tables absent from schema (${absentTables.length}/${TENANT_TABLES.length}): ` +
+        absentTables.join(", ") +
+        `\n  The isolation suite must run against the real production schema shape. ` +
+        `Refresh scripts/ci/base-schema.sql via pg_dump --schema-only and re-run.`,
+    };
+  }
+  if (missingOrgIdCol.length > 0) {
+    return {
+      ready: false,
+      reason: `Tenant tables missing organization_id column: ${missingOrgIdCol.join(", ")}`,
     };
   }
   return { ready: true };

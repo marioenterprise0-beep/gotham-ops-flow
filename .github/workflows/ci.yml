@@ -32,25 +32,23 @@ jobs:
       - run: npm ci
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Bootstrap ephemeral schema (auth shim + Phase 1a full batch)
+      - name: Bootstrap ephemeral schema (auth shim + production schema dump)
         env:
           PGPASSWORD: cibora
           DATABASE_URL: postgres://cibora:cibora@localhost:5432/cibora_test
         run: |
           # NEVER point this job at production. The service container above
           # is a throwaway Postgres — same rule applies every future phase.
-          # Apply order matches the migration order shipped to production:
-          #   1. phase-1a-migration        (org tables + RLS + trigger)
-          #   2. phase-1a-linter-fixes     (revokes + search_path)
-          #   3. phase-1b-guc-wiring       (set_active_org_context + pre_request)
-          #   4. phase-1a-secdef-org-fixes (org-safe SECDEF rewrites)
-          # Without steps 2-4, Group F assertions test pre-fix functions and
-          # green against a schema that no longer matches production.
+          #
+          # scripts/ci/base-schema.sql is a schema-only pg_dump of the current
+          # production public schema (Phase-1a + Phase-1b already merged), so
+          # the isolation suite runs against the real schema shape. Re-applying
+          # the Phase 1a/1b migration files on top would fail with "already
+          # exists" — the dump IS the post-Phase-1a state. When a new phase
+          # ships, refresh the dump (pg_dump --schema-only --schema=public
+          # --no-owner --no-privileges --no-comments) in the same commit.
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/ci/auth-shim.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .lovable/phase-1a-migration.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .lovable/phase-1a-linter-fixes.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .lovable/phase-1b-guc-wiring.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f .lovable/phase-1a-secdef-org-fixes.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/ci/base-schema.sql
       - name: Run isolation suite against ephemeral DB
         env:
           DATABASE_URL: postgres://cibora:cibora@localhost:5432/cibora_test
