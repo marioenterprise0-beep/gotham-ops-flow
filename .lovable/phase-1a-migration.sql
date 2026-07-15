@@ -1,23 +1,21 @@
 -- =============================================================================
--- Phase 1a — Multi-tenant foundation (DRAFT for review)
+-- Phase 1a — Multi-tenant foundation (CONSOLIDATED, matches shipped migrations)
 -- =============================================================================
+-- Consolidation of the three shipped migrations:
+--   20260714064527 — core tables, functions, seed org, backfill, columns,
+--                    triggers, NOT NULL, RLS policies, verify block.
+--   20260714064615 — ALTER COLUMN organization_id SET DEFAULT
+--                    public.current_organization_id() on every tenant table.
+--   20260714064658 — Restore compat 2-arg has_role(user_id, role) that reads
+--                    the session GUC and raises when unset.
+--
 -- Ships in ONE atomic transaction. No fallback, no staging. Trigger raises
 -- on any INSERT that cannot resolve organization_id.
 --
--- Structure:
---   1. Enums + core tables (organizations, organization_members)
---   2. Helper functions (is_org_member, has_org_role, has_role/3, current_org)
---   3. profiles.active_organization_id (nullable convenience pointer)
---   4. Seed org "Cibora Dev" + backfill memberships for existing users
---   5. Generic enforce_org_id() trigger + per-table FK-derivation registry
---   6. For every tenant table:
---        a. ADD COLUMN organization_id uuid
---        b. Backfill (direct column OR FK-derived OR seed org)
---        c. ATTACH trigger BEFORE INSERT
---        d. ALTER COLUMN organization_id SET NOT NULL
---        e. DROP existing RLS policies; RECREATE tenant-scoped policies
---   7. email_send_log: add NULLABLE organization_id (attribution only)
---   8. Verification block — RAISE EXCEPTION if any tenant table lacks org_id
+-- Runnable standalone: every tenant-table operation is guarded by
+-- to_regclass() so this file also applies cleanly against the ephemeral
+-- CI Postgres (which has only the auth shim + this file). The verify
+-- block only checks tables that actually exist in the target DB.
 -- =============================================================================
 
 BEGIN;
