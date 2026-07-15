@@ -45,3 +45,15 @@ $$;
 
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 GRANT SELECT ON auth.users TO authenticated, service_role;
+
+-- public.app_role enum is created by the pre-Phase-1a base schema in real
+-- Supabase, but the ephemeral CI Postgres starts empty. The linter-fixes
+-- script (.lovable/phase-1a-linter-fixes.sql) references public.app_role
+-- before any migration that creates it. Define it here idempotently so the
+-- isolation suite can bootstrap. Keep values in sync with the production
+-- enum: owner, manager, shift_lead, grill, prep, cashier.
+DO $$ BEGIN
+  CREATE TYPE public.app_role AS ENUM (
+    'owner', 'manager', 'shift_lead', 'grill', 'prep', 'cashier'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
