@@ -18,17 +18,6 @@ const LEVEL_RANK: Record<TabAccessLevel, number> = {
 // pre-request GUC `app.active_organization_id` (set by public.set_active_org_context).
 // The 2-arg RPC wrappers (is_manager(uid), has_role(uid, role)) filter user_roles
 // by that GUC, so a user with a role in a different org cannot pass these gates.
-async function getOrgRoles(supabase: any, userId: string): Promise<string[]> {
-  const [{ data: mgr }, { data: own }] = await Promise.all([
-    supabase.rpc("is_manager", { _user_id: userId }),
-    supabase.rpc("has_role", { _user_id: userId, _role: "owner" }),
-  ]);
-  const roles: string[] = [];
-  if (own === true) roles.push("owner");
-  if (mgr === true && !roles.includes("owner")) roles.push("manager");
-  return roles;
-}
-
 export async function requireManager(supabase: any, userId: string) {
   const { data: mgr } = await supabase.rpc("is_manager", { _user_id: userId });
   if (mgr !== true) throw new Error("Manager role required");
