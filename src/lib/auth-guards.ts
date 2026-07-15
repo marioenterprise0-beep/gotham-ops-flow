@@ -53,14 +53,10 @@ export async function requireTabAccess(
   const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
   if (own === true) return;
 
-  // Fetch the caller's roles for the active org only.
-  const { data: roleRowsRaw } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  // Note: RLS on user_roles already scopes to organization_members visibility,
-  // and the pre-request hook keeps the session pinned to the active org.
-  const roles: string[] = (roleRowsRaw ?? []).map((r: any) => r.role as string);
+  // Fetch the caller's roles for the active org only (RLS on user_roles
+  // allows any org the caller belongs to, so we use an org-scoped RPC).
+  const { data: activeRoles } = await supabase.rpc("my_active_org_roles");
+  const roles: string[] = (activeRoles ?? []) as string[];
 
   const { data: perms } = await supabase
     .from("tab_permissions")
