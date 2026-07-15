@@ -80,24 +80,57 @@ $$;
 -- New has_role signature: (user_id, org_id, role). Replaces the 2-arg version.
 -- Operational roles remain per-user, per-org; enforces the role-boundary rule
 -- (this function never touches organization_members.org_role).
-DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _org_id uuid, _role public.app_role)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-     WHERE user_id = _user_id
-       AND organization_id = _org_id
-       AND role = _role
-  )
-$$;
+-- Only defined when the app_role type exists — the type ships in the base
+-- schema on prod but is absent from CI's ephemeral DB.
+DO $has$
+BEGIN
+  IF to_regtype('public.app_role') IS NOT NULL THEN
+    EXECUTE 'DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role)';
+    EXECUTE $f$
+      CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _org_id uuid, _role public.app_role)
+      RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $body$
+        SELECT EXISTS (
+          SELECT 1 FROM public.user_roles
+           WHERE user_id = _user_id
+             AND organization_id = _org_id
+             AND role = _role
+        )
+      $body$
+    $f$;
+    -- Compat 2-arg helper (shipped migration 20260714064658): reads active
+    -- org from session GUC and raises if unset. Preserves existing call sites.
+    EXECUTE $f$
+      CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
+      RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $body$
+      DECLARE
+        org uuid := public.current_organization_id();
+      BEGIN
+        IF org IS NULL THEN
+          RAISE EXCEPTION 'has_role: no active organization on session (app.active_organization_id unset)'
+            USING ERRCODE = 'insufficient_privilege';
+        END IF;
+        RETURN EXISTS (
+          SELECT 1 FROM public.user_roles
+           WHERE user_id = _user_id
+             AND organization_id = org
+             AND role = _role
+        );
+      END $body$
+    $f$;
+  END IF;
+END $has$;
 
 -- =============================================================================
 -- 3. profiles.active_organization_id (nullable — profiles stay user-owned)
 -- =============================================================================
 
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS active_organization_id uuid
-    REFERENCES public.organizations(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    ALTER TABLE public.profiles
+      ADD COLUMN IF NOT EXISTS active_organization_id uuid
+        REFERENCES public.organizations(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 4. Seed org + membership backfill for existing users
@@ -107,14 +140,17 @@ INSERT INTO public.organizations (id, name, slug)
 VALUES ('00000000-0000-0000-0000-000000000001'::uuid, 'Cibora Dev', 'cibora-dev')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.organization_members (organization_id, user_id, org_role)
-SELECT '00000000-0000-0000-0000-000000000001'::uuid, p.id, 'org_owner'
-  FROM public.profiles p
- ON CONFLICT DO NOTHING;
-
-UPDATE public.profiles
-   SET active_organization_id = '00000000-0000-0000-0000-000000000001'::uuid
- WHERE active_organization_id IS NULL;
+DO $$ BEGIN
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    INSERT INTO public.organization_members (organization_id, user_id, org_role)
+    SELECT '00000000-0000-0000-0000-000000000001'::uuid, p.id, 'org_owner'
+      FROM public.profiles p
+     ON CONFLICT DO NOTHING;
+    UPDATE public.profiles
+       SET active_organization_id = '00000000-0000-0000-0000-000000000001'::uuid
+     WHERE active_organization_id IS NULL;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- 5. Generic enforce_org_id() trigger + FK-derivation registry
