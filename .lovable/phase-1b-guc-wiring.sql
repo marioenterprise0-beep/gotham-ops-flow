@@ -44,12 +44,24 @@ BEGIN
   IF uid IS NULL THEN
     RETURN;  -- anon / service_role calls: no session context to set
   END IF;
-  SELECT active_organization_id INTO org
-    FROM public.profiles
-   WHERE id = uid;
+  -- CRITICAL: verify the profile's active org against LIVE membership before
+  -- stamping the session. profiles.active_organization_id is a convenience
+  -- pointer that can lag revocation — a removed user must not have their
+  -- requests stamped with an org they no longer belong to.
+  SELECT p.active_organization_id INTO org
+    FROM public.profiles p
+   WHERE p.id = uid
+     AND EXISTS (
+       SELECT 1 FROM public.organization_members m
+        WHERE m.user_id = uid
+          AND m.organization_id = p.active_organization_id
+     );
   IF org IS NOT NULL THEN
     PERFORM set_config('app.active_organization_id', org::text, true);
   END IF;
+  -- If the pointer is stale or membership was revoked, we set nothing.
+  -- Downstream RLS (is_org_member) then denies as it should; enforce_org_id
+  -- raises with a clear message on any INSERT that needs the GUC.
 END $$;
 
 REVOKE EXECUTE ON FUNCTION public.set_active_org_context() FROM PUBLIC, anon;
