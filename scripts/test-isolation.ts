@@ -21,6 +21,11 @@
  *   E. Role-boundary invariant — no function definition in public schema
  *      references both organization_members.org_role and user_roles.role
  *      in the same predicate.
+ *   F. SECURITY DEFINER org-safety (Phase 1a SECDEF fixes) — 8 assertions
+ *      covering is_manager, list_trailer_geofences, get_trailer_geofence,
+ *      kiosk_device_required, my_trailer_id, current_user_trailer,
+ *      decide_availability_atomic, request_availability_atomic. Read
+ *      assertions exercise orgB canary rows so Group A is non-trivial.
  */
 
 import { Client } from "pg";
