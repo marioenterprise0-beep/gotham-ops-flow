@@ -54,6 +54,7 @@ const PRINT_CSS = `
 
 export function openPrintablePDF(title: string, bodyHTML: string) {
   const safeTitle = escapeHTML(title);
+  // eslint-disable-next-line no-useless-escape -- `<\/script>` prevents premature closing of the outer <script>.
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title><style>${PRINT_CSS}</style></head><body>${bodyHTML}<footer>Generated ${new Date().toLocaleString()} · Dip N Shake OS</footer><script>window.onload = () => { setTimeout(() => window.print(), 250); };<\/script></body></html>`;
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
