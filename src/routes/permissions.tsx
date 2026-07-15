@@ -8,50 +8,74 @@ import { Card, SectionHeader } from "@/components/gotham/primitives";
 import { requireAuthBeforeLoad } from "@/lib/require-auth";
 import { ROLES, useRole, type RoleId, type TabAccess } from "@/lib/role";
 import {
-  listAllTabPermissions, setTabPermission, applyDefaultPresets,
-  listRoleEmailPolicies, setRoleEmailPolicy, applyEmailPolicyDefaults,
-  EMAIL_CATEGORIES, EMAIL_POLICY_DEFAULTS, type EmailCategory,
+  listAllTabPermissions,
+  setTabPermission,
+  applyDefaultPresets,
+  listRoleEmailPolicies,
+  setRoleEmailPolicy,
+  applyEmailPolicyDefaults,
+  EMAIL_CATEGORIES,
+  EMAIL_POLICY_DEFAULTS,
+  type EmailCategory,
 } from "@/lib/permissions.functions";
 import { toast } from "sonner";
 import { EyeOff, Eye, Pencil, KeyRound, User as UserIcon, Shield, Wand2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { syncDomains } from "@/lib/sync-bus";
 
+type PermRow = {
+  scope_type: "role" | "user";
+  scope_id: string;
+  tab_key: string;
+  access_level: TabAccess;
+  enabled?: boolean;
+};
+type ProfileRow = {
+  id: string;
+  email?: string | null;
+  full_name?: string | null;
+  [k: string]: unknown;
+};
+type UserRoleRow = { user_id: string; role: RoleId };
+type PermissionsPayload = { perms: PermRow[]; profiles: ProfileRow[]; roles: UserRoleRow[] };
+
 export const Route = createFileRoute("/permissions")({
   ssr: false,
-  beforeLoad: () => { throw redirect({ to: "/admin", search: { tab: "permissions" } as any }); },
+  beforeLoad: () => {
+    throw redirect({ to: "/admin", search: { tab: "permissions" } });
+  },
   head: () => ({ meta: [{ title: "Permissions · Dip N Shake OS" }] }),
   component: PermissionsPage,
 });
 
 const TABS: { key: string; label: string }[] = [
-  { key: "dashboard",   label: "Dashboard" },
-  { key: "my-tasks",    label: "My Tasks" },
-  { key: "time-clock",  label: "Time Clock" },
-  { key: "operations",  label: "Operations" },
-  { key: "recaps",      label: "Daily Recap" },
-  { key: "schedule",    label: "Scheduling" },
-  { key: "labor",       label: "Labor" },
-  { key: "inventory",   label: "Inventory" },
+  { key: "dashboard", label: "Dashboard" },
+  { key: "my-tasks", label: "My Tasks" },
+  { key: "time-clock", label: "Time Clock" },
+  { key: "operations", label: "Operations" },
+  { key: "recaps", label: "Daily Recap" },
+  { key: "schedule", label: "Scheduling" },
+  { key: "labor", label: "Labor" },
+  { key: "inventory", label: "Inventory" },
   { key: "order-guide", label: "Order Guide" },
-  { key: "sops",        label: "SOPs" },
+  { key: "sops", label: "SOPs" },
   { key: "hospitality", label: "Hospitality" },
-  { key: "health",      label: "Health Score" },
-  { key: "alerts",      label: "Alerts" },
-  { key: "cash",        label: "Cash" },
-  { key: "manager",     label: "Manager" },
-  { key: "users",       label: "Users" },
-  { key: "audit",       label: "Audit Log" },
-  { key: "change-log",  label: "Change Log" },
-  { key: "analytics",   label: "Analytics" },
-  { key: "settings",    label: "Settings" },
+  { key: "health", label: "Health Score" },
+  { key: "alerts", label: "Alerts" },
+  { key: "cash", label: "Cash" },
+  { key: "manager", label: "Manager" },
+  { key: "users", label: "Users" },
+  { key: "audit", label: "Audit Log" },
+  { key: "change-log", label: "Change Log" },
+  { key: "analytics", label: "Analytics" },
+  { key: "settings", label: "Settings" },
 ];
 
 const ROLE_IDS: RoleId[] = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"];
 
 const LEVELS: { id: TabAccess; label: string; icon: typeof Eye; tone: string }[] = [
-  { id: "none", label: "Hidden",    icon: EyeOff, tone: "danger" },
-  { id: "view", label: "View only", icon: Eye,    tone: "warn" },
+  { id: "none", label: "Hidden", icon: EyeOff, tone: "danger" },
+  { id: "view", label: "View only", icon: Eye, tone: "warn" },
   { id: "edit", label: "Full edit", icon: Pencil, tone: "success" },
 ];
 
@@ -71,14 +95,18 @@ export function PermissionsPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["all-tab-permissions", session?.user?.id ?? null],
-    queryFn: () => listFn() as Promise<any>,
+    queryFn: () => listFn() as Promise<PermissionsPayload>,
     enabled: canLoadPermissions,
     retry: false,
   });
 
   const setM = useMutation({
-    mutationFn: (v: { scopeType: "role" | "user"; scopeId: string; tabKey: string; accessLevel: TabAccess }) =>
-      setFn({ data: v }),
+    mutationFn: (v: {
+      scopeType: "role" | "user";
+      scopeId: string;
+      tabKey: string;
+      accessLevel: TabAccess;
+    }) => setFn({ data: v }),
     onSuccess: async () => {
       syncDomains(qc, "permissions", "users");
       await refreshPermissions();
@@ -88,7 +116,7 @@ export function PermissionsPage() {
 
   const presetM = useMutation({
     mutationFn: (overwrite: boolean) => applyPresetsFn({ data: { overwrite } }),
-    onSuccess: async (res: any) => {
+    onSuccess: async (res: { applied?: number } | undefined) => {
       toast.success(`Applied defaults · ${res?.applied ?? 0} rules updated`);
       syncDomains(qc, "permissions", "users");
       await refreshPermissions();
@@ -98,30 +126,33 @@ export function PermissionsPage() {
 
   const { data: emailData } = useQuery({
     queryKey: ["role-email-policies", session?.user?.id ?? null],
-    queryFn: () => listEmailPoliciesFn() as Promise<{ policies: { role: string; category: string; enabled: boolean }[] }>,
+    queryFn: () =>
+      listEmailPoliciesFn() as Promise<{
+        policies: { role: string; category: string; enabled: boolean }[];
+      }>,
     enabled: canLoadPermissions,
     retry: false,
   });
 
   const emailM = useMutation({
     mutationFn: (v: { role: string; category: EmailCategory; enabled: boolean }) =>
-      setEmailPolicyFn({ data: v as any }),
+      setEmailPolicyFn({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["role-email-policies"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
   const emailDefaultsM = useMutation({
     mutationFn: (overwrite: boolean) => applyEmailDefaultsFn({ data: { overwrite } }),
-    onSuccess: (res: any) => {
+    onSuccess: (res: { applied?: number } | undefined) => {
       toast.success(`Email defaults applied · ${res?.applied ?? 0} rules updated`);
       qc.invalidateQueries({ queryKey: ["role-email-policies"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const perms: any[] = data?.perms ?? [];
-  const profiles: any[] = data?.profiles ?? [];
-  const userRoles: any[] = data?.roles ?? [];
+  const perms: PermRow[] = data?.perms ?? [];
+  const profiles: ProfileRow[] = data?.profiles ?? [];
+  const userRoles: UserRoleRow[] = data?.roles ?? [];
 
   const roleByUser = useMemo(() => {
     const m = new Map<string, RoleId[]>();
@@ -157,15 +188,21 @@ export function PermissionsPage() {
   }
 
   const accessFor = (scopeType: "role" | "user", scopeId: string, tabKey: string): TabAccess => {
-    const found = perms.find((p) => p.scope_type === scopeType && p.scope_id === scopeId && p.tab_key === tabKey);
+    const found = perms.find(
+      (p) => p.scope_type === scopeType && p.scope_id === scopeId && p.tab_key === tabKey,
+    );
     if (!found) return "edit";
     return (found.access_level as TabAccess) ?? (found.enabled === false ? "none" : "edit");
   };
 
-  const setAccess = (scopeType: "role" | "user", scopeId: string, tabKey: string, accessLevel: TabAccess) => {
+  const setAccess = (
+    scopeType: "role" | "user",
+    scopeId: string,
+    tabKey: string,
+    accessLevel: TabAccess,
+  ) => {
     setM.mutate({ scopeType, scopeId, tabKey, accessLevel });
   };
-
 
   return (
     <EmbedShell>
@@ -176,20 +213,40 @@ export function PermissionsPage() {
         </div>
         <h1 className="font-display text-3xl mt-1 text-white">PERMISSIONS</h1>
         <p className="mt-2 text-sm text-white/70">
-          Set per-tab access for each role or override per user. Three levels: <b>Hidden</b> (tab removed),
-          <b> View only</b> (read-only, edits blocked), <b>Full edit</b>. Owners always have full edit on everything.
+          Set per-tab access for each role or override per user. Three levels: <b>Hidden</b> (tab
+          removed),
+          <b> View only</b> (read-only, edits blocked), <b>Full edit</b>. Owners always have full
+          edit on everything.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-md border border-[#2A2A2A] p-1 bg-[#1C1C1C]">
             {(["role", "user", "emails"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)}
+              <button
+                key={m}
+                onClick={() => setMode(m)}
                 className={cn(
                   "px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded",
-                  mode === m ? "bg-[var(--color-gold)] text-[#0A0A0A]" : "text-white/70 hover:text-white"
-                )}>
-                {m === "role" ? (<><Shield className="inline h-3 w-3 mr-1" />By role</>)
-                  : m === "user" ? (<><UserIcon className="inline h-3 w-3 mr-1" />By user</>)
-                  : (<><Mail className="inline h-3 w-3 mr-1" />Emails</>)}
+                  mode === m
+                    ? "bg-[var(--color-gold)] text-[#0A0A0A]"
+                    : "text-white/70 hover:text-white",
+                )}
+              >
+                {m === "role" ? (
+                  <>
+                    <Shield className="inline h-3 w-3 mr-1" />
+                    By role
+                  </>
+                ) : m === "user" ? (
+                  <>
+                    <UserIcon className="inline h-3 w-3 mr-1" />
+                    By user
+                  </>
+                ) : (
+                  <>
+                    <Mail className="inline h-3 w-3 mr-1" />
+                    Emails
+                  </>
+                )}
               </button>
             ))}
           </div>
@@ -205,7 +262,10 @@ export function PermissionsPage() {
                   <Wand2 className="h-3 w-3" /> Apply defaults
                 </button>
                 <button
-                  onClick={() => { if (confirm("Reset ALL role email rules to defaults?")) emailDefaultsM.mutate(true); }}
+                  onClick={() => {
+                    if (confirm("Reset ALL role email rules to defaults?"))
+                      emailDefaultsM.mutate(true);
+                  }}
                   disabled={emailDefaultsM.isPending}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
                 >
@@ -223,7 +283,14 @@ export function PermissionsPage() {
                   <Wand2 className="h-3 w-3" /> Apply defaults
                 </button>
                 <button
-                  onClick={() => { if (confirm("Reset ALL role permissions to defaults? Per-user overrides are kept.")) presetM.mutate(true); }}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        "Reset ALL role permissions to defaults? Per-user overrides are kept.",
+                      )
+                    )
+                      presetM.mutate(true);
+                  }}
                   disabled={presetM.isPending}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-[1.2px] rounded border border-[#2A2A2A] bg-[#1C1C1C] text-white/60 hover:text-white hover:border-[var(--color-danger)] disabled:opacity-50"
                 >
@@ -234,7 +301,9 @@ export function PermissionsPage() {
           </div>
         </div>
         <p className="mt-3 text-xs text-white/50">
-          Presets: <b>Owner</b> full access · <b>Manager</b> full ops + view audit/settings · <b>Shift Lead</b> ops/recaps/inventory edit, schedule/labor view, no admin · <b>Crew</b> (Grill, Prep, Cashier) tasks + clock edit, view-only ops.
+          Presets: <b>Owner</b> full access · <b>Manager</b> full ops + view audit/settings ·{" "}
+          <b>Shift Lead</b> ops/recaps/inventory edit, schedule/labor view, no admin · <b>Crew</b>{" "}
+          (Grill, Prep, Cashier) tasks + clock edit, view-only ops.
         </p>
       </Card>
 
@@ -242,8 +311,6 @@ export function PermissionsPage() {
       {queryError && !queryError.message.includes("Unauthorized") && (
         <div className="mt-6 text-sm text-[var(--color-danger)]">{queryError.message}</div>
       )}
-
-
 
       {!isLoading && mode === "role" && (
         <>
@@ -261,7 +328,9 @@ export function PermissionsPage() {
       {!isLoading && mode === "user" && (
         <>
           <SectionHeader eyebrow="Per-user overrides" title="Override access for a specific user" />
-          {profiles.length === 0 && <div className="text-sm text-muted-foreground">No users yet.</div>}
+          {profiles.length === 0 && (
+            <div className="text-sm text-muted-foreground">No users yet.</div>
+          )}
           <PermMatrix
             rows={profiles.map((p) => {
               const rs = roleByUser.get(p.id) ?? [];
@@ -281,14 +350,11 @@ export function PermissionsPage() {
 
       {mode === "emails" && (
         <>
-          <SectionHeader
-            eyebrow="Email routing"
-            title="Which alert emails each role receives"
-          />
+          <SectionHeader eyebrow="Email routing" title="Which alert emails each role receives" />
           <p className="text-sm text-muted-foreground -mt-2 mb-3">
-            Owners always receive every email. For every other role, alerts go out to the
-            employees assigned to the alert's location whose role is enabled below
-            (subject to each user's personal notification preferences and quiet hours).
+            Owners always receive every email. For every other role, alerts go out to the employees
+            assigned to the alert's location whose role is enabled below (subject to each user's
+            personal notification preferences and quiet hours).
           </p>
           <EmailPolicyMatrix
             policies={emailData?.policies ?? []}
@@ -306,7 +372,11 @@ export function PermissionsPage() {
 }
 
 function PermMatrix({
-  rows, tabs, accessFor, onSet, disabled,
+  rows,
+  tabs,
+  accessFor,
+  onSet,
+  disabled,
 }: {
   rows: { id: string; label: string; locked?: boolean }[];
   tabs: { key: string; label: string }[];
@@ -319,9 +389,16 @@ function PermMatrix({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left">
-            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">Row</th>
+            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">
+              Row
+            </th>
             {tabs.map((t) => (
-              <th key={t.key} className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap">{t.label}</th>
+              <th
+                key={t.key}
+                className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap"
+              >
+                {t.label}
+              </th>
             ))}
           </tr>
         </thead>
@@ -330,7 +407,9 @@ function PermMatrix({
             <tr key={r.id} className="border-t border-border">
               <td className="py-2 pr-3 font-medium sticky left-0 bg-card whitespace-nowrap">
                 {r.label}
-                {r.locked && <span className="ml-1 text-[10px] text-[var(--color-gold)]">owner</span>}
+                {r.locked && (
+                  <span className="ml-1 text-[10px] text-[var(--color-gold)]">owner</span>
+                )}
               </td>
               {tabs.map((t) => {
                 const current = r.locked ? "edit" : accessFor(r.id, t.key);
@@ -350,9 +429,15 @@ function PermMatrix({
                               "h-7 w-7 grid place-items-center transition",
                               r.locked && "opacity-50 cursor-not-allowed",
                               !on && "text-muted-foreground hover:bg-secondary",
-                              on && lvl.tone === "danger"  && "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",
-                              on && lvl.tone === "warn"    && "bg-[var(--color-warn-bg,#FFF7E6)] text-[var(--color-warn,#B7791F)]",
-                              on && lvl.tone === "success" && "bg-[var(--color-success-bg)] text-[var(--color-success)]",
+                              on &&
+                                lvl.tone === "danger" &&
+                                "bg-[var(--color-danger-bg)] text-[var(--color-danger)]",
+                              on &&
+                                lvl.tone === "warn" &&
+                                "bg-[var(--color-warn-bg,#FFF7E6)] text-[var(--color-warn,#B7791F)]",
+                              on &&
+                                lvl.tone === "success" &&
+                                "bg-[var(--color-success-bg)] text-[var(--color-success)]",
                             )}
                           >
                             <Icon className="h-3.5 w-3.5" />
@@ -372,8 +457,12 @@ function PermMatrix({
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  owner: "Owner", manager: "Manager", shift_lead: "Shift Lead",
-  grill: "Grill", prep: "Prep", cashier: "Cashier",
+  owner: "Owner",
+  manager: "Manager",
+  shift_lead: "Shift Lead",
+  grill: "Grill",
+  prep: "Prep",
+  cashier: "Cashier",
 };
 const CATEGORY_LABEL: Record<EmailCategory, string> = {
   critical: "Critical",
@@ -387,7 +476,9 @@ const CATEGORY_LABEL: Record<EmailCategory, string> = {
 };
 
 function EmailPolicyMatrix({
-  policies, onToggle, disabled,
+  policies,
+  onToggle,
+  disabled,
 }: {
   policies: { role: string; category: string; enabled: boolean }[];
   onToggle: (role: string, category: EmailCategory, enabled: boolean) => void;
@@ -406,9 +497,14 @@ function EmailPolicyMatrix({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left">
-            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">Role</th>
+            <th className="label-caps text-muted-foreground pb-2 pr-3 sticky left-0 bg-card">
+              Role
+            </th>
             {EMAIL_CATEGORIES.map((c) => (
-              <th key={c} className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap">
+              <th
+                key={c}
+                className="label-caps text-muted-foreground pb-2 px-2 text-center whitespace-nowrap"
+              >
                 {CATEGORY_LABEL[c]}
               </th>
             ))}
@@ -421,7 +517,9 @@ function EmailPolicyMatrix({
               <tr key={role} className="border-t border-border">
                 <td className="py-2 pr-3 font-medium sticky left-0 bg-card whitespace-nowrap">
                   {ROLE_LABEL[role] ?? role}
-                  {locked && <span className="ml-1 text-[10px] text-[var(--color-gold)]">always on</span>}
+                  {locked && (
+                    <span className="ml-1 text-[10px] text-[var(--color-gold)]">always on</span>
+                  )}
                 </td>
                 {EMAIL_CATEGORIES.map((c) => {
                   const on = locked ? true : enabledFor(role, c);
