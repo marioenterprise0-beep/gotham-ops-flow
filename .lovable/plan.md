@@ -54,6 +54,10 @@ Multi-tenancy foundation for Cibora Systems. This project is the SaaS scaffold �
 - **Gate D** ✅ (confirmed) — pre-migration export taken and archive verified.
 - **Gate E** — after migration + app deploy: isolation suite green, backfilled rows correct, RLS smoke test passes.
 
+## Deferred technical debt
+
+- **Group B full FK-chain seeds.** The isolation suite currently exercises cross-org UPDATE/DELETE rejection as a smoke test against 60 tenant tables (meaningful for the 3 seeded canary tables, trivially green for the rest). Full FK-chain seeds for every tenant table are deferred until real multi-org data exists — **revisit before Phase 2.5 beta.**
+
 ## Files
 
 - `scripts/test-isolation.ts` — the isolation suite. Fails loudly with clear message before migration runs (organizations table missing = expected pre-migration state).
