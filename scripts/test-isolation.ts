@@ -294,6 +294,64 @@ async function main() {
       });
     }
 
+    // ---- Group B: cross-org UPDATE / DELETE rejection ----------------------
+    // For every tenant table, userA attempting to UPDATE or DELETE any row
+    // stamped with orgB must affect 0 rows. Uses `WHERE organization_id = $orgB`
+    // to target rows userA should be unable to see; RLS must both hide them
+    // from the SELECT-visible set and block the write.
+    //
+    // For the seeded canary tables (trailers, availability_blocks,
+    // automation_settings) the assertion is genuinely exercised: a broken
+    // UPDATE/DELETE policy would return a non-zero rowCount. For other tables
+    // it's a smoke check that at minimum verifies no accidental cross-org
+    // rows leak. Adding canaries for every table would require full FK-chain
+    // seed data (out of scope for this phase).
+    //
+    // UPDATE uses a no-op set (`organization_id = organization_id`) so we
+    // don't need per-table knowledge of writable columns; the RLS policy
+    // is what we're testing, not column semantics.
+    for (const t of TENANT_TABLES) {
+      await check(`B.update-isolation:${t}`, async () => {
+        const exists = await tableExists(c, t);
+        if (!exists) return;
+        await asUser(c, userA, async (tx) => {
+          const r = await tx.query(
+            `UPDATE public.${quoteIdent(t)}
+                SET organization_id = organization_id
+              WHERE organization_id = $1
+              RETURNING 1`,
+            [orgB],
+          );
+          if ((r.rowCount ?? 0) !== 0) {
+            throw new Error(
+              `userA (org A) updated ${r.rowCount} row(s) belonging to org B in ${t}`,
+            );
+          }
+        });
+      });
+
+      await check(`B.delete-isolation:${t}`, async () => {
+        const exists = await tableExists(c, t);
+        if (!exists) return;
+        await asUser(c, userA, async (tx) => {
+          // Transaction is rolled back by asUser() — even if a delete
+          // somehow slipped through, the rollback undoes it. What we're
+          // asserting is the rowCount RLS reports.
+          const r = await tx.query(
+            `DELETE FROM public.${quoteIdent(t)}
+              WHERE organization_id = $1
+              RETURNING 1`,
+            [orgB],
+          );
+          if ((r.rowCount ?? 0) !== 0) {
+            throw new Error(
+              `userA (org A) deleted ${r.rowCount} row(s) belonging to org B in ${t}`,
+            );
+          }
+        });
+      });
+    }
+
     // ---- Group C: caller-supplied WITH CHECK rejects foreign org id --------
     // For the 4 tables where the app supplies organization_id from session
     // context, an INSERT stamped with another org's id must be rejected at

@@ -519,7 +519,11 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
 
     // Only the assignment's own employee, or a manager/owner, may trigger
     // the compliance email. Defense-in-depth on top of RLS.
-    const { data: isMgr } = await supabaseAdmin.rpc("is_manager", { _user_id: userId });
+    // Use the user-scoped client (context.supabase) — is_manager() reads
+    // current_organization_id() which is only stamped on PostgREST requests
+    // authenticated as the user. A supabaseAdmin RPC would run outside the
+    // pre_request hook and return false regardless of the caller's role.
+    const { data: isMgr } = await context.supabase.rpc("is_manager", { _user_id: userId });
     if (userId !== a.employee_id && !isMgr) {
       throw new Error("Not authorized for this assignment");
     }
