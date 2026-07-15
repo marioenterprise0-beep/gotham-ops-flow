@@ -93,6 +93,16 @@ export const createOrganization = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { userId, supabase } = context;
 
+    // TODO(Phase 2 — billing gate): Before allowing org creation, verify the
+    // caller is entitled to spin up another tenant. Expected shape:
+    //   1. Read caller's global entitlement (super-admin bypass, or a
+    //      per-user `max_organizations` quota on profiles).
+    //   2. Count active (non-cancelled) orgs where caller is org_owner.
+    //   3. Reject with a typed error when quota is exhausted so the UI can
+    //      route to the upgrade flow instead of showing a generic failure.
+    // Ships alongside the billing columns on organizations (status,
+    // trial_ends_at) — until then this endpoint is intentionally open per v4.
+
     // Service role is required for the org + membership inserts:
     // organizations INSERT is not granted to `authenticated`, and the caller
     // is not yet a member so is_org_admin would reject the direct insert path.
