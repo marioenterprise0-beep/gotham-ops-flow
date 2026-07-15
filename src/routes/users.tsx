@@ -119,8 +119,8 @@ const EXPIRY_OPTIONS = [
 
 export function UsersPage() {
   const { roleId } = useRole();
-  if (roleId !== "owner") return <Navigate to="/" />;
   const [tab, setTab] = useState<"users" | "invites" | "logs">("users");
+  if (roleId !== "owner") return <Navigate to="/" />;
 
   return (
     <EmbedShell>
