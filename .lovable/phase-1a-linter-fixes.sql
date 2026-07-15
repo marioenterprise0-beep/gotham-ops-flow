@@ -43,6 +43,94 @@
 --                No SQL change; document in security memory and mark the
 --                findings ignored with justification.
 --
+--              PER-FUNCTION ORG-SAFETY REVIEW (12 distinct, some overloaded).
+--              "Pre-existing" is not a justification — every function is
+--              re-evaluated against Phase-1a semantics below.
+--
+--              SAFE — no change required:
+--                • my_email()          — returns caller's own email by
+--                                        auth.uid(). Self-scoped.
+--                • is_super_admin()    — platform-level flag; deliberately
+--                                        cross-org (super-admin is not a
+--                                        tenant role).
+--                • enqueue_email()     — pgmq passthrough. Payload attribution
+--                                        is the caller's job; queue rows carry
+--                                        no RLS surface.
+--                • email_queue_depths()— global queue counts, no row content.
+--                                        Ops metric.
+--
+--              UNSAFE — Phase 1a broke or never established org isolation.
+--              These do NOT get a waiver. Remediation SQL will land in a
+--              follow-up migration (.lovable/phase-1a-secdef-org-fixes.sql,
+--              drafted next for your review — NOT bundled with this file):
+--
+--                • is_manager(_user_id)
+--                    Reads user_roles with no organization_id filter. After
+--                    Phase 1a user_roles is org-scoped, so this returns true
+--                    globally for anyone who is a manager in ANY org. Every
+--                    gate that reads it inherits the bug.
+--                    Fix: add _org_id param defaulting to
+--                    current_organization_id(); keep 1-arg overload only for
+--                    session-scoped calls that resolve org via the GUC.
+--                    Isolation assertion: Org-A manager, session-switched to
+--                    Org B, must get is_manager() = false.
+--
+--                • list_trailer_geofences()
+--                    Returns every trailer where caller is any manager —
+--                    cross-tenant leak.
+--                    Fix: `AND t.organization_id = current_organization_id()`
+--                    and use org-scoped is_manager.
+--                    Isolation assertion (Group A read): Org-A manager sees
+--                    0 Org-B trailers. Requires the orgB canary rows
+--                    (see suite carry-over).
+--
+--                • get_trailer_geofence(_trailer_id)
+--                    Same is_manager bug + no assertion _trailer_id ∈ caller
+--                    org.
+--                    Fix: filter by organization_id = current_organization_id().
+--                    Isolation assertion: Org-A manager passing Org-B trailer
+--                    id → 0 rows.
+--
+--                • kiosk_device_required()
+--                    Reads automation_settings.scope='global'. Table is now
+--                    org-scoped; returns whichever org's row happens to sort
+--                    first — nondeterministic across tenants.
+--                    Fix: filter organization_id = current_organization_id().
+--                    Read assertion: Org-A caller reads Org-A value only.
+--
+--                • my_trailer_id() / current_user_trailer()
+--                    Return a trailer id without asserting its org matches
+--                    the session GUC. Downstream RLS on trailers denies the
+--                    id, but the value should never have been returned.
+--                    Fix: EXISTS-guard on trailers where
+--                    organization_id = current_organization_id().
+--                    Read assertion in suite.
+--
+--                • decide_availability_atomic(_id, _decision, _note)  [MUTATES]
+--                    Gated by broken is_manager; loads the block by id with
+--                    no org check. Org-A manager could pass an Org-B block id
+--                    and update it (definer bypasses RLS).
+--                    Fix: (1) org-scoped is_manager; (2) assert
+--                    v_row.organization_id = current_organization_id()
+--                    before UPDATE; raise 'cross-tenant reference' otherwise.
+--                    Isolation assertion (REQUIRED — mutation): Org-A manager
+--                    calling with Org-B availability_blocks.id must raise.
+--
+--                • request_availability_atomic(_trailer_id, ...)      [MUTATES]
+--                    Caller supplies _trailer_id verbatim. Org-A employee
+--                    can stamp a row against an Org-B trailer; enforce_org_id
+--                    then derives Org B from the FK and RLS accepts the row
+--                    into Org B.
+--                    Fix: assert _trailer_id belongs to a trailer whose
+--                    organization_id is in the caller's memberships before
+--                    INSERT.
+--                    Isolation assertion (REQUIRED — mutation): Org-A employee
+--                    calling with Org-B trailer id must raise.
+--
+--              The linter migration below does NOT waive these — it only
+--              revokes anon and normalizes search_path. The unsafe six get
+--              their own migration and their own review gate.
+--
 --   WARN x 1 : Extension in Public
 --              → pg_net (Supabase-managed; used by notify_alert_email trigger)
 --              → Moving requires updating triggers + Supabase-managed
