@@ -36,7 +36,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "warn",
       "react-hooks/rules-of-hooks": "warn",
-      "no-empty": ["warn", { "allowEmptyCatch": true }],
+      "no-empty": ["warn", { allowEmptyCatch: true }],
     },
   },
   eslintPluginPrettier,
