@@ -4406,7 +4406,9 @@ export type Database = {
             }
             Returns: boolean
           }
-      is_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_manager:
+        | { Args: { _user_id: string }; Returns: boolean }
+        | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
       is_org_member: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -4499,6 +4501,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_active_org_context: { Args: never; Returns: undefined }
       sweep_missed_clock_in: { Args: never; Returns: undefined }
       sweep_missed_clock_out: { Args: never; Returns: undefined }
     }
