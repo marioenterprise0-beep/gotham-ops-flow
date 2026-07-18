@@ -4396,25 +4396,18 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_role:
-        | {
-            Args: {
-              _org_id: string
-              _role: Database["public"]["Enums"]["app_role"]
-              _user_id: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              _role: Database["public"]["Enums"]["app_role"]
-              _user_id: string
-            }
-            Returns: boolean
-          }
-      is_manager:
-        | { Args: { _user_id: string }; Returns: boolean }
-        | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _org_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_manager: {
+        Args: { _org_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_org_member: {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
@@ -4440,10 +4433,6 @@ export type Database = {
           source_queue: string
         }
         Returns: number
-      }
-      my_active_org_roles: {
-        Args: never
-        Returns: Database["public"]["Enums"]["app_role"][]
       }
       my_email: { Args: never; Returns: string }
       my_trailer_id: { Args: never; Returns: string }
