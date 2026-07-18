@@ -7,7 +7,7 @@ import { requireOwner } from "@/lib/auth-guards";
 export const syncRolloverKey = createServerFn({ method: "POST" })
   .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
-    await requireOwner(context.supabase, context.userId);
+    await requireOwner(context.supabase, context.userId, context.activeOrgId);
     const key = process.env.ROLLOVER_DISPATCH_KEY;
     if (!key) throw new Error("ROLLOVER_DISPATCH_KEY env var is not set on the server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

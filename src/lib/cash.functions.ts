@@ -87,7 +87,7 @@ export const toggleCashDrawer = createServerFn({ method: "POST" })
   .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ drawerId: z.string().uuid(), enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
-    await requireManager(context.supabase, context.userId);
+    await requireManager(context.supabase, context.userId, context.activeOrgId);
     const { error } = await context.supabase
       .from("cash_drawers")
       .update({ enabled: data.enabled })
@@ -376,7 +376,7 @@ export const verifyCashDrop = createServerFn({ method: "POST" })
   .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ dropId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    await requireManager(context.supabase, context.userId);
+    await requireManager(context.supabase, context.userId, context.activeOrgId);
     const { error } = await context.supabase
       .from("cash_drops")
       .update({

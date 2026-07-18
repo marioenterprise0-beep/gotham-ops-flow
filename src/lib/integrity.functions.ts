@@ -59,7 +59,7 @@ export const runIntegritySweep = createServerFn({ method: "GET" })
   .middleware([requireActiveOrg])
   .handler(async ({ context }): Promise<IntegrityReport> => {
     const { supabase } = context;
-    await requireManager(supabase, context.userId);
+    await requireManager(supabase, context.userId, context.activeOrgId);
 
     const issues: IntegrityIssue[] = [];
 
