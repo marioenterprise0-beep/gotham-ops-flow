@@ -82,7 +82,8 @@ export const saveRecap = createServerFn({ method: "POST" })
     // tab access check applies to manager-grade recaps; crew recaps are always allowed.
     if ((data.kind ?? "manager") === "manager") {
       const { isManager } = await getRoles(supabase, userId);
-      if (isManager) await requireTabAccess(supabase, userId, context.activeOrgId, "recaps", "edit");
+      if (isManager)
+        await requireTabAccess(supabase, userId, context.activeOrgId, "recaps", "edit");
     }
 
     const row = toRow(data, userId);

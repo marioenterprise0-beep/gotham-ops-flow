@@ -416,7 +416,11 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
     if (se) throw se;
     const absVar = Math.abs(Number(sess?.variance ?? 0));
     if (data.decision === "approved" && absVar > OWNER_APPROVAL_THRESHOLD) {
-      const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
+      const { data: isOwner } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _org_id: context.activeOrgId,
+        _role: "owner",
+      });
       if (!isOwner)
         throw new Error(`Variance over $${OWNER_APPROVAL_THRESHOLD} requires owner approval.`);
     }
@@ -451,7 +455,11 @@ export const editDrawerSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _org_id: context.activeOrgId,
+      _role: "owner",
+    });
     if (!isOwner) throw new Error("Only the owner can edit submitted drawer sessions.");
 
     const { data: sess, error: se } = await supabase

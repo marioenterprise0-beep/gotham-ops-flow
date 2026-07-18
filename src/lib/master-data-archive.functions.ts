@@ -18,7 +18,11 @@ async function assertManager(supabase: any, userId: string, orgId: string) {
   if (!data) throw new Error("Manager access required");
 }
 async function assertOwner(supabase: any, userId: string, orgId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _org_id: orgId, _role: "owner" });
+  const { data } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _org_id: orgId,
+    _role: "owner",
+  });
   if (!data) throw new Error("Owner access required");
 }
 

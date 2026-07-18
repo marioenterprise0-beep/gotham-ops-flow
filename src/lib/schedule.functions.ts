@@ -482,7 +482,11 @@ export const transitionSchedule = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _org_id: context.activeOrgId,
+      _role: "owner",
+    });
     await requireManager(supabase, userId, context.activeOrgId);
     const now = new Date().toISOString();
     const patch: Record<string, any> = {};

@@ -2,6 +2,7 @@
 -- PostgreSQL database dump
 --
 
+\restrict aZRFm8YPvwF1I2cVJeOS3vkec8hst03f4lRR04JXPmkeNTyZO3IO47hd1xCr7Vv
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.9
@@ -9,6 +10,7 @@
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
@@ -21,7 +23,7 @@ SET row_security = off;
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA IF NOT EXISTS public;
+CREATE SCHEMA public;
 
 
 --
@@ -1559,30 +1561,6 @@ $$;
 
 
 --
--- Name: has_role(uuid, public.app_role); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.has_role(_user_id uuid, _role public.app_role) RETURNS boolean
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-DECLARE
-  org uuid := public.current_organization_id();
-BEGIN
-  IF org IS NULL THEN
-    RAISE EXCEPTION 'has_role: no active organization on session (app.active_organization_id unset)'
-      USING ERRCODE = 'insufficient_privilege';
-  END IF;
-  RETURN EXISTS (
-    SELECT 1 FROM public.user_roles
-     WHERE user_id = _user_id
-       AND organization_id = org
-       AND role = _role
-  );
-END $$;
-
-
---
 -- Name: has_role(uuid, uuid, public.app_role); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1607,6 +1585,8 @@ CREATE FUNCTION public.hr_assignment_update_guard() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
+DECLARE
+  _org uuid := public.current_organization_id();
 BEGIN
   IF pg_trigger_depth() > 1 THEN
     RETURN NEW;
@@ -1616,7 +1596,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  IF public.is_manager(auth.uid()) THEN
+  IF _org IS NOT NULL AND public.is_manager(auth.uid(), _org) THEN
     RETURN NEW;
   END IF;
 
@@ -1647,23 +1627,7 @@ BEGIN
   END IF;
 
   RETURN NEW;
-END
-$$;
-
-
---
--- Name: is_manager(uuid); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.is_manager(_user_id uuid) RETURNS boolean
-    LANGUAGE sql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-  SELECT CASE
-    WHEN public.current_organization_id() IS NULL THEN false
-    ELSE public.is_manager(_user_id, public.current_organization_id())
-  END
-$$;
+END $$;
 
 
 --
@@ -1867,30 +1831,6 @@ $$;
 
 
 --
--- Name: my_active_org_roles(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.my_active_org_roles() RETURNS public.app_role[]
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
-    SET search_path TO 'public'
-    AS $$
-DECLARE
-  uid uuid := auth.uid();
-  org uuid := public.current_organization_id();
-BEGIN
-  IF uid IS NULL OR org IS NULL THEN
-    RETURN ARRAY[]::app_role[];
-  END IF;
-  RETURN COALESCE(
-    (SELECT array_agg(DISTINCT role)
-       FROM public.user_roles
-      WHERE user_id = uid AND organization_id = org),
-    ARRAY[]::app_role[]
-  );
-END $$;
-
-
---
 -- Name: my_email(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1972,9 +1912,11 @@ CREATE FUNCTION public.profiles_self_update_guard() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     AS $$
+DECLARE
+  _org uuid := public.current_organization_id();
 BEGIN
-  -- Skip guard for managers/super-admins; they use dedicated flows
-  IF public.is_manager(auth.uid()) OR public.is_super_admin(auth.uid()) THEN
+  IF (_org IS NOT NULL AND public.is_manager(auth.uid(), _org))
+     OR public.is_super_admin(auth.uid()) THEN
     RETURN NEW;
   END IF;
   IF auth.uid() IS NULL OR OLD.id <> auth.uid() THEN
@@ -3303,7 +3245,7 @@ CREATE TABLE public.profiles (
 -- Name: profiles_with_email; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.profiles_with_email WITH (security_invoker='true') AS
+CREATE VIEW public.profiles_with_email AS
  SELECT id,
     display_name,
     store_id,
@@ -3316,7 +3258,7 @@ CREATE VIEW public.profiles_with_email WITH (security_invoker='true') AS
     active,
     email
    FROM public.profiles
-  WHERE public.is_manager(auth.uid());
+  WHERE public.is_manager(auth.uid(), public.current_organization_id());
 
 
 --
@@ -9086,7 +9028,7 @@ CREATE POLICY orgmem_read_own ON public.organization_members FOR SELECT TO authe
 -- Name: notification_preferences prefs self read; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "prefs self read" ON public.notification_preferences FOR SELECT TO authenticated USING (((user_id = auth.uid()) OR public.is_manager(auth.uid())));
+CREATE POLICY "prefs self read" ON public.notification_preferences FOR SELECT USING (((user_id = auth.uid()) OR public.is_manager(auth.uid(), public.current_organization_id())));
 
 
 --
@@ -9147,14 +9089,14 @@ CREATE POLICY "profiles insert self" ON public.profiles FOR INSERT TO authentica
 -- Name: profiles profiles managers edit any; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "profiles managers edit any" ON public.profiles FOR UPDATE TO authenticated USING (public.is_manager(auth.uid())) WITH CHECK (public.is_manager(auth.uid()));
+CREATE POLICY "profiles managers edit any" ON public.profiles FOR UPDATE USING (public.is_manager(auth.uid(), public.current_organization_id())) WITH CHECK (public.is_manager(auth.uid(), public.current_organization_id()));
 
 
 --
 -- Name: profiles profiles readable scoped; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "profiles readable scoped" ON public.profiles FOR SELECT USING (((id = auth.uid()) OR public.is_super_admin(auth.uid()) OR (public.is_manager(auth.uid()) AND (NOT (trailer_id IS DISTINCT FROM public.my_trailer_id())))));
+CREATE POLICY "profiles readable scoped" ON public.profiles FOR SELECT USING (((id = auth.uid()) OR public.is_super_admin(auth.uid()) OR (public.is_manager(auth.uid(), public.current_organization_id()) AND (NOT (trailer_id IS DISTINCT FROM public.my_trailer_id())))));
 
 
 --
@@ -10091,11 +10033,12 @@ ALTER TABLE public.weekly_rollup_runs ENABLE ROW LEVEL SECURITY;
 -- Name: weekly_rollup_runs weekly_rollup_runs read managers; Type: POLICY; Schema: public; Owner: -
 --
 
-CREATE POLICY "weekly_rollup_runs read managers" ON public.weekly_rollup_runs FOR SELECT TO authenticated USING (public.is_manager(auth.uid()));
+CREATE POLICY "weekly_rollup_runs read managers" ON public.weekly_rollup_runs FOR SELECT USING (public.is_manager(auth.uid(), public.current_organization_id()));
 
 
 --
 -- PostgreSQL database dump complete
 --
 
+\unrestrict aZRFm8YPvwF1I2cVJeOS3vkec8hst03f4lRR04JXPmkeNTyZO3IO47hd1xCr7Vv
 

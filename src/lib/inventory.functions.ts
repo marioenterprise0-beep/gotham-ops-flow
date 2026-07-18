@@ -33,16 +33,17 @@ async function resolveTrailer(supabase: any, userId: string, trailerId?: string 
 // Crew mutation gate for inventory_items writes that happen via admin client:
 // the caller must have inventory tab access AND the item must belong to the
 // caller's own trailer (managers bypass the trailer check).
-async function assertCrewTrailerAccess(supabase: any, userId: string, orgId: string, itemId: string) {
+async function assertCrewTrailerAccess(
+  supabase: any,
+  userId: string,
+  orgId: string,
+  itemId: string,
+) {
   await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
   const [{ data: profile }, { data: item }, { data: roleRows }] = await Promise.all([
     supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
     supabase.from("inventory_items").select("trailer_id").eq("id", itemId).maybeSingle(),
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("organization_id", orgId),
+    supabase.from("user_roles").select("role").eq("user_id", userId).eq("organization_id", orgId),
   ]);
   const isManager = (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
   if (isManager) return;

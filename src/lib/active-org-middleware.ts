@@ -25,9 +25,7 @@ export const requireActiveOrg = createMiddleware({ type: "function" })
     const activeOrgId = (data as { active_organization_id: string | null } | null)
       ?.active_organization_id;
     if (!activeOrgId) {
-      throw new Error(
-        "No active organization on profile. Call setActiveOrganization first.",
-      );
+      throw new Error("No active organization on profile. Call setActiveOrganization first.");
     }
     return next({ context: { activeOrgId } });
   });
