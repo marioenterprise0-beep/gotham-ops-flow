@@ -36,11 +36,7 @@ export async function requireOwner(supabase: any, userId: string, orgId: string)
   if (own !== true) throw new Error("Owner role required");
 }
 
-export async function isOwner(
-  supabase: any,
-  userId: string,
-  orgId: string,
-): Promise<boolean> {
+export async function isOwner(supabase: any, userId: string, orgId: string): Promise<boolean> {
   const { data: own } = await supabase.rpc("has_role", {
     _user_id: userId,
     _org_id: orgId,
@@ -82,9 +78,7 @@ export async function requireTabAccess(
     .select("role")
     .eq("user_id", userId)
     .eq("organization_id", orgId);
-  const roles: string[] = ((roleRowsRaw ?? []) as Array<{ role: string }>).map(
-    (r) => r.role,
-  );
+  const roles: string[] = ((roleRowsRaw ?? []) as Array<{ role: string }>).map((r) => r.role);
 
   const { data: perms } = await supabase
     .from("tab_permissions")

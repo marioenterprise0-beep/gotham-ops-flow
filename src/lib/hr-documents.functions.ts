@@ -572,7 +572,10 @@ export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
     // current_organization_id() which is only stamped on PostgREST requests
     // authenticated as the user. A supabaseAdmin RPC would run outside the
     // pre_request hook and return false regardless of the caller's role.
-    const { data: isMgr } = await context.supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId });
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: userId,
+      _org_id: context.activeOrgId,
+    });
     if (userId !== a.employee_id && !isMgr) {
       throw new Error("Not authorized for this assignment");
     }

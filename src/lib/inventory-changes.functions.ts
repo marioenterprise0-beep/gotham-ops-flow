@@ -94,7 +94,8 @@ export const listInventoryChangeRequests = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await requireManager(supabase, userId, context.activeOrgId);
-    const showArchived = data?.includeArchived && (await isOwner(supabase, userId, context.activeOrgId));
+    const showArchived =
+      data?.includeArchived && (await isOwner(supabase, userId, context.activeOrgId));
     let q = supabase
       .from("inventory_change_requests")
       .select("*")
@@ -119,7 +120,8 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    if (!(await isOwner(supabase, userId, context.activeOrgId))) throw new Error("Owner role required");
+    if (!(await isOwner(supabase, userId, context.activeOrgId)))
+      throw new Error("Owner role required");
 
     const { data: req, error: ge } = await supabase
       .from("inventory_change_requests")
