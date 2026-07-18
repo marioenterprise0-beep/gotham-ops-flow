@@ -512,12 +512,16 @@ export const editDrawerSession = createServerFn({ method: "POST" })
 // Phase 6 — canonical archive/restore + dependency scan for cash domain
 // ---------------------------------------------------------------------------
 
-async function _assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function _assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
-async function _assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+async function _assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _org_id: orgId,
+    _role: "owner",
+  });
   if (!data) throw new Error("Owner access required");
 }
 
