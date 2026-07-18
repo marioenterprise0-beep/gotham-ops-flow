@@ -60,6 +60,9 @@ export const setActiveOrganization = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ organizationId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
+    // Intentionally uses `requireSupabaseAuth`, not `requireActiveOrg`:
+    // this endpoint SETS the active org, so gating it on an already-set
+    // active org would make the very first org selection impossible.
     const { supabase, userId } = context;
     // Confirm membership via the org-scoped helper (SECURITY DEFINER, no
     // reliance on RLS visibility) before flipping the profile pointer.
@@ -93,6 +96,9 @@ export const createOrganization = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ context, data }) => {
+    // Intentionally uses `requireSupabaseAuth`, not `requireActiveOrg`:
+    // a brand-new user creating their first org has no active org yet,
+    // and requiring one here would deadlock the bootstrap flow.
     const { userId, supabase } = context;
 
     // TODO(Phase 2 — billing gate): Before allowing org creation, verify the

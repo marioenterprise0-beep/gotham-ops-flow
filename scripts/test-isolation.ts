@@ -504,15 +504,37 @@ async function main() {
     // rely on the orgB canary rows seeded above; mutations must raise.
 
     await check("F.is_manager-orgscoped", async () => {
-      // userA is a manager in Org A only. In an Org-B session, is_manager()
-      // must return false — pre-fix it returned true globally.
+      // userA is a manager in Org A only. Passing Org B explicitly must
+      // return false. Post-Phase-1c the 1-arg overload is gone, so all
+      // callers pass the org id explicitly.
       await asUser(c, userA, async (tx) => {
         await tx.query(`SET LOCAL app.active_organization_id = '${orgB}'`);
-        const r = await tx.query(`SELECT public.is_manager($1) AS ok`, [userA]);
+        const r = await tx.query(`SELECT public.is_manager($1, $2) AS ok`, [userA, orgB]);
         if (r.rows[0].ok !== false) {
-          throw new Error(`is_manager(userA) returned true in Org-B session — org scoping missing`);
+          throw new Error(`is_manager(userA, orgB) returned true — org scoping missing`);
         }
       });
+    });
+
+    await check("F.legacy-overloads-dropped", async () => {
+      // Phase 1c guarantee: the org-implicit helpers no longer exist.
+      // If any of them come back, downstream code paths could once again
+      // silently pick the wrong org — fail loudly here.
+      const r = await c.query(
+        `SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args
+           FROM pg_proc p
+           JOIN pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = 'public'
+            AND (
+              (p.proname = 'is_manager'          AND pg_get_function_identity_arguments(p.oid) = 'uuid')
+           OR (p.proname = 'has_role'            AND pg_get_function_identity_arguments(p.oid) = 'uuid, app_role')
+           OR (p.proname = 'my_active_org_roles' AND pg_get_function_identity_arguments(p.oid) = '')
+            )`,
+      );
+      if (r.rowCount && r.rowCount > 0) {
+        const surviving = r.rows.map((x) => `${x.proname}(${x.args})`).join(", ");
+        throw new Error(`legacy overloads must be dropped, still present: ${surviving}`);
+      }
     });
 
     await check("F.list_trailer_geofences-isolation", async () => {
