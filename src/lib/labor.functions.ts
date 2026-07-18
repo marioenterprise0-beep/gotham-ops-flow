@@ -18,12 +18,12 @@ function weekStartOf(d: Date): string {
   return dt.toISOString().slice(0, 10);
 }
 
-async function requireManager(supabase: any, userId: string) {
-  await requireManagerRole(supabase, userId);
-  await requireTabAccess(supabase, userId, context.activeOrgId, "labor", "edit");
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireManagerRole(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "labor", "edit");
 }
-async function requireOwner(supabase: any, userId: string) {
-  await requireOwnerRole(supabase, userId);
+async function requireOwner(supabase: any, userId: string, orgId: string) {
+  await requireOwnerRole(supabase, userId, orgId);
 }
 
 function shiftDate(iso: string, days: number): string {
