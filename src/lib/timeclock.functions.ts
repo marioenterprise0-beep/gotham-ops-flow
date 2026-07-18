@@ -270,7 +270,7 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can configure location geofences.");
     // Use supabaseAdmin for the write — geofence columns are not granted to authenticated
     // and the trailers UPDATE policy allows any manager, so we enforce owner-only at app layer above.
@@ -307,7 +307,7 @@ export const geocodeAddress = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ address: z.string().min(5).max(300) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can geocode addresses.");
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.address)}&format=json&limit=1&addressdetails=1`;
     const res = await fetch(url, {

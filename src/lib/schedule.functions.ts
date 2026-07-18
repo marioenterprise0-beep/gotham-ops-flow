@@ -482,7 +482,7 @@ export const transitionSchedule = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     await requireManager(supabase, userId, context.activeOrgId);
     const now = new Date().toISOString();
     const patch: Record<string, any> = {};
@@ -707,8 +707,8 @@ export const listEmployees = createServerFn({ method: "POST" })
     // Determine caller role. Crew view must hide owners AND managers so
     // co-workers only see fellow crew on the schedule/shift grid.
     const [{ data: isMgrRow }, { data: isOwnerRow }] = await Promise.all([
-      supabase.rpc("is_manager", { _user_id: userId }),
-      supabase.rpc("has_role", { _user_id: userId, _role: "owner" }),
+      supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId }),
+      supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" }),
     ]);
     const isMgr = !!isMgrRow;
     const isOwner = !!isOwnerRow;
