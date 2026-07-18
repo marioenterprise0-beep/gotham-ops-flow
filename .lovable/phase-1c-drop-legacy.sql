@@ -161,6 +161,21 @@ CREATE POLICY "sop_photos_write_mgr"
 
 -- 3. Drop legacy helpers ----------------------------------------------------
 
+CREATE OR REPLACE VIEW public.profiles_with_email AS
+  SELECT id,
+     display_name,
+     store_id,
+     created_at,
+     updated_at,
+     trailer_id,
+     last_login_at,
+     sop_accepted_at,
+     training_completed_at,
+     active,
+     email
+  FROM public.profiles
+  WHERE public.is_manager(auth.uid(), public.current_organization_id());
+
 DROP FUNCTION IF EXISTS public.is_manager(uuid);
 DROP FUNCTION IF EXISTS public.has_role(uuid, public.app_role);
 DROP FUNCTION IF EXISTS public.my_active_org_roles();
