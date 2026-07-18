@@ -38,7 +38,11 @@ async function assertCrewTrailerAccess(supabase: any, userId: string, orgId: str
   const [{ data: profile }, { data: item }, { data: roleRows }] = await Promise.all([
     supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
     supabase.from("inventory_items").select("trailer_id").eq("id", itemId).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId),
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("organization_id", orgId),
   ]);
   const isManager = (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
   if (isManager) return;
