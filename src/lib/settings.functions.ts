@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 import { supabase as publicClient } from "@/integrations/supabase/client";
 
 export const getMyProfile = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [{ data: profile }, { data: roles }, { data: store }] = await Promise.all([
@@ -28,7 +28,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
   });
 
 export const updateMyProfile = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ displayName: z.string().min(1).max(80) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -47,7 +47,7 @@ export const updateMyProfile = createServerFn({ method: "POST" })
   });
 
 export const updateStoreInfo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -77,8 +77,8 @@ export const updateStoreInfo = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
-    await requireTabAccess(supabase, userId, "settings", "edit");
+    await requireManager(supabase, userId, context.activeOrgId);
+    await requireTabAccess(supabase, userId, context.activeOrgId, "settings", "edit");
     const { error } = await supabase
       .from("stores")
       .update({
@@ -113,7 +113,7 @@ export async function fetchPublicBranding() {
 // via the shared applyBrandOverrides helper, then sends it to the current
 // user's own email so they can vet the branding before saving.
 export const sendBrandingTestEmail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -138,7 +138,7 @@ export const sendBrandingTestEmail = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     // Resolve the caller's email from their auth record.
     const { data: userRes, error: userErr } = await supabase.auth.getUser();

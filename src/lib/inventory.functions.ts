@@ -1,19 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 import { photoUrlSchema } from "@/lib/validators/photo-url";
 
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   const ok = (data ?? []).some((r: any) => r.role === "owner");
   if (!ok) throw new Error("Owner role required for inventory structure changes");
-  await requireTabAccess(supabase, userId, "inventory", "edit");
+  await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
 }
 // Kept for receive/waste/count (crew-legitimate quantity flows). Not used for structural writes.
-async function assertManager(supabase: any, userId: string) {
-  await requireManager(supabase, userId);
-  await requireTabAccess(supabase, userId, "inventory", "edit");
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  await requireManager(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
 }
 
 async function resolveTrailer(supabase: any, userId: string, trailerId?: string | null) {
@@ -29,12 +33,16 @@ async function resolveTrailer(supabase: any, userId: string, trailerId?: string 
 // Crew mutation gate for inventory_items writes that happen via admin client:
 // the caller must have inventory tab access AND the item must belong to the
 // caller's own trailer (managers bypass the trailer check).
-async function assertCrewTrailerAccess(supabase: any, userId: string, itemId: string) {
-  await requireTabAccess(supabase, userId, "inventory", "edit");
+async function assertCrewTrailerAccess(supabase: any, userId: string, orgId: string, itemId: string) {
+  await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
   const [{ data: profile }, { data: item }, { data: roleRows }] = await Promise.all([
     supabase.from("profiles").select("trailer_id").eq("id", userId).maybeSingle(),
     supabase.from("inventory_items").select("trailer_id").eq("id", itemId).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId),
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("organization_id", orgId),
   ]);
   const isManager = (roleRows ?? []).some((r: any) => r.role === "owner" || r.role === "manager");
   if (isManager) return;
@@ -65,7 +73,7 @@ async function assertCategoryExists(supabase: any, key: string) {
 }
 
 export const listInventoryCategories = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ includeArchived: z.boolean().optional() })
@@ -85,7 +93,7 @@ export const listInventoryCategories = createServerFn({ method: "GET" })
   });
 
 export const createInventoryCategory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -97,7 +105,7 @@ export const createInventoryCategory = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const key = data.key.toLowerCase();
     const { data: row, error } = await supabase
       .from("inventory_categories")
@@ -122,7 +130,7 @@ export const createInventoryCategory = createServerFn({ method: "POST" })
   });
 
 export const updateInventoryCategory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -134,7 +142,7 @@ export const updateInventoryCategory = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const patch: any = {};
     if (data.label !== undefined) patch.label = data.label.trim();
     if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
@@ -144,7 +152,7 @@ export const updateInventoryCategory = createServerFn({ method: "POST" })
   });
 
 export const archiveInventoryCategory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -155,7 +163,7 @@ export const archiveInventoryCategory = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: cat } = await supabase
       .from("inventory_categories")
       .select("key")
@@ -189,11 +197,11 @@ export const archiveInventoryCategory = createServerFn({ method: "POST" })
   });
 
 export const restoreInventoryCategory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("inventory_categories")
       .update({ archived_at: null, archived_by: null, archive_reason: null })
@@ -203,7 +211,7 @@ export const restoreInventoryCategory = createServerFn({ method: "POST" })
   });
 
 export const listInventory = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -224,7 +232,7 @@ export const listInventory = createServerFn({ method: "GET" })
   });
 
 export const upsertInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -261,7 +269,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const category = String(data.category).toLowerCase();
     await assertCategoryExists(supabase, category);
     const { data: store } = await supabase
@@ -338,7 +346,7 @@ export const upsertInventoryItem = createServerFn({ method: "POST" })
   });
 
 export const updateOrderGuide = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -360,7 +368,7 @@ export const updateOrderGuide = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const patch: any = { ...data.patch, updated_at: new Date().toISOString() };
     // Apply to the targeted item, then propagate to all sibling rows (same name + store).
     const { data: target } = await supabase
@@ -414,7 +422,7 @@ async function countItemRefs(supabase: any, itemId: string) {
 }
 
 export const scanInventoryDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { counts, total } = await countItemRefs(context.supabase, data.id);
@@ -422,11 +430,11 @@ export const scanInventoryDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: target } = await supabase
       .from("inventory_items")
       .select("name, store_id")
@@ -454,11 +462,11 @@ export const archiveInventoryItem = createServerFn({ method: "POST" })
   });
 
 export const restoreInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: target } = await supabase
       .from("inventory_items")
       .select("name, store_id")
@@ -487,11 +495,11 @@ export const restoreInventoryItem = createServerFn({ method: "POST" })
 
 /** Hard delete — only when there are zero references. Otherwise throw HAS_DEPENDENCIES. */
 export const deleteInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { counts, total } = await countItemRefs(supabase, data.id);
     if (total > 0) {
       const summary = Object.entries(counts)
@@ -513,7 +521,7 @@ export const deleteInventoryItem = createServerFn({ method: "POST" })
   });
 
 export const receiveStock = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -526,7 +534,7 @@ export const receiveStock = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertCrewTrailerAccess(supabase, userId, data.itemId);
+    await assertCrewTrailerAccess(supabase, userId, context.activeOrgId, data.itemId);
     const { data: receipt, error } = await supabase
       .from("inventory_receipts")
       .insert({
@@ -566,7 +574,7 @@ export const receiveStock = createServerFn({ method: "POST" })
   });
 
 export const logWaste = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -579,7 +587,7 @@ export const logWaste = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertCrewTrailerAccess(supabase, userId, data.itemId);
+    await assertCrewTrailerAccess(supabase, userId, context.activeOrgId, data.itemId);
     const { data: item } = await supabase
       .from("inventory_items")
       .select("current_qty, trailer_id")
@@ -619,7 +627,7 @@ export const logWaste = createServerFn({ method: "POST" })
   });
 
 export const submitCount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -631,7 +639,7 @@ export const submitCount = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertCrewTrailerAccess(supabase, userId, data.itemId);
+    await assertCrewTrailerAccess(supabase, userId, context.activeOrgId, data.itemId);
     const { data: item } = await supabase
       .from("inventory_items")
       .select("current_qty, trailer_id")

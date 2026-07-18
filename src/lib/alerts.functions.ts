@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 async function getRoles(supabase: any, userId: string) {
@@ -27,7 +27,7 @@ const ALERT_TYPES = [
 const ALERT_STATUS = ["open", "pending", "approved", "declined", "resolved"] as const;
 
 export const listAlerts = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -131,7 +131,7 @@ export const listAlerts = createServerFn({ method: "POST" })
   });
 
 export const actOnAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -285,7 +285,7 @@ export const actOnAlert = createServerFn({ method: "POST" })
   });
 
 export const getAlertDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ alertId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: alert, error } = await context.supabase
@@ -314,7 +314,7 @@ export const getAlertDetail = createServerFn({ method: "POST" })
 
 // Owner-only: post a company-wide announcement that becomes a visible alert for every signed-in user.
 export const createAnnouncement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -360,7 +360,7 @@ const CATEGORY_KEYS = [
 ] as const;
 
 export const listCategoryReads = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await supabase
@@ -371,7 +371,7 @@ export const listCategoryReads = createServerFn({ method: "GET" })
   });
 
 export const markCategoryRead = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

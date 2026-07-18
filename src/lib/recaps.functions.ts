@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireTabAccess } from "./auth-guards";
 import { enqueueAlertEmail } from "@/lib/email/enqueue.server";
@@ -66,7 +66,7 @@ function toRow(d: any, managerId: string) {
 }
 
 export const saveRecap = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -82,7 +82,7 @@ export const saveRecap = createServerFn({ method: "POST" })
     // tab access check applies to manager-grade recaps; crew recaps are always allowed.
     if ((data.kind ?? "manager") === "manager") {
       const { isManager } = await getRoles(supabase, userId);
-      if (isManager) await requireTabAccess(supabase, userId, "recaps", "edit");
+      if (isManager) await requireTabAccess(supabase, userId, context.activeOrgId, "recaps", "edit");
     }
 
     const row = toRow(data, userId);
@@ -123,7 +123,7 @@ export const saveRecap = createServerFn({ method: "POST" })
   });
 
 export const listRecaps = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -189,7 +189,7 @@ export const listRecaps = createServerFn({ method: "POST" })
   });
 
 export const getRecap = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -296,7 +296,7 @@ async function sendNightSummaryEmail(supabase: any, managerId: string, recap: an
 }
 
 export const reviewRecap = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

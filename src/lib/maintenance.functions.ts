@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
@@ -22,7 +22,7 @@ export type MaintenanceRequest = {
 };
 
 export const submitMaintenanceRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -59,7 +59,7 @@ export const submitMaintenanceRequest = createServerFn({ method: "POST" })
   });
 
 export const listMaintenanceRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ includeResolved: z.boolean().optional(), includeArchived: z.boolean().optional() })
@@ -80,7 +80,7 @@ export const listMaintenanceRequests = createServerFn({ method: "POST" })
   });
 
 export const updateMaintenanceStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -92,7 +92,7 @@ export const updateMaintenanceStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const patch: Record<string, unknown> = { status: data.status };
     if (data.status === "resolved") {
       patch.resolved_by = userId;
@@ -115,13 +115,13 @@ export const updateMaintenanceStatus = createServerFn({ method: "POST" })
   });
 
 export const archiveMaintenanceRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from("maintenance_requests")
       .update({
@@ -135,11 +135,11 @@ export const archiveMaintenanceRequest = createServerFn({ method: "POST" })
   });
 
 export const restoreMaintenanceRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from("maintenance_requests")
       .update({ archived_at: null, archived_by: null, archive_reason: null })

@@ -14,20 +14,20 @@
 // Hard delete owner-only (no dependent rows for this table).
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _org_id: orgId, _role: "owner" });
   if (!data) throw new Error("Owner access required");
 }
 
 export const scanLocationRequestDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const sb: any = context.supabase;
@@ -50,7 +50,7 @@ export const scanLocationRequestDependencies = createServerFn({ method: "POST" }
   });
 
 export const archiveLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -62,7 +62,7 @@ export const archiveLocationRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from("location_access_requests")
       .update({
@@ -94,12 +94,12 @@ export const archiveLocationRequest = createServerFn({ method: "POST" })
   });
 
 export const restoreLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from("location_access_requests")
       .update({
@@ -120,7 +120,7 @@ export const restoreLocationRequest = createServerFn({ method: "POST" })
   });
 
 export const deleteLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -132,7 +132,7 @@ export const deleteLocationRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await sb.from("location_access_requests").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 async function getRoles(supabase: any, userId: string) {
@@ -26,7 +26,7 @@ function generate6DigitCode(): string {
 }
 
 export const submitLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -79,7 +79,7 @@ export const submitLocationRequest = createServerFn({ method: "POST" })
   });
 
 export const listLocationRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -99,7 +99,7 @@ export const listLocationRequests = createServerFn({ method: "POST" })
   });
 
 export const approveLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -171,7 +171,7 @@ export const approveLocationRequest = createServerFn({ method: "POST" })
   });
 
 export const declineLocationRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), note: z.string().max(500).optional() }).parse(d),
   )
@@ -201,7 +201,7 @@ export const declineLocationRequest = createServerFn({ method: "POST" })
   });
 
 export const redeemLocationCode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -253,7 +253,7 @@ export const redeemLocationCode = createServerFn({ method: "POST" })
   });
 
 export const getActiveLocationGrant = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await supabase
@@ -268,7 +268,7 @@ export const getActiveLocationGrant = createServerFn({ method: "GET" })
   });
 
 export const listActiveLocationGrants = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { isOwner } = await getRoles(supabase, userId);
@@ -294,7 +294,7 @@ export const listActiveLocationGrants = createServerFn({ method: "GET" })
   });
 
 export const revokeLocationGrant = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;

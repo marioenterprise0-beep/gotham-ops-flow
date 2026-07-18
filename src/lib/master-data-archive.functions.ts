@@ -7,18 +7,18 @@
 // Hard delete blocked unless `force: true` AND no live dependencies.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const ENTITY = z.enum(["inventory_counts", "trailers", "stores"]);
 type Entity = z.infer<typeof ENTITY>;
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _org_id: orgId, _role: "owner" });
   if (!data) throw new Error("Owner access required");
 }
 
@@ -43,7 +43,7 @@ const DEPS: Record<Entity, Array<{ table: string; column: string; label: string 
 };
 
 export const scanMasterDataDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const sb: any = context.supabase;
@@ -76,7 +76,7 @@ export const scanMasterDataDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveMasterData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -92,9 +92,9 @@ export const archiveMasterData = createServerFn({ method: "POST" })
     // inventory_counts is a transactional log — managers can archive entries
     // they entered in error. trailers/stores are master data — owner only.
     if (data.entity === "inventory_counts") {
-      await assertManager(supabase, userId);
+      await assertManager(supabase, userId, context.activeOrgId);
     } else {
-      await assertOwner(supabase, userId);
+      await assertOwner(supabase, userId, context.activeOrgId);
     }
     const stamp: any = {
       archived_at: new Date().toISOString(),
@@ -117,12 +117,12 @@ export const archiveMasterData = createServerFn({ method: "POST" })
   });
 
 export const restoreMasterData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const patch: any = { archived_at: null, archived_by: null, archive_reason: null };
     if (data.entity === "trailers") patch.active = true;
     const { error } = await sb.from(data.entity).update(patch).eq("id", data.id);
@@ -138,7 +138,7 @@ export const restoreMasterData = createServerFn({ method: "POST" })
   });
 
 export const deleteMasterData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -151,7 +151,7 @@ export const deleteMasterData = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       let liveTotal = 0;
       for (const dep of DEPS[data.entity]) {

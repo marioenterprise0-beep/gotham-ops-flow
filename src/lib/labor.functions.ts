@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import {
   requireManager as requireManagerRole,
@@ -18,12 +18,12 @@ function weekStartOf(d: Date): string {
   return dt.toISOString().slice(0, 10);
 }
 
-async function requireManager(supabase: any, userId: string) {
-  await requireManagerRole(supabase, userId);
-  await requireTabAccess(supabase, userId, "labor", "edit");
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireManagerRole(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "labor", "edit");
 }
-async function requireOwner(supabase: any, userId: string) {
-  await requireOwnerRole(supabase, userId);
+async function requireOwner(supabase: any, userId: string, orgId: string) {
+  await requireOwnerRole(supabase, userId, orgId);
 }
 
 function shiftDate(iso: string, days: number): string {
@@ -44,7 +44,7 @@ function punchMinutes(p: any): number {
 }
 
 export const getLaborDashboard = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -55,7 +55,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     const ws = data.weekStart ?? weekStartOf(new Date());
     const endDate = shiftDate(ws, 6);
@@ -238,7 +238,7 @@ export const getLaborDashboard = createServerFn({ method: "POST" })
   });
 
 export const getEmployeeWeek = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -249,7 +249,7 @@ export const getEmployeeWeek = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const ws = data.weekStart ?? weekStartOf(new Date());
     const start = new Date(ws + "T00:00:00");
     const end = new Date(start);
@@ -285,7 +285,7 @@ export const getEmployeeWeek = createServerFn({ method: "POST" })
   });
 
 export const ownerEditPunch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -299,7 +299,7 @@ export const ownerEditPunch = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const patch: any = { edited_by: userId, edited_at: new Date().toISOString(), status: "edited" };
     if (data.clockInAt !== undefined) patch.clock_in_at = data.clockInAt;
     if (data.clockOutAt !== undefined) patch.clock_out_at = data.clockOutAt;
@@ -324,7 +324,7 @@ export const ownerEditPunch = createServerFn({ method: "POST" })
   });
 
 export const decideCorrection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -339,7 +339,7 @@ export const decideCorrection = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
 
     // Allow the owner to adjust the requested punch values before approving.
     const updatePatch: any = {
@@ -441,7 +441,7 @@ export const decideCorrection = createServerFn({ method: "POST" })
   });
 
 export const decideTimeOff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -453,7 +453,7 @@ export const decideTimeOff = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { data: row, error } = await supabase
       .from("time_off_requests")
       .update({
@@ -507,11 +507,11 @@ export const decideTimeOff = createServerFn({ method: "POST" })
   });
 
 export const getPayrollDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ weekStart: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const weekEnd = new Date(data.weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     const endStr = weekEnd.toISOString().slice(0, 10) + "T23:59:59";
@@ -545,7 +545,7 @@ export const getPayrollDetail = createServerFn({ method: "POST" })
   });
 
 export const listAllRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -555,7 +555,7 @@ export const listAllRequests = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     let corrQ = supabase
       .from("time_corrections")

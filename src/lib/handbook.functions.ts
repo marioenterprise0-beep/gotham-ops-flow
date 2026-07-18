@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 
@@ -28,7 +28,7 @@ export type HandbookSection = {
 // requireManager/requireOwner. RLS on handbook_sections also allows SELECT
 // to any authenticated user, so this is defense-in-depth, not the lock.
 export const getHandbook = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     // Cast: `handbook_sections` is not yet in the generated Supabase types —
     // regenerate types.ts after the migration lands (same precedent as
@@ -54,7 +54,7 @@ async function getCurrentHandbookVersion(supabase: any): Promise<number> {
 }
 
 export const acknowledgeHandbook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ fullNameTyped: z.string().min(1).max(120) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -78,7 +78,7 @@ export const acknowledgeHandbook = createServerFn({ method: "POST" })
   });
 
 export const getMyHandbookAck = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const version = await getCurrentHandbookVersion(supabase);
@@ -97,10 +97,10 @@ export const getMyHandbookAck = createServerFn({ method: "GET" })
   });
 
 export const getHandbookAckRollup = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
 
     const version = await getCurrentHandbookVersion(supabase);
     const [{ data: profiles }, { data: acks }] = await Promise.all([

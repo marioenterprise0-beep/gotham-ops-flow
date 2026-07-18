@@ -8,7 +8,7 @@
 // Hard delete blocked unless `force: true` AND no live dependencies.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const ENTITY = z.enum([
@@ -19,12 +19,12 @@ const ENTITY = z.enum([
 ]);
 type Entity = z.infer<typeof ENTITY>;
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _org_id: orgId, _role: "owner" });
   if (!data) throw new Error("Owner access required");
 }
 
@@ -37,7 +37,7 @@ const DEPS: Record<Entity, Array<{ table: string; column: string; label: string 
 };
 
 export const scanInventoryOrdersDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const sb: any = context.supabase;
@@ -70,7 +70,7 @@ export const scanInventoryOrdersDependencies = createServerFn({ method: "POST" }
   });
 
 export const archiveInventoryOrdersEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -84,7 +84,7 @@ export const archiveInventoryOrdersEntity = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
 
     const stamp = {
       archived_at: new Date().toISOString(),
@@ -112,12 +112,12 @@ export const archiveInventoryOrdersEntity = createServerFn({ method: "POST" })
   });
 
 export const restoreInventoryOrdersEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from(data.entity)
       .update({
@@ -138,7 +138,7 @@ export const restoreInventoryOrdersEntity = createServerFn({ method: "POST" })
   });
 
 export const deleteInventoryOrdersEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -151,7 +151,7 @@ export const deleteInventoryOrdersEntity = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       let liveTotal = 0;
       for (const dep of DEPS[data.entity]) {

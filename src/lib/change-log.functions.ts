@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
@@ -19,14 +19,14 @@ export type ChangeLogRow = {
 };
 
 export const listChangeLog = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator(
     (d: { search?: string; entity?: string; actorId?: string; days?: number } | undefined) =>
       d ?? {},
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     let q = supabase
       .from("change_log")
       .select("*")
@@ -51,7 +51,7 @@ export const listChangeLog = createServerFn({ method: "GET" })
   });
 
 export const recordChange = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -76,7 +76,7 @@ export const recordChange = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: prof } = await supabase
       .from("profiles")
       .select("display_name")

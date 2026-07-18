@@ -4,7 +4,7 @@
 // issues without mutating data. Owner-only.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 
 // Canonical tab keys understood by the nav. Keep in sync with AppShell ALL_TABS.
@@ -56,10 +56,10 @@ function pushIssue(out: IntegrityIssue[], i: IntegrityIssue) {
 }
 
 export const runIntegritySweep = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }): Promise<IntegrityReport> => {
     const { supabase } = context;
-    await requireManager(supabase, context.userId);
+    await requireManager(supabase, context.userId, context.activeOrgId);
 
     const issues: IntegrityIssue[] = [];
 

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 // Note: supabaseAdmin is imported dynamically inside handler bodies that need it.
 import { z } from "zod";
 import {
@@ -20,7 +20,7 @@ function weekStart(d: Date): string {
 }
 
 export const getMyActivePunch = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await supabase
@@ -48,7 +48,7 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number):
 }
 
 export const clockIn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -257,7 +257,7 @@ export const clockIn = createServerFn({ method: "POST" })
 
 // Owner-only: configure geofence coordinates / radius for a trailer.
 export const setTrailerGeofence = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -270,7 +270,7 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can configure location geofences.");
     // Use supabaseAdmin for the write — geofence columns are not granted to authenticated
     // and the trailers UPDATE policy allows any manager, so we enforce owner-only at app layer above.
@@ -292,7 +292,7 @@ export const setTrailerGeofence = createServerFn({ method: "POST" })
   });
 
 export const listTrailerGeofences = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data, error } = await supabase.rpc("list_trailer_geofences");
@@ -303,11 +303,11 @@ export const listTrailerGeofences = createServerFn({ method: "GET" })
 // Owner-only: geocode a street address to lat/lng using OpenStreetMap Nominatim.
 // Free, no API key. The owner reviews the returned coords before saving.
 export const geocodeAddress = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ address: z.string().min(5).max(300) }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can geocode addresses.");
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(data.address)}&format=json&limit=1&addressdetails=1`;
     const res = await fetch(url, {
@@ -325,7 +325,7 @@ export const geocodeAddress = createServerFn({ method: "POST" })
   });
 
 export const clockOut = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -404,7 +404,7 @@ export const clockOut = createServerFn({ method: "POST" })
   });
 
 export const getMyWeek = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ weekStart: z.string().optional() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -474,7 +474,7 @@ export const getMyWeek = createServerFn({ method: "POST" })
 
 // Request submissions
 export const submitCorrection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -542,7 +542,7 @@ export const submitCorrection = createServerFn({ method: "POST" })
   });
 
 export const submitTimeOff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -603,7 +603,7 @@ export const submitTimeOff = createServerFn({ method: "POST" })
   });
 
 export const submitShiftNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -639,7 +639,7 @@ export const submitShiftNote = createServerFn({ method: "POST" })
   });
 
 export const listMyRequests = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [{ data: corrections }, { data: timeOff }, { data: notes }] = await Promise.all([
@@ -672,17 +672,17 @@ export const listMyRequests = createServerFn({ method: "GET" })
 // Phase 5 — canonical archive/restore + dependency scan for time records
 // ---------------------------------------------------------------------------
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("has_role", { _user_id: userId, _org_id: orgId, _role: "owner" });
   if (!data) throw new Error("Owner access required");
 }
 
 export const scanPunchDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -696,13 +696,13 @@ export const scanPunchDependencies = createServerFn({ method: "POST" })
   });
 
 export const archivePunch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_punches")
       .update({
@@ -723,11 +723,11 @@ export const archivePunch = createServerFn({ method: "POST" })
   });
 
 export const restorePunch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_punches")
       .update({
@@ -748,13 +748,13 @@ export const restorePunch = createServerFn({ method: "POST" })
   });
 
 export const archiveCorrection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_corrections")
       .update({
@@ -775,11 +775,11 @@ export const archiveCorrection = createServerFn({ method: "POST" })
   });
 
 export const restoreCorrection = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_corrections")
       .update({
@@ -793,13 +793,13 @@ export const restoreCorrection = createServerFn({ method: "POST" })
   });
 
 export const archiveTimeOff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_off_requests")
       .update({
@@ -820,11 +820,11 @@ export const archiveTimeOff = createServerFn({ method: "POST" })
   });
 
 export const restoreTimeOff = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("time_off_requests")
       .update({
@@ -933,11 +933,11 @@ async function resolveTimeAlertsForPunch(supabase: any, userId: string, punch: a
 }
 
 export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().optional().nullable() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("profiles")
@@ -951,7 +951,7 @@ export const listEmployeesForPunchAdmin = createServerFn({ method: "POST" })
   });
 
 export const listPunchesForAdmin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -964,7 +964,7 @@ export const listPunchesForAdmin = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     let q = supabase
       .from("time_punches")
       .select(
@@ -983,7 +983,7 @@ export const listPunchesForAdmin = createServerFn({ method: "POST" })
   });
 
 export const managerClockInEmployee = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -998,7 +998,7 @@ export const managerClockInEmployee = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
 
     // Resolve a trailer if none provided (employee's home trailer).
     let trailerId = data.trailerId ?? null;
@@ -1070,7 +1070,7 @@ export const managerClockInEmployee = createServerFn({ method: "POST" })
   });
 
 export const managerClockOutEmployee = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1084,7 +1084,7 @@ export const managerClockOutEmployee = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     let punchId = data.punchId;
     if (!punchId) {
       if (!data.employeeId) throw new Error("punchId or employeeId required");
@@ -1130,7 +1130,7 @@ export const managerClockOutEmployee = createServerFn({ method: "POST" })
   });
 
 export const managerEditPunch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1145,7 +1145,7 @@ export const managerEditPunch = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
 
     const patch: Record<string, any> = {};
     if (data.clockInAt !== undefined) patch.clock_in_at = data.clockInAt;
@@ -1209,7 +1209,7 @@ export const managerEditPunch = createServerFn({ method: "POST" })
   });
 
 export const managerDeletePunch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1220,7 +1220,7 @@ export const managerDeletePunch = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: existing } = await supabase
       .from("time_punches")
       .select("id, employee_id, clock_in_at, clock_out_at, status, break_minutes")

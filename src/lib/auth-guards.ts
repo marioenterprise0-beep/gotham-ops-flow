@@ -1,10 +1,15 @@
 // Shared role + tab-permission gates for server functions. Use after the
-// `requireSupabaseAuth` middleware so `context.supabase` is the authenticated
-// client and `context.userId` is the verified bearer subject.
+// `requireActiveOrg` middleware chain so `context.supabase` is the
+// authenticated client, `context.userId` is the verified bearer subject,
+// and `context.activeOrgId` is the caller's active organization.
 //
-// These helpers fail fast with a clear error so endpoints can't be reached by
-// crafted client calls even when the UI hides the button. RLS at the database
-// layer is the second line of defense.
+// Every helper takes an explicit `orgId` and calls the 3-arg / 2-arg
+// org-scoped RPCs (`has_role(_user_id,_org_id,_role)`,
+// `is_manager(_user_id,_org_id)`). The legacy 1-arg / 2-arg overloads
+// (uid-only) are being dropped from the DB after this sweep — do not
+// re-introduce callers to them.
+//
+// RLS at the database layer is the second line of defense.
 
 export type TabAccessLevel = "none" | "view" | "edit";
 
@@ -14,22 +19,33 @@ const LEVEL_RANK: Record<TabAccessLevel, number> = {
   edit: 2,
 };
 
-// All role checks are scoped to the caller's active organization via the
-// pre-request GUC `app.active_organization_id` (set by public.set_active_org_context).
-// The 2-arg RPC wrappers (is_manager(uid), has_role(uid, role)) filter user_roles
-// by that GUC, so a user with a role in a different org cannot pass these gates.
-export async function requireManager(supabase: any, userId: string) {
-  const { data: mgr } = await supabase.rpc("is_manager", { _user_id: userId });
+export async function requireManager(supabase: any, userId: string, orgId: string) {
+  const { data: mgr } = await supabase.rpc("is_manager", {
+    _user_id: userId,
+    _org_id: orgId,
+  });
   if (mgr !== true) throw new Error("Manager role required");
 }
 
-export async function requireOwner(supabase: any, userId: string) {
-  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+export async function requireOwner(supabase: any, userId: string, orgId: string) {
+  const { data: own } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _org_id: orgId,
+    _role: "owner",
+  });
   if (own !== true) throw new Error("Owner role required");
 }
 
-export async function isOwner(supabase: any, userId: string): Promise<boolean> {
-  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+export async function isOwner(
+  supabase: any,
+  userId: string,
+  orgId: string,
+): Promise<boolean> {
+  const { data: own } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _org_id: orgId,
+    _role: "owner",
+  });
   return own === true;
 }
 
@@ -46,17 +62,29 @@ export async function isOwner(supabase: any, userId: string): Promise<boolean> {
 export async function requireTabAccess(
   supabase: any,
   userId: string,
+  orgId: string,
   tabKey: string,
   required: TabAccessLevel = "edit",
 ) {
-  // Owner bypass, org-scoped.
-  const { data: own } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+  // Owner bypass, org-scoped via explicit 3-arg call.
+  const { data: own } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _org_id: orgId,
+    _role: "owner",
+  });
   if (own === true) return;
 
-  // Fetch the caller's roles for the active org only (RLS on user_roles
-  // allows any org the caller belongs to, so we use an org-scoped RPC).
-  const { data: activeRoles } = await supabase.rpc("my_active_org_roles");
-  const roles: string[] = (activeRoles ?? []) as string[];
+  // Fetch the caller's roles in the active org via an explicit filter — no
+  // reliance on a session GUC and no dependency on the (going-away) helper
+  // `my_active_org_roles`. RLS on `user_roles` still applies as the caller.
+  const { data: roleRowsRaw } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
+  const roles: string[] = ((roleRowsRaw ?? []) as Array<{ role: string }>).map(
+    (r) => r.role,
+  );
 
   const { data: perms } = await supabase
     .from("tab_permissions")

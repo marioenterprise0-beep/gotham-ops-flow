@@ -3,7 +3,7 @@
 // surfaces archived rows that still block hard delete (live children).
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import {
   ARCHIVE_DOMAINS,
@@ -12,8 +12,8 @@ import {
   type ArchiveDomain,
 } from "./archive-registry";
 
-async function assertManager(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_manager", { _user_id: userId });
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: orgId });
   if (!data) throw new Error("Manager access required");
 }
 
@@ -30,7 +30,7 @@ async function rowHasLiveDeps(sb: any, domain: ArchiveDomain, id: string): Promi
 }
 
 export const runAllDependencyScans = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ retentionDays: z.number().int().min(1).max(3650).default(DEFAULT_RETENTION_DAYS) })
@@ -38,7 +38,7 @@ export const runAllDependencyScans = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const cutoff = new Date(Date.now() - data.retentionDays * 86400_000).toISOString();
     const sb: any = supabase;
 

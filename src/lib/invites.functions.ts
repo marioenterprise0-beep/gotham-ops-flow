@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 import { randomInt } from "crypto";
@@ -15,10 +15,10 @@ function randomCode() {
 }
 
 export const listInvites = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { data, error } = await supabase
       .from("invite_codes")
       .select("id, code, role, note, created_at, expires_at, used_by, used_at")
@@ -29,7 +29,7 @@ export const listInvites = createServerFn({ method: "GET" })
   });
 
 export const createInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -40,10 +40,10 @@ export const createInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
-      if (!(await isOwner(supabase, userId)))
+      if (!(await isOwner(supabase, userId, context.activeOrgId)))
         throw new Error("Only owners can issue owner or manager invites");
     }
     const code = randomCode();
@@ -57,11 +57,11 @@ export const createInvite = createServerFn({ method: "POST" })
   });
 
 export const revokeInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("invite_codes")
       .update({ expires_at: new Date(Date.now() - 1000).toISOString() })

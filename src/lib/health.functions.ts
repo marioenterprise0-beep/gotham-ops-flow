@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 
 export type HealthComponent = {
@@ -21,11 +21,11 @@ const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 const band = (n: number): HealthScore["band"] => (n >= 80 ? "green" : n >= 60 ? "yellow" : "red");
 
 export const getHealthScore = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d: { trailerId?: string | null; days?: number } | undefined) => d ?? {})
   .handler(async ({ data, context }): Promise<HealthScore> => {
     const { supabase } = context;
-    await requireManager(supabase, context.userId);
+    await requireManager(supabase, context.userId, context.activeOrgId);
     const days = data.days ?? 1;
     const since = new Date(Date.now() - days * 86_400_000).toISOString();
     const today = new Date();

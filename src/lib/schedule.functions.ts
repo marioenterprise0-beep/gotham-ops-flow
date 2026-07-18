@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import {
   requireManager as requireManagerRole,
@@ -53,16 +53,16 @@ function overlapDays(
   return Math.max(0, end - start + 1);
 }
 
-async function requireManager(supabase: any, userId: string) {
-  await requireManagerRole(supabase, userId);
-  await requireTabAccess(supabase, userId, "schedule", "edit");
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireManagerRole(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "schedule", "edit");
 }
-async function requireOwner(supabase: any, userId: string) {
-  await requireOwnerRole(supabase, userId);
+async function requireOwner(supabase: any, userId: string, orgId: string) {
+  await requireOwnerRole(supabase, userId, orgId);
 }
 
 export const listSchedules = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ includeArchived: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     let q = context.supabase
@@ -80,7 +80,7 @@ export const listSchedules = createServerFn({ method: "POST" })
 
 // Scan downstream dependencies before archiving/deleting a schedule.
 export const scanScheduleDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -117,13 +117,13 @@ export const scanScheduleDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("schedules")
       .update({
@@ -144,11 +144,11 @@ export const archiveSchedule = createServerFn({ method: "POST" })
   });
 
 export const restoreSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("schedules")
       .update({
@@ -169,7 +169,7 @@ export const restoreSchedule = createServerFn({ method: "POST" })
   });
 
 export const createSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -183,7 +183,7 @@ export const createSchedule = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: row, error } = await supabase
       .from("schedules")
       .insert({
@@ -208,13 +208,13 @@ export const createSchedule = createServerFn({ method: "POST" })
   });
 
 export const deleteSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       const [{ data: shifts }, { data: sched }] = await Promise.all([
         supabase
@@ -255,7 +255,7 @@ export const deleteSchedule = createServerFn({ method: "POST" })
   });
 
 export const getSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -359,7 +359,7 @@ export const getSchedule = createServerFn({ method: "POST" })
   });
 
 export const upsertShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -380,7 +380,7 @@ export const upsertShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: sched } = await supabase
       .from("schedules")
       .select("status, start_date, end_date")
@@ -450,11 +450,11 @@ export const upsertShift = createServerFn({ method: "POST" })
   });
 
 export const deleteShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: existing } = await supabase
       .from("schedule_shifts")
       .select("schedule_id, schedules!inner(status)")
@@ -470,7 +470,7 @@ export const deleteShift = createServerFn({ method: "POST" })
   });
 
 export const transitionSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -482,8 +482,8 @@ export const transitionSchedule = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
-    await requireManager(supabase, userId);
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
+    await requireManager(supabase, userId, context.activeOrgId);
     const now = new Date().toISOString();
     const patch: Record<string, any> = {};
 
@@ -698,7 +698,7 @@ export const transitionSchedule = createServerFn({ method: "POST" })
   });
 
 export const listEmployees = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d ?? {}),
   )
@@ -707,8 +707,8 @@ export const listEmployees = createServerFn({ method: "POST" })
     // Determine caller role. Crew view must hide owners AND managers so
     // co-workers only see fellow crew on the schedule/shift grid.
     const [{ data: isMgrRow }, { data: isOwnerRow }] = await Promise.all([
-      supabase.rpc("is_manager", { _user_id: userId }),
-      supabase.rpc("has_role", { _user_id: userId, _role: "owner" }),
+      supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId }),
+      supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" }),
     ]);
     const isMgr = !!isMgrRow;
     const isOwner = !!isOwnerRow;
@@ -755,7 +755,7 @@ export const listEmployees = createServerFn({ method: "POST" })
 
 // Find a schedule whose range overlaps the given week; create a draft if none.
 export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -813,7 +813,7 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
       )[0];
     if (legacyMatch) return legacyMatch;
     if (!data.autoCreate) return null;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const name = data.name ?? `Week of ${data.startDate}`;
     const { data: row, error } = await supabase
       .from("schedules")
@@ -893,7 +893,7 @@ export const getOrCreateScheduleForRange = createServerFn({ method: "POST" })
   });
 
 export const duplicateShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -905,7 +905,7 @@ export const duplicateShift = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: src, error } = await supabase
       .from("schedule_shifts")
       .select("*, schedules!inner(status, start_date, end_date)")
@@ -981,11 +981,11 @@ export const duplicateShift = createServerFn({ method: "POST" })
 // unassigned shift exists. Existing matching shifts are kept so the button
 // is safe to click repeatedly without piling up duplicates.
 export const generateCoverage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ scheduleId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: sched } = await supabase
       .from("schedules")
       .select("*")
@@ -1046,7 +1046,7 @@ export const generateCoverage = createServerFn({ method: "POST" })
 // Crew-safe: list only the caller's own assigned shifts from non-archived schedules.
 // Used by the dashboard "My Schedule" view and the schedule page when role is crew.
 export const listMyScheduleShifts = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1093,7 +1093,7 @@ export const listMyScheduleShifts = createServerFn({ method: "POST" })
 // ---------- Shift Swap Requests ----------
 
 export const requestShiftSwap = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1149,7 +1149,7 @@ export const requestShiftSwap = createServerFn({ method: "POST" })
   });
 
 export const listSwapRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1161,7 +1161,7 @@ export const listSwapRequests = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     let q = supabase
       .from("shift_swap_requests")
       .select("*, schedule_shifts(shift_date, start_time, end_time, segment)")
@@ -1200,7 +1200,7 @@ export const listSwapRequests = createServerFn({ method: "POST" })
   });
 
 export const decideSwapRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1212,7 +1212,7 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: swap } = await supabase
       .from("shift_swap_requests")
       .select("schedule_shift_id, target_employee_id")
@@ -1238,7 +1238,7 @@ export const decideSwapRequest = createServerFn({ method: "POST" })
   });
 
 export const mySwapRequests = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: rows, error } = await supabase
@@ -1256,7 +1256,7 @@ export const mySwapRequests = createServerFn({ method: "GET" })
 
 // RLS handles filtering: crew see only their own, managers see all.
 export const listAvailabilityForRange = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ startDate: z.string(), endDate: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -1272,7 +1272,7 @@ export const listAvailabilityForRange = createServerFn({ method: "POST" })
   });
 
 export const upsertAvailability = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1330,7 +1330,7 @@ export const upsertAvailability = createServerFn({ method: "POST" })
   });
 
 export const deleteAvailability = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ blockDate: z.string() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -1346,11 +1346,11 @@ export const deleteAvailability = createServerFn({ method: "POST" })
 // ---------- Availability approval (owner/manager) ----------
 
 export const listPendingAvailability = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().nullable().optional() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     let q = supabase
       .from("availability_blocks")
       .select(
@@ -1372,7 +1372,7 @@ export const listPendingAvailability = createServerFn({ method: "POST" })
   });
 
 export const decideAvailability = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1384,7 +1384,7 @@ export const decideAvailability = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     // Atomic: block update + decision alert commit or roll back together.
     const { data: row, error } = await supabase.rpc("decide_availability_atomic" as any, {
@@ -1399,13 +1399,13 @@ export const decideAvailability = createServerFn({ method: "POST" })
 // ---------- Sales target ----------
 
 export const setScheduleSalesTarget = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), salesTarget: z.number().positive() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("schedules")
       .update({ sales_target: data.salesTarget })
@@ -1417,7 +1417,7 @@ export const setScheduleSalesTarget = createServerFn({ method: "POST" })
 // ---------- Per-employee weekly hours ----------
 
 export const setEmployeeWeeklyHours = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ employeeId: z.string().uuid(), weeklyHours: z.number().int().min(0).max(80) })
@@ -1425,7 +1425,7 @@ export const setEmployeeWeeklyHours = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("profiles")
       .update({ weekly_hours: data.weeklyHours })
@@ -1437,7 +1437,7 @@ export const setEmployeeWeeklyHours = createServerFn({ method: "POST" })
 // ---------- Open shift claiming ----------
 
 export const claimShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1494,7 +1494,7 @@ export const claimShift = createServerFn({ method: "POST" })
   });
 
 export const listClaimRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ status: z.string().optional() })
@@ -1503,7 +1503,7 @@ export const listClaimRequests = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     let q = supabase
       .from("shift_claim_requests")
       .select("*, schedule_shifts(shift_date, start_time, end_time, role, segment)")
@@ -1533,7 +1533,7 @@ export const listClaimRequests = createServerFn({ method: "POST" })
   });
 
 export const decideClaimRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1545,7 +1545,7 @@ export const decideClaimRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: claim } = await supabase
       .from("shift_claim_requests")
       .select("claimant_id, schedule_shift_id")
@@ -1573,7 +1573,7 @@ export const decideClaimRequest = createServerFn({ method: "POST" })
   });
 
 export const myClaimRequests = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: rows, error } = await supabase
@@ -1590,7 +1590,7 @@ export const myClaimRequests = createServerFn({ method: "GET" })
 // ---------- Shift reminders ----------
 
 export const sendShiftReminders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ reminderFor: z.enum(["today", "tomorrow"]).default("tomorrow") })
@@ -1599,7 +1599,7 @@ export const sendShiftReminders = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { enqueueAlertEmail } = await import("@/lib/email/enqueue.server");
 

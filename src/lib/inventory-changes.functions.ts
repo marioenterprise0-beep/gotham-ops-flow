@@ -1,10 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
-async function isOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function isOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   return (data ?? []).some((r: any) => r.role === "owner");
 }
 
@@ -28,7 +32,7 @@ function sanitizeChangePayload(payload: Record<string, any>): Record<string, any
 }
 
 export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -85,12 +89,12 @@ export const submitInventoryChangeRequest = createServerFn({ method: "POST" })
   });
 
 export const listInventoryChangeRequests = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ includeArchived: z.boolean().optional() }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
-    const showArchived = data?.includeArchived && (await isOwner(supabase, userId));
+    await requireManager(supabase, userId, context.activeOrgId);
+    const showArchived = data?.includeArchived && (await isOwner(supabase, userId, context.activeOrgId));
     let q = supabase
       .from("inventory_change_requests")
       .select("*")
@@ -103,7 +107,7 @@ export const listInventoryChangeRequests = createServerFn({ method: "POST" })
   });
 
 export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -115,7 +119,7 @@ export const decideInventoryChangeRequest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    if (!(await isOwner(supabase, userId))) throw new Error("Owner role required");
+    if (!(await isOwner(supabase, userId, context.activeOrgId))) throw new Error("Owner role required");
 
     const { data: req, error: ge } = await supabase
       .from("inventory_change_requests")

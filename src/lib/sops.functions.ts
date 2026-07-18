@@ -1,19 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireTabAccess } from "./auth-guards";
 
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   const ok = (data ?? []).some((r: any) => r.role === "owner");
   if (!ok) throw new Error("Owner role required to modify SOPs");
-  await requireTabAccess(supabase, userId, "sops", "edit");
+  await requireTabAccess(supabase, userId, orgId, "sops", "edit");
 }
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 
 export const listSops = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ includeArchived: z.boolean().optional() })
@@ -35,7 +39,7 @@ export const listSops = createServerFn({ method: "POST" })
   });
 
 export const upsertSop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -50,7 +54,7 @@ export const upsertSop = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
 
     const now = new Date().toISOString();
 
@@ -108,11 +112,11 @@ export const upsertSop = createServerFn({ method: "POST" })
   });
 
 export const scanSopDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const targets: Array<{ key: string; label: string; table: string; column: string }> = [
       { key: "acks", label: "Acknowledgements", table: "sop_acknowledgements", column: "sop_id" },
       { key: "views", label: "View records", table: "sop_views", column: "sop_id" },
@@ -136,13 +140,13 @@ export const scanSopDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveSop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("sops")
       .update({
@@ -163,11 +167,11 @@ export const archiveSop = createServerFn({ method: "POST" })
   });
 
 export const restoreSop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("sops")
       .update({
@@ -188,13 +192,13 @@ export const restoreSop = createServerFn({ method: "POST" })
   });
 
 export const deleteSop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), force: z.boolean().optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const tables: Array<[string, string]> = [
       ["sop_acknowledgements", "sop_id"],
       ["sop_views", "sop_id"],
@@ -230,7 +234,7 @@ export const deleteSop = createServerFn({ method: "POST" })
   });
 
 export const listSopVersions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ sopId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
@@ -243,7 +247,7 @@ export const listSopVersions = createServerFn({ method: "GET" })
   });
 
 export const listSopAttachments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ sopId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
@@ -264,7 +268,7 @@ export const listSopAttachments = createServerFn({ method: "GET" })
   });
 
 export const addSopAttachment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -277,7 +281,7 @@ export const addSopAttachment = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase.from("sop_attachments").insert({
       sop_id: data.sopId,
       storage_path: data.storagePath,
@@ -290,11 +294,11 @@ export const addSopAttachment = createServerFn({ method: "POST" })
   });
 
 export const deleteSopAttachment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: row } = await supabase
       .from("sop_attachments")
       .select("storage_path")
@@ -311,7 +315,7 @@ export const deleteSopAttachment = createServerFn({ method: "POST" })
 // ───── View + acknowledgement tracking ─────
 
 export const recordSopView = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ sopId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -320,7 +324,7 @@ export const recordSopView = createServerFn({ method: "POST" })
   });
 
 export const acknowledgeSop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ sopId: z.string().uuid(), version: z.number().int().min(1) }).parse(d),
   )
@@ -337,7 +341,7 @@ export const acknowledgeSop = createServerFn({ method: "POST" })
   });
 
 export const getMySopAcks = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data, error } = await supabase
@@ -349,10 +353,10 @@ export const getMySopAcks = createServerFn({ method: "GET" })
   });
 
 export const getSopAckRollup = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
 
     const [{ data: sops }, { data: profiles }, { data: acks }, { data: views }] = await Promise.all(
       [

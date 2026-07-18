@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { randomInt } from "crypto";
 import { requireOwner } from "./auth-guards";
@@ -14,12 +14,12 @@ function newCode() {
 }
 
 // All user/access mutations are OWNER ONLY. Managers operate, owners govern.
-async function requireManager(supabase: any, userId: string) {
-  await requireOwner(supabase, userId);
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireOwner(supabase, userId, orgId);
 }
 
 export const listTrailers = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("trailers")
@@ -31,7 +31,7 @@ export const listTrailers = createServerFn({ method: "GET" })
   });
 
 export const generateInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -48,10 +48,10 @@ export const generateInvite = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
-      if (!(await isOwner(supabase, userId)))
+      if (!(await isOwner(supabase, userId, context.activeOrgId)))
         throw new Error("Only owners can issue owner or manager invites");
     }
     const code = newCode();
@@ -81,10 +81,10 @@ export const generateInvite = createServerFn({ method: "POST" })
   });
 
 export const listInvitesV2 = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data, error } = await supabase
       .from("invite_codes")
       .select(
@@ -106,11 +106,11 @@ export const listInvitesV2 = createServerFn({ method: "GET" })
   });
 
 export const disableInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("invite_codes")
       .update({ disabled_at: new Date().toISOString() })
@@ -127,11 +127,11 @@ export const disableInvite = createServerFn({ method: "POST" })
   });
 
 export const deleteInvite = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase.from("invite_codes").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await supabase.from("audit_log").insert({
@@ -145,7 +145,7 @@ export const deleteInvite = createServerFn({ method: "POST" })
   });
 
 export const listUsers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ includeArchived: z.boolean().optional() })
@@ -154,7 +154,7 @@ export const listUsers = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const includeArchived = !!data?.includeArchived;
     // Use admin client after manager check: column-level REVOKEs on profiles
     // (archived_at, archive_reason, last_login_at) block authenticated SELECT.
@@ -188,11 +188,11 @@ export const listUsers = createServerFn({ method: "POST" })
   });
 
 export const scanUserDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const targets: Array<{ key: string; label: string; table: string; column: string }> = [
       {
         key: "schedule_shifts",
@@ -261,13 +261,13 @@ export const scanUserDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ userId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     if (data.userId === userId) throw new Error("You cannot archive your own account.");
     await assertCanActOnTarget(supabase, userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -293,11 +293,11 @@ export const archiveUser = createServerFn({ method: "POST" })
   });
 
 export const restoreUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("profiles")
@@ -313,13 +313,13 @@ export const restoreUser = createServerFn({ method: "POST" })
   });
 
 export const hardDeleteUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ userId: z.string().uuid(), force: z.boolean().optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     if (data.userId === userId) throw new Error("You cannot delete your own account.");
     await assertCanActOnTarget(supabase, userId, data.userId);
     const tables: Array<[string, string]> = [
@@ -372,7 +372,7 @@ export const hardDeleteUser = createServerFn({ method: "POST" })
   });
 
 export const setUserRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -383,11 +383,11 @@ export const setUserRole = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     // Only owners can grant owner or manager roles (prevent manager → manager/owner escalation).
     if (data.role === "owner" || data.role === "manager") {
       const { isOwner } = await import("./auth-guards");
-      if (!(await isOwner(supabase, userId))) {
+      if (!(await isOwner(supabase, userId, context.activeOrgId))) {
         throw new Error("Only owners can assign owner or manager roles");
       }
     }
@@ -410,7 +410,7 @@ export const setUserRole = createServerFn({ method: "POST" })
   });
 
 export const setUserTrailer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -421,7 +421,7 @@ export const setUserTrailer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("profiles")
       .update({ trailer_id: data.trailerId })
@@ -438,7 +438,7 @@ export const setUserTrailer = createServerFn({ method: "POST" })
   });
 
 export const setUserPayRate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -449,7 +449,7 @@ export const setUserPayRate = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId); // owner-only via requireOwner alias
+    await requireManager(supabase, userId, context.activeOrgId); // owner-only via requireOwner alias
     await assertCanActOnTarget(supabase, userId, data.userId);
     const { error } = await supabase
       .from("profiles")
@@ -479,7 +479,7 @@ async function assertCanActOnTarget(supabase: any, actorId: string, targetId: st
 }
 
 export const amISuperAdmin = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await supabase.rpc("is_super_admin", { _user_id: userId });
@@ -487,7 +487,7 @@ export const amISuperAdmin = createServerFn({ method: "GET" })
   });
 
 export const setUserActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -498,7 +498,7 @@ export const setUserActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     if (data.userId === userId) throw new Error("You cannot change your own access.");
     await assertCanActOnTarget(supabase, userId, data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -516,10 +516,10 @@ export const setUserActive = createServerFn({ method: "POST" })
   });
 
 export const listAccessLogs = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data, error } = await supabase
       .from("access_log")
       .select("id, user_id, event, ip, user_agent, payload, created_at")
@@ -530,7 +530,7 @@ export const listAccessLogs = createServerFn({ method: "GET" })
   });
 
 export const logAccessEvent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -558,7 +558,7 @@ export const logAccessEvent = createServerFn({ method: "POST" })
   });
 
 export const getOnboardingState = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data } = await supabase
