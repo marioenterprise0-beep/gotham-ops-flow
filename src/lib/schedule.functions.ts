@@ -53,12 +53,12 @@ function overlapDays(
   return Math.max(0, end - start + 1);
 }
 
-async function requireManager(supabase: any, userId: string) {
-  await requireManagerRole(supabase, userId);
-  await requireTabAccess(supabase, userId, context.activeOrgId, "schedule", "edit");
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireManagerRole(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "schedule", "edit");
 }
-async function requireOwner(supabase: any, userId: string) {
-  await requireOwnerRole(supabase, userId);
+async function requireOwner(supabase: any, userId: string, orgId: string) {
+  await requireOwnerRole(supabase, userId, orgId);
 }
 
 export const listSchedules = createServerFn({ method: "POST" })
