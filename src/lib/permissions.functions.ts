@@ -15,7 +15,7 @@ async function assertOwner(supabase: any, userId: string, orgId: string) {
 export const listAllTabPermissions = createServerFn({ method: "GET" })
   .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
-    await assertOwner(context.supabase, context.userId);
+    await assertOwner(context.supabase, context.userId, context.activeOrgId);
     const [{ data: perms }, { data: profiles }, { data: roles }] = await Promise.all([
       context.supabase
         .from("tab_permissions")
@@ -63,7 +63,7 @@ export const setTabPermission = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    await assertOwner(context.supabase, context.userId);
+    await assertOwner(context.supabase, context.userId, context.activeOrgId);
     const { error } = await context.supabase.from("tab_permissions").upsert(
       {
         scope_type: data.scopeType,
@@ -179,7 +179,7 @@ export const applyDefaultPresets = createServerFn({ method: "POST" })
   .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    await assertOwner(context.supabase, context.userId);
+    await assertOwner(context.supabase, context.userId, context.activeOrgId);
     const roleMap: Record<string, Record<string, "none" | "view" | "edit">> = {
       owner: ROLE_PRESETS.owner,
       manager: ROLE_PRESETS.manager,
@@ -326,7 +326,7 @@ export const setRoleEmailPolicy = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    await assertOwner(context.supabase, context.userId);
+    await assertOwner(context.supabase, context.userId, context.activeOrgId);
     const { error } = await context.supabase.from("role_email_policies" as any).upsert(
       {
         role: data.role,
@@ -345,7 +345,7 @@ export const applyEmailPolicyDefaults = createServerFn({ method: "POST" })
   .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    await assertOwner(context.supabase, context.userId);
+    await assertOwner(context.supabase, context.userId, context.activeOrgId);
     let existing: { role: string; category: string }[] = [];
     if (!data.overwrite) {
       const { data: rows } = await context.supabase
