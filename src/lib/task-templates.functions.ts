@@ -6,11 +6,12 @@ import { z } from "zod";
 const ROLE = z.enum(["owner", "manager", "shift_lead", "grill", "prep", "cashier"]);
 const PHASE = z.enum(["opening", "mid", "closing", "emergency"]);
 
-async function assertOwner(supabase: any, userId: string) {
+async function assertOwner(supabase: any, userId: string, orgId: string) {
   const { data } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
+    .eq("organization_id", orgId)
     .eq("role", "owner")
     .maybeSingle();
   if (!data) throw new Error("Owner role required");

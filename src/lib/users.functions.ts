@@ -14,8 +14,8 @@ function newCode() {
 }
 
 // All user/access mutations are OWNER ONLY. Managers operate, owners govern.
-async function requireManager(supabase: any, userId: string) {
-  await requireOwner(supabase, userId, context.activeOrgId);
+async function requireManager(supabase: any, userId: string, orgId: string) {
+  await requireOwner(supabase, userId, orgId);
 }
 
 export const listTrailers = createServerFn({ method: "GET" })

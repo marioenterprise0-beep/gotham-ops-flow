@@ -3,11 +3,15 @@ import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireTabAccess } from "./auth-guards";
 
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   const ok = (data ?? []).some((r: any) => r.role === "owner");
   if (!ok) throw new Error("Owner role required to modify SOPs");
-  await requireTabAccess(supabase, userId, context.activeOrgId, "sops", "edit");
+  await requireTabAccess(supabase, userId, orgId, "sops", "edit");
 }
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;

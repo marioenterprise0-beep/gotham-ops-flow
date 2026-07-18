@@ -3,8 +3,12 @@ import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
-async function isOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function isOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   return (data ?? []).some((r: any) => r.role === "owner");
 }
 

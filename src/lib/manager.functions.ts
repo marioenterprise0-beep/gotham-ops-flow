@@ -3,9 +3,9 @@ import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 
-async function assertManager(supabase: any, userId: string) {
-  await requireManager(supabase, userId, context.activeOrgId);
-  await requireTabAccess(supabase, userId, context.activeOrgId, "manager", "edit");
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  await requireManager(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "manager", "edit");
 }
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
