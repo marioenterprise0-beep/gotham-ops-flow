@@ -71,7 +71,7 @@ export const registerKioskDevice = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can register kiosk devices.");
     const token = generateToken();
     const hash = await bcrypt.hash(token, 10);
@@ -95,7 +95,7 @@ export const listKioskDevices = createServerFn({ method: "GET" })
   .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
+    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId });
     if (!isMgr) throw new Error("Manager access required.");
     const { data, error } = await supabase
       .from("trusted_clock_devices")
@@ -112,7 +112,7 @@ export const revokeKioskDevice = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ deviceId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can revoke kiosk devices.");
     const { error } = await supabase
       .from("trusted_clock_devices")
@@ -127,7 +127,7 @@ export const reissueKioskDeviceToken = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ deviceId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can reinstall kiosk devices.");
 
     const token = generateToken();
@@ -153,7 +153,7 @@ export const renameKioskDevice = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can rename kiosk devices.");
     const { error } = await supabase
       .from("trusted_clock_devices")
@@ -168,7 +168,7 @@ export const setKioskDeviceRequired = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _role: "owner" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: userId, _org_id: context.activeOrgId, _role: "owner" });
     if (!isOwner) throw new Error("Only owners can change this setting.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existing } = await supabaseAdmin
@@ -221,7 +221,7 @@ export const setEmployeePin = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const targetId = data.employeeId ?? userId;
     if (targetId !== userId) {
-      const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
+      const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId });
       if (!isMgr) throw new Error("Only managers can set another employee's PIN.");
     }
     const hash = await bcrypt.hash(data.pin, 10);
@@ -236,7 +236,7 @@ export const listEmployeePinStatus = createServerFn({ method: "GET" })
   .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
+    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId, _org_id: context.activeOrgId });
     if (!isMgr) throw new Error("Manager access required.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin.from("employee_pins").select("user_id, updated_at");
