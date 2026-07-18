@@ -9,7 +9,7 @@
 // Hard delete blocked unless `force: true` AND no live dependencies.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const ENTITY = z.enum(["alerts", "alert_actions"]);
@@ -30,7 +30,7 @@ const DEPS: Record<Entity, Array<{ table: string; column: string; label: string 
 };
 
 export const scanAlertDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const sb: any = context.supabase;
@@ -63,7 +63,7 @@ export const scanAlertDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -77,7 +77,7 @@ export const archiveAlert = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
 
     const stamp = {
       archived_at: new Date().toISOString(),
@@ -105,12 +105,12 @@ export const archiveAlert = createServerFn({ method: "POST" })
   });
 
 export const restoreAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from(data.entity)
       .update({
@@ -131,7 +131,7 @@ export const restoreAlert = createServerFn({ method: "POST" })
   });
 
 export const deleteAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -144,7 +144,7 @@ export const deleteAlert = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       let liveTotal = 0;
       for (const dep of DEPS[data.entity]) {

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireTabAccess } from "./auth-guards";
 
@@ -26,7 +26,7 @@ const STATUS = [
 ] as const;
 
 export const createInventoryOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -100,7 +100,7 @@ export const createInventoryOrder = createServerFn({ method: "POST" })
   });
 
 export const listInventoryOrders = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -131,7 +131,7 @@ export const listInventoryOrders = createServerFn({ method: "POST" })
   });
 
 export const getInventoryOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: order, error } = await context.supabase
@@ -186,7 +186,7 @@ export async function applyOrderReceipt(supabase: any, userId: string, orderId: 
 }
 
 export const decideInventoryOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -207,7 +207,7 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { isOwner, isManager } = await getRoles(supabase, userId);
     if (!isManager) throw new Error("Manager role required");
-    await requireTabAccess(supabase, userId, "order-guide", "edit");
+    await requireTabAccess(supabase, userId, context.activeOrgId, "order-guide", "edit");
 
     const { data: order, error: ge } = await supabase
       .from("inventory_orders")
@@ -284,7 +284,7 @@ export const decideInventoryOrder = createServerFn({ method: "POST" })
 // the owner alert + email dispatch. Used when a crew member accidentally
 // saved as draft instead of submitting.
 export const submitDraftInventoryOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;

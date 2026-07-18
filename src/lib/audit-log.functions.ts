@@ -2,7 +2,7 @@
 // Manager-only.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
@@ -23,11 +23,11 @@ const FILTER = z.object({
 });
 
 export const listAuditLogFiltered = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => FILTER.parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     let q = (supabase as any)
       .from("audit_log")
       .select("id, created_at, actor_id, action, entity, entity_id, payload", { count: "exact" })
@@ -65,10 +65,10 @@ export const listAuditLogFiltered = createServerFn({ method: "POST" })
   });
 
 export const auditLogFilterOptions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { data } = await (supabase as any).from("audit_log").select("action, entity").limit(2000);
     const actions = Array.from(
       new Set((data ?? []).map((r: any) => r.action as string)),

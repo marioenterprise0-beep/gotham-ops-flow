@@ -7,7 +7,7 @@
 // Hard delete blocked unless `force: true` AND no live dependencies.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const ENTITY = z.enum([
@@ -50,7 +50,7 @@ const DEPS: Record<Entity, Array<{ table: string; column: string; label: string 
 };
 
 export const scanOperationsDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const out: Array<{ table: string; label: string; count: number }> = [];
@@ -84,7 +84,7 @@ export const scanOperationsDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveOperationsEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -96,7 +96,7 @@ export const archiveOperationsEntity = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from(data.entity)
       .update({
@@ -117,11 +117,11 @@ export const archiveOperationsEntity = createServerFn({ method: "POST" })
   });
 
 export const restoreOperationsEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from(data.entity)
       .update({
@@ -142,7 +142,7 @@ export const restoreOperationsEntity = createServerFn({ method: "POST" })
   });
 
 export const deleteOperationsEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -154,7 +154,7 @@ export const deleteOperationsEntity = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       let liveTotal = 0;
       const sb: any = supabase;

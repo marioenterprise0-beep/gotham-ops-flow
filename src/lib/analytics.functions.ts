@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager } from "@/lib/auth-guards";
 import { z } from "zod";
 
@@ -36,7 +36,7 @@ function shortDay(iso: string) {
 }
 
 export const getAnalytics = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 // Dip N Shake — Performance Checklist Packet
@@ -911,7 +911,7 @@ async function resolveTrailer(supabase: any, userId: string, trailerId?: string 
 }
 
 export const getActiveShift = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d),
   )
@@ -975,7 +975,7 @@ async function seedPhaseIfMissing(
 }
 
 export const openShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -1051,7 +1051,7 @@ export const openShift = createServerFn({ method: "POST" })
   });
 
 export const reopenShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -1084,7 +1084,7 @@ export const reopenShift = createServerFn({ method: "POST" })
   });
 
 export const closeShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ shiftId: z.string().uuid(), notes: z.string().optional() }).parse(d),
   )
@@ -1109,7 +1109,7 @@ export const closeShift = createServerFn({ method: "POST" })
   });
 
 export const ensureShiftPhase = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

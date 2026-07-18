@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
 // Note: supabaseAdmin is imported dynamically inside handler bodies below to
 // keep the service-role client out of the client bundle / module scope.
@@ -58,7 +58,7 @@ export type HrDocumentTemplate = {
 // category) rows from non-owners — this function just queries; the
 // category split is enforced at the database layer, not here.
 export const listHrTemplates = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -84,13 +84,13 @@ export const listHrTemplates = createServerFn({ method: "POST" })
   });
 
 export const archiveHrTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from("hr_document_templates")
       .update({
@@ -111,11 +111,11 @@ export const archiveHrTemplate = createServerFn({ method: "POST" })
   });
 
 export const restoreHrTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from("hr_document_templates")
       .update({ archived_at: null, archived_by: null, archive_reason: null })
@@ -153,11 +153,11 @@ const assignInputSchema = z
 // non-owners, so a manager passing an Operations template's id simply
 // gets "Template not found" here rather than needing a second check.
 export const assignHrDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => assignInputSchema.parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     let title: string;
     let bodyBlocks: HandbookBlock[] | null = null;
@@ -247,7 +247,7 @@ const DIRECTOR_LABEL_RE = /director of operations/i;
 // in plain language ("Employee Signature", "Director of Operations",
 // "Manager Issuing Warning", "Trainer Sign-Off", ...).
 export const signHrDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -274,9 +274,9 @@ export const signHrDocument = createServerFn({ method: "POST" })
       if (assignment.employee_id !== userId)
         throw new Error("Only the assigned employee can sign this row");
     } else if (DIRECTOR_LABEL_RE.test(data.signerRoleLabel)) {
-      await requireOwner(supabase, userId);
+      await requireOwner(supabase, userId, context.activeOrgId);
     } else {
-      await requireManager(supabase, userId);
+      await requireManager(supabase, userId, context.activeOrgId);
     }
 
     const { data: sigRow, error: sErr } = await (supabase as any)
@@ -312,7 +312,7 @@ export const signHrDocument = createServerFn({ method: "POST" })
   });
 
 export const markHrDocumentViewed = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -337,13 +337,13 @@ export const markHrDocumentViewed = createServerFn({ method: "POST" })
   });
 
 export const voidHrAssignment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await (supabase as any)
       .from("hr_document_assignments")
       .update({
@@ -371,7 +371,7 @@ export const voidHrAssignment = createServerFn({ method: "POST" })
 // once filled, without needing per-field role tagging across 53 different
 // document layouts.
 export const fillHrDocumentFields = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -439,7 +439,7 @@ const ASSIGNMENT_COLUMNS =
   "id, employee_id, template_id, title, category, required_signer_roles, status, assigned_by, assigned_at, due_date, viewed_at, completed_at, voided_at, void_reason, field_values";
 
 export const getMyHrDocuments = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: assignments, error } = await (supabase as any)
@@ -452,11 +452,11 @@ export const getMyHrDocuments = createServerFn({ method: "GET" })
   });
 
 export const getEmployeeHrDocuments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ employeeId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: assignments, error } = await (supabase as any)
       .from("hr_document_assignments")
       .select(ASSIGNMENT_COLUMNS)
@@ -477,10 +477,10 @@ export type HrCompletionRow = HrDocumentAssignment & { employee_name: string };
 // fillHrDocumentFields — this just surfaces assignment-level status, which
 // is what the dashboard actually needs to render.
 export const getHrCompletionOverview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     const { data: assignments, error } = await (supabase as any)
       .from("hr_document_assignments")
@@ -506,7 +506,7 @@ export const getHrCompletionOverview = createServerFn({ method: "GET" })
 // assignment's own employee or a manager/owner, so by the time `a` loads
 // successfully here, access is already validated — no second check needed.
 export const getHrAssignmentDetail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -548,7 +548,7 @@ export const getHrAssignmentDetail = createServerFn({ method: "POST" })
 // copy, not a personal alert, so it must never be silently suppressed by
 // someone's notification_preferences mute toggle.
 export const notifyHrDocumentCompletion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({ assignmentId: z.string().uuid(), pdfStoragePath: z.string().min(1).max(500) })

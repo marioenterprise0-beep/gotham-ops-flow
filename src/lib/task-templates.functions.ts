@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ async function assertOwner(supabase: any, userId: string) {
 }
 
 export const listTaskTemplates = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ includeArchived: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     let q = context.supabase
@@ -37,7 +37,7 @@ export const listTaskTemplates = createServerFn({ method: "POST" })
   });
 
 export const upsertTaskTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -55,7 +55,7 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const row = {
       trailer_id: data.trailer_id,
       role: data.role,
@@ -83,13 +83,13 @@ export const upsertTaskTemplate = createServerFn({ method: "POST" })
   });
 
 export const deleteTaskTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), force: z.boolean().default(false) }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       const { count } = await supabase
         .from("tasks")
@@ -108,7 +108,7 @@ export const deleteTaskTemplate = createServerFn({ method: "POST" })
   });
 
 export const scanTaskTemplateDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { count: tasksCount } = await context.supabase
@@ -125,13 +125,13 @@ export const scanTaskTemplateDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveTaskTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("task_templates")
       .update({
@@ -153,11 +153,11 @@ export const archiveTaskTemplate = createServerFn({ method: "POST" })
   });
 
 export const restoreTaskTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("task_templates")
       .update({
@@ -172,11 +172,11 @@ export const restoreTaskTemplate = createServerFn({ method: "POST" })
   });
 
 export const listTemplateVersions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ templateId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { data: rows, error } = await supabase
       .from("task_template_versions")
       .select("id, version, action, actor_id, changed_at, before, after, changed_fields")

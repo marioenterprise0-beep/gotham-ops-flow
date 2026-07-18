@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const Phase = z.enum(["opening", "mid", "closing", "emergency"]);
 
 export const getChecklistSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ shiftId: z.string().uuid(), phase: Phase }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -21,7 +21,7 @@ export const getChecklistSession = createServerFn({ method: "POST" })
   });
 
 export const upsertChecklistSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

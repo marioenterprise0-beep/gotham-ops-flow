@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 
@@ -38,7 +38,7 @@ const DEFAULT_CATEGORIES: Record<NotificationCategory, boolean> = {
 };
 
 export const getMyNotificationPreferences = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data, error } = await supabase
@@ -61,7 +61,7 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
   });
 
 export const updateMyNotificationPreferences = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -138,7 +138,7 @@ export type EmailLogRow = {
 };
 
 export const listEmailDeliveryLog = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -188,7 +188,7 @@ export const listEmailDeliveryLog = createServerFn({ method: "POST" })
   });
 
 export const emailDeliveryStats = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -240,7 +240,7 @@ function adminClient() {
 }
 
 export const resendEmailFromLog = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ logId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -313,7 +313,7 @@ export const resendEmailFromLog = createServerFn({ method: "POST" })
   });
 
 export const getEmailQueueDepths = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);

@@ -3,7 +3,7 @@
 // Manager-only archive (except trailers/stores → owner). Owner-only restore/delete.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import {
   ARCHIVE_TABLES,
@@ -49,7 +49,7 @@ async function countLiveDeps(sb: any, domain: ArchiveDomain, id: string) {
 }
 
 export const listArchived = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -61,7 +61,7 @@ export const listArchived = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const domain = DOMAIN_BY_TABLE[data.table];
     const cols = ["id", "archived_at", "archived_by", "archive_reason"];
     if (domain.nameColumn) cols.push(domain.nameColumn);
@@ -97,22 +97,22 @@ export const listArchived = createServerFn({ method: "POST" })
   });
 
 export const scanRowDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ table: TABLE, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const domain = DOMAIN_BY_TABLE[data.table];
     const result = await countLiveDeps(supabase as any, domain, data.id);
     return { ...result, hasLive: result.liveTotal > 0 };
   });
 
 export const restoreRow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ table: TABLE, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const patch: any = { archived_at: null, archived_by: null, archive_reason: null };
     if (data.table === "trailers" || data.table === "stores") patch.active = true;
     const { error } = await (supabase as any).from(data.table).update(patch).eq("id", data.id);
@@ -128,7 +128,7 @@ export const restoreRow = createServerFn({ method: "POST" })
   });
 
 export const deleteArchivedRow = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -140,7 +140,7 @@ export const deleteArchivedRow = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const domain = DOMAIN_BY_TABLE[data.table];
     if (!data.force) {
       const { liveTotal, breakdown } = await countLiveDeps(supabase as any, domain, data.id);
@@ -166,7 +166,7 @@ export const deleteArchivedRow = createServerFn({ method: "POST" })
 // Bulk purge: hard-delete archived rows older than N days that have no live deps.
 // Owner-only when called interactively. Cron caller bypasses auth via service role.
 export const purgeArchivedOlderThan = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -177,7 +177,7 @@ export const purgeArchivedOlderThan = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const cutoff = new Date(Date.now() - data.days * 86400_000).toISOString();
     const tables = data.table ? [data.table] : ARCHIVE_TABLES;
     const report: Array<{ table: string; purged: number; blocked: number }> = [];

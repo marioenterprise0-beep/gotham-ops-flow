@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -60,7 +60,7 @@ async function resolveDevice(token: string) {
 // ---------------------------------------------------------------------------
 
 export const registerKioskDevice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -92,7 +92,7 @@ export const registerKioskDevice = createServerFn({ method: "POST" })
   });
 
 export const listKioskDevices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
@@ -108,7 +108,7 @@ export const listKioskDevices = createServerFn({ method: "GET" })
   });
 
 export const revokeKioskDevice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ deviceId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -123,7 +123,7 @@ export const revokeKioskDevice = createServerFn({ method: "POST" })
   });
 
 export const reissueKioskDeviceToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ deviceId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -142,7 +142,7 @@ export const reissueKioskDeviceToken = createServerFn({ method: "POST" })
   });
 
 export const renameKioskDevice = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -164,7 +164,7 @@ export const renameKioskDevice = createServerFn({ method: "POST" })
   });
 
 export const setKioskDeviceRequired = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -192,7 +192,7 @@ export const setKioskDeviceRequired = createServerFn({ method: "POST" })
   });
 
 export const getKioskSettings = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data } = await supabase
@@ -208,7 +208,7 @@ export const getKioskSettings = createServerFn({ method: "GET" })
 // ---------------------------------------------------------------------------
 
 export const setEmployeePin = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -233,7 +233,7 @@ export const setEmployeePin = createServerFn({ method: "POST" })
   });
 
 export const listEmployeePinStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });

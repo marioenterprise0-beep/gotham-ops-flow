@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 async function assertOwner(supabase: any, userId: string) {
@@ -9,7 +9,7 @@ async function assertOwner(supabase: any, userId: string) {
 }
 
 export const listAllTabPermissions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     await assertOwner(context.supabase, context.userId);
     const [{ data: perms }, { data: profiles }, { data: roles }] = await Promise.all([
@@ -27,7 +27,7 @@ export const listAllTabPermissions = createServerFn({ method: "GET" })
   });
 
 export const listMyTabPermissions = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data: roleRows } = await supabase
@@ -47,7 +47,7 @@ export const listMyTabPermissions = createServerFn({ method: "GET" })
   });
 
 export const setTabPermission = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -172,7 +172,7 @@ export const ROLE_PRESETS: Record<string, Record<string, "none" | "view" | "edit
 };
 
 export const applyDefaultPresets = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     await assertOwner(context.supabase, context.userId);
@@ -299,7 +299,7 @@ export const EMAIL_POLICY_DEFAULTS: Record<string, Record<EmailCategory, boolean
 };
 
 export const listRoleEmailPolicies = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("role_email_policies" as any)
@@ -311,7 +311,7 @@ export const listRoleEmailPolicies = createServerFn({ method: "GET" })
   });
 
 export const setRoleEmailPolicy = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -338,7 +338,7 @@ export const setRoleEmailPolicy = createServerFn({ method: "POST" })
   });
 
 export const applyEmailPolicyDefaults = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ overwrite: z.boolean().default(false) }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     await assertOwner(context.supabase, context.userId);

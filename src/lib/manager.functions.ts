@@ -1,24 +1,24 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 
 async function assertManager(supabase: any, userId: string) {
-  await requireManager(supabase, userId);
-  await requireTabAccess(supabase, userId, "manager", "edit");
+  await requireManager(supabase, userId, context.activeOrgId);
+  await requireTabAccess(supabase, userId, context.activeOrgId, "manager", "edit");
 }
 
 const ROLE_VALUES = ["owner", "manager", "shift_lead", "grill", "prep", "cashier"] as const;
 const PHASE_VALUES = ["opening", "mid", "closing", "emergency"] as const;
 
 export const getManagerOverview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
 
     const { data: store } = await supabase
       .from("stores")
@@ -193,7 +193,7 @@ export const getManagerOverview = createServerFn({ method: "GET" })
   });
 
 export const createActionTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -209,7 +209,7 @@ export const createActionTask = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
 
     // Resolve trailer
     let trailerId = data.trailerId;
@@ -318,11 +318,11 @@ export const createActionTask = createServerFn({ method: "POST" })
   });
 
 export const acknowledgeAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ itemId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { data: item } = await supabase
       .from("inventory_items")
       .select("name, current_qty, low_threshold")
@@ -343,11 +343,11 @@ export const acknowledgeAlert = createServerFn({ method: "POST" })
   });
 
 export const reorderItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ itemId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
 
     const { data: item } = await supabase
       .from("inventory_items")
@@ -399,13 +399,13 @@ export const reorderItem = createServerFn({ method: "POST" })
   });
 
 export const listCrewRoster = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const trailerId = data?.trailerId ?? null;
     const profQ = trailerId
       ? supabase
@@ -439,14 +439,14 @@ export const listCrewRoster = createServerFn({ method: "GET" })
   });
 
 export const updateCrewRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ userId: z.string().uuid(), role: z.enum(ROLE_VALUES) }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { requireOwner } = await import("./auth-guards");
-    await requireOwner(supabase, userId); // OWNER ONLY — role changes are governance
+    await requireOwner(supabase, userId, context.activeOrgId); // OWNER ONLY — role changes are governance
     if (data.userId === userId && data.role !== "owner") {
       throw new Error("You cannot demote yourself");
     }
@@ -468,7 +468,7 @@ export const updateCrewRole = createServerFn({ method: "POST" })
 // Manager-initiated request to add a new employee. Creates an owner alert
 // and a change_log entry. Owner decides via standard alerts queue.
 export const requestNewEmployee = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -482,7 +482,7 @@ export const requestNewEmployee = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId); // managers may REQUEST
+    await requireManager(supabase, userId, context.activeOrgId); // managers may REQUEST
     const { data: profile } = await supabase
       .from("profiles")
       .select("display_name, trailer_id")
@@ -553,10 +553,10 @@ export const requestNewEmployee = createServerFn({ method: "POST" })
   });
 
 export const listAuditLog = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { data, error } = await supabase
       .from("audit_log")
       .select("id, created_at, actor_id, action, entity, entity_id, payload")

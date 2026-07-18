@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 
@@ -15,10 +15,10 @@ export type AutomationSettings = {
 };
 
 export const getAutomationSettings = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data, error } = await supabase
       .from("automation_settings")
       .select("*")
@@ -29,7 +29,7 @@ export const getAutomationSettings = createServerFn({ method: "GET" })
   });
 
 export const updateAutomationSettings = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -43,7 +43,7 @@ export const updateAutomationSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const patch: Record<string, unknown> = { updated_by: userId };
     if (data.rolloverEnabled !== undefined) patch.rollover_enabled = data.rolloverEnabled;
     if (data.rolloverHour !== undefined) patch.rollover_hour = data.rolloverHour;
@@ -70,11 +70,11 @@ export const updateAutomationSettings = createServerFn({ method: "POST" })
   });
 
 export const listRolloverRuns = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d: { limit?: number } | undefined) => d ?? {})
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: rows, error } = await supabase
       .from("rollover_runs")
       .select("*")

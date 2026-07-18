@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 import { photoUrlSchema } from "@/lib/validators/photo-url";
 
 export const listTasks = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
@@ -21,7 +21,7 @@ export const listTasks = createServerFn({ method: "GET" })
 //   - the task is directly assigned to me, OR
 //   - the task is assigned to my role at my trailer and not claimed
 export const listMyTasks = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
 
@@ -86,7 +86,7 @@ export const listMyTasks = createServerFn({ method: "GET" })
   });
 
 export const completeTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -148,7 +148,7 @@ export const completeTask = createServerFn({ method: "POST" })
   });
 
 export const signOffTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ taskId: z.string().uuid(), approve: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -187,7 +187,7 @@ export const signOffTask = createServerFn({ method: "POST" })
   });
 
 export const listPendingApprovals = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ trailerId: z.string().uuid().nullable().optional() }).optional().parse(d),
   )
@@ -211,7 +211,7 @@ export const listPendingApprovals = createServerFn({ method: "GET" })
 
 // Soft-delete (archive) a task. Managers and owners only.
 export const deleteTask = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ taskId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
   )

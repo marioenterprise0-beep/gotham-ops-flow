@@ -8,7 +8,7 @@
 // Hard delete blocked unless `force: true` AND no live dependencies.
 
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const ENTITY = z.enum(["schedule_shifts", "shift_notes"]);
@@ -32,7 +32,7 @@ const DEPS: Record<Entity, Array<{ table: string; column: string; label: string 
 };
 
 export const scanScheduleShiftDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const sb: any = context.supabase;
@@ -65,7 +65,7 @@ export const scanScheduleShiftDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveScheduleShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -78,7 +78,7 @@ export const archiveScheduleShift = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertManager(supabase, userId);
+    await assertManager(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from(data.entity)
       .update({
@@ -99,12 +99,12 @@ export const archiveScheduleShift = createServerFn({ method: "POST" })
   });
 
 export const restoreScheduleShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ entity: ENTITY, id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await sb
       .from(data.entity)
       .update({
@@ -125,7 +125,7 @@ export const restoreScheduleShift = createServerFn({ method: "POST" })
   });
 
 export const deleteScheduleShift = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -138,7 +138,7 @@ export const deleteScheduleShift = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const sb: any = supabase;
-    await assertOwner(supabase, userId);
+    await assertOwner(supabase, userId, context.activeOrgId);
     if (!data.force) {
       let liveTotal = 0;
       for (const dep of DEPS[data.entity]) {

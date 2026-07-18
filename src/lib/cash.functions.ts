@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { requireManager, requireOwner } from "@/lib/auth-guards";
 import { z } from "zod";
 import crypto from "crypto";
@@ -24,7 +24,7 @@ async function userTrailerId(supabase: any, userId: string): Promise<string | nu
 // ---------------- Drawers ----------------
 
 export const listCashDrawers = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ trailerId: z.string().uuid().optional() }).optional().parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -56,7 +56,7 @@ export const listCashDrawers = createServerFn({ method: "POST" })
   });
 
 export const addCashDrawer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -72,7 +72,7 @@ export const addCashDrawer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase.from("cash_drawers").insert({
       trailer_id: data.trailerId,
       name: data.name,
@@ -84,7 +84,7 @@ export const addCashDrawer = createServerFn({ method: "POST" })
   });
 
 export const toggleCashDrawer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ drawerId: z.string().uuid(), enabled: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     await requireManager(context.supabase, context.userId);
@@ -97,7 +97,7 @@ export const toggleCashDrawer = createServerFn({ method: "POST" })
   });
 
 export const renameCashDrawer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -113,7 +113,7 @@ export const renameCashDrawer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await requireOwner(supabase, userId);
+    await requireOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("cash_drawers")
       .update({ name: data.name })
@@ -125,7 +125,7 @@ export const renameCashDrawer = createServerFn({ method: "POST" })
 // ---------------- Sessions ----------------
 
 export const openDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ drawerId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -171,7 +171,7 @@ const CloseSchema = z.object({
 });
 
 export const closeDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => CloseSchema.parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
@@ -256,7 +256,7 @@ export const closeDrawerSession = createServerFn({ method: "POST" })
   });
 
 export const getDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ sessionId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -305,7 +305,7 @@ export const getDrawerSession = createServerFn({ method: "POST" })
   });
 
 export const listDrawerSessions = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -333,7 +333,7 @@ export const listDrawerSessions = createServerFn({ method: "POST" })
 // ---------------- Drops ----------------
 
 export const submitCashDrop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -373,7 +373,7 @@ export const submitCashDrop = createServerFn({ method: "POST" })
   });
 
 export const verifyCashDrop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ dropId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     await requireManager(context.supabase, context.userId);
@@ -394,7 +394,7 @@ export const verifyCashDrop = createServerFn({ method: "POST" })
 const OWNER_APPROVAL_THRESHOLD = 50;
 
 export const reviewDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -407,7 +407,7 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     // Any manager+ may review; final $-variance approval is owner-only.
-    await requireManager(supabase, userId);
+    await requireManager(supabase, userId, context.activeOrgId);
     const { data: sess, error: se } = await supabase
       .from("cash_drawer_sessions")
       .select("variance")
@@ -439,7 +439,7 @@ export const reviewDrawerSession = createServerFn({ method: "POST" })
 // Owner-only edit of a submitted (closed/pending) drawer session.
 // Recomputes expected and variance from inputs so totals stay consistent.
 export const editDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -522,7 +522,7 @@ async function _assertOwner(supabase: any, userId: string) {
 }
 
 export const scanDrawerDependencies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -546,13 +546,13 @@ export const scanDrawerDependencies = createServerFn({ method: "POST" })
   });
 
 export const archiveDrawer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertManager(supabase, userId);
+    await _assertManager(supabase, userId, context.activeOrgId);
     const { data: openS } = await supabase
       .from("cash_drawer_sessions")
       .select("id")
@@ -586,11 +586,11 @@ export const archiveDrawer = createServerFn({ method: "POST" })
   });
 
 export const restoreDrawer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertOwner(supabase, userId);
+    await _assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("cash_drawers")
       .update({
@@ -612,13 +612,13 @@ export const restoreDrawer = createServerFn({ method: "POST" })
   });
 
 export const archiveDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertManager(supabase, userId);
+    await _assertManager(supabase, userId, context.activeOrgId);
     const { data: sess } = await supabase
       .from("cash_drawer_sessions")
       .select("status")
@@ -649,11 +649,11 @@ export const archiveDrawerSession = createServerFn({ method: "POST" })
   });
 
 export const restoreDrawerSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertOwner(supabase, userId);
+    await _assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("cash_drawer_sessions")
       .update({
@@ -667,13 +667,13 @@ export const restoreDrawerSession = createServerFn({ method: "POST" })
   });
 
 export const archiveCashDrop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z.object({ id: z.string().uuid(), reason: z.string().max(300).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertManager(supabase, userId);
+    await _assertManager(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("cash_drops")
       .update({
@@ -694,11 +694,11 @@ export const archiveCashDrop = createServerFn({ method: "POST" })
   });
 
 export const restoreCashDrop = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    await _assertOwner(supabase, userId);
+    await _assertOwner(supabase, userId, context.activeOrgId);
     const { error } = await supabase
       .from("cash_drops")
       .update({
@@ -714,7 +714,7 @@ export const restoreCashDrop = createServerFn({ method: "POST" })
 // ---------------- Drawer-close PDF attachment ----------------
 
 export const attachDrawerClosePdf = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -757,7 +757,7 @@ export const attachDrawerClosePdf = createServerFn({ method: "POST" })
   });
 
 export const getDrawerClosePdfUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) => z.object({ sessionId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase } = context;
@@ -791,7 +791,7 @@ function _esc(s: string) {
 }
 
 export const sendDrawerCloseAlertEmail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({

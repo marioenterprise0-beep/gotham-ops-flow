@@ -1,11 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireActiveOrg } from "@/lib/active-org-middleware";
 import { z } from "zod";
 
 const CATEGORIES = ["greeting", "accuracy", "upsell", "wait_ack", "recovery", "other"] as const;
 
 export const listHospitality = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
@@ -68,7 +68,7 @@ export const listHospitality = createServerFn({ method: "POST" })
 export const listHospitalityToday = listHospitality;
 
 export const logHospitalityIncident = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireActiveOrg])
   .inputValidator((d) =>
     z
       .object({
