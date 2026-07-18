@@ -4,16 +4,20 @@ import { z } from "zod";
 import { requireManager, requireTabAccess } from "./auth-guards";
 import { photoUrlSchema } from "@/lib/validators/photo-url";
 
-async function assertOwner(supabase: any, userId: string) {
-  const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+async function assertOwner(supabase: any, userId: string, orgId: string) {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("organization_id", orgId);
   const ok = (data ?? []).some((r: any) => r.role === "owner");
   if (!ok) throw new Error("Owner role required for inventory structure changes");
-  await requireTabAccess(supabase, userId, context.activeOrgId, "inventory", "edit");
+  await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
 }
 // Kept for receive/waste/count (crew-legitimate quantity flows). Not used for structural writes.
-async function assertManager(supabase: any, userId: string) {
-  await requireManager(supabase, userId, context.activeOrgId);
-  await requireTabAccess(supabase, userId, context.activeOrgId, "inventory", "edit");
+async function assertManager(supabase: any, userId: string, orgId: string) {
+  await requireManager(supabase, userId, orgId);
+  await requireTabAccess(supabase, userId, orgId, "inventory", "edit");
 }
 
 async function resolveTrailer(supabase: any, userId: string, trailerId?: string | null) {
